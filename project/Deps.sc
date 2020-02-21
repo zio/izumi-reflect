@@ -188,7 +188,7 @@ object Izumi {
     )
 
     object root {
-      final val id = ArtifactId("izumi")
+      final val id = ArtifactId("izumi-reflect")
       final val plugins = Plugins(
         enabled = Seq(Plugin("SbtgenVerificationPlugin")),
         disabled = Seq.empty,
