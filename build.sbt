@@ -1,19 +1,21 @@
-import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
-
 
 
 enablePlugins(SbtgenVerificationPlugin)
 
-lazy val `fundamentals-collections` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/fundamentals-collections"))
+lazy val `fundamentals-collections` = project.in(file("fundamentals/fundamentals-collections"))
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      "org.scala-lang.modules" %%% "scala-collection-compat" % V.collection_compat,
-      "org.scalatest" %%% "scalatest" % V.scalatest % Test
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat,
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
     )
   )
   .settings(
     organization := "io.7mind.izumi",
+    unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
+    unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
+    unmanagedSourceDirectories in Test += baseDirectory.value / ".jvm/src/test/scala" ,
+    unmanagedResourceDirectories in Test += baseDirectory.value / ".jvm/src/test/resources" ,
     scalacOptions ++= Seq(
       s"-Xmacro-settings:scala-version=${scalaVersion.value}",
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
@@ -83,9 +85,7 @@ lazy val `fundamentals-collections` = crossProject(JVMPlatform, JSPlatform, Nati
         "-opt-inline-from:izumi.**"
       )
       case (_, _) => Seq.empty
-    } }
-  )
-  .jvmSettings(
+    } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "2.12.10",
@@ -93,43 +93,25 @@ lazy val `fundamentals-collections` = crossProject(JVMPlatform, JSPlatform, Nati
       "2.11.12"
     )
   )
-  .jsSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.12.10",
-      "2.13.1",
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    scalaJSModuleKind := ModuleKind.CommonJSModule
-  )
-  .nativeSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    test := {},
-    test in Test := {}
-  )
-lazy val `fundamentals-collectionsJVM` = `fundamentals-collections`.jvm
-lazy val `fundamentals-collectionsJS` = `fundamentals-collections`.js
-lazy val `fundamentals-collectionsNative` = `fundamentals-collections`.native
 
-lazy val `fundamentals-platform` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/fundamentals-platform"))
+lazy val `fundamentals-platform` = project.in(file("fundamentals/fundamentals-platform"))
   .dependsOn(
     `fundamentals-collections` % "test->compile;compile->compile"
   )
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      "org.scala-lang.modules" %%% "scala-collection-compat" % V.collection_compat,
-      "org.scalatest" %%% "scalatest" % V.scalatest % Test,
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat,
+      "org.scalatest" %% "scalatest" % V.scalatest % Test,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     )
   )
   .settings(
     organization := "io.7mind.izumi",
+    unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
+    unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
+    unmanagedSourceDirectories in Test += baseDirectory.value / ".jvm/src/test/scala" ,
+    unmanagedResourceDirectories in Test += baseDirectory.value / ".jvm/src/test/resources" ,
     unmanagedSourceDirectories in Compile := (unmanagedSourceDirectories in Compile).value.flatMap {
       dir =>
        Seq(dir, file(dir.getPath + (CrossVersion.partialVersion(scalaVersion.value) match {
@@ -208,9 +190,7 @@ lazy val `fundamentals-platform` = crossProject(JVMPlatform, JSPlatform, NativeP
         "-opt-inline-from:izumi.**"
       )
       case (_, _) => Seq.empty
-    } }
-  )
-  .jvmSettings(
+    } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "2.12.10",
@@ -218,43 +198,21 @@ lazy val `fundamentals-platform` = crossProject(JVMPlatform, JSPlatform, NativeP
       "2.11.12"
     )
   )
-  .jsSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.12.10",
-      "2.13.1",
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    scalaJSModuleKind := ModuleKind.CommonJSModule,
-    npmDependencies in Test ++= Seq(
-      (  "hash.js",  "1.1.7")
-    )
-  )
-  .nativeSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    test := {},
-    test in Test := {}
-  )
-lazy val `fundamentals-platformJVM` = `fundamentals-platform`.jvm
-lazy val `fundamentals-platformJS` = `fundamentals-platform`.js
-  .enablePlugins(ScalaJSBundlerPlugin)
-lazy val `fundamentals-platformNative` = `fundamentals-platform`.native
 
-lazy val `fundamentals-functional` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/fundamentals-functional"))
+lazy val `fundamentals-functional` = project.in(file("fundamentals/fundamentals-functional"))
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      "org.scala-lang.modules" %%% "scala-collection-compat" % V.collection_compat,
-      "org.scalatest" %%% "scalatest" % V.scalatest % Test
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat,
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
     )
   )
   .settings(
     organization := "io.7mind.izumi",
+    unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
+    unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
+    unmanagedSourceDirectories in Test += baseDirectory.value / ".jvm/src/test/scala" ,
+    unmanagedResourceDirectories in Test += baseDirectory.value / ".jvm/src/test/resources" ,
     scalacOptions ++= Seq(
       s"-Xmacro-settings:scala-version=${scalaVersion.value}",
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
@@ -324,9 +282,7 @@ lazy val `fundamentals-functional` = crossProject(JVMPlatform, JSPlatform, Nativ
         "-opt-inline-from:izumi.**"
       )
       case (_, _) => Seq.empty
-    } }
-  )
-  .jvmSettings(
+    } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "2.12.10",
@@ -334,40 +290,22 @@ lazy val `fundamentals-functional` = crossProject(JVMPlatform, JSPlatform, Nativ
       "2.11.12"
     )
   )
-  .jsSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.12.10",
-      "2.13.1",
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    scalaJSModuleKind := ModuleKind.CommonJSModule
-  )
-  .nativeSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    test := {},
-    test in Test := {}
-  )
-lazy val `fundamentals-functionalJVM` = `fundamentals-functional`.jvm
-lazy val `fundamentals-functionalJS` = `fundamentals-functional`.js
-lazy val `fundamentals-functionalNative` = `fundamentals-functional`.native
 
-lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/izumi-reflect-thirdparty-boopickle-shaded"))
+lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("fundamentals/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      "org.scala-lang.modules" %%% "scala-collection-compat" % V.collection_compat,
-      "org.scalatest" %%% "scalatest" % V.scalatest % Test,
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat,
+      "org.scalatest" %% "scalatest" % V.scalatest % Test,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     )
   )
   .settings(
     organization := "io.7mind.izumi",
+    unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
+    unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
+    unmanagedSourceDirectories in Test += baseDirectory.value / ".jvm/src/test/scala" ,
+    unmanagedResourceDirectories in Test += baseDirectory.value / ".jvm/src/test/resources" ,
     unmanagedSourceDirectories in Compile := (unmanagedSourceDirectories in Compile).value.flatMap {
       dir =>
        Seq(dir, file(dir.getPath + (CrossVersion.partialVersion(scalaVersion.value) match {
@@ -447,9 +385,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
         "-opt-inline-from:izumi.**"
       )
       case (_, _) => Seq.empty
-    } }
-  )
-  .jvmSettings(
+    } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "2.12.10",
@@ -457,30 +393,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       "2.11.12"
     )
   )
-  .jsSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.12.10",
-      "2.13.1",
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    scalaJSModuleKind := ModuleKind.CommonJSModule
-  )
-  .nativeSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    test := {},
-    test in Test := {}
-  )
-lazy val `izumi-reflect-thirdparty-boopickle-shadedJVM` = `izumi-reflect-thirdparty-boopickle-shaded`.jvm
-lazy val `izumi-reflect-thirdparty-boopickle-shadedJS` = `izumi-reflect-thirdparty-boopickle-shaded`.js
-lazy val `izumi-reflect-thirdparty-boopickle-shadedNative` = `izumi-reflect-thirdparty-boopickle-shaded`.native
 
-lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/izumi-reflect"))
+lazy val `izumi-reflect` = project.in(file("fundamentals/izumi-reflect"))
   .dependsOn(
     `fundamentals-platform` % "test->compile;compile->compile",
     `fundamentals-functional` % "test->compile;compile->compile",
@@ -489,13 +403,17 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      "org.scala-lang.modules" %%% "scala-collection-compat" % V.collection_compat,
-      "org.scalatest" %%% "scalatest" % V.scalatest % Test,
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat,
+      "org.scalatest" %% "scalatest" % V.scalatest % Test,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     )
   )
   .settings(
     organization := "io.7mind.izumi",
+    unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
+    unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
+    unmanagedSourceDirectories in Test += baseDirectory.value / ".jvm/src/test/scala" ,
+    unmanagedResourceDirectories in Test += baseDirectory.value / ".jvm/src/test/resources" ,
     scalacOptions ++= Seq(
       s"-Xmacro-settings:scala-version=${scalaVersion.value}",
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
@@ -565,9 +483,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
         "-opt-inline-from:izumi.**"
       )
       case (_, _) => Seq.empty
-    } }
-  )
-  .jvmSettings(
+    } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "2.12.10",
@@ -575,28 +491,6 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "2.11.12"
     )
   )
-  .jsSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.12.10",
-      "2.13.1",
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    scalaJSModuleKind := ModuleKind.CommonJSModule
-  )
-  .nativeSettings(
-    scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(
-      "2.11.12"
-    ),
-    coverageEnabled := false,
-    test := {},
-    test in Test := {}
-  )
-lazy val `izumi-reflectJVM` = `izumi-reflect`.jvm
-lazy val `izumi-reflectJS` = `izumi-reflect`.js
-lazy val `izumi-reflectNative` = `izumi-reflect`.native
 
 lazy val `fundamentals` = (project in file(".agg/fundamentals-fundamentals"))
   .settings(
@@ -604,21 +498,11 @@ lazy val `fundamentals` = (project in file(".agg/fundamentals-fundamentals"))
     crossScalaVersions := Nil
   )
   .aggregate(
-    `fundamentals-collectionsJVM`,
-    `fundamentals-collectionsJS`,
-    `fundamentals-collectionsNative`,
-    `fundamentals-platformJVM`,
-    `fundamentals-platformJS`,
-    `fundamentals-platformNative`,
-    `fundamentals-functionalJVM`,
-    `fundamentals-functionalJS`,
-    `fundamentals-functionalNative`,
-    `izumi-reflect-thirdparty-boopickle-shadedJVM`,
-    `izumi-reflect-thirdparty-boopickle-shadedJS`,
-    `izumi-reflect-thirdparty-boopickle-shadedNative`,
-    `izumi-reflectJVM`,
-    `izumi-reflectJS`,
-    `izumi-reflectNative`
+    `fundamentals-collections`,
+    `fundamentals-platform`,
+    `fundamentals-functional`,
+    `izumi-reflect-thirdparty-boopickle-shaded`,
+    `izumi-reflect`
   )
 
 lazy val `fundamentals-jvm` = (project in file(".agg/fundamentals-fundamentals-jvm"))
@@ -627,37 +511,11 @@ lazy val `fundamentals-jvm` = (project in file(".agg/fundamentals-fundamentals-j
     crossScalaVersions := Nil
   )
   .aggregate(
-    `fundamentals-collectionsJVM`,
-    `fundamentals-platformJVM`,
-    `fundamentals-functionalJVM`,
-    `izumi-reflect-thirdparty-boopickle-shadedJVM`,
-    `izumi-reflectJVM`
-  )
-
-lazy val `fundamentals-js` = (project in file(".agg/fundamentals-fundamentals-js"))
-  .settings(
-    skip in publish := true,
-    crossScalaVersions := Nil
-  )
-  .aggregate(
-    `fundamentals-collectionsJS`,
-    `fundamentals-platformJS`,
-    `fundamentals-functionalJS`,
-    `izumi-reflect-thirdparty-boopickle-shadedJS`,
-    `izumi-reflectJS`
-  )
-
-lazy val `fundamentals-native` = (project in file(".agg/fundamentals-fundamentals-native"))
-  .settings(
-    skip in publish := true,
-    crossScalaVersions := Nil
-  )
-  .aggregate(
-    `fundamentals-collectionsNative`,
-    `fundamentals-platformNative`,
-    `fundamentals-functionalNative`,
-    `izumi-reflect-thirdparty-boopickle-shadedNative`,
-    `izumi-reflectNative`
+    `fundamentals-collections`,
+    `fundamentals-platform`,
+    `fundamentals-functional`,
+    `izumi-reflect-thirdparty-boopickle-shaded`,
+    `izumi-reflect`
   )
 
 lazy val `izumi-jvm` = (project in file(".agg/.agg-jvm"))
@@ -671,32 +529,6 @@ lazy val `izumi-jvm` = (project in file(".agg/.agg-jvm"))
   )
   .aggregate(
     `fundamentals-jvm`
-  )
-
-lazy val `izumi-js` = (project in file(".agg/.agg-js"))
-  .settings(
-    skip in publish := true,
-    crossScalaVersions := Seq(
-      "2.12.10",
-      "2.13.1"
-    ),
-    scalaVersion := crossScalaVersions.value.head
-  )
-  .aggregate(
-    `fundamentals-js`
-  )
-
-lazy val `izumi-native` = (project in file(".agg/.agg-native"))
-  .settings(
-    skip in publish := true,
-    crossScalaVersions := Seq(
-      "2.12.10",
-      "2.13.1"
-    ),
-    scalaVersion := crossScalaVersions.value.head
-  )
-  .aggregate(
-    `fundamentals-native`
   )
 
 lazy val `izumi` = (project in file("."))

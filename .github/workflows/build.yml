@@ -1,0 +1,18 @@
+name: Build [Github Actions]
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: rlespinasse/github-slug-action@master
+      - name: Set env
+        run: echo ::set-env name=BRANCH_TAG::$(git describe --contains | grep v | grep -v '~' | head -n 1 || true)
+      - name: Build and Test
+        run: |
+          env
+          sudo curl -Lo /usr/local/bin/coursier  https://git.io/coursier-cli-linux && sudo chmod +x /usr/local/bin/coursier
+          bash sbtgen.sc --js --native
+          sbt +clean +test
