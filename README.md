@@ -3,6 +3,7 @@
 > In case something looks like a TypeTag and works like a TypeTag it may be considered as a replacement for the TypeTag
 
 `izumi-reflect` is a fast, lightweight, portable and efficient alternative for `TypeTag` from `scala-reflect`.
+
 `izumi-reflect` uses its own lightweight model of Scala types and provides a simulator of an important part of Scala typechecker.
 
 ## Why it's better than `scala-reflect`
