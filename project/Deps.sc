@@ -30,7 +30,7 @@ object Izumi {
   }
 
   val settings = GlobalSettings(
-    groupId = "io.7mind.izumi",
+    groupId = "dev.zio",
     sbtVersion = None,
     scalaJsVersion = PV.scala_js_version,
     scalaNativeVersion = PV.scala_native_version,
@@ -261,9 +261,6 @@ object Izumi {
       "crossScalaVersions" := "Nil".raw,
     )
   )
-
-
-  val all = Seq(fundamentals)
 
   // final lazy val docs = Aggregate(
   //   name = Projects.docs.id,
