@@ -153,7 +153,7 @@ object Izumi {
           Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net"),
           Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
         )""".raw,
-          "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/7mind/izumi"), "scm:git:https://github.com/7mind/izumi.git"))""".raw,
+          "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
           "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
         )
 
@@ -170,11 +170,11 @@ object Izumi {
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala212), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izumi.**",
+              "-opt-inline-from:izreflect.**",
             ),
             SettingKey(Some(scala213), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izumi.**",
+              "-opt-inline-from:izreflect.**",
             ),
             SettingKey.Default := Const.EmptySeq
           ),

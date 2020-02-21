@@ -25,10 +25,10 @@ import scala.reflect.ClassTag
 import scala.reflect.macros.blackbox
 
 /**
-  * To see macro debug output during compilation, set `-Dizumi.debug.macro.rtti=true` java property! e.g.
+  * To see macro debug output during compilation, set `-Dizreflect.debug.macro.rtti=true` java property! e.g.
   *
   * {{{
-  * sbt -Dizumi.debug.macro.rtti=true compile
+  * sbt -Dizreflect.debug.macro.rtti=true compile
   * }}}
   *
   * @see [[DebugProperties]]

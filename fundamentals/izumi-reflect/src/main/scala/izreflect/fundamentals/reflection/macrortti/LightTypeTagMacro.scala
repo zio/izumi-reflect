@@ -26,13 +26,13 @@ import izreflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}
 import scala.reflect.macros.blackbox
 
 final class LightTypeTagMacro(override val c: blackbox.Context)
-  extends LightTypeTagMacro0[blackbox.Context](c)(logger = TrivialMacroLogger.make[LightTypeTagMacro](c, DebugProperties.`izumi.debug.macro.rtti`))
+  extends LightTypeTagMacro0[blackbox.Context](c)(logger = TrivialMacroLogger.make[LightTypeTagMacro](c, DebugProperties.`izreflect.debug.macro.rtti`))
 
 private[reflection] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
 
   import c.universe._
 
-  protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izumi.rtti.cache.compile`}=false")
+  protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izreflect.rtti.cache.compile`}=false")
   protected final val impl = new LightTypeTagImpl[c.universe.type](c.universe, withCache = cacheEnabled, logger)
 
   final def makeStrongHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[LTag.StrongHK[ArgStruct]] = {

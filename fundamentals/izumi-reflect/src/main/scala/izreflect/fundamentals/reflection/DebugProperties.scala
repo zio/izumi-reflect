@@ -27,31 +27,31 @@ import izreflect.fundamentals.platform.properties
   */
 object DebugProperties extends properties.DebugProperties {
   /**
-    * To see macro debug output during compilation, set `-Dizumi.debug.macro.rtti=true` system property!
+    * To see macro debug output during compilation, set `-Dizreflect.debug.macro.rtti=true` system property!
     *
     * {{{
-    *   sbt -Dizumi.debug.macro.rtti=true compile
+    *   sbt -Dizreflect.debug.macro.rtti=true compile
     * }}}
     */
-  final val `izumi.debug.macro.rtti` = "izumi.debug.macro.rtti"
+  final val `izreflect.debug.macro.rtti` = "izreflect.debug.macro.rtti"
 
   /**
-    * Add compiler option `-Xmacro-settings:izumi.rtti.cache.compile=false` to disable compile-time caching of computed
+    * Add compiler option `-Xmacro-settings:izreflect.rtti.cache.compile=false` to disable compile-time caching of computed
     * LightTypeTags. Caching is enabled by default for compile-time light type tag creation.
     *
     * {{{
-    *   scalacOptions += "-Xmacro-settings:izumi.rtti.cache.compile=false"
+    *   scalacOptions += "-Xmacro-settings:izreflect.rtti.cache.compile=false"
     * }}}
     */
-  final val `izumi.rtti.cache.compile` = "izumi.rtti.cache.compile"
+  final val `izreflect.rtti.cache.compile` = "izreflect.rtti.cache.compile"
 
   /**
-    * Set system property `-Dizumi.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
+    * Set system property `-Dizreflect.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
     * Caching is enabled by default for runtime light type tag creation.
     *
     * {{{
-    *   sbt -Dizumi.rtti.cache.runtime=false
+    *   sbt -Dizreflect.rtti.cache.runtime=false
     * }}}
     */
-  final val `izumi.rtti.cache.runtime` = "izumi.rtti.cache.runtime"
+  final val `izreflect.rtti.cache.runtime` = "izreflect.rtti.cache.runtime"
 }

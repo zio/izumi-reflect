@@ -25,10 +25,10 @@ import izreflect.fundamentals.platform.strings.IzString._
   *
   * Search for inheritors of this trait to discover debugging java properties
   *
-  * For example, to see macro debug output during compilation, set `-Dizumi.debug.macro.rtti=true` java property
+  * For example, to see macro debug output during compilation, set `-Dizreflect.debug.macro.rtti=true` java property
   *
   * {{{
-  *  sbt -Dizumi.debug.macro.rtti=true compile
+  *  sbt -Dizreflect.debug.macro.rtti=true compile
   * }}}
   */
 trait DebugProperties {

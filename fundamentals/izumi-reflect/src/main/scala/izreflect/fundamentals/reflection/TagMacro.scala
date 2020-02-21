@@ -36,7 +36,7 @@ class TagMacro(val c: blackbox.Context) {
 
   import c.universe._
 
-  protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c, DebugProperties.`izumi.debug.macro.rtti`)
+  protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c, DebugProperties.`izreflect.debug.macro.rtti`)
   private[this] val ltagMacro = new LightTypeTagMacro0[c.type](c)(logger)
 
   // workaround for a scalac bug - `Nothing` type is lost when two implicits for it are summoned from one implicit as in:

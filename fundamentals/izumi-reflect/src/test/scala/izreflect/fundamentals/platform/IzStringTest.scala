@@ -56,13 +56,13 @@ class IzStringTest extends AnyWordSpec {
       assert("x".minimize(0) == "x")
       assert("x.y.z".minimize(0) == "x.y.z")
       assert("x..z".minimize(0) == "x.z")
-      assert("com.github.izumi.Class".minimize(0) == "c.g.i.C")
+      assert("com.github.izreflect.Class".minimize(0) == "c.g.i.C")
 
       assert("x".minimize(1) == "x")
       assert("x.y.z".minimize(1) == "x.y.z")
       assert("x..z".minimize(1) == "x.z")
-      assert("com.github.izumi.Class".minimize(1) == "c.g.i.Class")
-      assert("com.github.izumi.Class".minimize(2) == "c.g.izumi.Class")
+      assert("com.github.izreflect.Class".minimize(1) == "c.g.i.Class")
+      assert("com.github.izreflect.Class".minimize(2) == "c.g.izreflect.Class")
     }
 
     "support splitFirst" in {
