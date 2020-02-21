@@ -1,3 +1,5 @@
+![Build [Github Actions]](https://github.com/zio/izumi-reflect/workflows/Build%20%5BGithub%20Actions%5D/badge.svg)
+
 # izumi-reflect
 
 > In case something looks like a TypeTag and works like a TypeTag it may be considered as a replacement for the TypeTag
