@@ -16,18 +16,22 @@
  *
  */
 
-package izreflect.fundamentals.platform
+package izreflect.fundamentals.functional
 
-import izreflect.fundamentals.platform.language.IzScala
-import izreflect.fundamentals.platform.language.IzScala.ScalaRelease
-import org.scalatest.wordspec.AnyWordSpec
 
-class ScalaVersionTest extends AnyWordSpec {
-  "ScalaVersion" should {
-    "support comparison" in {
-      import Ordering.Implicits._
-      import IzScala.ScalaRelease._
-      assert((IzScala.ScalaRelease.`2_12`(8): ScalaRelease) < (IzScala.ScalaRelease.`2_13`(0): ScalaRelease))
-    }
-  }
+trait Renderable[T] {
+  def render(value: T): String
 }
+
+object Renderable extends WithRenderableSyntax {
+  @inline def apply[T: Renderable]: Renderable[T] = implicitly
+}
+
+trait WithRenderableSyntax {
+
+  implicit class RenderableSyntax[T: Renderable](r: T) {
+    def render(): String = Renderable[T].render(r)
+  }
+
+}
+

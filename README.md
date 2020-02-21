@@ -30,8 +30,9 @@ This repository contains an independent and more conservative copy of the code c
 
 Known limitations are:
 
-1. Type boundaries support is very limited because of a [problematic behavior](https://github.com/scala/bug/issues/11673) of Scala 2.13 compiler
-2. Path-Dependent Types are handled by symbolic names and may cause unexpected false-positives (comparing to Scala typer)
+1. Type boundaries support is very limited because of a [problematic behavior](https://github.com/scala/bug/issues/11673) of Scala 2.13 compiler,
+2. Recursive type boundaries/existentials are not supported,
+3. Path-Dependent Types are handled by symbolic names and may cause unexpected false-positives (comparing to Scala typer).
 
 ## Build
 

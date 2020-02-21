@@ -18,7 +18,7 @@
 
 package izreflect.fundamentals.reflection.macrortti
 
-import izreflect.functional.{Renderable, WithRenderableSyntax}
+import izreflect.fundamentals.functional.{Renderable, WithRenderableSyntax}
 import izreflect.fundamentals.platform.language.unused
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
