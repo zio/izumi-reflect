@@ -18,26 +18,20 @@
 
 package izumi.functional
 
-import org.scalatest.wordspec.AnyWordSpec
 
-class IzEitherTest extends AnyWordSpec {
-  type BuilderFail
-  type IzType
-  type Result[+T] = Either[List[BuilderFail], T]
-  type TList = Result[List[IzType]]
-
-  def listTList: List[TList] = Nil
-  def x(t: TList): Result[Unit] = Right { val _ = t }
-
-  "IzEither.biFlatAggregate is callable with typealiases" in {
-    assertCompiles(
-      """
-        import IzEither._
-        def test: Either[List[BuilderFail], Unit] = {
-          val ret = listTList.biFlatAggregate
-          x(ret)
-        }
-      """
-    )
-  }
+trait Renderable[T] {
+  def render(value: T): String
 }
+
+object Renderable extends WithRenderableSyntax {
+  @inline def apply[T: Renderable]: Renderable[T] = implicitly
+}
+
+trait WithRenderableSyntax {
+
+  implicit class RenderableSyntax[T: Renderable](r: T) {
+    def render(): String = Renderable[T].render(r)
+  }
+
+}
+

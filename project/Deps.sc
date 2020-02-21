@@ -188,7 +188,7 @@ object Izumi {
     )
 
     object root {
-      final val id = ArtifactId("izumi-reflect")
+      final val id = ArtifactId("izumi-reflect-root")
       final val plugins = Plugins(
         enabled = Seq(Plugin("SbtgenVerificationPlugin")),
         disabled = Seq.empty,
@@ -257,17 +257,10 @@ object Izumi {
 
       final val collections = ArtifactId("fundamentals-collections")
       final val platform = ArtifactId("fundamentals-platform")
-      final val functional = ArtifactId("fundamentals-functional")
 
       final val reflection = ArtifactId("izumi-reflect")
 
       final val thirdpartyBoopickleShaded = ArtifactId("izumi-reflect-thirdparty-boopickle-shaded")
-
-      final lazy val basics = Seq(
-        platform,
-        collections,
-        functional,
-      ).map(_ in Scope.Runtime.all)
     }
 
     // object docs {
@@ -329,11 +322,6 @@ object Izumi {
         plugins = Plugins(Seq(Plugin("ScalaJSBundlerPlugin", Platform.Js))),
       ),
       Artifact(
-        name = Projects.fundamentals.functional,
-        libs = Seq.empty,
-        depends = Seq.empty,
-      ),
-      Artifact(
         name = Projects.fundamentals.thirdpartyBoopickleShaded,
         libs = Seq(scala_reflect in Scope.Provided.all),
         depends = Seq.empty,
@@ -349,7 +337,6 @@ object Izumi {
         libs = Seq(scala_reflect in Scope.Provided.all),
         depends = Seq(
           Projects.fundamentals.platform,
-          Projects.fundamentals.functional,
           Projects.fundamentals.thirdpartyBoopickleShaded,
         ),
       ),
