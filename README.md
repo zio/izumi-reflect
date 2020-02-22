@@ -12,7 +12,7 @@
 
 1. `izumi-reflect` compiles and initializes lot faster than `scala-reflect` tags,
 2. `izumi-reflect` supports ScalaJS and ScalaNative,
-3. `izumi-reflect` allows you to obtain tags for unapplied types (`F[_]`) and combine then in runtime.
+3. `izumi-reflect` allows you to obtain tags for unapplied types (`F[_]`) and combine them in runtime.
 
 ## Credits
 
