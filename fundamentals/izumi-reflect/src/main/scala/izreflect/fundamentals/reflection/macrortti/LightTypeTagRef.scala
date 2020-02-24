@@ -227,12 +227,13 @@ object LightTypeTagRef {
     override def toString: String = this.render()
   }
 
+  private[this] val eradicate = Set[AppliedNamedReference](
+    LightTypeTagInheritance.tpeAny,
+    LightTypeTagInheritance.tpeAnyRef,
+    LightTypeTagInheritance.tpeObject
+  )
+
   def maybeIntersection(refs: Set[AppliedNamedReference]): AppliedReference = {
-    val eradicate = Set[AppliedNamedReference](
-      LightTypeTagInheritance.tpeAny,
-      LightTypeTagInheritance.tpeAnyRef,
-      LightTypeTagInheritance.tpeObject
-    )
     val normalized = refs.diff(eradicate)
     normalized.toList match {
       case Nil =>
