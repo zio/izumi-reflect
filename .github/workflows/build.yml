@@ -10,8 +10,23 @@ jobs:
       - uses: rlespinasse/github-slug-action@master
       - name: Set env
         run: echo ::set-env name=BRANCH_TAG::$(git describe --contains | grep v | grep -v '~' | head -n 1 || true)
+      - name: Cache SBT ivy cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-ivy
+      - name: Cache SBT
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt
+      - name: Cache Coursier
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier
+          key: ${{ runner.os }}-coursier
       - name: Build and Test
-        env: 
+        env:
           OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
         run: |
