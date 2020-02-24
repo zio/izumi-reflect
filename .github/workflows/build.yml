@@ -36,4 +36,9 @@ jobs:
           openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
           tar xvf secrets.tar
           ln -s .secrets/local.sbt local.sbt
-          sbt +clean +test +publish
+          if [[ "$BRANCH_TAG" =~ ^v.*$ ]] ; then
+            sbt +clean +test +publishSigned sonatypeBundleRelease
+          else
+            sbt +clean +test +publishSigned
+          fi
+
