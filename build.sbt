@@ -3,7 +3,6 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 
 enablePlugins(SbtgenVerificationPlugin)
-//enablePlugins(ScalaJSBundlerPlugin)
 
 lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
