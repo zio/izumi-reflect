@@ -112,7 +112,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       "2.11.12"
     ),
     coverageEnabled := false,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
+    scalaJSModuleKind := ModuleKind.CommonJSModule
   )
   .nativeSettings(
     scalaVersion := crossScalaVersions.value.head,
@@ -237,7 +237,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "2.11.12"
     ),
     coverageEnabled := false,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
+    scalaJSModuleKind := ModuleKind.CommonJSModule
   )
   .nativeSettings(
     scalaVersion := crossScalaVersions.value.head,
