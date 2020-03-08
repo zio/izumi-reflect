@@ -23,7 +23,7 @@ import izreflect.fundamentals.platform.language.unused
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
 
-trait LTTRenderables extends WithRenderableSyntax {
+private[izreflect] trait LTTRenderables extends WithRenderableSyntax {
 
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
 
@@ -34,7 +34,6 @@ trait LTTRenderables extends WithRenderableSyntax {
     }
   }
 
-
   implicit lazy val r_AbstractReference: Renderable[AbstractReference] = new Renderable[AbstractReference] {
     override def render(value: AbstractReference): String = value match {
       case a: AppliedReference =>
@@ -43,7 +42,6 @@ trait LTTRenderables extends WithRenderableSyntax {
         l.render()
     }
   }
-
 
   implicit lazy val r_AppliedReference: Renderable[AppliedReference] = new Renderable[AppliedReference] {
     override def render(value: AppliedReference): String = value match {
@@ -56,13 +54,11 @@ trait LTTRenderables extends WithRenderableSyntax {
     }
   }
 
-
   implicit lazy val r_Refinement: Renderable[Refinement] = new Renderable[Refinement] {
     override def render(value: Refinement): String = {
       s"(${value.reference.render()} & ${value.decls.map(_.render()).toSeq.sorted.mkString("{", ", ", "}")})"
     }
   }
-
 
   implicit lazy val r_RefinementDecl: Renderable[RefinementDecl] = new Renderable[RefinementDecl] {
     override def render(value: RefinementDecl): String = value match {
@@ -87,7 +83,6 @@ trait LTTRenderables extends WithRenderableSyntax {
       s"λ ${value.input.map(_.render()).mkString(",")} → ${value.output.render()}"
     }
   }
-
 
   implicit lazy val r_LambdaParameter: Renderable[LambdaParameter] = new Renderable[LambdaParameter] {
     override def render(value: LambdaParameter): String = {
@@ -121,7 +116,6 @@ trait LTTRenderables extends WithRenderableSyntax {
     }
   }
 
-
   implicit lazy val r_IntersectionReference: Renderable[IntersectionReference] = new Renderable[IntersectionReference] {
     override def render(value: IntersectionReference): String = {
       value.refs.map(_.render()).mkString("{", " & ", "}")
@@ -154,7 +148,7 @@ trait LTTRenderables extends WithRenderableSyntax {
 
 }
 
-object LTTRenderables {
+private[izreflect] object LTTRenderables {
 
   object Short extends LTTRenderables {
     def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {

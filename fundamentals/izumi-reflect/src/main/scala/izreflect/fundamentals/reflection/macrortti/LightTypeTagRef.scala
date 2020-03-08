@@ -25,9 +25,7 @@ import scala.annotation.tailrec
 
 sealed trait LightTypeTagRef {
   final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {
-    val out = applySeq(args .map {case v: AbstractReference => v})
-    //println(s"combining $this with $args => $out")
-    out
+    applySeq(args.map { case v: AbstractReference => v })
   }
 
   final def combineNonPos(args: Seq[Option[LightTypeTagRef]]): AbstractReference = {
@@ -44,12 +42,6 @@ sealed trait LightTypeTagRef {
         }
     }
   }
-
-//  final def combine(args: Map[String, LightTypeTagRef]): AbstractReference = {
-//    val parameters = args.map { case (p, v: AbstractReference) => p -> v }
-//
-//    applyParameters(_ => parameters)
-//  }
 
   final def withoutArgs: AbstractReference = {
     def appliedNamedReference(reference: AppliedNamedReference) = {
@@ -142,7 +134,7 @@ sealed trait LightTypeTagRef {
         reference.typeArgs
     }
   }
-  protected[macrortti] def applySeq(refs: Seq[AbstractReference]): AbstractReference = {
+  private[macrortti] def applySeq(refs: Seq[AbstractReference]): AbstractReference = {
     applyParameters {
       l =>
         l.input.zip(refs).map {
@@ -151,7 +143,7 @@ sealed trait LightTypeTagRef {
         }
     }
   }
-  protected[macrortti] def applyParameters(p: Lambda => Seq[(String, AbstractReference)]): AbstractReference = {
+  private[macrortti] def applyParameters(p: Lambda => Seq[(String, AbstractReference)]): AbstractReference = {
     this match {
       case l: Lambda =>
         val parameters = p(l)
@@ -240,7 +232,7 @@ object LightTypeTagRef {
         LightTypeTagInheritance.tpeAny
       case head :: Nil =>
         head
-      case o =>
+      case _ =>
         IntersectionReference(normalized)
     }
   }

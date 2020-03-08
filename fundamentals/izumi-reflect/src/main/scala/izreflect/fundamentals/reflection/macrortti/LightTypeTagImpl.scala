@@ -25,7 +25,7 @@ import izreflect.fundamentals.reflection.macrortti.LightTypeTagImpl.{Broken, glo
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
-import izreflect.fundamentals.reflection.{DebugProperties, SingletonUniverse}
+import izreflect.fundamentals.reflection.DebugProperties
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -47,13 +47,12 @@ object LightTypeTagImpl {
       new LightTypeTagImpl[u.type](u, withCache = runtimeCacheEnabled, logger).makeFullTagImpl(typeTag)
     }
   }
-
   private[this] object ReflectionLock
 
-  sealed trait Broken[T, S] {
+  private[izreflect] sealed trait Broken[T, S] {
     def toSet: Set[T]
   }
-  object Broken {
+  private[izreflect] object Broken {
     final case class Single[T, S](t: T) extends Broken[T, S] {
       override def toSet: Set[T] = Set(t)
     }
@@ -63,7 +62,7 @@ object LightTypeTagImpl {
   }
 }
 
-final class LightTypeTagImpl[U <: SingletonUniverse](val u: U, withCache: Boolean, logger: TrivialLogger) {
+final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: Boolean, logger: TrivialLogger) {
 
   import u._
 
@@ -409,7 +408,7 @@ final class LightTypeTagImpl[U <: SingletonUniverse](val u: U, withCache: Boolea
     }
   }
 
-  object UniRefinement {
+  private[izreflect] object UniRefinement {
     def unapply(tpef: u.Type): Option[(List[Type], List[SymbolApi])] = {
       (tpef: AnyRef) match {
         case x: it.RefinementTypeRef =>
@@ -557,6 +556,7 @@ final class LightTypeTagImpl[U <: SingletonUniverse](val u: U, withCache: Boolea
   /** Mini `normalize`. We don't wanna do scary things such as beta-reduce. And AFAIK the only case that can make us
     * confuse a type-parameter for a non-parameter is an empty refinement `T {}`. So we just strip it when we get it. */
   @tailrec
+  // ReflectionUtil.norm but with added logging
   protected[this] final def norm(x: Type): Type = {
     x match {
       case RefinedType(t :: Nil, m) if m.isEmpty =>

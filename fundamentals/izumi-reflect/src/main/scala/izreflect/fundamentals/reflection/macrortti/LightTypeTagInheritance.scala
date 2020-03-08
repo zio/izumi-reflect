@@ -21,35 +21,33 @@ package izreflect.fundamentals.reflection.macrortti
 import izreflect.fundamentals.collections.ImmutableMultiMap
 import izreflect.fundamentals.platform.basics.IzBoolean._
 import izreflect.fundamentals.platform.console.TrivialLogger
-import izreflect.fundamentals.platform.console.TrivialLogger.Config
 import izreflect.fundamentals.platform.strings.IzString._
+import izreflect.fundamentals.reflection.DebugProperties
+import izreflect.fundamentals.reflection.macrortti.LightTypeTagInheritance._
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
 
 import scala.collection.mutable
 
 object LightTypeTagInheritance {
-  protected[macrortti] final val tpeNothing = NameReference("scala.Nothing")
-  protected[macrortti] final val tpeAny = NameReference("scala.Any")
-  protected[macrortti] final val tpeAnyRef = NameReference("scala.AnyRef")
-  protected[macrortti] final val tpeObject = NameReference(classOf[Object].getName)
+  private[macrortti] final val tpeNothing = NameReference("scala.Nothing")
+  private[macrortti] final val tpeAny = NameReference("scala.Any")
+  private[macrortti] final val tpeAnyRef = NameReference("scala.AnyRef")
+  private[macrortti] final val tpeObject = NameReference(classOf[Object].getName)
 
   final case class Ctx(params: List[LambdaParameter], logger: TrivialLogger) {
     def next(): Ctx = Ctx(params, logger.sub())
-
     def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, logger.sub())
   }
-
 }
 
 final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
-  import LightTypeTagInheritance._
-  private lazy val ib: ImmutableMultiMap[NameReference, NameReference] = LightTypeTag.mergeIDBs(self.idb, other.idb)
-  private lazy val bdb: ImmutableMultiMap[AbstractReference, AbstractReference] = LightTypeTag.mergeIDBs(self.basesdb, other.basesdb)
+  private[this] lazy val ib: ImmutableMultiMap[NameReference, NameReference] = LightTypeTag.mergeIDBs(self.idb, other.idb)
+  private[this] lazy val bdb: ImmutableMultiMap[AbstractReference, AbstractReference] = LightTypeTag.mergeIDBs(self.basesdb, other.basesdb)
 
   def isChild(): Boolean = {
     val st = self.ref
     val ot = other.ref
-    val logger = TrivialLogger.make[this.type]("izreflect.debug.rtti", Config())
+    val logger = TrivialLogger.make[this.type](DebugProperties.`izreflect.debug.macro.rtti`)
 
     logger.log(
       s"""⚙️ Inheritance check: $self vs $other

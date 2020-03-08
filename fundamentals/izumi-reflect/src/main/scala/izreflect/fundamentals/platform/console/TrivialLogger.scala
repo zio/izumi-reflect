@@ -18,51 +18,30 @@
 
 package izreflect.fundamentals.platform.console
 
-import izreflect.fundamentals.platform.console.TrivialLogger.{Config, Level}
-import izreflect.fundamentals.platform.exceptions.IzThrowable._
+import izreflect.fundamentals.platform.console.TrivialLogger.Config
 import izreflect.fundamentals.platform.strings.IzString._
 
 import scala.collection.mutable
 import scala.reflect.{ClassTag, classTag}
 
-trait TrivialLogger {
+private[izreflect] trait TrivialLogger {
   def log(s: => String): Unit
-  def log(s: => String, e: => Throwable): Unit
-
-  def err(s: => String): Unit
-  def err(s: => String, e: => Throwable): Unit
-
   def sub(): TrivialLogger = sub(1)
   def sub(delta: Int): TrivialLogger
 }
 
-trait AbstractStringTrivialSink {
+private[izreflect] trait AbstractStringTrivialSink {
   def flush(value: => String): Unit
-  def flushError(value: => String): Unit
 }
-
-object AbstractStringTrivialSink {
+private[izreflect] object AbstractStringTrivialSink {
   object Console extends AbstractStringTrivialSink {
     override def flush(value: => String): Unit = System.out.println(value)
-    override def flushError(value: => String): Unit = System.err.println(value)
   }
 }
 
-final class TrivialLoggerImpl(config: Config, id: String, logMessages: Boolean, logErrors: Boolean, loggerLevel: Int) extends TrivialLogger {
+private[izreflect] final class TrivialLoggerImpl(config: Config, id: String, logMessages: Boolean, logErrors: Boolean, loggerLevel: Int) extends TrivialLogger {
   override def log(s: => String): Unit = {
-    flush(Level.Info, format(s))
-  }
-
-  override def log(s: => String, e: => Throwable): Unit = {
-    flush(Level.Info, formatError(s, e))
-  }
-
-  override def err(s: => String): Unit = {
-    flush(Level.Error, format(s))
-  }
-
-  override def err(s: => String, e: => Throwable): Unit = {
-    flush(Level.Error, formatError(s, e))
+    flush(format(s))
   }
 
   override def sub(delta: Int): TrivialLogger = {
@@ -73,31 +52,14 @@ final class TrivialLoggerImpl(config: Config, id: String, logMessages: Boolean, 
     s"$id: $s"
   }
 
-  @inline private[this] def formatError(s: => String, e: => Throwable): String = {
-    s"$id: $s\n${e.stackTrace}"
-  }
-
-  @inline private[this] def flush(level: Level, s: => String): Unit = {
-    level match {
-      case Level.Info =>
-        if (logMessages) {
-          config.sink.flush(s.shift(loggerLevel * 2))
-        }
-      case Level.Error =>
-        if (logErrors) {
-          config.sink.flushError(s.shift(loggerLevel * 2))
-        }
+  @inline private[this] def flush(s: => String): Unit = {
+    if (logMessages) {
+      config.sink.flush(s.shift(loggerLevel * 2))
     }
   }
 }
 
 object TrivialLogger {
-  sealed trait Level
-  object Level {
-    case object Info extends Level
-    case object Error extends Level
-  }
-
   final case class Config(
                            sink: AbstractStringTrivialSink = AbstractStringTrivialSink.Console,
                            forceLog: Boolean = false
@@ -130,4 +92,3 @@ object TrivialLogger {
     })
   }
 }
-
