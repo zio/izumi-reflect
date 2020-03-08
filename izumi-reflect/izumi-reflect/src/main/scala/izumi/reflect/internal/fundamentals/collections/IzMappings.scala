@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals.collections
+package izumi.reflect.internal.fundamentals.collections
 
 import scala.collection.{Iterable, mutable}
 

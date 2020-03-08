@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals.platform.basics
+package izumi.reflect.internal.fundamentals.platform.basics
 
 import scala.language.implicitConversions
 import IzBoolean.LazyBool

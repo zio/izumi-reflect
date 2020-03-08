@@ -16,10 +16,10 @@
  *
  */
 
-package izumi.reflect.fundamentals.platform.console
+package izumi.reflect.internal.fundamentals.platform.console
 
-import izumi.reflect.fundamentals.platform.console.TrivialLogger.Config
-import izumi.reflect.fundamentals.platform.strings.IzString._
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
+import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 
 import scala.collection.mutable
 import scala.reflect.{ClassTag, classTag}

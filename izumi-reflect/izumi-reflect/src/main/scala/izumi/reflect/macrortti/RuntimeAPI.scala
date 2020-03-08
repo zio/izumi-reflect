@@ -18,7 +18,7 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.fundamentals.platform.language.unused
+import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 private[reflect] object RuntimeAPI {

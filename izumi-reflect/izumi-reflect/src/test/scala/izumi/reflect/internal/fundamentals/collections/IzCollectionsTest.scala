@@ -17,9 +17,9 @@
  *
  */
 
-package izumi.reflect.fundamentals.collections
+package izumi.reflect.internal.fundamentals.collections
 
-import izumi.reflect.fundamentals.collections.IzCollections._
+import izumi.reflect.internal.fundamentals.collections.IzCollections._
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.collection.mutable

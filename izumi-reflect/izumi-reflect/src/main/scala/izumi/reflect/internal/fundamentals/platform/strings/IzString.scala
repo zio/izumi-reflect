@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals.platform.strings
+package izumi.reflect.internal.fundamentals.platform.strings
 
 import scala.language.implicitConversions
 import scala.util.Try

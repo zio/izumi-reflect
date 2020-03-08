@@ -18,8 +18,8 @@
 
 package izumi.reflect
 
-import izumi.reflect.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.fundamentals.platform.console.TrivialLogger.Config
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 
 import scala.reflect.ClassTag
 import scala.reflect.macros.blackbox

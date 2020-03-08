@@ -18,10 +18,10 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.fundamentals.collections.ImmutableMultiMap
-import izumi.reflect.fundamentals.platform.basics.IzBoolean._
-import izumi.reflect.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.fundamentals.platform.strings.IzString._
+import izumi.reflect.internal.fundamentals.collections.ImmutableMultiMap
+import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean._
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 import izumi.reflect.DebugProperties
 import izumi.reflect.macrortti.LightTypeTagInheritance._
 import izumi.reflect.macrortti.LightTypeTagRef._

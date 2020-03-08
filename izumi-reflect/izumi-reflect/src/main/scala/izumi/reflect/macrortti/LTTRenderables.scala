@@ -18,8 +18,8 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.fundamentals.functional.{Renderable, WithRenderableSyntax}
-import izumi.reflect.fundamentals.platform.language.unused
+import izumi.reflect.internal.fundamentals.functional.{Renderable, WithRenderableSyntax}
+import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izumi.reflect.macrortti.LightTypeTagRef._
 

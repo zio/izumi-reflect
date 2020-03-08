@@ -18,7 +18,7 @@
 
 package izumi.reflect
 
-import izumi.reflect.fundamentals.platform.console.AbstractStringTrivialSink
+import izumi.reflect.internal.fundamentals.platform.console.AbstractStringTrivialSink
 
 import scala.reflect.macros.blackbox
 

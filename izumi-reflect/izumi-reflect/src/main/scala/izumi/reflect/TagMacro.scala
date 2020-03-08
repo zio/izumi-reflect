@@ -19,7 +19,7 @@
 package izumi.reflect
 
 import com.github.ghik.silencer.silent
-import izumi.reflect.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.ReflectionUtil.{Kind, kindOf}
 import izumi.reflect.TagMacro._
 import izumi.reflect.Tags.{HKTag, HKTagMaterializer, Tag}

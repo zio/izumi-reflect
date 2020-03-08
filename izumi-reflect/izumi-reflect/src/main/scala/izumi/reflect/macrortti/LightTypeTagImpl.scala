@@ -18,9 +18,9 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.fundamentals.collections.IzCollections._
-import izumi.reflect.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.fundamentals.platform.strings.IzString._
+import izumi.reflect.internal.fundamentals.collections.IzCollections._
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
 import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}

@@ -20,7 +20,7 @@ package izumi.reflect.macrortti
 
 import java.nio.charset.StandardCharsets
 
-import izumi.reflect.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
 import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}

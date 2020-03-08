@@ -16,9 +16,9 @@
  *
  */
 
-package izumi.reflect.fundamentals.functional
+package izumi.reflect.internal.fundamentals.functional
 
-import izumi.reflect.fundamentals.functional.WithRenderableSyntax.RenderableSyntax
+import izumi.reflect.internal.fundamentals.functional.WithRenderableSyntax.RenderableSyntax
 
 import scala.language.implicitConversions
 

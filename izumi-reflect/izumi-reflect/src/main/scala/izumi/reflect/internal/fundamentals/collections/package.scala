@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals
+package izumi.reflect.internal.fundamentals
 
 import scala.collection.mutable
 

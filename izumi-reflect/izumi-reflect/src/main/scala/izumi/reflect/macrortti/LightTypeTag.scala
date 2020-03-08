@@ -21,7 +21,7 @@ package izumi.reflect.macrortti
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
-import izumi.reflect.fundamentals.platform.language.unused
+import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, NameReference, SymName}
@@ -166,7 +166,7 @@ abstract class LightTypeTag(
 
   /** Print internal structures state */
   def debug(name: String = ""): String = {
-    import izumi.reflect.fundamentals.platform.strings.IzString._
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString._
       s"""⚙️ $name: ${this.toString}
          |⚡️bases: ${basesdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
          |⚡️inheritance: ${idb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
@@ -263,7 +263,7 @@ object LightTypeTag {
   }
 
   private[macrortti] def mergeIDBs[T](self: Map[T, Set[T]], other: Map[T, Set[T]]): Map[T, Set[T]] = {
-    import izumi.reflect.fundamentals.collections.IzCollections._
+    import izumi.reflect.internal.fundamentals.collections.IzCollections._
 
     val both = self.toSeq ++ other.toSeq
     both.toMultimap.map {
