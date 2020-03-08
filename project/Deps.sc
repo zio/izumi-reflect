@@ -171,11 +171,11 @@ object Izumi {
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala212), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izreflect.**",
+              "-opt-inline-from:izumi.reflect.**",
             ),
             SettingKey(Some(scala213), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izreflect.**",
+              "-opt-inline-from:izumi.reflect.**",
             ),
             SettingKey.Default := Const.EmptySeq
           ),

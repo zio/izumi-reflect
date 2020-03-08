@@ -88,11 +88,11 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.10") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (false, "2.13.1") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
     } }
@@ -214,11 +214,11 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.10") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (false, "2.13.1") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
     } }
