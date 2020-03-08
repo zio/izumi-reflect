@@ -18,14 +18,12 @@
 
 package izreflect.fundamentals.reflection
 
-import izreflect.fundamentals.platform.properties
-
 /**
   * Java properties and macro settings that control behavior and debug output of Lightweight Reflection macros
   *
   * @see [[DebugProperties]]
   */
-object DebugProperties extends properties.DebugProperties {
+object DebugProperties {
   /**
     * To see macro debug output during compilation, set `-Dizreflect.debug.macro.rtti=true` system property!
     *

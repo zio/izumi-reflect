@@ -8,7 +8,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      "org.scala-lang.modules" %%% "scala-collection-compat" % V.collection_compat,
+      compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
+      "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
       "org.scalatest" %%% "scalatest" % V.scalatest % Test,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     )
@@ -134,7 +135,8 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      "org.scala-lang.modules" %%% "scala-collection-compat" % V.collection_compat,
+      compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
+      "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
       "org.scalatest" %%% "scalatest" % V.scalatest % Test,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     )

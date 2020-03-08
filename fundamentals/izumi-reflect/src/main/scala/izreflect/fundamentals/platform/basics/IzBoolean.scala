@@ -19,10 +19,9 @@
 package izreflect.fundamentals.platform.basics
 
 import scala.language.implicitConversions
+import IzBoolean.LazyBool
 
-trait IzBoolean {
-  import IzBoolean.LazyBool
-
+private[izreflect] trait IzBoolean {
   @inline implicit final def toLazyBool(b: => Boolean): LazyBool = new LazyBool(() => b)
 
   @inline final def all(b1: Boolean, b: LazyBool*): Boolean = {
@@ -34,7 +33,7 @@ trait IzBoolean {
   }
 }
 
-object IzBoolean extends IzBoolean {
+private[izreflect] object IzBoolean extends IzBoolean {
   @inline final implicit class LazyBool(private val b: () => Boolean) extends AnyVal {
     @inline def value: Boolean = b()
   }

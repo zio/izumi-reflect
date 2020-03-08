@@ -18,7 +18,6 @@
 
 package izreflect.fundamentals.reflection.test
 
-import izreflect.fundamentals.platform.language.Quirks._
 import izreflect.fundamentals.reflection.Tags._
 import izreflect.fundamentals.reflection.macrortti._
 import org.scalatest.Assertions
@@ -115,7 +114,7 @@ class TagTest extends AnyWordSpec with XY[String] {
     type T
 
     def make(implicit t: Tag[T]) = {
-      t.discard()
+      val _ = t
       Tag[DockerContainer[T]]
     }
   }
@@ -233,7 +232,7 @@ class TagTest extends AnyWordSpec with XY[String] {
 
     "Work for an abstract type with available TagK when TagK is requested through an explicit implicit" in {
       def testTagK[F[_], T: Tag](implicit ev: HKTag[ {type Arg[C] = F[C]}]) = {
-        ev.discard()
+        val _ = ev
         Tag[F[T {}] {}]
       }
 
@@ -348,7 +347,7 @@ class TagTest extends AnyWordSpec with XY[String] {
 
         final val x: Tag[F[G, Either[A, B]]] = {
           implicit val g0: TagK[G] = g
-          g0.discard()
+          val _ = g0
           Tag[F[G, C[A, B]]]
         }
       }

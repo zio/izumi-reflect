@@ -18,7 +18,6 @@
 
 package izreflect.fundamentals.reflection.test
 
-import izreflect.fundamentals.platform.language.Quirks._
 import izreflect.fundamentals.reflection.macrortti._
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -136,49 +135,49 @@ class LightTypeTagTest extends AnyWordSpec {
   def println(o: LightTypeTag): Unit = info(o.ref.toString)
 
   def assertRepr(t: LightTypeTag, expected: String): Unit = {
-    assert(t.toString == expected).discard()
+    assert(t.toString == expected); ()
   }
 
   def assertDebugSame(t: LightTypeTag, expected: LightTypeTag): Unit = {
-    assert(t.debug("assert") == expected.debug("assert")).discard()
+    assert(t.debug("assert") == expected.debug("assert")); ()
   }
 
   def assertSame(t: LightTypeTag, expected: LightTypeTag): Unit = {
     val clue = s"$t =?= $expected"
     info(clue)
-    assert(t =:= expected, clue).discard()
+    assert(t =:= expected, clue); ()
   }
 
   def assertDifferent(t: LightTypeTag, expected: LightTypeTag): Unit = {
     val clue = s"$t =!= $expected"
     info(clue)
-    assert(!(t =:= expected), clue).discard()
+    assert(!(t =:= expected), clue); ()
   }
 
   def assertChild(child: LightTypeTag, parent: LightTypeTag): Unit = {
     val clue = s"$child <?< $parent"
     info(clue)
-    assert(child <:< parent, clue).discard()
+    assert(child <:< parent, clue); ()
   }
 
   def assertNotChild(child: LightTypeTag, parent: LightTypeTag): Unit = {
     val clue = s"$child <!< $parent"
     info(clue)
-    assert(!(child <:< parent), clue).discard()
+    assert(!(child <:< parent), clue); ()
   }
 
   def assertCombine(outer: LightTypeTag, inner: Seq[LightTypeTag], expected: LightTypeTag): Unit = {
     val combined = outer.combine(inner: _*)
     val clue = s"($outer)•(${inner.mkString(",")}) => $combined =?= $expected"
     info(clue)
-    assert(combined =:= expected, clue).discard()
+    assert(combined =:= expected, clue); ()
   }
 
   def assertCombine(outer: LightTypeTag, inner: LightTypeTag, expected: LightTypeTag): Unit = {
     val combined = outer.combine(inner)
     val clue = s"($outer)•($inner) => $combined =?= $expected"
     info(clue)
-    assert(combined =:= expected, clue).discard()
+    assert(combined =:= expected, clue); ()
   }
 
   def assertCombineNonPos(outer: LightTypeTag, inner: Seq[Option[LightTypeTag]], expected: LightTypeTag): Unit = {
@@ -436,7 +435,7 @@ class LightTypeTagTest extends AnyWordSpec {
       object Z {
         type X <: {type A = Int}
       }
-      Z.discard()
+      Z
 
       assertSame(LTT[a1.A], LTT[Z.X#A])
     }
@@ -476,9 +475,9 @@ class LightTypeTagTest extends AnyWordSpec {
         override type A <: Int
       }
       object Z {
-        type X <: {type A = Int}
+        type X <: { type A = Int }
       }
-      Z.discard()
+      Z
 
       assertChild(LTT[a1.A], LTT[Z.X#A])
       assertNotChild(LTT[Z.X#A], LTT[a1.A])
@@ -498,12 +497,12 @@ class LightTypeTagTest extends AnyWordSpec {
       assertTypeError("def x1[T] = LTag[Array[Int] with List[T]]")
       assertTypeError("def x1[F[_]] = LTag[F[Int]]")
 
-      assertCompiles("def x1 = { object x { type T }; def x1 = LTag[Array[x.T]].discard() }")
-      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] { type X = x.T }].discard() }")
-      assertCompiles("def x1 = { object x { type T <: { type Array } }; LTag[x.T#Array].discard() }")
-      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] with List[x.T]].discard() }")
-      assertCompiles("def x1 = { object x { type F[_] }; LTag[x.F[Int]].discard() }")
-      assertCompiles("def x1 = { object x { type F[_[_]]; type Id[A] = A }; LTag[x.F[x.Id]].discard() }")
+      assertCompiles("def x1 = { object x { type T }; def x1 = LTag[Array[x.T]]; () }")
+      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] { type X = x.T }]; () }")
+      assertCompiles("def x1 = { object x { type T <: { type Array } }; LTag[x.T#Array]; () }")
+      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] with List[x.T]]; () }")
+      assertCompiles("def x1 = { object x { type F[_] }; LTag[x.F[Int]]; () }")
+      assertCompiles("def x1 = { object x { type F[_[_]]; type Id[A] = A }; LTag[x.F[x.Id]]; () }")
     }
 
     "resolve prefixes of annotated types" in {

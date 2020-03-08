@@ -21,7 +21,6 @@ package izreflect.fundamentals.reflection.macrortti
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
-import izreflect.fundamentals.platform.language.Quirks._
 import izreflect.fundamentals.platform.language.unused
 import izreflect.fundamentals.reflection.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.{SymTermName, SymTypeName}
@@ -30,22 +29,23 @@ import izreflect.thirdparty.internal.boopickle.Default.Pickler
 
 /**
   * Extracts internal databases from [[LightTypeTag]].
-  * Should be not used under normal circumstances.
+  * Should not be used under normal circumstances.
+  *
+  * Internal API: binary compatibility not guaranteed.
   */
 case class LightTypeTagUnpacker(tag: LightTypeTag) {
   def bases: Map[AbstractReference, Set[AbstractReference]] = tag.basesdb
   def inheritance: Map[NameReference, Set[NameReference]] = tag.idb
 }
 
-abstract class LightTypeTag
-(
+abstract class LightTypeTag(
   bases: () => Map[AbstractReference, Set[AbstractReference]],
   inheritanceDb: () => Map[NameReference, Set[NameReference]]
 ) extends Serializable {
 
   def ref: LightTypeTagRef
-  protected[macrortti] lazy val basesdb: Map[AbstractReference, Set[AbstractReference]] = bases()
-  protected[macrortti] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
+  private[macrortti] lazy val basesdb: Map[AbstractReference, Set[AbstractReference]] = bases()
+  private[macrortti] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
 
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
     new LightTypeTagInheritance(this, maybeParent).isChild()
@@ -221,11 +221,11 @@ object LightTypeTag {
   }
 
   final class ParsedLightTypeTag(
-                                  override val hashCode: Int,
-                                  private val refString: String,
-                                  bases: () => Map[AbstractReference, Set[AbstractReference]],
-                                  db: () => Map[NameReference, Set[NameReference]]
-                                ) extends LightTypeTag(bases, db) {
+    override val hashCode: Int,
+    private val refString: String,
+    bases: () => Map[AbstractReference, Set[AbstractReference]],
+    db: () => Map[NameReference, Set[NameReference]]
+  ) extends LightTypeTag(bases, db) {
     override lazy val ref: LightTypeTagRef = {
       lttRefSerializer.unpickle(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1)))
     }
@@ -239,7 +239,6 @@ object LightTypeTag {
       }
     }
   }
-
   object ParsedLightTypeTag {
     final case class SubtypeDBs(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]])
   }
@@ -258,10 +257,7 @@ object LightTypeTag {
     implicit lazy val dbsSerializer: Pickler[SubtypeDBs] = generatePickler[SubtypeDBs]
 
     // false positive unused warnings
-    symName.discard()
-    appliedRefSerializer.discard()
-    nameRefSerializer.discard()
-    abstractRefSerializer.discard()
+    lazy val _ = (symTypeName, symTermName, symName, appliedRefSerializer, nameRefSerializer, abstractRefSerializer)
 
     (refSerializer, dbsSerializer)
   }
