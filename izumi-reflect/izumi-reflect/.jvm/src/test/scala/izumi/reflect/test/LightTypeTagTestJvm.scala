@@ -16,9 +16,9 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.test
+package izumi.reflect.test
 
-import izumi.reflect.fundamentals.reflection.ReflectionUtil
+import izumi.reflect.ReflectionUtil
 import org.scalatest.wordspec.AnyWordSpec
 
 class LightTypeTagTestJvm extends AnyWordSpec {

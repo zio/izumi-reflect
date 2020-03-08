@@ -16,15 +16,15 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.macrortti
+package izumi.reflect.macrortti
 
 import izumi.reflect.fundamentals.collections.ImmutableMultiMap
 import izumi.reflect.fundamentals.platform.basics.IzBoolean._
 import izumi.reflect.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.fundamentals.platform.strings.IzString._
-import izumi.reflect.fundamentals.reflection.DebugProperties
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagInheritance._
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef._
+import izumi.reflect.DebugProperties
+import izumi.reflect.macrortti.LightTypeTagInheritance._
+import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.collection.mutable
 

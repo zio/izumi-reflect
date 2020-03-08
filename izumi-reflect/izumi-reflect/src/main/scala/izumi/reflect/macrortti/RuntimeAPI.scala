@@ -16,10 +16,10 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.macrortti
+package izumi.reflect.macrortti
 
 import izumi.reflect.fundamentals.platform.language.unused
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef._
 
 private[reflect] object RuntimeAPI {
 

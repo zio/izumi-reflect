@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection
+package izumi.reflect
 
 import izumi.reflect.fundamentals.platform.console.AbstractStringTrivialSink
 

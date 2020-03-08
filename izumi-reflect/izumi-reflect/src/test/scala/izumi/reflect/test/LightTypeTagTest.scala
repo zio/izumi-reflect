@@ -16,9 +16,9 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.test
+package izumi.reflect.test
 
-import izumi.reflect.fundamentals.reflection.macrortti._
+import izumi.reflect.macrortti._
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.annotation.StaticAnnotation

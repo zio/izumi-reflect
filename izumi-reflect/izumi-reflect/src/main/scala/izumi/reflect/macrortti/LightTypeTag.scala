@@ -16,15 +16,15 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.macrortti
+package izumi.reflect.macrortti
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
 import izumi.reflect.fundamentals.platform.language.unused
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.{SymTermName, SymTypeName}
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, NameReference, SymName}
+import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymTermName, SymTypeName}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, NameReference, SymName}
 import izumi.reflect.thirdparty.internal.boopickle.Default.Pickler
 
 /**
@@ -150,7 +150,7 @@ abstract class LightTypeTag(
   /** Fully-qualified rendering of a type, including packages and prefix types.
     * Use [[toString]] for a rendering that omits package names */
   def repr: String = {
-    import izumi.reflect.fundamentals.reflection.macrortti.LTTRenderables.Long._
+    import izumi.reflect.macrortti.LTTRenderables.Long._
     ref.render()
   }
 

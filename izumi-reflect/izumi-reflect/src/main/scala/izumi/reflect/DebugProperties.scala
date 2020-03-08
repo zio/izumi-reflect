@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection
+package izumi.reflect
 
 /**
   * Java properties and macro settings that control behavior and debug output of Lightweight Reflection macros

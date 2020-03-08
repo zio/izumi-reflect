@@ -16,9 +16,9 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.test
+package izumi.reflect.test
 
-import izumi.reflect.fundamentals.reflection.macrortti.{LTag, LightTypeTag}
+import izumi.reflect.macrortti.{LTag, LightTypeTag}
 
 object PlatformSpecific {
   def fromRuntime[T: LTag]: LightTypeTag = LTag[T].tag

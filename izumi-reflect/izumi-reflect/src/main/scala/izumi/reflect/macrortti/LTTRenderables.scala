@@ -16,12 +16,12 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.macrortti
+package izumi.reflect.macrortti
 
 import izumi.reflect.fundamentals.functional.{Renderable, WithRenderableSyntax}
 import izumi.reflect.fundamentals.platform.language.unused
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.SymLiteral
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
+import izumi.reflect.macrortti.LightTypeTagRef._
 
 private[reflect] trait LTTRenderables extends WithRenderableSyntax {
 

@@ -16,13 +16,13 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.macrortti
+package izumi.reflect.macrortti
 
 import java.nio.charset.StandardCharsets
 
 import izumi.reflect.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.fundamentals.reflection.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
+import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
 import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}
 
 import scala.reflect.macros.blackbox
@@ -30,7 +30,7 @@ import scala.reflect.macros.blackbox
 final class LightTypeTagMacro(override val c: blackbox.Context)
   extends LightTypeTagMacro0[blackbox.Context](c)(logger = TrivialMacroLogger.make[LightTypeTagMacro](c, DebugProperties.`izumi.reflect.debug.macro.rtti`))
 
-private[reflection] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
+private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
 
   import c.universe._
 
@@ -83,7 +83,7 @@ private[reflection] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(lo
     val strRef = serialize(res.ref)(LightTypeTag.lttRefSerializer)
     val strDBs = serialize(SubtypeDBs(res.basesdb, res.idb))(LightTypeTag.subtypeDBsSerializer)
 
-    c.Expr[LightTypeTag](q"_root_.izumi.reflect.fundamentals.reflection.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 0: _root_.scala.Int)")
+    c.Expr[LightTypeTag](q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 0: _root_.scala.Int)")
   }
 
   @inline final def unpackArgStruct(t: Type): Type = {

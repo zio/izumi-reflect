@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection
+package izumi.reflect
 
 import scala.reflect.api.Universe
 

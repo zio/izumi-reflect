@@ -16,7 +16,7 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection
+package izumi.reflect
 
 import scala.annotation.tailrec
 import scala.reflect.api.Universe

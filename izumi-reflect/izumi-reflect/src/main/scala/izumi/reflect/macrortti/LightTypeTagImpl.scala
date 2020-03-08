@@ -16,16 +16,16 @@
  *
  */
 
-package izumi.reflect.fundamentals.reflection.macrortti
+package izumi.reflect.macrortti
 
 import izumi.reflect.fundamentals.collections.IzCollections._
 import izumi.reflect.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.fundamentals.platform.strings.IzString._
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagImpl.{Broken, globalCache}
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
-import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef._
-import izumi.reflect.fundamentals.reflection.DebugProperties
+import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
+import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
+import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.DebugProperties
 
 import scala.annotation.tailrec
 import scala.collection.mutable
