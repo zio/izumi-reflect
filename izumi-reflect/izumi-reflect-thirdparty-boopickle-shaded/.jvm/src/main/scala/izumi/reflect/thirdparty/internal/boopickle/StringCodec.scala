@@ -21,7 +21,7 @@ package izreflect.thirdparty.internal.boopickle
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
-private[izreflect] object StringCodec extends StringCodecBase {
+private[reflect] object StringCodec extends StringCodecBase {
   override def decodeUTF8(len: Int, buf: ByteBuffer): String = {
     val a = new Array[Byte](len)
     buf.get(a)

@@ -20,7 +20,7 @@ package izreflect.thirdparty.internal.boopickle
 
 import java.nio.ByteBuffer
 
-private[izreflect] abstract class StringCodecFast {
+private[reflect] abstract class StringCodecFast {
 
   /**
     * String decoding function for a special 1-3 byte encoding of 16-bit char values

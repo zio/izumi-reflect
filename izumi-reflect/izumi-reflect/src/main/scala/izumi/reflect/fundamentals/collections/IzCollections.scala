@@ -20,6 +20,6 @@ package izreflect.fundamentals.collections
 
 import scala.language.implicitConversions
 
-private[izreflect] object IzCollections {
+private[reflect] object IzCollections {
   implicit def toRich[A, B](xs: Iterable[(A, B)]): IzMappings[A, B] = new IzMappings(xs)
 }

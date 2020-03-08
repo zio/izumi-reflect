@@ -3,7 +3,7 @@ package izreflect.thirdparty.internal.boopickle
 import Constants.NullRef
 import scala.collection.Factory
 
-private[izreflect] trait XCompatImplicitPicklers {
+private[reflect] trait XCompatImplicitPicklers {
   this: PicklerHelper =>
 
   implicit def mapPickler[T: P, S: P, V[_, _] <: scala.collection.Map[_, _]](
@@ -12,7 +12,7 @@ private[izreflect] trait XCompatImplicitPicklers {
     BasicPicklers.IterablePickler[T, V]
 }
 
-private[izreflect] trait XCompatPicklers {
+private[reflect] trait XCompatPicklers {
   this: PicklerHelper =>
 
   /**

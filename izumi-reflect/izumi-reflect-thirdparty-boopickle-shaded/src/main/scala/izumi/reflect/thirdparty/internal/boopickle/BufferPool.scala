@@ -21,7 +21,7 @@ package izreflect.thirdparty.internal.boopickle
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 
-private[izreflect] object BufferPool {
+private[reflect] object BufferPool {
 
   // two pools for two different size categories
   private final val poolEntrySize0 = ByteBufferProvider.initSize

@@ -22,17 +22,17 @@ import izreflect.fundamentals.functional.WithRenderableSyntax.RenderableSyntax
 
 import scala.language.implicitConversions
 
-private[izreflect] trait Renderable[T] {
+private[reflect] trait Renderable[T] {
   def render(value: T): String
 }
-private[izreflect] object Renderable extends WithRenderableSyntax {
+private[reflect] object Renderable extends WithRenderableSyntax {
   @inline def apply[T: Renderable]: Renderable[T] = implicitly
 }
 
-private[izreflect] trait WithRenderableSyntax {
+private[reflect] trait WithRenderableSyntax {
   @inline implicit final def RenderableSyntax[T](r: T): RenderableSyntax[T] = new RenderableSyntax[T](r)
 }
-private[izreflect] object WithRenderableSyntax {
+private[reflect] object WithRenderableSyntax {
   final class RenderableSyntax[T](private val r: T) extends AnyVal {
     def render()(implicit R: Renderable[T]): String = R.render(r)
   }

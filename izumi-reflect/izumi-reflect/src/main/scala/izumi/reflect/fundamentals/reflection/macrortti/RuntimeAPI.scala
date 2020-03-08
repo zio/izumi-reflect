@@ -21,7 +21,7 @@ package izreflect.fundamentals.reflection.macrortti
 import izreflect.fundamentals.platform.language.unused
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
 
-private[izreflect] object RuntimeAPI {
+private[reflect] object RuntimeAPI {
 
   def unpack(ref: AbstractReference): Set[NameReference] = {
     def unpackBoundaries(b: Boundaries): Set[NameReference] = {

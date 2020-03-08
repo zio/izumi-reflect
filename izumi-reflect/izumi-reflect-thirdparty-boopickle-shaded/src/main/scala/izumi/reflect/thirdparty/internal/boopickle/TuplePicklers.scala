@@ -18,7 +18,7 @@
 
 package izreflect.thirdparty.internal.boopickle
 
-private[izreflect] trait TuplePicklers extends PicklerHelper {
+private[reflect] trait TuplePicklers extends PicklerHelper {
 
   implicit def Tuple1Pickler[T1: P] = new P[Tuple1[T1]] {
     override def pickle(x: Tuple1[T1])(implicit state: PickleState): Unit = { write[T1](x._1) }

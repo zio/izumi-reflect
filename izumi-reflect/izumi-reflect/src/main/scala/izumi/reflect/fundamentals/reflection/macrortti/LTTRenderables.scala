@@ -23,7 +23,7 @@ import izreflect.fundamentals.platform.language.unused
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
 
-private[izreflect] trait LTTRenderables extends WithRenderableSyntax {
+private[reflect] trait LTTRenderables extends WithRenderableSyntax {
 
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
 
@@ -148,7 +148,7 @@ private[izreflect] trait LTTRenderables extends WithRenderableSyntax {
 
 }
 
-private[izreflect] object LTTRenderables {
+private[reflect] object LTTRenderables {
 
   object Short extends LTTRenderables {
     def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {

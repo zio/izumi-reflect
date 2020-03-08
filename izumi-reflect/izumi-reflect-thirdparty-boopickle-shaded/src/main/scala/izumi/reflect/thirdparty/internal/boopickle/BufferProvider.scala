@@ -20,7 +20,7 @@ package izreflect.thirdparty.internal.boopickle
 
 import java.nio.{ByteBuffer, ByteOrder}
 
-private[izreflect] trait BufferProvider {
+private[reflect] trait BufferProvider {
 
   /**
     * Makes sure the ByteBuffer has enough space for new data. If not, allocates a new ByteBuffer
@@ -46,7 +46,7 @@ private[izreflect] trait BufferProvider {
   def asByteBuffers: Iterable[ByteBuffer]
 }
 
-private[izreflect] abstract class ByteBufferProvider extends BufferProvider {
+private[reflect] abstract class ByteBufferProvider extends BufferProvider {
   import ByteBufferProvider._
   protected val pool                      = BufferPool
   protected var buffers: List[ByteBuffer] = Nil
@@ -88,12 +88,12 @@ private[izreflect] abstract class ByteBufferProvider extends BufferProvider {
   }
 }
 
-private[izreflect] object ByteBufferProvider {
+private[reflect] object ByteBufferProvider {
   final val initSize   = 512
   final val expandSize = initSize * 8
 }
 
-private[izreflect] class HeapByteBufferProvider extends ByteBufferProvider {
+private[reflect] class HeapByteBufferProvider extends ByteBufferProvider {
   override protected def allocate(size: Int) = {
     if (pool.isDisabled)
       ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN)
@@ -122,7 +122,7 @@ private[izreflect] class HeapByteBufferProvider extends ByteBufferProvider {
   }
 }
 
-private[izreflect] class DirectByteBufferProvider extends ByteBufferProvider {
+private[reflect] class DirectByteBufferProvider extends ByteBufferProvider {
   override protected def allocate(size: Int) = {
     if (pool.isDisabled)
       ByteBuffer.allocateDirect(size).order(ByteOrder.LITTLE_ENDIAN)
@@ -149,6 +149,6 @@ private[izreflect] class DirectByteBufferProvider extends ByteBufferProvider {
   }
 }
 
-private[izreflect] trait DefaultByteBufferProviderFuncs {
+private[reflect] trait DefaultByteBufferProviderFuncs {
   def provider: ByteBufferProvider
 }

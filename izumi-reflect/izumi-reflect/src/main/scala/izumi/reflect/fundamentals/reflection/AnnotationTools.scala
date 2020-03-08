@@ -20,7 +20,7 @@ package izreflect.fundamentals.reflection
 
 import scala.reflect.api.Universe
 
-private[izreflect] object AnnotationTools {
+private[reflect] object AnnotationTools {
   def findArgument[A](ann: Universe#Annotation)(matcher: PartialFunction[Universe#Tree, A]): Option[A] =
     ann.tree.children.tail.collectFirst(matcher)
 }

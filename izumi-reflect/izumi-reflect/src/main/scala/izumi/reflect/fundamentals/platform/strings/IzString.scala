@@ -21,7 +21,7 @@ package izreflect.fundamentals.platform.strings
 import scala.language.implicitConversions
 import scala.util.Try
 
-private[izreflect] final class IzString(private val s: String) extends AnyVal {
+private[reflect] final class IzString(private val s: String) extends AnyVal {
   @inline final def asBoolean(): Option[Boolean] = {
     Try(s.toBoolean).toOption
   }
@@ -32,7 +32,7 @@ private[izreflect] final class IzString(private val s: String) extends AnyVal {
   }
 }
 
-private[izreflect] final class IzIterable[A](private val s: Iterable[A]) extends AnyVal {
+private[reflect] final class IzIterable[A](private val s: Iterable[A]) extends AnyVal {
   def niceList(shift: String = " ", prefix: String = "- "): String = {
     if (s.nonEmpty) {
       val fullPrefix = s"\n$shift$prefix"
@@ -43,7 +43,7 @@ private[izreflect] final class IzIterable[A](private val s: Iterable[A]) extends
   }
 }
 
-private[izreflect] object IzString {
-  private[izreflect] implicit def toRichString(s: String): IzString = new IzString(s)
-  private[izreflect] implicit def toRichIterable[A](s: Iterable[A]): IzIterable[A] = new IzIterable(s)
+private[reflect] object IzString {
+  private[reflect] implicit def toRichString(s: String): IzString = new IzString(s)
+  private[reflect] implicit def toRichIterable[A](s: Iterable[A]): IzIterable[A] = new IzIterable(s)
 }

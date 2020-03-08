@@ -21,17 +21,17 @@ package izreflect.thirdparty.internal.boopickle
 /**
   * Specialized fast and cheap to initialize identity map for pickle state identifier map
   */
-private[izreflect] abstract class IdentMap {
+private[reflect] abstract class IdentMap {
   def apply(obj: AnyRef): Option[Int]
 
   def updated(obj: AnyRef): IdentMap
 }
 
-private[izreflect] object IdentMap {
+private[reflect] object IdentMap {
   def empty: IdentMap = EmptyIdentMap
 }
 
-private[izreflect] object EmptyIdentMap extends IdentMap {
+private[reflect] object EmptyIdentMap extends IdentMap {
   override def apply(obj: AnyRef): Option[Int] = None
 
   override def updated(obj: AnyRef): IdentMap = new IdentMap1(obj)
@@ -59,7 +59,7 @@ private[boopickle] final class IdentMap2(o1: AnyRef, o2: AnyRef) extends IdentMa
   override def updated(obj: AnyRef): IdentMap = new IdentMap3Plus(o1, o2, obj)
 }
 
-private[izreflect] object IdentMap3Plus {
+private[reflect] object IdentMap3Plus {
 
   private[boopickle] class Entry(val hash: Int, val obj: AnyRef, val idx: Int, var next: Entry)
 

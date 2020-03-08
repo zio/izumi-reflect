@@ -22,7 +22,7 @@ import izreflect.fundamentals.platform.console.AbstractStringTrivialSink
 
 import scala.reflect.macros.blackbox
 
-private[izreflect] final class ScalacSink(c: blackbox.Context) extends AbstractStringTrivialSink {
+private[reflect] final class ScalacSink(c: blackbox.Context) extends AbstractStringTrivialSink {
   override def flush(value: => String): Unit = {
     c.info(c.enclosingPosition, value, force = true)
   }

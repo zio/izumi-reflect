@@ -25,7 +25,7 @@ import scala.reflect.ClassTag
   * Encodes a class belonging to a type hierarchy. Type is identified by the index in the `picklers` sequence, so care
   * must be taken to ensure picklers are added in the same order.
   */
-private[izreflect] class CompositePickler[A] extends Pickler[A] {
+private[reflect] class CompositePickler[A] extends Pickler[A] {
 
   import Constants._
 
@@ -103,11 +103,11 @@ private[izreflect] class CompositePickler[A] extends Pickler[A] {
   }
 }
 
-private[izreflect] object CompositePickler {
+private[reflect] object CompositePickler {
   def apply[A] = new CompositePickler[A]
 }
 
-private[izreflect] object ExceptionPickler {
+private[reflect] object ExceptionPickler {
   def empty = CompositePickler[Throwable]
   // generate base exception picklers
   private lazy val basePicklers = CompositePickler[Throwable]

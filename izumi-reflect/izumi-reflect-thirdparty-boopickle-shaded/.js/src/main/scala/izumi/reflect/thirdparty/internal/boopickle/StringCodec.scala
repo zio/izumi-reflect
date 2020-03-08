@@ -38,7 +38,7 @@ import scala.scalajs.js.typedarray._
   * Here we include both the JVM and JS versions of StringCodec and use the JVM
   * version for encode* methods and JS version for decode* methods.
   */
-private[izreflect] object StringCodec extends StringCodecBase {
+private[reflect] object StringCodec extends StringCodecBase {
   @inline override def decodeFast(len: Int, buf: ByteBuffer): String = {
     JSStringCodec.decodeFast(len, buf)
   }
@@ -66,7 +66,7 @@ private[izreflect] object StringCodec extends StringCodecBase {
   * ByteBufferProvider is only used for encoding. JVM encoder is incompatible with `DirectByteBufferProvider`,
   * so use `HeapByteBufferProvider`
   * */
-private[izreflect] object DefaultByteBufferProvider extends DefaultByteBufferProviderFuncs {
+private[reflect] object DefaultByteBufferProvider extends DefaultByteBufferProviderFuncs {
 //  override def provider = new DirectByteBufferProvider
   override def provider = new HeapByteBufferProvider
 }

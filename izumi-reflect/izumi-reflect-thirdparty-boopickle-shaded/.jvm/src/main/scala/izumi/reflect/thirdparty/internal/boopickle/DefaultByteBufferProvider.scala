@@ -18,6 +18,6 @@
 
 package izreflect.thirdparty.internal.boopickle
 
-private[izreflect] object DefaultByteBufferProvider extends DefaultByteBufferProviderFuncs {
+private[reflect] object DefaultByteBufferProvider extends DefaultByteBufferProviderFuncs {
   override def provider = new HeapByteBufferProvider
 }

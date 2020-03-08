@@ -18,4 +18,4 @@
 
 package izreflect.fundamentals.platform.language
 
-private[izreflect] final class unused extends deprecated("unused", "unused")
+private[reflect] final class unused extends deprecated("unused", "unused")

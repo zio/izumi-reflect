@@ -1,5 +1,5 @@
 package izreflect.fundamentals.platform
 
 package object language {
-  private[izreflect] type unused = scala.annotation.unused
+  private[reflect] type unused = scala.annotation.unused
 }

@@ -21,6 +21,6 @@ package izreflect.fundamentals
 import scala.collection.mutable
 
 package object collections {
-  private[izreflect] type MutableMultiMap[A, B] = mutable.HashMap[A, mutable.Set[B]] with mutable.MultiMap[A, B]
-  private[izreflect] type ImmutableMultiMap[A, B] = Map[A, Set[B]]
+  private[reflect] type MutableMultiMap[A, B] = mutable.HashMap[A, mutable.Set[B]] with mutable.MultiMap[A, B]
+  private[reflect] type ImmutableMultiMap[A, B] = Map[A, Set[B]]
 }

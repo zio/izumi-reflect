@@ -26,7 +26,7 @@ import scala.language.experimental.macros
 import scala.reflect.ClassTag
 import scala.util.Try
 
-private[izreflect] trait BasicImplicitPicklers extends PicklerHelper with XCompatImplicitPicklers {
+private[reflect] trait BasicImplicitPicklers extends PicklerHelper with XCompatImplicitPicklers {
   implicit def unitPickler: ConstPickler[Unit]  = BasicPicklers.UnitPickler
   implicit def booleanPickler: P[Boolean]       = BasicPicklers.BooleanPickler
   implicit def bytePickler: P[Byte]             = BasicPicklers.BytePickler
@@ -55,7 +55,7 @@ private[izreflect] trait BasicImplicitPicklers extends PicklerHelper with XCompa
   implicit def arrayPickler[T: P: ClassTag]: P[Array[T]]  = BasicPicklers.ArrayPickler[T]
 }
 
-private[izreflect] trait TransformPicklers {
+private[reflect] trait TransformPicklers {
 
   /**
     * Create a transforming pickler that takes an object of type `A` and transforms it into `B`, which is then pickled.
@@ -79,11 +79,11 @@ private[izreflect] trait TransformPicklers {
   }
 }
 
-private[izreflect] trait MaterializePicklerFallback {
+private[reflect] trait MaterializePicklerFallback {
   implicit def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
 }
 
-private[izreflect] object PickleImpl {
+private[reflect] object PickleImpl {
   def apply[A](value: A)(implicit state: PickleState, p: Pickler[A]): PickleState = {
     p.pickle(value)(state)
     state
@@ -98,10 +98,10 @@ private[izreflect] object PickleImpl {
   }
 }
 
-private[izreflect] object UnpickleImpl {
+private[reflect] object UnpickleImpl {
   def apply[A](implicit u: Pickler[A]) = UnpickledCurry(u)
 
-  private[izreflect] case class UnpickledCurry[A](u: Pickler[A]) {
+  private[reflect] case class UnpickledCurry[A](u: Pickler[A]) {
     def apply(implicit state: UnpickleState): A = u.unpickle(state)
 
     def fromBytes(bytes: ByteBuffer)(implicit buildState: ByteBuffer => UnpickleState): A = {
@@ -120,7 +120,7 @@ private[izreflect] object UnpickleImpl {
 
 }
 
-private[izreflect] trait Base {
+private[reflect] trait Base {
   type Pickler[A] = _root_.izreflect.thirdparty.internal.boopickle.Pickler[A]
   def Pickle: PickleImpl.type = _root_.izreflect.thirdparty.internal.boopickle.PickleImpl
   type PickleState = _root_.izreflect.thirdparty.internal.boopickle.PickleState
@@ -132,7 +132,7 @@ private[izreflect] trait Base {
   def exceptionPickler: CompositePickler[Throwable] = ExceptionPickler.base
 }
 
-private[izreflect] object SpeedOriented {
+private[reflect] object SpeedOriented {
 
   /**
     * Provides a default PickleState if none is available implicitly
@@ -153,7 +153,7 @@ private[izreflect] object SpeedOriented {
 /**
   * Provides basic implicit picklers including macro support for case classes
   */
-private[izreflect] object Default
+private[reflect] object Default
     extends Base
     with BasicImplicitPicklers
     with TransformPicklers
@@ -163,7 +163,7 @@ private[izreflect] object Default
 /**
   * Provides basic implicit picklers without macro support for case classes
   */
-private[izreflect] object DefaultBasic extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers {
+private[reflect] object DefaultBasic extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers {
 
   def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
 }

@@ -49,10 +49,10 @@ object LightTypeTagImpl {
   }
   private[this] object ReflectionLock
 
-  private[izreflect] sealed trait Broken[T, S] {
+  private[reflect] sealed trait Broken[T, S] {
     def toSet: Set[T]
   }
-  private[izreflect] object Broken {
+  private[reflect] object Broken {
     final case class Single[T, S](t: T) extends Broken[T, S] {
       override def toSet: Set[T] = Set(t)
     }
@@ -408,7 +408,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
   }
 
-  private[izreflect] object UniRefinement {
+  private[reflect] object UniRefinement {
     def unapply(tpef: u.Type): Option[(List[Type], List[SymbolApi])] = {
       (tpef: AnyRef) match {
         case x: it.RefinementTypeRef =>

@@ -21,7 +21,7 @@ package izreflect.thirdparty.internal.boopickle
 import java.nio.charset.CharacterCodingException
 import java.nio.{ByteBuffer, ByteOrder}
 
-private[izreflect] class DecoderSize(val buf: ByteBuffer) extends Decoder {
+private[reflect] class DecoderSize(val buf: ByteBuffer) extends Decoder {
   val stringCodec: StringCodecBase = StringCodec
 
   /**
@@ -295,7 +295,7 @@ private[izreflect] class DecoderSize(val buf: ByteBuffer) extends Decoder {
   }
 }
 
-private[izreflect] class EncoderSize(bufferProvider: BufferProvider = DefaultByteBufferProvider.provider) extends Encoder {
+private[reflect] class EncoderSize(bufferProvider: BufferProvider = DefaultByteBufferProvider.provider) extends Encoder {
   val stringCodec: StringCodecBase = StringCodec
 
   @inline private def alloc(size: Int): ByteBuffer = bufferProvider.alloc(size)

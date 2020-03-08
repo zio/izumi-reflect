@@ -21,7 +21,7 @@ package izreflect.fundamentals.reflection
 import scala.annotation.tailrec
 import scala.reflect.api.Universe
 
-private[izreflect] object ReflectionUtil {
+private[reflect] object ReflectionUtil {
 
   /** Mini `normalize`. `normalize` is deprecated and we don't want to do scary things such as evaluate type-lambdas anyway.
     * And AFAIK the only case that can make us confuse a type-parameter for a non-parameter is an empty refinement `T {}`.

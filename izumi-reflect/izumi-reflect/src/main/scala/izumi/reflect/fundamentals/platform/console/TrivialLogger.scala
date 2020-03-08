@@ -24,22 +24,22 @@ import izreflect.fundamentals.platform.strings.IzString._
 import scala.collection.mutable
 import scala.reflect.{ClassTag, classTag}
 
-private[izreflect] trait TrivialLogger {
+private[reflect] trait TrivialLogger {
   def log(s: => String): Unit
   def sub(): TrivialLogger = sub(1)
   def sub(delta: Int): TrivialLogger
 }
 
-private[izreflect] trait AbstractStringTrivialSink {
+private[reflect] trait AbstractStringTrivialSink {
   def flush(value: => String): Unit
 }
-private[izreflect] object AbstractStringTrivialSink {
+private[reflect] object AbstractStringTrivialSink {
   object Console extends AbstractStringTrivialSink {
     override def flush(value: => String): Unit = System.out.println(value)
   }
 }
 
-private[izreflect] final class TrivialLoggerImpl(config: Config, id: String, logMessages: Boolean, logErrors: Boolean, loggerLevel: Int) extends TrivialLogger {
+private[reflect] final class TrivialLoggerImpl(config: Config, id: String, logMessages: Boolean, logErrors: Boolean, loggerLevel: Int) extends TrivialLogger {
   override def log(s: => String): Unit = {
     flush(format(s))
   }

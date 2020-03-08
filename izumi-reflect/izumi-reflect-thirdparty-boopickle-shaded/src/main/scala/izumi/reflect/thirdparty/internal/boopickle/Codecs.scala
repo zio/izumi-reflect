@@ -20,7 +20,7 @@ package izreflect.thirdparty.internal.boopickle
 
 import java.nio.ByteBuffer
 
-private[izreflect] trait Decoder {
+private[reflect] trait Decoder {
 
   /**
     * Decodes a single byte
@@ -117,7 +117,7 @@ private[izreflect] trait Decoder {
   def readDoubleArray(len: Int): Array[Double]
 }
 
-private[izreflect] trait Encoder {
+private[reflect] trait Encoder {
 
   /**
     * Encodes a single byte
