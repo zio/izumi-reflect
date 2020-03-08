@@ -34,7 +34,7 @@ private[reflect] trait IzBoolean {
 }
 
 private[reflect] object IzBoolean extends IzBoolean {
-  @inline final implicit class LazyBool(private val b: () => Boolean) extends AnyVal {
+  @inline private[reflect] final implicit class LazyBool(private val b: () => Boolean) extends AnyVal {
     @inline def value: Boolean = b()
   }
 }

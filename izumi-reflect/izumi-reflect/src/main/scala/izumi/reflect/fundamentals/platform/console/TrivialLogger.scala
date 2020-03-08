@@ -34,7 +34,7 @@ private[reflect] trait AbstractStringTrivialSink {
   def flush(value: => String): Unit
 }
 private[reflect] object AbstractStringTrivialSink {
-  object Console extends AbstractStringTrivialSink {
+  private[reflect] object Console extends AbstractStringTrivialSink {
     override def flush(value: => String): Unit = System.out.println(value)
   }
 }
@@ -59,8 +59,8 @@ private[reflect] final class TrivialLoggerImpl(config: Config, id: String, logMe
   }
 }
 
-object TrivialLogger {
-  final case class Config(
+private[reflect] object TrivialLogger {
+  private[reflect] final case class Config(
                            sink: AbstractStringTrivialSink = AbstractStringTrivialSink.Console,
                            forceLog: Boolean = false
                          )
