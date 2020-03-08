@@ -16,9 +16,9 @@
  *
  */
 
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
-import izreflect.thirdparty.internal.boopickle.Constants.NullRef
+import izumi.reflect.thirdparty.internal.boopickle.Constants.NullRef
 
 import scala.collection.generic.CanBuildFrom
 

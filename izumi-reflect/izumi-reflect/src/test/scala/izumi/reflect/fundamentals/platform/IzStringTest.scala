@@ -16,9 +16,9 @@
  *
  */
 
-package izreflect.fundamentals.platform
+package izumi.reflect.fundamentals.platform
 
-import izreflect.fundamentals.platform.strings.IzString._
+import izumi.reflect.fundamentals.platform.strings.IzString._
 import org.scalatest.wordspec.AnyWordSpec
 
 class IzStringTest extends AnyWordSpec {

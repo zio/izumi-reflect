@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.fundamentals.reflection
+package izumi.reflect.fundamentals.reflection
 
 import scala.language.experimental.macros
 

@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.fundamentals.collections
+package izumi.reflect.fundamentals.collections
 
 import scala.language.implicitConversions
 

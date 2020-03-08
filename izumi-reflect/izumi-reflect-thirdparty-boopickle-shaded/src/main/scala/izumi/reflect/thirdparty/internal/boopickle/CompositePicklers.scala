@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

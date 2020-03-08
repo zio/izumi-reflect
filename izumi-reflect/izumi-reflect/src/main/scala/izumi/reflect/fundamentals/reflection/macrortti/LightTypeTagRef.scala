@@ -16,10 +16,10 @@
  *
  */
 
-package izreflect.fundamentals.reflection.macrortti
+package izumi.reflect.fundamentals.reflection.macrortti
 
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.SymTypeName
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.SymTypeName
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
 

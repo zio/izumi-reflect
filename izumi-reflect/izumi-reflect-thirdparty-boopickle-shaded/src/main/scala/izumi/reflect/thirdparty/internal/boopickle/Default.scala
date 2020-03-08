@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID
@@ -121,11 +121,11 @@ private[reflect] object UnpickleImpl {
 }
 
 private[reflect] trait Base {
-  type Pickler[A] = _root_.izreflect.thirdparty.internal.boopickle.Pickler[A]
-  def Pickle: PickleImpl.type = _root_.izreflect.thirdparty.internal.boopickle.PickleImpl
-  type PickleState = _root_.izreflect.thirdparty.internal.boopickle.PickleState
-  def Unpickle: UnpickleImpl.type = _root_.izreflect.thirdparty.internal.boopickle.UnpickleImpl
-  type UnpickleState = _root_.izreflect.thirdparty.internal.boopickle.UnpickleState
+  type Pickler[A] = _root_.izumi.reflect.thirdparty.internal.boopickle.Pickler[A]
+  def Pickle: PickleImpl.type = _root_.izumi.reflect.thirdparty.internal.boopickle.PickleImpl
+  type PickleState = _root_.izumi.reflect.thirdparty.internal.boopickle.PickleState
+  def Unpickle: UnpickleImpl.type = _root_.izumi.reflect.thirdparty.internal.boopickle.UnpickleImpl
+  type UnpickleState = _root_.izumi.reflect.thirdparty.internal.boopickle.UnpickleState
 
   def compositePickler[A <: AnyRef]: CompositePickler[A] = CompositePickler[A]
 

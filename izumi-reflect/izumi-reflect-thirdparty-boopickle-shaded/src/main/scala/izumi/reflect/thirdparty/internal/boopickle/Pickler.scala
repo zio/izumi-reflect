@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
 import java.nio.ByteBuffer
 import java.util.UUID

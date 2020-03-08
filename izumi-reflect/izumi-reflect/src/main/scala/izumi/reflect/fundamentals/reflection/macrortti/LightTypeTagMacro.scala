@@ -16,25 +16,25 @@
  *
  */
 
-package izreflect.fundamentals.reflection.macrortti
+package izumi.reflect.fundamentals.reflection.macrortti
 
 import java.nio.charset.StandardCharsets
 
-import izreflect.fundamentals.platform.console.TrivialLogger
-import izreflect.fundamentals.reflection.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izreflect.fundamentals.reflection.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
-import izreflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}
+import izumi.reflect.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.fundamentals.reflection.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
+import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}
 
 import scala.reflect.macros.blackbox
 
 final class LightTypeTagMacro(override val c: blackbox.Context)
-  extends LightTypeTagMacro0[blackbox.Context](c)(logger = TrivialMacroLogger.make[LightTypeTagMacro](c, DebugProperties.`izreflect.debug.macro.rtti`))
+  extends LightTypeTagMacro0[blackbox.Context](c)(logger = TrivialMacroLogger.make[LightTypeTagMacro](c, DebugProperties.`izumi.reflect.debug.macro.rtti`))
 
 private[reflection] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
 
   import c.universe._
 
-  protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izreflect.rtti.cache.compile`}=false")
+  protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izumi.reflect.rtti.cache.compile`}=false")
   protected final val impl = new LightTypeTagImpl[c.universe.type](c.universe, withCache = cacheEnabled, logger)
 
   final def makeStrongHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[LTag.StrongHK[ArgStruct]] = {
@@ -83,7 +83,7 @@ private[reflection] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(lo
     val strRef = serialize(res.ref)(LightTypeTag.lttRefSerializer)
     val strDBs = serialize(SubtypeDBs(res.basesdb, res.idb))(LightTypeTag.subtypeDBsSerializer)
 
-    c.Expr[LightTypeTag](q"_root_.izreflect.fundamentals.reflection.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 0: _root_.scala.Int)")
+    c.Expr[LightTypeTag](q"_root_.izumi.reflect.fundamentals.reflection.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 0: _root_.scala.Int)")
   }
 
   @inline final def unpackArgStruct(t: Type): Type = {

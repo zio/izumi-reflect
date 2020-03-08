@@ -16,15 +16,15 @@
  *
  */
 
-package izreflect.fundamentals.reflection.macrortti
+package izumi.reflect.fundamentals.reflection.macrortti
 
-import izreflect.fundamentals.collections.ImmutableMultiMap
-import izreflect.fundamentals.platform.basics.IzBoolean._
-import izreflect.fundamentals.platform.console.TrivialLogger
-import izreflect.fundamentals.platform.strings.IzString._
-import izreflect.fundamentals.reflection.DebugProperties
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagInheritance._
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
+import izumi.reflect.fundamentals.collections.ImmutableMultiMap
+import izumi.reflect.fundamentals.platform.basics.IzBoolean._
+import izumi.reflect.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.fundamentals.platform.strings.IzString._
+import izumi.reflect.fundamentals.reflection.DebugProperties
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagInheritance._
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef._
 
 import scala.collection.mutable
 
@@ -47,7 +47,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   def isChild(): Boolean = {
     val st = self.ref
     val ot = other.ref
-    val logger = TrivialLogger.make[this.type](DebugProperties.`izreflect.debug.macro.rtti`)
+    val logger = TrivialLogger.make[this.type](DebugProperties.`izumi.reflect.debug.macro.rtti`)
 
     logger.log(
       s"""⚙️ Inheritance check: $self vs $other

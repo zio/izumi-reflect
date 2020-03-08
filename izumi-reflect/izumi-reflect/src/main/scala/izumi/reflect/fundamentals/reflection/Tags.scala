@@ -16,9 +16,9 @@
  *
  */
 
-package izreflect.fundamentals.reflection
+package izumi.reflect.fundamentals.reflection
 
-import izreflect.fundamentals.reflection.macrortti.{LTag, LightTypeTag}
+import izumi.reflect.fundamentals.reflection.macrortti.{LTag, LightTypeTag}
 
 import scala.annotation.implicitNotFound
 import scala.language.experimental.macros

@@ -16,16 +16,16 @@
  *
  */
 
-package izreflect.fundamentals.reflection.macrortti
+package izumi.reflect.fundamentals.reflection.macrortti
 
-import izreflect.fundamentals.collections.IzCollections._
-import izreflect.fundamentals.platform.console.TrivialLogger
-import izreflect.fundamentals.platform.strings.IzString._
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagImpl.{Broken, globalCache}
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
-import izreflect.fundamentals.reflection.macrortti.LightTypeTagRef._
-import izreflect.fundamentals.reflection.DebugProperties
+import izumi.reflect.fundamentals.collections.IzCollections._
+import izumi.reflect.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.fundamentals.platform.strings.IzString._
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagImpl.{Broken, globalCache}
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
+import izumi.reflect.fundamentals.reflection.macrortti.LightTypeTagRef._
+import izumi.reflect.fundamentals.reflection.DebugProperties
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -36,14 +36,14 @@ object LightTypeTagImpl {
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
-    System.getProperty(DebugProperties.`izreflect.rtti.cache.runtime`).asBoolean()
+    System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
       .getOrElse(true)
   }
 
   /** Create a LightTypeTag at runtime for a reflected type */
   def makeLightTypeTag(u: Universe)(typeTag: u.Type): LightTypeTag = {
     ReflectionLock.synchronized {
-      val logger = TrivialLogger.make[this.type](DebugProperties.`izreflect.debug.macro.rtti`)
+      val logger = TrivialLogger.make[this.type](DebugProperties.`izumi.reflect.debug.macro.rtti`)
       new LightTypeTagImpl[u.type](u, withCache = runtimeCacheEnabled, logger).makeFullTagImpl(typeTag)
     }
   }

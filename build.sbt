@@ -4,7 +4,7 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 enablePlugins(SbtgenVerificationPlugin)
 
-lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("izumi_reflect/izumi-reflect-thirdparty-boopickle-shaded"))
+lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
@@ -128,7 +128,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shadedJVM` = `izumi-reflect-thirdpa
 lazy val `izumi-reflect-thirdparty-boopickle-shadedJS` = `izumi-reflect-thirdparty-boopickle-shaded`.js
 lazy val `izumi-reflect-thirdparty-boopickle-shadedNative` = `izumi-reflect-thirdparty-boopickle-shaded`.native
 
-lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("izumi_reflect/izumi-reflect"))
+lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("izumi-reflect/izumi-reflect"))
   .dependsOn(
     `izumi-reflect-thirdparty-boopickle-shaded` % "test->compile;compile->compile"
   )
@@ -254,7 +254,7 @@ lazy val `izumi-reflectJVM` = `izumi-reflect`.jvm
 lazy val `izumi-reflectJS` = `izumi-reflect`.js
 lazy val `izumi-reflectNative` = `izumi-reflect`.native
 
-lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi_reflect-izumi-reflect-aggregate"))
+lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil
@@ -268,7 +268,7 @@ lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi_reflect-izumi-
     `izumi-reflectNative`
   )
 
-lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi_reflect-izumi-reflect-aggregate-jvm"))
+lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-jvm"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil
@@ -278,7 +278,7 @@ lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi_reflect-iz
     `izumi-reflectJVM`
   )
 
-lazy val `izumi-reflect-aggregate-js` = (project in file(".agg/izumi_reflect-izumi-reflect-aggregate-js"))
+lazy val `izumi-reflect-aggregate-js` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-js"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil
@@ -288,7 +288,7 @@ lazy val `izumi-reflect-aggregate-js` = (project in file(".agg/izumi_reflect-izu
     `izumi-reflectJS`
   )
 
-lazy val `izumi-reflect-aggregate-native` = (project in file(".agg/izumi_reflect-izumi-reflect-aggregate-native"))
+lazy val `izumi-reflect-aggregate-native` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-native"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil

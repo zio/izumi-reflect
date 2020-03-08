@@ -1,4 +1,4 @@
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
 import Constants.NullRef
 import scala.collection.Factory

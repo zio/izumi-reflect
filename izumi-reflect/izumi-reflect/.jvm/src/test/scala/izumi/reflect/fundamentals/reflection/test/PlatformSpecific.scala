@@ -16,9 +16,9 @@
  *
  */
 
-package izreflect.fundamentals.reflection.test
+package izumi.reflect.fundamentals.reflection.test
 
-import izreflect.fundamentals.reflection.macrortti.{LightTypeTag, LightTypeTagImpl}
+import izumi.reflect.fundamentals.reflection.macrortti.{LightTypeTag, LightTypeTagImpl}
 import scala.reflect.runtime.{universe => ru}
 
 object PlatformSpecific {

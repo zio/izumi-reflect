@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
 /**
   * Specialized fast and cheap to initialize identity map for pickle state identifier map

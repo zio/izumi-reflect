@@ -16,6 +16,6 @@
  *
  */
 
-package izreflect.fundamentals.platform.language
+package izumi.reflect.fundamentals.platform.language
 
 private[reflect] final class unused extends deprecated("unused", "unused")

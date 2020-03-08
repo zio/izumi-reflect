@@ -16,14 +16,14 @@
  *
  */
 
-package izreflect.fundamentals.reflection
+package izumi.reflect.fundamentals.reflection
 
 import com.github.ghik.silencer.silent
-import izreflect.fundamentals.platform.console.TrivialLogger
-import izreflect.fundamentals.reflection.ReflectionUtil.{Kind, kindOf}
-import izreflect.fundamentals.reflection.TagMacro._
-import izreflect.fundamentals.reflection.Tags.{HKTag, HKTagMaterializer, Tag}
-import izreflect.fundamentals.reflection.macrortti.{LightTypeTag, LightTypeTagMacro0}
+import izumi.reflect.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.fundamentals.reflection.ReflectionUtil.{Kind, kindOf}
+import izumi.reflect.fundamentals.reflection.TagMacro._
+import izumi.reflect.fundamentals.reflection.Tags.{HKTag, HKTagMaterializer, Tag}
+import izumi.reflect.fundamentals.reflection.macrortti.{LightTypeTag, LightTypeTagMacro0}
 
 import scala.annotation.implicitNotFound
 import scala.collection.immutable.ListMap
@@ -37,7 +37,7 @@ class TagMacro(val c: blackbox.Context) {
 
   import c.universe._
 
-  protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c, DebugProperties.`izreflect.debug.macro.rtti`)
+  protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c, DebugProperties.`izumi.reflect.debug.macro.rtti`)
   private[this] val ltagMacro = new LightTypeTagMacro0[c.type](c)(logger)
 
   // workaround for a scalac bug - `Nothing` type is lost when two implicits for it are summoned from one implicit as in:
@@ -49,7 +49,7 @@ class TagMacro(val c: blackbox.Context) {
       val ltag = ltagMacro.makeParsedLightTypeTagImpl(tpe)
       val cls = closestClass(tpe)
       c.Expr[Tag[T]] {
-        q"_root_.izreflect.fundamentals.reflection.Tags.Tag.apply[$tpe]($cls, $ltag)"
+        q"_root_.izumi.reflect.fundamentals.reflection.Tags.Tag.apply[$tpe]($cls, $ltag)"
       }
     } else {
       makeTagImpl[T]
@@ -194,7 +194,7 @@ class TagMacro(val c: blackbox.Context) {
     val ltag = ltagMacro.makeParsedLightTypeTagImpl(strongCtorType)
     val cls = closestClass(strongCtorType)
     c.Expr[HKTag[ArgStruct]] {
-      q"_root_.izreflect.fundamentals.reflection.Tags.HKTag.apply($cls, $ltag)"
+      q"_root_.izumi.reflect.fundamentals.reflection.Tags.HKTag.apply($cls, $ltag)"
     }
   }
 
@@ -504,7 +504,7 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
     val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind)
 
     val resultType = c.typecheck(
-      tq"{ type T[${c.internal.typeDef(ctorParam)}] = _root_.izreflect.fundamentals.reflection.Tags.HKTag[$ArgStruct] }"
+      tq"{ type T[${c.internal.typeDef(ctorParam)}] = _root_.izumi.reflect.fundamentals.reflection.Tags.HKTag[$ArgStruct] }"
       , c.TYPEmode, c.universe.definitions.NothingTpe, silent = false, withImplicitViewsDisabled = true, withMacrosDisabled = true
     ).tpe
 

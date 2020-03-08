@@ -16,10 +16,10 @@
  *
  */
 
-package izreflect.fundamentals.reflection.test
+package izumi.reflect.fundamentals.reflection.test
 
-import izreflect.fundamentals.reflection.Tags._
-import izreflect.fundamentals.reflection.macrortti._
+import izumi.reflect.fundamentals.reflection.Tags._
+import izumi.reflect.fundamentals.reflection.macrortti._
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
@@ -31,7 +31,7 @@ object ID {
   type id[A] = A
   type Identity[+A] = A
 }
-import izreflect.fundamentals.reflection.test.ID._
+import izumi.reflect.fundamentals.reflection.test.ID._
 
 case class OptionT[F[_], A](value: F[Option[A]])
 
@@ -72,7 +72,7 @@ final case class testTag3[F[_]: TagK]() {
 
 class TagTest extends AnyWordSpec with XY[String] {
 
-  import izreflect.fundamentals.reflection.test.PlatformSpecific.fromRuntime
+  import izumi.reflect.fundamentals.reflection.test.PlatformSpecific.fromRuntime
   def fromLTag[T: LTag]: LightTypeTag = LTag[T].tag
 
   override final val tagZ = Tag[String]

@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
 object ReferenceEquality {
   @inline def eq(a: AnyRef, b: AnyRef): Boolean  = a == b

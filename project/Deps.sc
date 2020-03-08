@@ -185,7 +185,7 @@ object Izumi {
 
     object izumi_reflect_aggregate {
       final val id = ArtifactId("izumi-reflect-aggregate")
-      final val basePath = Seq("izumi_reflect")
+      final val basePath = Seq("izumi-reflect")
 
       final val izumi_reflect = ArtifactId("izumi-reflect")
       final val thirdpartyBoopickleShaded = ArtifactId("izumi-reflect-thirdparty-boopickle-shaded")

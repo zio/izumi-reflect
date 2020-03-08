@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.thirdparty.internal.boopickle
+package izumi.reflect.thirdparty.internal.boopickle
 
 import scala.reflect.macros.blackbox
 
@@ -46,7 +46,7 @@ private[reflect] object PicklerMaterializersImpl {
     val name          = TermName(c.freshName("TraitPickler"))
 
     q"""
-      implicit object $name extends _root_.izreflect.thirdparty.internal.boopickle.CompositePickler[$tpe] {
+      implicit object $name extends _root_.izumi.reflect.thirdparty.internal.boopickle.CompositePickler[$tpe] {
         ..$concreteTypes
       }
       $name
@@ -107,7 +107,7 @@ private[reflect] object PicklerMaterializersImpl {
     val parameterTerm = parameter.name.toTermName
 
     q"""
-      _root_.izreflect.thirdparty.internal.boopickle.Default.transformPickler[$tpe, $parameterType](v => new $tpe(v))(v => v.$parameterTerm)
+      _root_.izumi.reflect.thirdparty.internal.boopickle.Default.transformPickler[$tpe, $parameterType](v => new $tpe(v))(v => v.$parameterTerm)
     """
   }
 
@@ -199,9 +199,9 @@ private[reflect] object PicklerMaterializersImpl {
     val name = TermName(c.freshName("Pickler"))
 
     val result = q"""
-      implicit object $name extends _root_.izreflect.thirdparty.internal.boopickle.Pickler[$tpe] {
-        override def pickle(value: $tpe)(implicit state: _root_.izreflect.thirdparty.internal.boopickle.PickleState): Unit = { $pickleLogic; () }
-        override def unpickle(implicit state: _root_.izreflect.thirdparty.internal.boopickle.UnpickleState): $tpe = $unpickleLogic
+      implicit object $name extends _root_.izumi.reflect.thirdparty.internal.boopickle.Pickler[$tpe] {
+        override def pickle(value: $tpe)(implicit state: _root_.izumi.reflect.thirdparty.internal.boopickle.PickleState): Unit = { $pickleLogic; () }
+        override def unpickle(implicit state: _root_.izumi.reflect.thirdparty.internal.boopickle.UnpickleState): $tpe = $unpickleLogic
       }
       $name
     """

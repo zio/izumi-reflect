@@ -16,7 +16,7 @@
  *
  */
 
-package izreflect.fundamentals.reflection
+package izumi.reflect.fundamentals.reflection
 
 /**
   * Java properties and macro settings that control behavior and debug output of Lightweight Reflection macros
@@ -25,31 +25,31 @@ package izreflect.fundamentals.reflection
   */
 object DebugProperties {
   /**
-    * To see macro debug output during compilation, set `-Dizreflect.debug.macro.rtti=true` system property!
+    * To see macro debug output during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` system property!
     *
     * {{{
-    *   sbt -Dizreflect.debug.macro.rtti=true compile
+    *   sbt -Dizumi.reflect.debug.macro.rtti=true compile
     * }}}
     */
-  final val `izreflect.debug.macro.rtti` = "izreflect.debug.macro.rtti"
+  final val `izumi.reflect.debug.macro.rtti` = "izumi.reflect.debug.macro.rtti"
 
   /**
-    * Add compiler option `-Xmacro-settings:izreflect.rtti.cache.compile=false` to disable compile-time caching of computed
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile=false` to disable compile-time caching of computed
     * LightTypeTags. Caching is enabled by default for compile-time light type tag creation.
     *
     * {{{
-    *   scalacOptions += "-Xmacro-settings:izreflect.rtti.cache.compile=false"
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile=false"
     * }}}
     */
-  final val `izreflect.rtti.cache.compile` = "izreflect.rtti.cache.compile"
+  final val `izumi.reflect.rtti.cache.compile` = "izumi.reflect.rtti.cache.compile"
 
   /**
-    * Set system property `-Dizreflect.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
+    * Set system property `-Dizumi.reflect.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
     * Caching is enabled by default for runtime light type tag creation.
     *
     * {{{
-    *   sbt -Dizreflect.rtti.cache.runtime=false
+    *   sbt -Dizumi.reflect.rtti.cache.runtime=false
     * }}}
     */
-  final val `izreflect.rtti.cache.runtime` = "izreflect.rtti.cache.runtime"
+  final val `izumi.reflect.rtti.cache.runtime` = "izumi.reflect.rtti.cache.runtime"
 }

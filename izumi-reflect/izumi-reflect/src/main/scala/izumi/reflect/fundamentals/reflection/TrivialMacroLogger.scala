@@ -16,19 +16,19 @@
  *
  */
 
-package izreflect.fundamentals.reflection
+package izumi.reflect.fundamentals.reflection
 
-import izreflect.fundamentals.platform.console.TrivialLogger
-import izreflect.fundamentals.platform.console.TrivialLogger.Config
+import izumi.reflect.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.fundamentals.platform.console.TrivialLogger.Config
 
 import scala.reflect.ClassTag
 import scala.reflect.macros.blackbox
 
 /**
-  * To see macro debug output during compilation, set `-Dizreflect.debug.macro.rtti=true` java property! e.g.
+  * To see macro debug output during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` java property! e.g.
   *
   * {{{
-  * sbt -Dizreflect.debug.macro.rtti=true compile
+  * sbt -Dizumi.reflect.debug.macro.rtti=true compile
   * }}}
   *
   * @see [[DebugProperties]]
