@@ -1,4 +1,4 @@
-![Build [Github Actions]](https://github.com/zio/izumi-reflect/workflows/Build%20%5BGithub%20Actions%5D/badge.svg)
+![Build](https://github.com/zio/izumi-reflect/workflows/Build%20%5BGithub%20Actions%5D/badge.svg)
 
 # izumi-reflect
 
