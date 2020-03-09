@@ -108,7 +108,7 @@ private[boopickle] class TextDecoder(utfLabel: js.UndefOr[String] = js.undefined
 @js.native
 @JSGlobal
 private[boopickle] class TextEncoder(utfLabel: js.UndefOr[String] = js.undefined) extends js.Object {
-  def encode(str: String): Uint8Array = js.native
+  def encode(str: String): Int8Array = js.native
 }
 
 private[boopickle] object JSStringCodec extends StringCodecBase {
