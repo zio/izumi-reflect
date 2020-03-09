@@ -47,6 +47,8 @@ private[reflect] object RuntimeAPI {
             }
           case IntersectionReference(refs) =>
             refs.flatMap(unpack)
+          case UnionReference(refs) =>
+            refs.flatMap(unpack)
           case Refinement(reference, decls) =>
             unpack(reference) ++ decls.flatMap(d => d match {
               case RefinementDecl.Signature(_, input, output) =>
@@ -112,8 +114,11 @@ private[reflect] object RuntimeAPI {
     private def replaceApplied(reference: AppliedReference): AbstractReference = {
       reference match {
         case IntersectionReference(refs) =>
-          val replaced = refs.map(replaceNamed).map(r => ensureAppliedNamed(reference, r))
+          val replaced = refs.map(replaceApplied).map(r => ensureApplied(reference, r))
           maybeIntersection(replaced)
+        case UnionReference(refs) =>
+          val replaced = refs.map(replaceApplied).map(r => ensureApplied(reference, r))
+          maybeUnion(replaced)
         case Refinement(base, decls) =>
 
           val rdecls = decls.map {
@@ -176,15 +181,6 @@ private[reflect] object RuntimeAPI {
           reference
         case o =>
           throw new IllegalStateException(s"Expected applied reference but got $o while processing $context")
-      }
-    }
-
-    private def ensureAppliedNamed(context: AbstractReference, ref: AbstractReference): AppliedNamedReference = {
-      ref match {
-        case reference: AppliedNamedReference =>
-          reference
-        case o =>
-          throw new IllegalStateException(s"Expected named applied reference but got $o while processing $context")
       }
     }
   }

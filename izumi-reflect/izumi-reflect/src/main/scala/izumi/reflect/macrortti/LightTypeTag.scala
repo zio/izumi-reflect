@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets
 import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymTermName, SymTypeName}
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, NameReference, SymName}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedReference, NameReference, SymName}
 import izumi.reflect.thirdparty.internal.boopickle.Default.Pickler
 
 /**
@@ -199,7 +199,7 @@ object LightTypeTag {
     def mergedBasesDB = LightTypeTag.mergeIDBs(structure.basesdb, intersection.iterator.map(_.basesdb))
     def mergedInheritanceDb = LightTypeTag.mergeIDBs(structure.idb, intersection.iterator.map(_.idb))
 
-    val parts = intersection.iterator.collect { case l if l.ref.isInstanceOf[AppliedNamedReference] => l.ref.asInstanceOf[AppliedNamedReference] }.toSet
+    val parts = intersection.iterator.collect { case l if l.ref.isInstanceOf[AppliedReference] => l.ref.asInstanceOf[AppliedReference] }.toSet
     val intersectionRef = LightTypeTagRef.maybeIntersection(parts)
 
     val ref = structure.ref match {
