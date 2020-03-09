@@ -1,11 +1,11 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.50`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.52`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
 object Izumi {
 
   object V {
-    val collection_compat = Version.VExpr("V.collection_compat")
+    val silencer = Version.VExpr("V.silencer")
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
   }
@@ -26,7 +26,7 @@ object Izumi {
   }
 
   def entrypoint(args: Seq[String]) = {
-    Entrypoint.main(izumi, settings, Seq("-o", ".") ++ args)
+    Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ args)
   }
 
   val settings = GlobalSettings(
@@ -39,12 +39,15 @@ object Izumi {
   )
 
   object Deps {
-    final val collection_compat = Library("org.scala-lang.modules", "scala-collection-compat", V.collection_compat, LibraryType.Auto)
     final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto) in Scope.Test.all
 
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
+      .more(LibSetting.Raw("cross CrossVersion.full"))
+    final val silencer_plugin = Library("com.github.ghik", "silencer-plugin", V.silencer, LibraryType.Invariant)
+      .more(LibSetting.Raw("cross CrossVersion.full"))
+    final val silencer_lib = Library("com.github.ghik", "silencer-lib", V.silencer, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
   }
 
@@ -56,9 +59,7 @@ object Izumi {
   final val scala213 = ScalaVersion("2.13.1")
 
   object Groups {
-    final val fundamentals = Set(Group("fundamentals"))
-    // final val docs = Set(Group("docs"))
-    // final val sbt = Set(Group("sbt"))
+    final val izumi_reflect = Set(Group("izumi-reflect"))
   }
 
   object Targets {
@@ -170,11 +171,11 @@ object Izumi {
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala212), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izreflect.**",
+              "-opt-inline-from:izumi.reflect.**",
             ),
             SettingKey(Some(scala213), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izreflect.**",
+              "-opt-inline-from:izumi.reflect.**",
             ),
             SettingKey.Default := Const.EmptySeq
           ),
@@ -182,38 +183,15 @@ object Izumi {
 
     }
 
-    object fundamentals {
-      final val id = ArtifactId("fundamentals")
-      final val basePath = Seq("fundamentals")
+    object izumi_reflect_aggregate {
+      final val id = ArtifactId("izumi-reflect-aggregate")
+      final val basePath = Seq("izumi-reflect")
 
-      final val reflection = ArtifactId("izumi-reflect")
-
+      final val izumi_reflect = ArtifactId("izumi-reflect")
       final val thirdpartyBoopickleShaded = ArtifactId("izumi-reflect-thirdparty-boopickle-shaded")
     }
 
-    // object docs {
-    //   final val id = ArtifactId("doc")
-    //   final val basePath = Seq("doc")
-
-    //   final lazy val microsite = ArtifactId("microsite")
-    // }
-
-    // object sbtplugins {
-    //   final val id = ArtifactId("sbt-plugins")
-    //   final val basePath = Seq("sbt-plugins")
-
-    //   final val settings = Seq(
-    //     "sbtPlugin" := true,
-    //   )
-
-    //   final lazy val izumi_deps = ArtifactId("sbt-izumi-deps")
-    // }
-
   }
-
-//  final val forkTests = Seq(
-//    "fork" in (SettingScope.Test, Platform.Jvm) := true,
-//  )
 
   final val crossScalaSources = Seq(
     "unmanagedSourceDirectories" in SettingScope.Compile :=
@@ -228,11 +206,11 @@ object Izumi {
       |}""".stripMargin.raw,
   )
 
-  final lazy val fundamentals = Aggregate(
-    name = Projects.fundamentals.id,
+  final lazy val izumi_reflect_aggregate = Aggregate(
+    name = Projects.izumi_reflect_aggregate.id,
     artifacts = Seq(
       Artifact(
-        name = Projects.fundamentals.thirdpartyBoopickleShaded,
+        name = Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         libs = Seq(
           scala_reflect in Scope.Provided.all
         ),
@@ -245,16 +223,16 @@ object Izumi {
           ),
       ),
       Artifact(
-        name = Projects.fundamentals.reflection,
+        name = Projects.izumi_reflect_aggregate.izumi_reflect,
         libs = Seq(scala_reflect in Scope.Provided.all),
         settings = crossScalaSources,
         depends = Seq(
-          Projects.fundamentals.thirdpartyBoopickleShaded,
+          Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         ),
       ),
     ),
-    pathPrefix = Projects.fundamentals.basePath,
-    groups = Groups.fundamentals,
+    pathPrefix = Projects.izumi_reflect_aggregate.basePath,
+    groups = Groups.izumi_reflect,
     defaultPlatforms = Targets.crossNative,
     enableProjectSharedAggSettings = false,
     settings = Seq(
@@ -262,118 +240,10 @@ object Izumi {
     )
   )
 
-  // final lazy val docs = Aggregate(
-  //   name = Projects.docs.id,
-  //   artifacts = Seq(
-  //     Artifact(
-  //       name = Projects.docs.microsite,
-  //       libs = (cats_all ++ zio_all ++ http4s_all).map(_ in Scope.Compile.all),
-  //       depends = all.flatMap(_.artifacts).map(_.name in Scope.Compile.all).distinct,
-  //       settings = Seq(
-  //         "coverageEnabled" := false,
-  //         "skip" in SettingScope.Raw("publish") := true,
-  //         "DocKeys.prefix" :=
-  //           """{if (isSnapshot.value) {
-  //           "latest/snapshot"
-  //         } else {
-  //           "latest/release"
-  //         }}""".raw,
-  //         "previewFixedPort" := "Some(9999)".raw,
-  //         "git.remoteRepo" := "git@github.com:7mind/izumi-microsite.git",
-  //         "classLoaderLayeringStrategy" in SettingScope.Raw("Compile") := "ClassLoaderLayeringStrategy.Flat".raw,
-  //         "mdocIn" := """baseDirectory.value / "src/main/tut"""".raw,
-  //         "sourceDirectory" in SettingScope.Raw("Paradox") := "mdocOut.value".raw,
-  //         "mdocExtraArguments" ++= Seq(" --no-link-hygiene"),
-  //         "mappings" in SettingScope.Raw("SitePlugin.autoImport.makeSite") :=
-  //           """{
-  //           (mappings in SitePlugin.autoImport.makeSite)
-  //             .dependsOn(mdoc.toTask(" "))
-  //             .value
-  //         }""".raw,
-  //         "version" in SettingScope.Raw("Paradox") := "version.value".raw,
-  //         SettingDef.RawSettingDef("ParadoxMaterialThemePlugin.paradoxMaterialThemeSettings(Paradox)"),
-  //         SettingDef.RawSettingDef("addMappingsToSiteDir(mappings in(ScalaUnidoc, packageDoc), siteSubdirName in ScalaUnidoc)"),
-  //         SettingDef.RawSettingDef(
-  //           "unidocProjectFilter in(ScalaUnidoc, unidoc) := inAggregates(`fundamentals-jvm`, transitive = true) || inAggregates(`distage-jvm`, transitive = true) || inAggregates(`logstage-jvm`, transitive = true)"
-  //         ),
-  //         SettingDef.RawSettingDef(
-  //           """paradoxMaterialTheme in Paradox ~= {
-  //           _.withCopyright("7mind.io")
-  //             .withRepository(uri("https://github.com/7mind/izumi"))
-  //           //        .withColor("222", "434343")
-  //         }"""),
-  //         "siteSubdirName" in SettingScope.Raw("ScalaUnidoc") := """s"${DocKeys.prefix.value}/api"""".raw,
-  //         "siteSubdirName" in SettingScope.Raw("Paradox") := """s"${DocKeys.prefix.value}/doc"""".raw,
-  //         SettingDef.RawSettingDef(
-  //           """paradoxProperties ++= Map(
-  //           "scaladoc.izumi.base_url" -> s"/${DocKeys.prefix.value}/api/",
-  //           "scaladoc.base_url" -> s"/${DocKeys.prefix.value}/api/",
-  //           "izumi.version" -> version.value,
-  //         )"""),
-  //         SettingDef.RawSettingDef(
-  //           """excludeFilter in ghpagesCleanSite :=
-  //           new FileFilter {
-  //             def accept(f: File): Boolean = {
-  //               (f.toPath.startsWith(ghpagesRepository.value.toPath.resolve("latest")) && !f.toPath.startsWith(ghpagesRepository.value.toPath.resolve(DocKeys.prefix.value))) ||
-  //                 (ghpagesRepository.value / "CNAME").getCanonicalPath == f.getCanonicalPath ||
-  //                 (ghpagesRepository.value / ".nojekyll").getCanonicalPath == f.getCanonicalPath ||
-  //                 (ghpagesRepository.value / "index.html").getCanonicalPath == f.getCanonicalPath ||
-  //                 (ghpagesRepository.value / "README.md").getCanonicalPath == f.getCanonicalPath ||
-  //                 f.toPath.startsWith((ghpagesRepository.value / "media").toPath) ||
-  //                 f.toPath.startsWith((ghpagesRepository.value / "v0.5.50-SNAPSHOT").toPath)
-  //             }
-  //           }"""
-  //         )
-  //       ),
-  //       plugins = Plugins(
-  //         enabled = Seq(
-  //           Plugin("ScalaUnidocPlugin"),
-  //           Plugin("ParadoxSitePlugin"),
-  //           Plugin("SitePlugin"),
-  //           Plugin("GhpagesPlugin"),
-  //           Plugin("ParadoxMaterialThemePlugin"),
-  //           Plugin("PreprocessPlugin"),
-  //           Plugin("MdocPlugin")
-  //         ),
-  //         disabled = Seq(Plugin("ScoverageSbtPlugin"))
-  //       )
-  //     ),
-  //   ),
-  //   pathPrefix = Projects.docs.basePath,
-  //   groups = Groups.docs,
-  //   defaultPlatforms = Targets.jvm,
-  //   dontIncludeInSuperAgg = true,
-  // )
-
-  // final lazy val sbtplugins = Aggregate(
-  //   name = Projects.sbtplugins.id,
-  //   artifacts = Seq(
-  //     Artifact(
-  //       name = Projects.sbtplugins.izumi_deps,
-  //       libs = Seq.empty,
-  //       depends = Seq.empty,
-  //       settings = Projects.sbtplugins.settings ++ Seq(
-  //         SettingDef.RawSettingDef("""withBuildInfo("izumi.sbt.deps", "Izumi")""")
-  //       ),
-  //       plugins = Plugins(
-  //         enabled = Seq.empty,
-  //         disabled = Seq(Plugin("ScoverageSbtPlugin")),
-  //       )
-  //     ),
-  //   ),
-  //   pathPrefix = Projects.sbtplugins.basePath,
-  //   groups = Groups.sbt,
-  //   defaultPlatforms = Targets.jvmSbt,
-  //   enableProjectSharedAggSettings = false,
-  //   dontIncludeInSuperAgg = false,
-  // )
-
-  val izumi: Project = Project(
+  val izumi_reflect: Project = Project(
     name = Projects.root.id,
     aggregates = Seq(
-      fundamentals,
-      // docs,
-      // sbtplugins,
+      izumi_reflect_aggregate,
     ),
     topLevelSettings = Projects.root.settings,
     sharedSettings = Projects.root.sharedSettings,
@@ -382,7 +252,8 @@ object Izumi {
     imports = Seq.empty,
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
-      collection_compat in Scope.Compile.all,
+      ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
+      silencer_lib in Scope.Provided.all,
       scalatest,
     ),
     rootPlugins = Projects.root.plugins,
