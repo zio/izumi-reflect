@@ -2,21 +2,23 @@
 
 # izumi-reflect
 
-> In case something looks like a TypeTag and works like a TypeTag it may be considered as a replacement for the TypeTag
+> @quote: Looks a bit similar to TypeTag
 
 `izumi-reflect` is a fast, lightweight, portable and efficient alternative for `TypeTag` from `scala-reflect`.
 
-`izumi-reflect` uses its own lightweight model of Scala types and provides a simulator of an important part of Scala typechecker.
+`izumi-reflect` is a lightweight model of Scala type system and provides a simulator of the important parts of the Scala typechecker.
 
-## Why it's better than `scala-reflect`
+## Why `izumi-reflect`
 
-1. `izumi-reflect` compiles and initializes lot faster than `scala-reflect` tags,
-2. `izumi-reflect` supports ScalaJS and ScalaNative,
-3. `izumi-reflect` allows you to obtain tags for unapplied types (`F[_]`) and combine them in runtime.
+1. `izumi-reflect` compiles faster, runs a lot faster than `scala-reflect` and is fully immutable and [thread-safe](https://github.com/scala/bug/issues/10766),
+2. `izumi-reflect` supports Scala.js, Scala Native and will support Scala 3 in immediate future,
+3. `izumi-reflect` allows you to obtain tags for unapplied type constructors (`F[_]`) and combine them at runtime.
 
 ## Credits
 
-`izumi-reflect` has been implemented by [7mind](https://7mind.io) as part of [Izumi](https://github.com/7mind/izumi) and donated to ZIO.
+`izumi-reflect` has been created by [7mind](https://7mind.io) to power [Izumi Project](https://github.com/7mind/izumi),
+as a replacement for `TypeTag` in reaction to a lack of confirmed information about the future of `scala-reflect`/`TypeTag` in Scala 3 ([Motivation](https://blog.7mind.io/lightweight-reflection.html)),
+and donated to ZIO.
 This repository contains an independent and more conservative copy of the code comparing to Izumi one.
 
 <p align="center">
@@ -28,13 +30,14 @@ This repository contains an independent and more conservative copy of the code c
 
 ## Limitations
 
-`izumi-reflect` model is imperfect, though "good enough" for the vast majority of the usecases.
+`izumi-reflect` model of the Scala type system is not 100% precise, but "good enough" for the vast majority of the usecases.
 
 Known limitations are:
 
 1. Type boundaries support is very limited because of a [problematic behavior](https://github.com/scala/bug/issues/11673) of Scala 2.13 compiler,
-2. Recursive type boundaries/existentials are not supported,
-3. Path-Dependent Types are handled by symbolic names and may cause unexpected false-positives (comparing to Scala typer).
+2. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
+3. Existential types written with `forSome` are not supported and may produce unexpected results,
+4. Path-Dependent Types are based on variable names and may cause unexpected results with variables with different names but the same type or vice-versa (vs. Scala typechecker)
 
 ## Build
 
@@ -48,4 +51,5 @@ Once you finished tinkering with the code you may want to generate full project 
 
 ```bash
 ./sbtgen.sc --js --native
+sbt +test
 ```
