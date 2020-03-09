@@ -4,7 +4,7 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 enablePlugins(SbtgenVerificationPlugin)
 
-lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/izumi-reflect-thirdparty-boopickle-shaded"))
+lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
     libraryDependencies ++= Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
@@ -88,11 +88,11 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.10") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (false, "2.13.1") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
     } }
@@ -128,7 +128,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shadedJVM` = `izumi-reflect-thirdpa
 lazy val `izumi-reflect-thirdparty-boopickle-shadedJS` = `izumi-reflect-thirdparty-boopickle-shaded`.js
 lazy val `izumi-reflect-thirdparty-boopickle-shadedNative` = `izumi-reflect-thirdparty-boopickle-shaded`.native
 
-lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("fundamentals/izumi-reflect"))
+lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("izumi-reflect/izumi-reflect"))
   .dependsOn(
     `izumi-reflect-thirdparty-boopickle-shaded` % "test->compile;compile->compile"
   )
@@ -214,11 +214,11 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.10") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (false, "2.13.1") => Seq(
         "-opt:l:inline",
-        "-opt-inline-from:izreflect.**"
+        "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
     } }
@@ -254,7 +254,7 @@ lazy val `izumi-reflectJVM` = `izumi-reflect`.jvm
 lazy val `izumi-reflectJS` = `izumi-reflect`.js
 lazy val `izumi-reflectNative` = `izumi-reflect`.native
 
-lazy val `fundamentals` = (project in file(".agg/fundamentals-fundamentals"))
+lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil
@@ -268,7 +268,7 @@ lazy val `fundamentals` = (project in file(".agg/fundamentals-fundamentals"))
     `izumi-reflectNative`
   )
 
-lazy val `fundamentals-jvm` = (project in file(".agg/fundamentals-fundamentals-jvm"))
+lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-jvm"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil
@@ -278,7 +278,7 @@ lazy val `fundamentals-jvm` = (project in file(".agg/fundamentals-fundamentals-j
     `izumi-reflectJVM`
   )
 
-lazy val `fundamentals-js` = (project in file(".agg/fundamentals-fundamentals-js"))
+lazy val `izumi-reflect-aggregate-js` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-js"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil
@@ -288,7 +288,7 @@ lazy val `fundamentals-js` = (project in file(".agg/fundamentals-fundamentals-js
     `izumi-reflectJS`
   )
 
-lazy val `fundamentals-native` = (project in file(".agg/fundamentals-fundamentals-native"))
+lazy val `izumi-reflect-aggregate-native` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-native"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Nil
@@ -308,7 +308,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
     scalaVersion := crossScalaVersions.value.head
   )
   .aggregate(
-    `fundamentals-jvm`
+    `izumi-reflect-aggregate-jvm`
   )
 
 lazy val `izumi-reflect-root-js` = (project in file(".agg/.agg-js"))
@@ -321,7 +321,7 @@ lazy val `izumi-reflect-root-js` = (project in file(".agg/.agg-js"))
     scalaVersion := crossScalaVersions.value.head
   )
   .aggregate(
-    `fundamentals-js`
+    `izumi-reflect-aggregate-js`
   )
 
 lazy val `izumi-reflect-root-native` = (project in file(".agg/.agg-native"))
@@ -334,7 +334,7 @@ lazy val `izumi-reflect-root-native` = (project in file(".agg/.agg-native"))
     scalaVersion := crossScalaVersions.value.head
   )
   .aggregate(
-    `fundamentals-native`
+    `izumi-reflect-aggregate-native`
   )
 
 lazy val `izumi-reflect-root` = (project in file("."))
@@ -391,5 +391,5 @@ lazy val `izumi-reflect-root` = (project in file("."))
     scalacOptions in ThisBuild += """-Xmacro-settings:scalatest-version=VExpr(V.scalatest)"""
   )
   .aggregate(
-    `fundamentals`
+    `izumi-reflect-aggregate`
   )

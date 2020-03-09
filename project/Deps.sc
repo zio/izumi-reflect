@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.50`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.52`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -59,7 +59,7 @@ object Izumi {
   final val scala213 = ScalaVersion("2.13.1")
 
   object Groups {
-    final val fundamentals = Set(Group("fundamentals"))
+    final val izumi_reflect = Set(Group("izumi-reflect"))
   }
 
   object Targets {
@@ -171,11 +171,11 @@ object Izumi {
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala212), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izreflect.**",
+              "-opt-inline-from:izumi.reflect.**",
             ),
             SettingKey(Some(scala213), Some(true)) := Seq(
               "-opt:l:inline",
-              "-opt-inline-from:izreflect.**",
+              "-opt-inline-from:izumi.reflect.**",
             ),
             SettingKey.Default := Const.EmptySeq
           ),
@@ -183,12 +183,11 @@ object Izumi {
 
     }
 
-    object fundamentals {
-      final val id = ArtifactId("fundamentals")
-      final val basePath = Seq("fundamentals")
+    object izumi_reflect_aggregate {
+      final val id = ArtifactId("izumi-reflect-aggregate")
+      final val basePath = Seq("izumi-reflect")
 
-      final val reflection = ArtifactId("izumi-reflect")
-
+      final val izumi_reflect = ArtifactId("izumi-reflect")
       final val thirdpartyBoopickleShaded = ArtifactId("izumi-reflect-thirdparty-boopickle-shaded")
     }
 
@@ -207,11 +206,11 @@ object Izumi {
       |}""".stripMargin.raw,
   )
 
-  final lazy val fundamentals = Aggregate(
-    name = Projects.fundamentals.id,
+  final lazy val izumi_reflect_aggregate = Aggregate(
+    name = Projects.izumi_reflect_aggregate.id,
     artifacts = Seq(
       Artifact(
-        name = Projects.fundamentals.thirdpartyBoopickleShaded,
+        name = Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         libs = Seq(
           scala_reflect in Scope.Provided.all
         ),
@@ -224,16 +223,16 @@ object Izumi {
           ),
       ),
       Artifact(
-        name = Projects.fundamentals.reflection,
+        name = Projects.izumi_reflect_aggregate.izumi_reflect,
         libs = Seq(scala_reflect in Scope.Provided.all),
         settings = crossScalaSources,
         depends = Seq(
-          Projects.fundamentals.thirdpartyBoopickleShaded,
+          Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         ),
       ),
     ),
-    pathPrefix = Projects.fundamentals.basePath,
-    groups = Groups.fundamentals,
+    pathPrefix = Projects.izumi_reflect_aggregate.basePath,
+    groups = Groups.izumi_reflect,
     defaultPlatforms = Targets.crossNative,
     enableProjectSharedAggSettings = false,
     settings = Seq(
@@ -244,7 +243,7 @@ object Izumi {
   val izumi_reflect: Project = Project(
     name = Projects.root.id,
     aggregates = Seq(
-      fundamentals,
+      izumi_reflect_aggregate,
     ),
     topLevelSettings = Projects.root.settings,
     sharedSettings = Projects.root.sharedSettings,
