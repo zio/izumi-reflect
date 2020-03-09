@@ -35,8 +35,9 @@ This repository contains an independent and more conservative copy of the code c
 Known limitations are:
 
 1. Type boundaries support is very limited because of a [problematic behavior](https://github.com/scala/bug/issues/11673) of Scala 2.13 compiler,
-2. Recursive type bounds (F-bounded types) are not preserved and will produce false positives,
-3. Path-Dependent Types are based on variable names and may cause unexpected results with variables with different names but the same type or vice-versa (vs. Scala typechecker)
+2. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
+3. Existential types written with `forSome` are not supported and may produce unexpected results,
+4. Path-Dependent Types are based on variable names and may cause unexpected results with variables with different names but the same type or vice-versa (vs. Scala typechecker)
 
 ## Build
 
