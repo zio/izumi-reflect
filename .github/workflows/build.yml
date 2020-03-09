@@ -43,5 +43,6 @@ jobs:
               COMMAND="$COMMAND sonatypeBundleRelease"
             fi
           fi
+          echo $COMMAND
           eval $COMMAND
 
