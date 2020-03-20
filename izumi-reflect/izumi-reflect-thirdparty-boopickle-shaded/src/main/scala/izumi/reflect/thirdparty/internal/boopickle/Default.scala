@@ -160,6 +160,12 @@ private[reflect] object Default
     with TuplePicklers
     with MaterializePicklerFallback
 
+private[reflect] object NoMacro
+  extends Base
+    with BasicImplicitPicklers
+    with TransformPicklers
+    with TuplePicklers
+
 /**
   * Provides basic implicit picklers without macro support for case classes
   */
