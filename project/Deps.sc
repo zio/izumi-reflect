@@ -23,6 +23,7 @@ object Izumi {
     val scala_native_version = Version.VExpr("PV.scala_native_version")
     val crossproject_version = Version.VExpr("PV.crossproject_version")
     val scalajs_bundler_version = Version.VExpr("PV.scalajs_bundler_version")
+    val sbt_dotty_version = Version.VExpr("PV.sbt_dotty_version")
   }
 
   def entrypoint(args: Seq[String]) = {
@@ -36,6 +37,7 @@ object Izumi {
     scalaNativeVersion = PV.scala_native_version,
     crossProjectVersion = PV.crossproject_version,
     bundlerVersion = PV.scalajs_bundler_version,
+    sbtDottyVersion = PV.sbt_dotty_version,
   )
 
   object Deps {
@@ -57,6 +59,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.10")
   final val scala213 = ScalaVersion("2.13.1")
+  final val scala3 = ScalaVersion("0.23.0-RC1")
 
   object Groups {
     final val izumi_reflect = Set(Group("izumi-reflect"))
@@ -64,31 +67,19 @@ object Izumi {
 
   object Targets {
     // switch order to use 2.13 in IDEA
-    val targetScala = Seq(scala212, scala213)
-    val targetScalaN = Seq(scala212, scala213, scala211)
-    //    val targetScala = Seq(scala213, scala212)
+    val targetScala = Seq(scala212, scala213, scala211, scala3)
+    //    val targetScala = Seq(scala213, scala212, scala211, scala3)
+    //    val targetScala = Seq(scala3, scala213, scala212, scala211)
     private val jvmPlatform = PlatformEnv(
       platform = Platform.Jvm,
       language = targetScala,
     )
-    private val jvmPlatformNative = PlatformEnv(
-      platform = Platform.Jvm,
-      language = targetScalaN,
-    )
     private val jsPlatform = PlatformEnv(
       platform = Platform.Js,
-      language = targetScala,
+      language = targetScala.filterNot(_.isDotty),
       settings = Seq(
         "coverageEnabled" := false,
-        "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) := "{ scalaJSLinkerConfig.value.withModuleKind(ModuleKind.CommonJSModule) }".raw,
-      ),
-    )
-    private val jsPlatformN = PlatformEnv(
-      platform = Platform.Js,
-      language = targetScalaN,
-      settings = Seq(
-        "coverageEnabled" := false,
-        "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) := "{ scalaJSLinkerConfig.value.withModuleKind(ModuleKind.CommonJSModule) }".raw,
+        "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) %= "_.withModuleKind(ModuleKind.CommonJSModule)".raw,
       ),
     )
     private val nativePlatform = PlatformEnv(
@@ -98,26 +89,10 @@ object Izumi {
         "coverageEnabled" := false,
       ),
     )
-    private val jvmPlatformSbt = PlatformEnv(
-      platform = Platform.Jvm,
-      language = Seq(scala212),
-      settings = Seq(
-        "coverageEnabled" := false,
-      ),
-    )
-    final val cross = Seq(jvmPlatform, jsPlatform)
-    final val crossNative = Seq(jvmPlatformNative, jsPlatformN, nativePlatform)
-    final val jvm = Seq(jvmPlatform)
-    final val js = Seq(jsPlatform)
-    final val jvmSbt = Seq(jvmPlatformSbt)
+    final val crossNative = Seq(jvmPlatform, jsPlatform, nativePlatform)
   }
 
   object Projects {
-
-    final val plugins = Plugins(
-      Seq.empty,
-      Seq.empty,
-    )
 
     object root {
       final val id = ArtifactId("izumi-reflect-root")
@@ -166,6 +141,11 @@ object Izumi {
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala212), None) := Defaults.Scala212Options,
             SettingKey(Some(scala213), None) := Defaults.Scala213Options,
+            SettingKey(Some(scala3), None) := Seq(
+              "-Ykind-projector",
+              "-noindent",
+              "-language:implicitConversions",
+            ),
             SettingKey.Default := Const.EmptySeq,
           ),
           "scalacOptions" ++= Seq(
@@ -179,6 +159,32 @@ object Izumi {
             ),
             SettingKey.Default := Const.EmptySeq
           ),
+          "libraryDependencies" ++= {
+                          def raw(l: Library, p: String = "%%%") =
+//            def raw(l: Library, p: String = "%%") =
+              s""""${l.group}" $p "${l.artifact}" % ${l.version match {
+                case Version.VConst(value) => s"$value"
+                case Version.VExpr(value) => value
+              }}"""
+
+            Seq[(SettingKey, Const)](
+              SettingKey(Some(scala3), None) := Seq(
+                // thanks, Sandinh!
+                s"""${raw(scalatest.dependency.copy(group = "com.sandinh"))} % Test""".raw,
+              ),
+              SettingKey.Default := Seq(
+                s"""compilerPlugin(${raw(projector, "%")} cross CrossVersion.full)""".raw,
+                s"""compilerPlugin(${raw(silencer_plugin, "%")} cross CrossVersion.full)""".raw,
+                s"""${raw(silencer_lib, "%")} % Provided cross CrossVersion.full""".raw,
+                s"""${raw(scala_reflect, "%")} % Provided""".raw,
+                s"""${raw(scalatest.dependency)} % Test""".raw,
+                //              ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
+                //              ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
+                //              silencer_lib in Scope.Provided.all,
+                //              scalatest,
+              )
+            )
+          }
         )
 
     }
@@ -193,27 +199,29 @@ object Izumi {
 
   }
 
-  final val crossScalaSources = Seq(
-    "unmanagedSourceDirectories" in SettingScope.Compile :=
-    """(unmanagedSourceDirectories in Compile).value.flatMap {
-      |  dir =>
-      |   Seq(dir, file(dir.getPath + (CrossVersion.partialVersion(scalaVersion.value) match {
-      |     case Some((2, 11)) => "_2.11"
-      |     case Some((2, 12)) => "_2.12"
-      |     case Some((2, 13)) => "_2.13"
-      |     case _             => "_3.0"
-      |   })))
-      |}""".stripMargin.raw,
-  )
+  final val crossScalaSources = {
+    def addVersionSources(scope: String) =
+      s"""(unmanagedSourceDirectories in $scope).value.flatMap {
+        |  dir =>
+        |   val partialVersion = CrossVersion.partialVersion(scalaVersion.value)
+        |   def scalaDir(s: String) = file(dir.getPath + s)
+        |   Seq(dir) ++ (partialVersion match {
+        |     case Some((2, n)) => Seq(scalaDir("_2"), scalaDir("_2." + n.toString))
+        |     case _            => Seq(scalaDir("_3"))
+        |   })
+        |}""".stripMargin.raw
+    Seq(
+      "unmanagedSourceDirectories" in SettingScope.Compile := addVersionSources("Compile"),
+      "unmanagedSourceDirectories" in SettingScope.Test := addVersionSources("Test"),
+    )
+  }
 
   final lazy val izumi_reflect_aggregate = Aggregate(
     name = Projects.izumi_reflect_aggregate.id,
     artifacts = Seq(
       Artifact(
         name = Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
-        libs = Seq(
-          scala_reflect in Scope.Provided.all
-        ),
+        libs = Seq.empty,
         depends = Seq.empty,
         settings = crossScalaSources ++ Seq(
             SettingDef.RawSettingDef(
@@ -224,7 +232,7 @@ object Izumi {
       ),
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
-        libs = Seq(scala_reflect in Scope.Provided.all),
+        libs = Seq.empty,
         settings = crossScalaSources,
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
@@ -250,14 +258,9 @@ object Izumi {
     sharedAggSettings = Projects.root.sharedAggSettings,
     rootSettings = Projects.root.rootSettings,
     imports = Seq.empty,
-    globalLibs = Seq(
-      ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
-      ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
-      silencer_lib in Scope.Provided.all,
-      scalatest,
-    ),
+    globalLibs = Seq.empty,
     rootPlugins = Projects.root.plugins,
-    globalPlugins = Projects.plugins,
+    globalPlugins = Plugins(),
     pluginConflictRules = Map.empty,
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
         SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),

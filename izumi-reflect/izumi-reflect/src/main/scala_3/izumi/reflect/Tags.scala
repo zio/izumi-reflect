@@ -18,7 +18,7 @@
 
 package izumi.reflect
 
-import izumi.reflect.macrortti.{LTag, LightTypeTag}
+import izumi.reflect.macrortti.LightTypeTag
 
 import scala.annotation.implicitNotFound
 import scala.language.experimental.macros
@@ -71,8 +71,8 @@ object Tags {
     *
     * @see "Lightweight Scala Reflection and why Dotty needs TypeTags reimplemented" https://blog.7mind.io/lightweight-reflection.html
     */
-  @implicitNotFound("could not find implicit value for Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ...")
-  trait Tag[T] extends AnyTag {
+  @implicitNotFound("could not find implicit value for izumi.reflect.Tags.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ...")
+  trait Tag[T <: AnyKind] extends AnyTag {
     def tag: LightTypeTag
     def closestClass: Class[_]
 
@@ -84,30 +84,13 @@ object Tags {
     /**
       * Use `Tag.auto.T[TYPE_PARAM]` syntax to summon a `Tag` for a type parameter of any kind:
       *
-      * {{{
-      *   def module1[F[_]: Tag.auto.T] = new ModuleDef {
-      *     ...
-      *   }
-      *
-      *   def module2[F[_, _]: Tag.auto.T] = new ModuleDef {
-      *     ...
-      *   }
-      * }}}
-      *
-      * {{{
-      *   def y[K[_[_, _], _[_], _[_[_], _, _, _]](implicit ev: Tag.auto.T[K]): Tag.auto.T[K] = ev
-      * }}}
-      *
-      * {{{
-      *   def x[K[_[_, _], _[_], _[_[_], _, _, _]: Tag.auto.T]: Tag.auto.T[K] = implicitly[Tag.auto.T[K]]
-      * }}}
-      *
+      * NOTE: On Scala 3+ it's the same as `Tag[T]`
       **/
-    def auto: Any = macro TagLambdaMacro.lambdaImpl
+    object auto { type T[T <: AnyKind] = Tag[T] }
 
-    @inline def apply[T: Tag]: Tag[T] = implicitly
+    @inline def apply[T <: AnyKind: Tag]: Tag[T] = implicitly
 
-    def apply[T](cls: Class[_], tag0: LightTypeTag): Tag[T] = {
+    def apply[T <: AnyKind](cls: Class[_], tag0: LightTypeTag): Tag[T] = {
       new Tag[T] {
         override val tag: LightTypeTag = tag0
         override val closestClass: Class[_] = cls
@@ -123,7 +106,7 @@ object Tags {
       *     Tag.appliedTag(t.tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
       * }}}
       **/
-    def appliedTag[R](tag: HKTag[_], args: List[LightTypeTag]): Tag[R] = {
+    def appliedTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = {
       Tag(tag.closestClass, tag.tag.combine(args: _*))
     }
 
@@ -135,91 +118,33 @@ object Tags {
       *   Tag[A with B {def abc: Unit}] == refinedTag(List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag)
       * }}}
       **/
-    def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
+    def refinedTag[R <: AnyKind](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
       Tag(lubClass, LightTypeTag.refinedType(intersection, structType))
     }
 
-    implicit final def tagFromTagMacro[T]: Tag[T] = macro TagMacro.makeTag[T]
+    inline implicit final def tagFromTagMacro[T]: Tag[T] = Tag(classOf[Any], dottyreflection.Inspect.inspect[T])
   }
 
   /**
     * Internal unsafe API representing a poly-kinded, higher-kinded type tag.
     *
-    * To create a Tag* implicit for an arbitrary kind use the following syntax:
-    *
-    * {{{
-    *   type TagK5[K[_, _, _, _, _]] = HKTag[ { type Arg[A, B, C, D, E] = K[A, B, C, D, E] } ]
-    * }}}
-    *
-    * As an argument to HKTag, you should specify the type variables your type parameter will take and apply them to it, in order.
-    *
-    * {{{
-    *   type TagFGC[K[_[_, _], _[_], _[_[_], _, _, _]] = HKTag[ { type Arg[A[_, _], B[_], C[_[_], _, _, _]] = K[A, B, C] } ]
-    * }}}
-    *
-    * A convenience macro `Tag.auto.T` is available to automatically create a type lambda for a type of any kind:
-    *
-    * {{{
-    *   def x[K[_[_, _], _[_], _[_[_], _, _, _]: Tag.auto.T]: Tag.auto.T[K] = implicitly[Tag.auto.T[K]]
-    * }}}
+    * NOTE: On Scala 3+ it's the same as `Tag[T]`
     */
-  trait HKTag[T] extends AnyTag {
-    /** Internal `LightTypeTag` holding the `typeConstructor` of type `T` */
-    def tag: LightTypeTag
-    def closestClass: Class[_]
-
-    override final def toString: String = s"HKTag[$tag]"
-  }
-
-  object HKTag {
-    def apply[T](cls: Class[_], lightTypeTag: LightTypeTag): HKTag[T] = new HKTag[T] {
-      override val tag: LightTypeTag = lightTypeTag
-      override val closestClass: Class[_] = cls
-    }
-
-    def appliedTagNonPos[R](tag: HKTag[_], args: List[Option[LightTypeTag]]): HKTag[R] = {
-      HKTag(tag.closestClass, tag.tag.combineNonPos(args: _*))
-    }
-
-    def appliedTagNonPosAux[R](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): HKTag[R] = {
-      HKTag(cls, ctor.combineNonPos(args: _*))
-    }
-
-    @inline implicit final def hktagFromTagMacro[T](implicit materializer: HKTagMaterializer[T]): HKTag[T] = materializer.value
-  }
-
-  /**
-    * Force eager expansion for all recursive implicit searches inside TagMacro
-    * by introducing a proxy implicit to display better error messages
-    *
-    * @see test ResourceEffectBindingsTest."Display tag macro stack trace when ResourceTag is not found"
-    */
-  final class HKTagMaterializer[T](val value: HKTag[T]) extends AnyVal
-  object HKTagMaterializer {
-    // FIXME: TagK construction macro
-    implicit def materializeHKTag[T]: HKTagMaterializer[T] = macro TagMacro.makeHKTagMaterializer[T]
-  }
-
+  type HKTag[T <: AnyKind] = Tag[T]
 
   /**
     * `TagK` is like a [[scala.reflect.api.TypeTags.TypeTag]] but for higher-kinded types.
     *
-    * Example:
-    * {{{
-    * def containerTypesEqual[F[_]: TagK, K[_]: TagK]): Boolean = TagK[F].tag.tpe =:= TagK[K].tag.tpe
-    *
-    * containerTypesEqual[Set, collection.immutable.Set] == true
-    * containerTypesEqual[Array, List] == false
-    * }}}
+    * NOTE: On Scala 3+ it's the same as `Tag[T]`
     */
-  type TagK[K[_]] = HKTag[{ type Arg[A] = K[A] }]
-  type TagKK[K[_, _]] = HKTag[{ type Arg[A, B] = K[A, B] }]
-  type TagK3[K[_, _, _]] = HKTag[{ type Arg[A, B, C] = K[A, B, C]}]
+  type TagK[K[_]] = Tag[K]
+  type TagKK[K[_, _]] = Tag[K]
+  type TagK3[K[_, _, _]] = Tag[K]
 
-  type TagT[K[_[_]]] = HKTag[{ type Arg[A[_]] = K[A]}]
-  type TagTK[K[_[_], _]] = HKTag[{ type Arg[A[_], B] = K[A, B] }]
-  type TagTKK[K[_[_], _, _]] = HKTag[{ type  Arg[A[_], B, C] = K[A, B, C] }]
-  type TagTK3[K[_[_], _, _, _]] = HKTag[{ type Arg[A[_], B, C, D] = K[A, B, C, D] }]
+  type TagT[K[_[_]]] = Tag[K]
+  type TagTK[K[_[_], _]] = Tag[K]
+  type TagTKK[K[_[_], _, _]] = Tag[K]
+  type TagTK3[K[_[_], _, _, _]] = Tag[K]
 
   object TagK {
     /**
@@ -267,7 +192,7 @@ object Tags {
   //
   // We need to construct a SafeType signature for a generic method, but generic parameters have no type tags
   // So we resort to weak type parameters and pointer equality
-  trait WeakTag[T] extends AnyTag {
+  trait WeakTag[T <: AnyKind] extends AnyTag {
     def tag: LightTypeTag
     def closestClass: Class[_]
 
@@ -287,7 +212,8 @@ object Tags {
     implicit def weakTagFromTag[T: Tag]: WeakTag[T] = WeakTag(Tag[T].closestClass, Tag[T].tag)
   }
   trait WeakTagInstances1 {
-    implicit def weakTagFromWeakTypeTag[T](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
+//    inline def weakTagFromWeakTypeTag[T](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
+    inline def weakTagFromWeakTypeTag[T]: WeakTag[T] = scala.compiletime.error("not implemented")
   }
 
 }

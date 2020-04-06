@@ -20,7 +20,7 @@ package izumi.reflect.test
 
 import scala.annotation.StaticAnnotation
 
-object TestModel {
+object TestModel extends TestModelKindProjector {
   final class IdAnnotation(val name: String) extends StaticAnnotation
 
   trait YieldOpCounts {
@@ -60,7 +60,7 @@ object TestModel {
 
   trait W2 extends W1
 
-  trait W3[_]
+  trait W3[x]
 
   trait W4[A] extends W3[A]
 
@@ -110,14 +110,14 @@ object TestModel {
 
   trait P0[A[_], B[_]]
   trait P1[A[_], B[_]] extends P0[B, A]
-  trait X1[_]
-  trait X2[_]
+  trait X1[x]
+  trait X2[x]
 
   trait XP1[A[_]] extends P0[X2, A]
 
   trait RoleParent[F[_]]
-  trait RoleChild[F[_, _]] extends RoleParent[F[Throwable, ?]]
-  class RoleChild2[F[+_, +_], A, B] extends RoleParent[F[Throwable, ?]]
+  trait RoleChild[F[_, _]] extends RoleParent[F[Throwable, *]]
+  class RoleChild2[F[+_, +_], A, B] extends RoleParent[F[Throwable, *]]
 
   class ApplePaymentProvider[F[_]] extends H1
 
@@ -125,5 +125,4 @@ object TestModel {
   type IO[+E, +A] = ZIO[Any, E, A]
 
   class BlockingIO3[F[_, _, _]]
-  type BlockingIO[F[_, _]] = BlockingIO3[Lambda[(R, E, A) => F[E, A]]]
 }
