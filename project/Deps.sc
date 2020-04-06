@@ -160,8 +160,8 @@ object Izumi {
             SettingKey.Default := Const.EmptySeq
           ),
           "libraryDependencies" ++= {
-                          def raw(l: Library, p: String = "%%%") =
-//            def raw(l: Library, p: String = "%%") =
+            //              def raw(l: Library, p: String = "%%%") =
+            def raw(l: Library, p: String = "%%") =
               s""""${l.group}" $p "${l.artifact}" % ${l.version match {
                 case Version.VConst(value) => s"$value"
                 case Version.VExpr(value) => value
