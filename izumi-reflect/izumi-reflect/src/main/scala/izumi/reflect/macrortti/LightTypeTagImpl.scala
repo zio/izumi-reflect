@@ -471,19 +471,19 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         case (t, d) if d.isEmpty && t.size == 1 =>
           Broken.Single(t.head)
         case (t, d) =>
-          Broken.Compound(t, d)
+          Broken.Compound(t.toSet, d.toSet)
       }
     }
 
-    private def breakRefinement0(t: Type): (Set[Type], Set[SymbolApi]) = {
+    private def breakRefinement0(t: Type): (List[Type], List[SymbolApi]) = {
       fullDealias(t) match {
         case UniRefinement(parents, decls) =>
           val parts = parents.map(breakRefinement0)
           val types = parts.flatMap(_._1)
           val d = parts.flatMap(_._2)
-          (types.toSet, (decls ++ d).toSet)
+          (types, (decls ++ d))
         case t =>
-          (Set(t), Set.empty)
+          (List(t), List.empty)
 
       }
     }

@@ -215,6 +215,10 @@ class LightTypeTagTest extends TagAssertions {
       assertSame(tag1, `LTT[_,_]`[Either])
     }
 
+    "support self-intersection (X with X)" in {
+      assertSame(`LTT`[String with String], `LTT`[String])
+    }
+
     "support intersection type equality" in {
       type T1[A] = W3[A] with W1
       type T2[A] = W4[A] with W2
