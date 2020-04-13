@@ -406,6 +406,10 @@ class LightTypeTagTest extends TagAssertions {
       }
     }
 
+    "support self-intersection (X with X)" in {
+      assertSame(`LTT`[String with String], `LTT`[String])
+    }
+
     "progression test: wildcards are not supported" in {
       intercept[TestFailedException] {
         assertChild(LTT[Set[Int]], LTT[Set[_]])
