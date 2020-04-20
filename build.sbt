@@ -4,35 +4,46 @@ enablePlugins(SbtgenVerificationPlugin)
 
 lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
+    libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
+      compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
+      compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
+      "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
+    ) else Seq.empty },
+    libraryDependencies ++= {
+      val version = scalaVersion.value
+      if (version.startsWith("0.") || version.startsWith("3.")) {
+        Seq(
+          "com.sandinh" %% "scalatest" % V.scalatest % Test
+        )
+      } else Seq.empty
+    }
+  )
+  .settings(
     organization := "dev.zio",
     unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
     unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
     unmanagedSourceDirectories in Test += baseDirectory.value / ".jvm/src/test/scala" ,
     unmanagedResourceDirectories in Test += baseDirectory.value / ".jvm/src/test/resources" ,
-    unmanagedSourceDirectories in Compile += { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.23.0-RC1") => baseDirectory.value / "src/main/scala-3" 
-      case (_, _) => baseDirectory.value / "src/main/scala-2" 
-    } },
-    unmanagedSourceDirectories in Test += { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.23.0-RC1") => baseDirectory.value / "src/test/scala-3" 
-      case (_, _) => baseDirectory.value / "src/test/scala-2" 
-    } },
-    unmanagedSourceDirectories in Compile := (unmanagedSourceDirectories in Compile).value.flatMap {
+    unmanagedSourceDirectories in Compile ++= (unmanagedSourceDirectories in Compile).value.flatMap {
       dir =>
        val partialVersion = CrossVersion.partialVersion(scalaVersion.value)
        def scalaDir(s: String) = file(dir.getPath + s)
-       Seq(dir) ++ (partialVersion match {
+       (partialVersion match {
          case Some((2, n)) => Seq(scalaDir("_2"), scalaDir("_2." + n.toString))
-         case _            => Seq(scalaDir("_3"))
+         case Some((x, n)) => Seq(scalaDir("_3"), scalaDir("_" + x.toString + "." + n.toString))
+         case None         => Seq.empty
        })
     },
-    unmanagedSourceDirectories in Test := (unmanagedSourceDirectories in Test).value.flatMap {
+    unmanagedSourceDirectories in Test ++= (unmanagedSourceDirectories in Test).value.flatMap {
       dir =>
        val partialVersion = CrossVersion.partialVersion(scalaVersion.value)
        def scalaDir(s: String) = file(dir.getPath + s)
-       Seq(dir) ++ (partialVersion match {
+       (partialVersion match {
          case Some((2, n)) => Seq(scalaDir("_2"), scalaDir("_2." + n.toString))
-         case _            => Seq(scalaDir("_3"))
+         case Some((x, n)) => Seq(scalaDir("_3"), scalaDir("_" + x.toString + "." + n.toString))
+         case None         => Seq.empty
        })
     },
     scalacOptions in Compile --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_"),
@@ -111,24 +122,12 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       )
       case (_, _) => Seq.empty
     } },
-    libraryDependencies ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.23.0-RC1") => Seq(
-        "com.sandinh" %% "scalatest" % V.scalatest % Test
-      )
-      case (_, _) => Seq(
-        compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-        compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
-        "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-        "org.scalatest" %% "scalatest" % V.scalatest % Test
-      )
-    } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
-      "2.12.10",
+      "0.23.0-RC1",
       "2.13.1",
-      "2.11.12",
-      "0.23.0-RC1"
+      "2.12.10",
+      "2.11.12"
     )
   )
 
@@ -137,35 +136,46 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     `izumi-reflect-thirdparty-boopickle-shaded` % "test->compile;compile->compile"
   )
   .settings(
+    libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
+      compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
+      compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
+      "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
+    ) else Seq.empty },
+    libraryDependencies ++= {
+      val version = scalaVersion.value
+      if (version.startsWith("0.") || version.startsWith("3.")) {
+        Seq(
+          "com.sandinh" %% "scalatest" % V.scalatest % Test
+        )
+      } else Seq.empty
+    }
+  )
+  .settings(
     organization := "dev.zio",
     unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
     unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
     unmanagedSourceDirectories in Test += baseDirectory.value / ".jvm/src/test/scala" ,
     unmanagedResourceDirectories in Test += baseDirectory.value / ".jvm/src/test/resources" ,
-    unmanagedSourceDirectories in Compile += { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.23.0-RC1") => baseDirectory.value / "src/main/scala-3" 
-      case (_, _) => baseDirectory.value / "src/main/scala-2" 
-    } },
-    unmanagedSourceDirectories in Test += { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.23.0-RC1") => baseDirectory.value / "src/test/scala-3" 
-      case (_, _) => baseDirectory.value / "src/test/scala-2" 
-    } },
-    unmanagedSourceDirectories in Compile := (unmanagedSourceDirectories in Compile).value.flatMap {
+    unmanagedSourceDirectories in Compile ++= (unmanagedSourceDirectories in Compile).value.flatMap {
       dir =>
        val partialVersion = CrossVersion.partialVersion(scalaVersion.value)
        def scalaDir(s: String) = file(dir.getPath + s)
-       Seq(dir) ++ (partialVersion match {
+       (partialVersion match {
          case Some((2, n)) => Seq(scalaDir("_2"), scalaDir("_2." + n.toString))
-         case _            => Seq(scalaDir("_3"))
+         case Some((x, n)) => Seq(scalaDir("_3"), scalaDir("_" + x.toString + "." + n.toString))
+         case None         => Seq.empty
        })
     },
-    unmanagedSourceDirectories in Test := (unmanagedSourceDirectories in Test).value.flatMap {
+    unmanagedSourceDirectories in Test ++= (unmanagedSourceDirectories in Test).value.flatMap {
       dir =>
        val partialVersion = CrossVersion.partialVersion(scalaVersion.value)
        def scalaDir(s: String) = file(dir.getPath + s)
-       Seq(dir) ++ (partialVersion match {
+       (partialVersion match {
          case Some((2, n)) => Seq(scalaDir("_2"), scalaDir("_2." + n.toString))
-         case _            => Seq(scalaDir("_3"))
+         case Some((x, n)) => Seq(scalaDir("_3"), scalaDir("_" + x.toString + "." + n.toString))
+         case None         => Seq.empty
        })
     },
     scalacOptions ++= Seq(
@@ -243,24 +253,12 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       )
       case (_, _) => Seq.empty
     } },
-    libraryDependencies ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.23.0-RC1") => Seq(
-        "com.sandinh" %% "scalatest" % V.scalatest % Test
-      )
-      case (_, _) => Seq(
-        compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-        compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
-        "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-        "org.scalatest" %% "scalatest" % V.scalatest % Test
-      )
-    } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
-      "2.12.10",
+      "0.23.0-RC1",
       "2.13.1",
-      "2.11.12",
-      "0.23.0-RC1"
+      "2.12.10",
+      "2.11.12"
     )
   )
 
@@ -288,10 +286,10 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Seq(
-      "2.12.10",
+      "0.23.0-RC1",
       "2.13.1",
-      "2.11.12",
-      "0.23.0-RC1"
+      "2.12.10",
+      "2.11.12"
     ),
     scalaVersion := crossScalaVersions.value.head
   )
@@ -331,7 +329,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       s"-Xmacro-settings:sbt-version=${sbtVersion.value}"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "2.12.10",
+    scalaVersion := "0.23.0-RC1",
     organization in ThisBuild := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",

@@ -44,18 +44,13 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
           case o =>
             // https://github.com/lampepfl/dotty/issues/8520
             val tycontree = a.tycon.asInstanceOf[TypeRef].typeSymbol.tree.asInstanceOf[TypeDef].rhs.asInstanceOf[TypeTree]
-            //println(s"TYCON: ${tycontree}")
+            log(s"TYCON: ${tycontree}")
             val params: List[Option[Tree]] = try {
-              tycontree match {
-                case d: {def constr: DefDef} =>
-                  //println(s"TYCONDD: ${d.constr}")
-                  println(d.constr)
-                  println(d.constr.typeParams)
-                  d.constr.typeParams.map(p => Some(p.rhs))
-                case o =>
-                  //println(s"TYCONO: $o")
-                  List.fill(a.args.size)(None)
-              }
+              val d = tycontree.asInstanceOf[{def constr: DefDef}]
+              log(s"TYCONDD: ${d.constr}")
+              log(d.constr.toString)
+              log(d.constr.typeParams.toString)
+              d.constr.typeParams.map(p => Some(p.rhs))
             } catch {
               case t: Throwable =>
                 //println(s"FAILEDON: ${tycontree}")
@@ -105,7 +100,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private[dottyreflection] def inspectTree(uns: TypeTree): AbstractReference = {
     val symbol = uns.symbol
     val tpe2 = uns.tpe
-    logStart(s"INSPECT: $uns: ${uns.getClass}")
+//    logStart(s"INSPECT: $uns: ${uns.getClass}")
     if (symbol.isNoSymbol)
       inspectTType(tpe2)
     else
@@ -122,7 +117,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         next().inspectTree(d.returnTpt)
       case o =>
         log(s"SYMBOL, UNSUPPORTED: $o")
-        println(s"SYMBOL, UNSUPPORTED: $o")
         ???
     }
   }

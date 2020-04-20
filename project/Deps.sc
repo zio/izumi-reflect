@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.53`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.54`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -41,7 +41,9 @@ object Izumi {
   )
 
   object Deps {
-    final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto) in Scope.Test.all
+    final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto)
+    // thanks, Sandinh!
+    final val scalatest_dotty = Library("com.sandinh", "scalatest", V.scalatest, LibraryType.Auto)
 
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
 
@@ -67,9 +69,9 @@ object Izumi {
 
   object Targets {
     // switch order to use 2.13 in IDEA
-    val targetScala = Seq(scala212, scala213, scala211, scala3)
+    // val targetScala = Seq(scala212, scala213, scala211, scala3)
     //    val targetScala = Seq(scala213, scala212, scala211, scala3)
-    //    val targetScala = Seq(scala3, scala213, scala212, scala211)
+       val targetScala = Seq(scala3, scala213, scala212, scala211)
     private val jvmPlatform = PlatformEnv(
       platform = Platform.Jvm,
       language = targetScala,
@@ -159,32 +161,6 @@ object Izumi {
             ),
             SettingKey.Default := Const.EmptySeq
           ),
-          "libraryDependencies" ++= {
-            //              def raw(l: Library, p: String = "%%%") =
-            def raw(l: Library, p: String = "%%") =
-              s""""${l.group}" $p "${l.artifact}" % ${l.version match {
-                case Version.VConst(value) => s"$value"
-                case Version.VExpr(value) => value
-              }}"""
-
-            Seq[(SettingKey, Const)](
-              SettingKey(Some(scala3), None) := Seq(
-                // thanks, Sandinh!
-                s"""${raw(scalatest.dependency.copy(group = "com.sandinh"))} % Test""".raw,
-              ),
-              SettingKey.Default := Seq(
-                s"""compilerPlugin(${raw(projector, "%")} cross CrossVersion.full)""".raw,
-                s"""compilerPlugin(${raw(silencer_plugin, "%")} cross CrossVersion.full)""".raw,
-                s"""${raw(silencer_lib, "%")} % Provided cross CrossVersion.full""".raw,
-                s"""${raw(scala_reflect, "%")} % Provided""".raw,
-                s"""${raw(scalatest.dependency)} % Test""".raw,
-                //              ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
-                //              ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All), compilerPlugin = true),
-                //              silencer_lib in Scope.Provided.all,
-                //              scalatest,
-              )
-            )
-          }
         )
 
     }
@@ -199,23 +175,6 @@ object Izumi {
 
   }
 
-  final val crossScalaSources = {
-    def addVersionSources(scope: String) =
-      s"""(unmanagedSourceDirectories in $scope).value.flatMap {
-        |  dir =>
-        |   val partialVersion = CrossVersion.partialVersion(scalaVersion.value)
-        |   def scalaDir(s: String) = file(dir.getPath + s)
-        |   Seq(dir) ++ (partialVersion match {
-        |     case Some((2, n)) => Seq(scalaDir("_2"), scalaDir("_2." + n.toString))
-        |     case _            => Seq(scalaDir("_3"))
-        |   })
-        |}""".stripMargin.raw
-    Seq(
-      "unmanagedSourceDirectories" in SettingScope.Compile := addVersionSources("Compile"),
-      "unmanagedSourceDirectories" in SettingScope.Test := addVersionSources("Test"),
-    )
-  }
-
   final lazy val izumi_reflect_aggregate = Aggregate(
     name = Projects.izumi_reflect_aggregate.id,
     artifacts = Seq(
@@ -223,7 +182,7 @@ object Izumi {
         name = Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         libs = Seq.empty,
         depends = Seq.empty,
-        settings = crossScalaSources ++ Seq(
+        settings = Defaults.CrossScalaSources ++ Seq(
             SettingDef.RawSettingDef(
               """scalacOptions in Compile --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
               FullSettingScope(SettingScope.Compile, Platform.All),
@@ -233,7 +192,7 @@ object Izumi {
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
         libs = Seq.empty,
-        settings = crossScalaSources,
+        settings = Defaults.CrossScalaSources,
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         ),
@@ -258,7 +217,14 @@ object Izumi {
     sharedAggSettings = Projects.root.sharedAggSettings,
     rootSettings = Projects.root.rootSettings,
     imports = Seq.empty,
-    globalLibs = Seq.empty,
+    globalLibs = Seq(
+      ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
+      ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
+      silencer_lib in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
+      scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
+      scalatest in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala2),
+      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
+    ),
     rootPlugins = Projects.root.plugins,
     globalPlugins = Plugins(),
     pluginConflictRules = Map.empty,

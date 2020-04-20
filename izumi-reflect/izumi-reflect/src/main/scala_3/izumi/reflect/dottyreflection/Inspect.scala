@@ -23,7 +23,7 @@ object Inspect {
     val fullDb = TypeInspections.fullDb[T]
     val dbs = SubtypeDBs(fullDb, nameDb)
 
-    @inline def serialize[A: Pickler](a: A): String = {
+    inline def serialize[A: Pickler](a: A): String = {
       val bytes = PickleImpl(a).toByteBuffer.array()
       new String(bytes, 0, bytes.length, StandardCharsets.ISO_8859_1)
     }

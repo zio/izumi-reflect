@@ -39,15 +39,6 @@ object LTag {
     inline def materialize[T <: AnyKind]: LTag.Weak[T] = LTag.Weak(izumi.reflect.dottyreflection.Inspect.inspect[T])
   }
 
-  final case class StrongHK[T <: AnyKind](tag: LightTypeTag)
-  object StrongHK {
-    // FIXME: strengthen
-    inline def materialize[T <: AnyKind]: LTag.StrongHK[T] = LTag.StrongHK(izumi.reflect.dottyreflection.Inspect.inspect[T])
-  }
-
-  final case class WeakHK[T <: AnyKind](tag: LightTypeTag)
-  object WeakHK {
-    // FIXME: weaken
-    inline def materialize[T <: AnyKind]: LTag.WeakHK[T] = LTag.WeakHK(izumi.reflect.dottyreflection.Inspect.inspect[T])
-  }
+  type StrongHK[T <: AnyKind] = LTag[T]
+  type WeakHK[T <: AnyKind] = LTag.Weak[T]
 }
