@@ -126,4 +126,11 @@ object TestModel {
 
   class BlockingIO3[F[_, _, _]]
   type BlockingIO[F[_, _]] = BlockingIO3[Lambda[(R, E, A) => F[E, A]]]
+
+  object PDTNormA {
+    trait Service
+  }
+
+  val PDTNormB = PDTNormA
+
 }

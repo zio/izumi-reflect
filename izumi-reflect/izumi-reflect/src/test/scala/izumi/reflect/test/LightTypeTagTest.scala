@@ -19,7 +19,6 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
-import org.scalatest.exceptions.TestFailedException
 
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
@@ -385,5 +384,10 @@ class LightTypeTagTest extends TagAssertions {
       assert(res == LTT[BlockingIO[IO]])
     }
 
+    "normalize stable PDTs (zio#3390)" in {
+      val t1 = LTT[PDTNormA.Service]
+      val t2 = LTT[PDTNormB.Service]
+      assert(t1 =:= t2)
+    }
   }
 }

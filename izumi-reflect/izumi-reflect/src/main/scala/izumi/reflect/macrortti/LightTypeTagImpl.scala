@@ -504,7 +504,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def unpackPrefix(pre: Type) = {
+    @scala.annotation.tailrec
+    def unpackPrefix(pre: Type): Option[AppliedReference] = {
       pre match {
         case i if i.typeSymbol.isPackage =>
           None
@@ -519,7 +520,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               fromRef(o)
           }
         case k if k.termSymbol != NoSymbol =>
-          Some(NameReference(symName(k.termSymbol), Boundaries.Empty, getPrefix(k.termSymbol.typeSignature)))
+          if (k.termSymbol.isMethod && k.termSymbol.asMethod.returnType != NoSymbol && isSingletonType(k.termSymbol.asMethod.returnType.termSymbol)) {
+            unpackPrefix(k.termSymbol.asMethod.returnType)
+          } else {
+            Some(NameReference(symName(k.termSymbol), Boundaries.Empty, getPrefix(k.termSymbol.typeSignature)))
+          }
         case o =>
           fromRef(o)
       }
@@ -556,11 +561,15 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       sym.fullName
     }
 
-    if (sym.isTerm || sym.isModuleClass || sym.typeSignature.isInstanceOf[u.SingletonTypeApi]) {
+    if (isSingletonType(sym)) {
       SymTermName(base)
     } else {
       SymTypeName(base)
     }
+  }
+
+  private def isSingletonType(sym: u.Symbol) = {
+    sym.isTerm || sym.isModuleClass || sym.typeSignature.isInstanceOf[u.SingletonTypeApi]
   }
 
   private def fullDealias(t: u.Type): u.Type = {
