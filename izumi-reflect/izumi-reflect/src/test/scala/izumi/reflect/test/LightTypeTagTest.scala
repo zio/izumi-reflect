@@ -384,10 +384,36 @@ class LightTypeTagTest extends TagAssertions {
       assert(res == LTT[BlockingIO[IO]])
     }
 
-    "normalize stable PDTs (zio#3390)" in {
+    "normalize stable PDTs (https://github.com/zio/zio/issues/3390)" in {
       val t1 = LTT[PDTNormA.Service]
       val t2 = LTT[PDTNormB.Service]
-      assert(t1 =:= t2)
+      assertSame(t2, t1)
+      assertChild(t2, t1)
+      assertChild(t1, t2)
+
+      val PDTAlias1 = PDTNormB
+      val PDTAlias2 = PDTAlias1
+      val PDTAlias3 = PDTAlias2
+      val PDTAlias4 = PDTAlias3
+      val PDTAlias5 = PDTAlias4
+      val t3 = LTT[PDTAlias5.Service]
+      assertSame(t3, t1)
+      assertChild(t3, t1)
+      assertChild(t1, t3)
+
+      val t4 = LTT[PDTNormA.type]
+      val t5 = LTT[PDTAlias5.type]
+      assertSame(t5, t4)
+      assertChild(t5, t4)
+      assertChild(t4, t5)
+
+      val literal = "x"
+      val aliasLiteral: literal.type = literal
+      val t6 = LTag[literal.type].tag
+      val t7 = LTag[aliasLiteral.type].tag
+      assertSame(t6, t7)
+      assertChild(t6, t7)
+      assertChild(t7, t6)
     }
   }
 }

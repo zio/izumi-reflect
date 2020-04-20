@@ -420,11 +420,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private[reflect] object UniRefinement {
-    def unapply(tpef: u.Type): Option[(List[Type], List[SymbolApi])] = {
+    def unapply(tpef: Type): Option[(List[Type], List[SymbolApi])] = {
       (tpef: AnyRef) match {
         case x: it.RefinementTypeRef =>
           Some((x.parents.map(_.asInstanceOf[Type]), x.decls.toList.asInstanceOf[List[SymbolApi]]))
-        case r: u.RefinedTypeApi@unchecked =>
+        case r: RefinedTypeApi@unchecked =>
           Some((r.parents, r.decls.toList))
         case _ =>
           None
@@ -494,7 +494,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
   }
 
-  private def getPrefix(tpef: u.Type): Option[AppliedReference] = {
+  private def getPrefix(tpef: Type): Option[AppliedReference] = {
     def fromRef(o: Type): Option[AppliedReference] = {
       makeRef(o) match {
         case a: AppliedReference =>
@@ -504,7 +504,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    @scala.annotation.tailrec
     def unpackPrefix(pre: Type): Option[AppliedReference] = {
       pre match {
         case i if i.typeSymbol.isPackage =>
@@ -520,11 +519,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               fromRef(o)
           }
         case k if k.termSymbol != NoSymbol =>
-          if (k.termSymbol.isMethod && k.termSymbol.asMethod.returnType != NoSymbol && isSingletonType(k.termSymbol.asMethod.returnType.termSymbol)) {
-            unpackPrefix(k.termSymbol.asMethod.returnType)
-          } else {
-            Some(NameReference(symName(k.termSymbol), Boundaries.Empty, getPrefix(k.termSymbol.typeSignature)))
-          }
+          val finalSymbol = dealiasSingletons(k.termSymbol)
+          Some(NameReference(symName(finalSymbol), Boundaries.Empty, getPrefix(finalSymbol.typeSignature.finalResultType)))
         case o =>
           fromRef(o)
       }
@@ -546,16 +542,18 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       case c: ConstantTypeApi =>
         NameReference(SymLiteral(c.value.value), boundaries, prefix)
       case s: SingleTypeApi if s.sym != NoSymbol =>
-        NameReference(symName(s.sym), boundaries, prefix)
+        val sym = dealiasSingletons(s.termSymbol)
+        val resultType = sym.typeSignatureIn(s.pre).finalResultType
+        val newPrefix = if (isSingletonType(resultType.typeSymbol)) getPrefix(resultType) else prefix
+        NameReference(symName(sym), boundaries, newPrefix)
       case _ =>
         NameReference(symName(typeSymbol), boundaries, prefix)
     }
   }
 
-  private def symName(sym: u.Symbol): SymName = {
+  private def symName(sym: Symbol): SymName = {
     val o = sym.owner
     val base = if (o.asInstanceOf[ {def hasMeaninglessName: Boolean}].hasMeaninglessName) {
-
       sym.name.decodedName.toString
     } else {
       sym.fullName
@@ -568,11 +566,21 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
   }
 
-  private def isSingletonType(sym: u.Symbol) = {
-    sym.isTerm || sym.isModuleClass || sym.typeSignature.isInstanceOf[u.SingletonTypeApi]
+  @tailrec
+  private def dealiasSingletons(termSymbol: Symbol): Symbol = {
+    val resultTerm = termSymbol.typeSignature.finalResultType.termSymbol
+    if (isSingletonType(resultTerm)) {
+      dealiasSingletons(resultTerm)
+    } else {
+      termSymbol
+    }
   }
 
-  private def fullDealias(t: u.Type): u.Type = {
+  private def isSingletonType(sym: Symbol): Boolean = {
+    sym.isTerm || sym.isModuleClass || (sym.typeSignature.isInstanceOf[SingletonTypeApi] && !sym.typeSignature.isInstanceOf[ThisTypeApi])
+  }
+
+  private def fullDealias(t: Type): Type = {
     if (t.takesTypeArgs) {
       t.etaExpand.dealias.resultType.dealias.resultType
     } else {
