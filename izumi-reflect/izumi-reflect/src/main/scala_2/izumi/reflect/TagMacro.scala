@@ -450,7 +450,7 @@ class TagMacro(val c: blackbox.Context) {
 
 private object TagMacro {
   final val defaultTagImplicitError =
-    "could not find implicit value for Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
+    "could not find implicit value for izumi.reflect.Tags.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
 
   final def tagFormatMap: Map[Kind, String] = {
     Map(

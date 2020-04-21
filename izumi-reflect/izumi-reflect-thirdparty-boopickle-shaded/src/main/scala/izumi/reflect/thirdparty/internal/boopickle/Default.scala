@@ -22,37 +22,37 @@ import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.language.experimental.macros
+//import scala.language.experimental.macros
 import scala.reflect.ClassTag
 import scala.util.Try
 
 private[reflect] trait BasicImplicitPicklers extends PicklerHelper with XCompatImplicitPicklers {
-  implicit def unitPickler: ConstPickler[Unit]  = BasicPicklers.UnitPickler
-  implicit def booleanPickler: P[Boolean]       = BasicPicklers.BooleanPickler
-  implicit def bytePickler: P[Byte]             = BasicPicklers.BytePickler
-  implicit def shortPickler: P[Short]           = BasicPicklers.ShortPickler
-  implicit def charPickler: P[Char]             = BasicPicklers.CharPickler
-  implicit def intPickler: P[Int]               = BasicPicklers.IntPickler
-  implicit def longPickler: P[Long]             = BasicPicklers.LongPickler
-  implicit def floatPickler: P[Float]           = BasicPicklers.FloatPickler
-  implicit def doublePickler: P[Double]         = BasicPicklers.DoublePickler
+  implicit def unitPickler: ConstPickler[Unit] = BasicPicklers.UnitPickler
+  implicit def booleanPickler: P[Boolean] = BasicPicklers.BooleanPickler
+  implicit def bytePickler: P[Byte] = BasicPicklers.BytePickler
+  implicit def shortPickler: P[Short] = BasicPicklers.ShortPickler
+  implicit def charPickler: P[Char] = BasicPicklers.CharPickler
+  implicit def intPickler: P[Int] = BasicPicklers.IntPickler
+  implicit def longPickler: P[Long] = BasicPicklers.LongPickler
+  implicit def floatPickler: P[Float] = BasicPicklers.FloatPickler
+  implicit def doublePickler: P[Double] = BasicPicklers.DoublePickler
   implicit def byteBufferPickler: P[ByteBuffer] = BasicPicklers.ByteBufferPickler
-  implicit def stringPickler: P[String]         = BasicPicklers.StringPickler
+  implicit def stringPickler: P[String] = BasicPicklers.StringPickler
 
   // less frequently used picklers are initializes lazily to enable DCE
-  implicit lazy val bigIntPickler: P[BigInt]                      = BasicPicklers.BigIntPickler
-  implicit lazy val bigDecimalPickler: P[BigDecimal]              = BasicPicklers.BigDecimalPickler
-  implicit lazy val UUIDPickler: P[UUID]                          = BasicPicklers.UUIDPickler
-  implicit lazy val durationPickler: P[Duration]                  = BasicPicklers.DurationPickler
-  implicit lazy val finiteDurationPickler: P[FiniteDuration]      = BasicPicklers.FiniteDurationPickler
+  implicit lazy val bigIntPickler: P[BigInt] = BasicPicklers.BigIntPickler
+  implicit lazy val bigDecimalPickler: P[BigDecimal] = BasicPicklers.BigDecimalPickler
+  implicit lazy val UUIDPickler: P[UUID] = BasicPicklers.UUIDPickler
+  implicit lazy val durationPickler: P[Duration] = BasicPicklers.DurationPickler
+  implicit lazy val finiteDurationPickler: P[FiniteDuration] = BasicPicklers.FiniteDurationPickler
   implicit lazy val infiniteDurationPickler: P[Duration.Infinite] = BasicPicklers.InfiniteDurationPickler
 
-  implicit def optionPickler[T: P]: P[Option[T]]          = BasicPicklers.OptionPickler[T]
-  implicit def somePickler[T: P]: P[Some[T]]              = BasicPicklers.SomePickler[T]
+  implicit def optionPickler[T: P]: P[Option[T]] = BasicPicklers.OptionPickler[T]
+  implicit def somePickler[T: P]: P[Some[T]] = BasicPicklers.SomePickler[T]
   implicit def eitherPickler[T: P, S: P]: P[Either[T, S]] = BasicPicklers.EitherPickler[T, S]
-  implicit def leftPickler[T: P, S: P]: P[Left[T, S]]     = BasicPicklers.LeftPickler[T, S]
-  implicit def rightPickler[T: P, S: P]: P[Right[T, S]]   = BasicPicklers.RightPickler[T, S]
-  implicit def arrayPickler[T: P: ClassTag]: P[Array[T]]  = BasicPicklers.ArrayPickler[T]
+  implicit def leftPickler[T: P, S: P]: P[Left[T, S]] = BasicPicklers.LeftPickler[T, S]
+  implicit def rightPickler[T: P, S: P]: P[Right[T, S]] = BasicPicklers.RightPickler[T, S]
+  implicit def arrayPickler[T: P: ClassTag]: P[Array[T]] = BasicPicklers.ArrayPickler[T]
 }
 
 private[reflect] trait TransformPicklers {
@@ -79,9 +79,9 @@ private[reflect] trait TransformPicklers {
   }
 }
 
-private[reflect] trait MaterializePicklerFallback {
-  implicit def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
-}
+//private[reflect] trait MaterializePicklerFallback {
+//  implicit def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
+//}
 
 private[reflect] object PickleImpl {
   def apply[A](value: A)(implicit state: PickleState, p: Pickler[A]): PickleState = {
@@ -153,23 +153,15 @@ private[reflect] object SpeedOriented {
 /**
   * Provides basic implicit picklers including macro support for case classes
   */
-private[reflect] object Default
-    extends Base
-    with BasicImplicitPicklers
-    with TransformPicklers
-    with TuplePicklers
-    with MaterializePicklerFallback
+private[reflect] object Default extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers
+//    with MaterializePicklerFallback
 
-private[reflect] object NoMacro
-  extends Base
-    with BasicImplicitPicklers
-    with TransformPicklers
-    with TuplePicklers
+private[reflect] object NoMacro extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers
 
 /**
   * Provides basic implicit picklers without macro support for case classes
   */
 private[reflect] object DefaultBasic extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers {
-
-  def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
+//
+//  def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
 }
