@@ -104,12 +104,12 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "0.23.0-RC1") => Seq(
+      case (_, "2.11.12") => Seq.empty
+      case (_, _) => Seq(
         "-Ykind-projector",
         "-noindent",
         "-language:implicitConversions"
       )
-      case (_, _) => Seq.empty
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.10") => Seq(
@@ -235,12 +235,12 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "0.23.0-RC1") => Seq(
+      case (_, "2.11.12") => Seq.empty
+      case (_, _) => Seq(
         "-Ykind-projector",
         "-noindent",
         "-language:implicitConversions"
       )
-      case (_, _) => Seq.empty
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.10") => Seq(

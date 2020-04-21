@@ -143,12 +143,12 @@ object Izumi {
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala212), None) := Defaults.Scala212Options,
             SettingKey(Some(scala213), None) := Defaults.Scala213Options,
-            SettingKey(Some(scala3), None) := Seq(
+            SettingKey(Some(scala211), None) := Const.EmptySeq,
+            SettingKey.Default := Seq(
               "-Ykind-projector",
               "-noindent",
               "-language:implicitConversions",
             ),
-            SettingKey.Default := Const.EmptySeq,
           ),
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala212), Some(true)) := Seq(
