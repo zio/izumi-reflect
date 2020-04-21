@@ -15,7 +15,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "com.sandinh" %% "scalatest" % V.scalatest % Test
+          "com.sandinh" %% "scalatest" % "3.1.1-dotty-20200408-4cc224b-NIGHTLY" % Test
         )
       } else Seq.empty
     }
@@ -124,7 +124,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
-      "0.23.0-RC1",
+      "0.24.0-bin-20200420-c560211-NIGHTLY",
       "2.13.1",
       "2.12.10",
       "2.11.12"
@@ -147,7 +147,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "com.sandinh" %% "scalatest" % V.scalatest % Test
+          "com.sandinh" %% "scalatest" % "3.1.1-dotty-20200408-4cc224b-NIGHTLY" % Test
         )
       } else Seq.empty
     }
@@ -255,7 +255,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
-      "0.23.0-RC1",
+      "0.24.0-bin-20200420-c560211-NIGHTLY",
       "2.13.1",
       "2.12.10",
       "2.11.12"
@@ -286,7 +286,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Seq(
-      "0.23.0-RC1",
+      "0.24.0-bin-20200420-c560211-NIGHTLY",
       "2.13.1",
       "2.12.10",
       "2.11.12"
@@ -329,7 +329,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       s"-Xmacro-settings:sbt-version=${sbtVersion.value}"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "0.23.0-RC1",
+    scalaVersion := "0.24.0-bin-20200420-c560211-NIGHTLY",
     organization in ThisBuild := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",

@@ -14,9 +14,9 @@ class CurrentDottySupportExtentTest extends TagAssertions {
 
   trait Listoid[+K]
 
-  // FIXME: report upstream: LTT macro calls do not work inside class body / inside normal test
-  //  or even inside a method without a type signature (if you remove `: Unit` here, compilation will fail)
-  def test(): Unit = {
+//  // FIXME: report upstream: LTT macro calls do not work inside class body / inside normal test
+//  //  or even inside a method without a type signature (if you remove `: Unit` here, compilation will fail)
+//  def test(): Unit = {
 
     "super-basic test 1" in {
       class Foo[+F[_]]()
@@ -54,8 +54,8 @@ class CurrentDottySupportExtentTest extends TagAssertions {
       assertChild(listTag0.combine(intTag), listIntTag0)
     }
 
-  }
-
-  test()
+//  }
+//
+//  test()
 
 }

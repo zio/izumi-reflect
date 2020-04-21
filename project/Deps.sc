@@ -43,7 +43,7 @@ object Izumi {
   object Deps {
     final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto)
     // thanks, Sandinh!
-    final val scalatest_dotty = Library("com.sandinh", "scalatest", V.scalatest, LibraryType.Auto)
+    final val scalatest_dotty = Library("com.sandinh", "scalatest", Version.VConst("3.1.1-dotty-20200408-4cc224b-NIGHTLY"), LibraryType.Auto)
 
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
 
@@ -61,7 +61,8 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.10")
   final val scala213 = ScalaVersion("2.13.1")
-  final val scala3 = ScalaVersion("0.23.0-RC1")
+//  final val scala3 = ScalaVersion("0.23.0-RC1")
+  final val scala3 = ScalaVersion("0.24.0-bin-20200420-c560211-NIGHTLY")
 
   object Groups {
     final val izumi_reflect = Set(Group("izumi-reflect"))
