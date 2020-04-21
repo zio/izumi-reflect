@@ -34,7 +34,7 @@ import scala.reflect.macros.blackbox
   * @see [[DebugProperties]]
   */
 private[reflect] object TrivialMacroLogger {
-  def make[T: ClassTag](c: blackbox.Context, sysProperty: String): TrivialLogger = {
-    TrivialLogger.make[T](sysProperty, config = Config(sink = new ScalacSink(c), forceLog = false))
+  def make[T: ClassTag](c: blackbox.Context): TrivialLogger = {
+    TrivialLogger.make[T](config = Config(sink = new ScalacSink(c), forceLog = false))
   }
 }

@@ -44,7 +44,7 @@ object LightTypeTagImpl {
   /** Create a LightTypeTag at runtime for a reflected type */
   def makeLightTypeTag(u: Universe)(typeTag: u.Type): LightTypeTag = {
     ReflectionLock.synchronized {
-      val logger = TrivialLogger.make[this.type](DebugProperties.`izumi.reflect.debug.macro.rtti`)
+      val logger = TrivialLogger.make[this.type]()
       new LightTypeTagImpl[u.type](u, withCache = runtimeCacheEnabled, logger).makeFullTagImpl(typeTag)
     }
   }
