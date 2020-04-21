@@ -81,7 +81,7 @@ object Izumi {
       language = targetScala.filterNot(_.isDotty),
       settings = Seq(
         "coverageEnabled" := false,
-        "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) %= "_.withModuleKind(ModuleKind.CommonJSModule)".raw,
+        "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) %= "(_.withModuleKind(ModuleKind.CommonJSModule))".raw,
       ),
     )
     private val nativePlatform = PlatformEnv(
