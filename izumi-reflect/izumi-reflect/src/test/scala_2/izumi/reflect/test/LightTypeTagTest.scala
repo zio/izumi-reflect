@@ -19,7 +19,6 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
-import org.scalatest.exceptions.TestFailedException
 
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
@@ -71,6 +70,10 @@ class LightTypeTagTest extends TagAssertions {
       assertSame(LTT[Any with Option[String]], LTT[Option[String]])
       assertSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
 
+    }
+
+    "support self-intersection (X with X)" in {
+      assertSame(`LTT`[String with String], `LTT`[String])
     }
 
     "support subtype checks" in {
@@ -381,47 +384,36 @@ class LightTypeTagTest extends TagAssertions {
       assert(res == LTT[BlockingIO[IO]])
     }
 
-    "progression test: can't support subtyping of type prefixes" in {
-      val a = new C {}
+    "normalize stable PDTs (https://github.com/zio/zio/issues/3390)" in {
+      val t1 = LTT[PDTNormA.Service]
+      val t2 = LTT[PDTNormB.Service]
+      assertSame(t2, t1)
+      assertChild(t2, t1)
+      assertChild(t1, t2)
 
-      intercept[TestFailedException] {
-        assertChild(LTT[a.A], LTT[C#A])
-      }
+      val PDTAlias1 = PDTNormB
+      val PDTAlias2 = PDTAlias1
+      val PDTAlias3 = PDTAlias2
+      val PDTAlias4 = PDTAlias3
+      val PDTAlias5 = PDTAlias4
+      val t3 = LTT[PDTAlias5.Service]
+      assertSame(t3, t1)
+      assertChild(t3, t1)
+      assertChild(t1, t3)
+
+      val t4 = LTT[PDTNormA.type]
+      val t5 = LTT[PDTAlias5.type]
+      assertSame(t5, t4)
+      assertChild(t5, t4)
+      assertChild(t4, t5)
+
+      val literal = "x"
+      val aliasLiteral: literal.type = literal
+      val t6 = LTag[literal.type].tag
+      val t7 = LTag[aliasLiteral.type].tag
+      assertSame(t6, t7)
+      assertChild(t6, t7)
+      assertChild(t7, t6)
     }
-
-    "progression test: can't support subtyping of concrete type projections" in {
-      trait A {
-
-        trait T
-
-      }
-      trait B extends A
-
-      val tagA = LTT[A#T]
-      val tagB = LTT[B#T]
-      assertSame(LTT[A#T], LTT[A#T])
-      assertDifferent(LTT[B#T], LTT[A#T])
-      intercept[TestFailedException] {
-        assertChild(tagB, tagA)
-      }
-    }
-
-    "progression test: wildcards are not supported" in {
-      intercept[TestFailedException] {
-        assertChild(LTT[Set[Int]], LTT[Set[_]])
-      }
-    }
-
-    "progression test: subtype check fails when child type has absorbed a covariant type parameter of the supertype" in {
-      assertChild(LTT[Set[Int]], LTT[Iterable[AnyVal]])
-
-      val tagF3 = LTT[F3]
-      assertChild(tagF3, LTT[F2[Int]])
-
-      intercept[TestFailedException] {
-        assertChild(tagF3, LTT[F2[AnyVal]])
-      }
-    }
-
   }
 }

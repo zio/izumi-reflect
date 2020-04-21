@@ -125,4 +125,11 @@ object TestModel extends TestModelKindProjector {
   type IO[+E, +A] = ZIO[Any, E, A]
 
   class BlockingIO3[F[_, _, _]]
+
+  object PDTNormA {
+    trait Service
+  }
+
+  val PDTNormB = PDTNormA
+
 }
