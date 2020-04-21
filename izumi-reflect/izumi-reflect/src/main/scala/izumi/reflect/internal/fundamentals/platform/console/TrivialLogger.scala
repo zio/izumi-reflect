@@ -18,8 +18,9 @@
 
 package izumi.reflect.internal.fundamentals.platform.console
 
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
+import izumi.reflect.DebugProperties
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 
@@ -40,13 +41,13 @@ private[reflect] object AbstractStringTrivialSink {
   }
 }
 
-private[reflect] final class TrivialLoggerImpl(config: Config, id: String, logMessages: Boolean, logErrors: Boolean, loggerLevel: Int) extends TrivialLogger {
+private[reflect] final class TrivialLoggerImpl(config: Config, id: String, logMessages: Boolean, loggerLevel: Int) extends TrivialLogger {
   override def log(s: => String): Unit = {
     flush(format(s))
   }
 
   override def sub(delta: Int): TrivialLogger = {
-    new TrivialLoggerImpl(config, id, logMessages, logErrors, loggerLevel + delta)
+    new TrivialLoggerImpl(config, id, logMessages, loggerLevel + delta)
   }
 
   @inline private[this] def format(s: => String): String = {
@@ -66,32 +67,38 @@ private[reflect] object TrivialLogger {
                            forceLog: Boolean = false
                          )
 
-  def make[T: ClassTag](sysProperty: String, config: Config = Config()): TrivialLogger = {
-    val logMessages: Boolean = checkLog(sysProperty, config, default = false)
-    val logErrors: Boolean = checkLog(sysProperty, config, default = true)
-    new TrivialLoggerImpl(config, classTag[T].runtimeClass.getSimpleName, logMessages, logErrors, loggerLevel = 0)
+  def make[T: ClassTag](config: Config = Config()): TrivialLogger = {
+    val logMessages: Boolean = checkLog(config)
+    new TrivialLoggerImpl(config, classTag[T].runtimeClass.getSimpleName, logMessages, loggerLevel = 0)
   }
 
-  private[this] val enabled = new ConcurrentHashMap[String, Boolean]()
+  @inline private[this] def checkLog(config: Config): Boolean = {
+    config.forceLog || enabled.get()
+  }
 
-  private[this] def checkLog(sysProperty: String, config: Config, default: Boolean): Boolean = {
-    config.forceLog || enabled.computeIfAbsent(sysProperty, new java.util.function.Function[String, Boolean] {
-      override def apply(t: String): Boolean = {
-        val parts = sysProperty.split('.')
-        var current = parts.head
-        def cond: Boolean = {
-          System.getProperty(current).asBoolean().getOrElse(default)
-        }
-        parts.tail.foreach {
-          p =>
-            if (cond) {
-              return true
-            } else {
-              current = s"$current.$p"
-            }
-        }
-        cond
+  private[this] val enabled: AtomicBoolean = {
+    def prop(): Boolean = {
+      val sysProperty = DebugProperties.`izumi.reflect.debug.macro.rtti` // this is the only debug logging property supported in the library
+      val default = false
+
+      val parts = sysProperty.split('.')
+      var current = parts.head
+      def cond: Boolean = {
+        System.getProperty(current).asBoolean().getOrElse(default)
       }
-    })
+      parts.tail.foreach {
+        p =>
+          if (cond) {
+            return true
+          } else {
+            current = s"$current.$p"
+          }
+      }
+      cond
+    }
+    new AtomicBoolean(prop())
   }
+  // for calling within a debugger when live debugging
+  def enableLogs(): Unit = enabled.set(true)
+  def disableLogs(): Unit = enabled.set(true)
 }

@@ -49,7 +49,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   def isChild(): Boolean = {
     val st = self.ref
     val ot = other.ref
-    val logger = TrivialLogger.make[this.type](DebugProperties.`izumi.reflect.debug.macro.rtti`)
+    val logger = TrivialLogger.make[this.type]()
 
     logger.log(
       s"""⚙️ Inheritance check: $self vs $other
