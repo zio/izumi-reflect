@@ -91,7 +91,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case o =>
         log(s"TTYPE, UNSUPPORTED: $o")
-        NameReference("???")
+        throw new RuntimeException(s"TTYPE, UNSUPPORTED: ${o.getClass} - $o")
       //???
 
     }
@@ -116,8 +116,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case d: DefDef =>
         next().inspectTree(d.returnTpt)
       case o =>
-        log(s"SYMBOL, UNSUPPORTED: $o")
-        ???
+        log(s"SYMBOL TREE, UNSUPPORTED: $o")
+        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: ${o.getClass} - $o")
     }
   }
 
@@ -136,12 +136,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
               None
           }
       }
-
     }
   }
 
   private def inspectToB(tpe: TypeOrBounds, td: Option[Tree]): TypeParam = {
-
     val variance = td match {
       case Some(value: TypeRef) =>
         extractVariance(value.typeSymbol)
