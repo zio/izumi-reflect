@@ -182,6 +182,26 @@ object Tags {
     @inline def apply[K[_[_], _, _, _]: TagTK3]: TagTK3[K] = implicitly
   }
 
+  type TagK4[K[_, _, _, _]] = Tag[K]
+  type TagK5[K[_, _, _, _, _]] = Tag[K]
+  type TagK6[K[_, _, _, _, _, _]] = Tag[K]
+  type TagK7[K[_, _, _, _, _, _, _]] = Tag[K]
+  type TagK8[K[_, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK9[K[_, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK10[K[_, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK11[K[_, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK12[K[_, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK13[K[_, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK14[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK15[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK16[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK17[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK18[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK19[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK20[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK21[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+  type TagK22[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+
 // TODO
 //  type TagKUBound[U, K[_ <: U]] = HKTag[{ type Arg[A <: U] = K[A] }]
 //  object TagKUBound {
