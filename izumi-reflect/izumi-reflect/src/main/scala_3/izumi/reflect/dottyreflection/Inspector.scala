@@ -1,25 +1,25 @@
 package izumi.reflect.dottyreflection
 
+import java.nio.charset.StandardCharsets
+
+import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
+import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
+import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
+import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
+
+import scala.compiletime.{constValue, erasedValue, summonFrom}
 import scala.deriving._
 import scala.quoted._
 import scala.quoted.matching._
-import scala.compiletime.{erasedValue, summonFrom, constValue}
-import izumi.reflect.macrortti.LightTypeTagRef
-import izumi.reflect.macrortti.LightTypeTag
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.macrortti.LightTypeTagRef._
-import reflect.Selectable.reflectiveSelectable
-import java.nio.charset.StandardCharsets
-import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
-import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
-import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-
+import scala.reflect.Selectable.reflectiveSelectable
 
 abstract class Inspector(protected val shift: Int) extends InspectorBase {
   self =>
 
   // @formatter:off
-  import qctx.tasty.{Type => TType, given _, _}
+  import qctx.tasty.{Type => TType, _}
   // @formatter:on
 
   private def next() = new Inspector(shift + 1) {
@@ -86,8 +86,15 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case r: TypeRef =>
         next().inspectSymbol(r.typeSymbol)
 
+      case a: AnnotatedType =>
+        next().inspectTType(a.underlying)
+
       case tb: TypeBounds => // weird thingy
         next().inspectTType(tb.hi)
+
+      case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
+        log(s"TTYPE, UNSUPPORTED: LazyRef occured $lazyref")
+        NameReference("???")
 
       case o =>
         log(s"TTYPE, UNSUPPORTED: $o")
