@@ -54,7 +54,9 @@ trait AnyTag {
   *
   * Example:
   * {{{
-  * class MyModule[F[_]: Monad: TagK] {
+  * import distage.ModuleDef
+  *
+  * class MyModule[F[_]: Monad: TagK] extends ModuleDef {
   *   make[MyService[F]]
   *   make[F[Int]].named("lucky-number").from(Monad[F].pure(7))
   * }
