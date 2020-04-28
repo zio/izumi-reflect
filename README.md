@@ -39,6 +39,7 @@ Known limitations are:
 2. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
 3. Existential types written with `forSome` are not supported and may produce unexpected results,
 4. Path-Dependent Types are based on variable names and may cause unexpected results with variables with different names but the same type or vice-versa (vs. Scala typechecker)
+5. At the moment Scala 3 port does not support Path-Dependent Types and `<:<` does not work for any parameterized type. This will be fixed in future.
 
 ## Build
 
