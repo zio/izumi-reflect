@@ -2,7 +2,7 @@ package izumi.reflect.test
 
 import izumi.reflect.macrortti._
 
-class CurrentDottySupportExtentTest extends TagAssertions {
+trait CurrentDottySupportExtentTest extends TagAssertions {
 
   trait Y
   trait Z extends Y
@@ -13,7 +13,9 @@ class CurrentDottySupportExtentTest extends TagAssertions {
   trait B extends A
 
   trait Listoid[+K]
-
+  trait Invariantoid[V]
+  trait SubInvariantoid[V] extends Invariantoid[V]
+  
   // FIXME: report upstream: LTT macro calls do not work inside class body / inside normal test
   //  or even inside a method without a type signature (if you remove `: Unit` here, compilation will fail)
   def test(): Unit = {
@@ -28,11 +30,11 @@ class CurrentDottySupportExtentTest extends TagAssertions {
 
       val barXTag = LTT[Bar[X]]
 
-      println(s"Baz tag: $bazTag")
-      println(s"Bar[X] tag: $barXTag")
-
-      println(bazTag.debug())
-      println(barXTag.debug())
+//      println(s"Baz tag: $bazTag")
+//      println(s"Bar[X] tag: $barXTag")
+//
+//      println(bazTag.debug())
+//      println(barXTag.debug())
 
       assertSame(bazTag, bazTag2)
       assertDifferent(bazTag, barXTag)
@@ -52,6 +54,16 @@ class CurrentDottySupportExtentTest extends TagAssertions {
       val listIntTag0 = LTT[List[Int]]
 
       assertChild(listTag0.combine(intTag), listIntTag0)
+
+
+//      val invTag0 = `LTT[_]`[SubInvariantoid]      
+//      val invIntTag0 = LTT[Invariantoid[Int]]
+//
+//      println(invIntTag0.debug("invIntTag0"))
+//      println(invTag0.debug("invTag0"))      
+//      assertChild(invTag0.combine(intTag), invIntTag0)
+
+
     }
 
   }
