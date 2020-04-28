@@ -12,7 +12,7 @@
 
 1. `izumi-reflect` compiles faster, runs a lot faster than `scala-reflect` and is fully immutable and [thread-safe](https://github.com/scala/bug/issues/10766),
 2. `izumi-reflect` supports Scala.js, Scala Native,
-3. **`izumi-reflect` has preliminary support for Scala 3**, you may check port status [here (#22)](https://github.com/zio/izumi-reflect/issues/22), 
+3. **`izumi-reflect` is published for Scala 3**, you may check port status [here (#22)](https://github.com/zio/izumi-reflect/issues/22), 
 4. `izumi-reflect` allows you to obtain tags for unapplied type constructors (`F[_]`) and combine them at runtime.
 
 ## Credits
@@ -39,7 +39,7 @@ Known limitations are:
 2. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
 3. Existential types written with `forSome` are not supported and may produce unexpected results,
 4. Path-Dependent Types are based on variable names and may cause unexpected results with variables with different names but the same type or vice-versa (vs. Scala typechecker)
-5. At the moment Scala 3 port does not support Path-Dependent Types and `<:<` does not work for any parameterized type. This will be fixed in future.
+5. At the moment Scala 3 port does not support Path-Dependent Types and `<:<` does not take into account variance of parameterized types. This will be fixed in future.
 
 ## Build
 
