@@ -12,7 +12,7 @@
 
 1. `izumi-reflect` compiles faster, runs a lot faster than `scala-reflect` and is fully immutable and [thread-safe](https://github.com/scala/bug/issues/10766),
 2. `izumi-reflect` supports Scala.js, Scala Native,
-3. **`izumi-reflect` has preliminary support for Scala 3**, track port status in https://github.com/zio/izumi-reflect/issues/22, 
+3. **`izumi-reflect` has preliminary support for Scala 3**, track port status in [#22](https://github.com/zio/izumi-reflect/issues/22), 
 4. `izumi-reflect` allows you to obtain tags for unapplied type constructors (`F[_]`) and combine them at runtime.
 
 ## Credits
