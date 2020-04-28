@@ -1,9 +1,10 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
+import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef._
-import scala.collection.mutable
 
+import scala.collection.mutable
 import scala.quoted._
 
 
@@ -62,7 +63,17 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           main ++ args
 
         case l: TypeLambda =>
-          inspectTTypeToFullBases(l.resType)
+          val parents = inspectTTypeToFullBases(l.resType)
+          val selfL = selfRef.asInstanceOf[LightTypeTagRef.Lambda]
+          val out = parents.map {
+            case (c, p)  =>
+              if (c == selfL.output) {
+                (selfL, p)
+              } else {
+                (c, p)
+              }
+          }
+          out
 
         case a: AndType =>
           inspectTTypeToFullBases(a.left) ++ inspectTTypeToFullBases(a.right)
