@@ -233,7 +233,7 @@ object WeakTag extends WeakTagInstances1 {
   implicit def weakTagFromTag[T: Tag]: WeakTag[T] = WeakTag(Tag[T].closestClass, Tag[T].tag)
 }
 trait WeakTagInstances1 {
-//    inline def weakTagFromWeakTypeTag[T](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
-  inline def weakTagFromWeakTypeTag[T]: WeakTag[T] = scala.compiletime.error("not implemented")
+//    inline implicit final def weakTagFromWeakTypeTag[T](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
+  inline implicit final def weakTagFromWeakTypeTag[T]: WeakTag[T] = scala.compiletime.error("not implemented")
 }
 
