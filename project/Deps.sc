@@ -68,10 +68,10 @@ object Izumi {
   }
 
   object Targets {
-    // switch order to use 2.13 in IDEA
-    // val targetScala = Seq(scala212, scala213, scala211, scala3)
-    //    val targetScala = Seq(scala213, scala212, scala211, scala3)
-       val targetScala = Seq(scala3, scala213, scala212, scala211)
+    // switch order to use dotty in IDEA
+//    val targetScala = Seq(scala212, scala213, scala211, scala3)
+    val targetScala = Seq(scala213, scala212, scala211, scala3)
+//    val targetScala = Seq(scala3, scala213, scala212, scala211)
     private val jvmPlatform = PlatformEnv(
       platform = Platform.Jvm,
       language = targetScala,
