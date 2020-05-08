@@ -145,6 +145,30 @@ sealed trait LightTypeTagRef {
     }
   }
 
+  final def decompose: Set[AppliedReference] = {
+    this match {
+      case IntersectionReference(refs) =>
+        refs.flatMap(_.decompose)
+      case appliedReference: AppliedReference =>
+        Set(appliedReference)
+      // lambdas cannot appear _inside_ intersections
+      case Lambda(_, _) =>
+        Set.empty
+    }
+  }
+
+  final def decomposeUnion: Set[AppliedReference] = {
+    this match {
+      case UnionReference(refs) =>
+        refs.flatMap(_.decompose)
+      case appliedReference: AppliedReference =>
+        Set(appliedReference)
+      // lambdas cannot appear _inside_ unions
+      case Lambda(_, _) =>
+        Set.empty
+    }
+  }
+
   private[macrortti] def applySeq(refs: Seq[AbstractReference]): AbstractReference = {
     applyParameters {
       l =>
@@ -207,7 +231,7 @@ object LightTypeTagRef {
 
     override def toString: String = this.render()
 
-    private def makeFakeParams = {
+    private[this] def makeFakeParams: List[(String, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
           p.name -> NameReference(s"!FAKE_$idx")
@@ -221,16 +245,15 @@ object LightTypeTagRef {
 
   sealed trait AppliedReference extends AbstractReference
 
-  sealed trait AppliedNamedReference extends AppliedReference {
-    def asName: NameReference
-  }
-
-  // cannot make constructor private because of boopickle
-  final case class IntersectionReference /*private*/ (refs: Set[AppliedReference]) extends AppliedReference {
+  final case class IntersectionReference(refs: Set[AppliedReference]) extends AppliedReference {
     override def toString: String = this.render()
   }
 
-  final case class UnionReference /*private*/ (refs: Set[AppliedReference]) extends AppliedReference {
+  final case class UnionReference(refs: Set[AppliedReference]) extends AppliedReference {
+    override def toString: String = this.render()
+  }
+
+  final case class Refinement(reference: AppliedReference, decls: Set[RefinementDecl]) extends AppliedReference {
     override def toString: String = this.render()
   }
 
@@ -264,6 +287,10 @@ object LightTypeTagRef {
     }
   }
 
+  sealed trait AppliedNamedReference extends AppliedReference {
+    def asName: NameReference
+  }
+
   final case class NameReference(ref: SymName, boundaries: Boundaries = Boundaries.Empty, prefix: Option[AppliedReference] = None) extends AppliedNamedReference {
     override def asName: NameReference = this
 
@@ -287,10 +314,6 @@ object LightTypeTagRef {
   object RefinementDecl {
     final case class Signature(name: String, input: List[AppliedReference], output: AppliedReference) extends RefinementDecl
     final case class TypeMember(name: String, ref: AbstractReference) extends RefinementDecl
-  }
-
-  final case class Refinement(reference: AppliedReference, decls: Set[RefinementDecl]) extends AppliedReference {
-    override def toString: String = this.render()
   }
 
   sealed trait Variance {

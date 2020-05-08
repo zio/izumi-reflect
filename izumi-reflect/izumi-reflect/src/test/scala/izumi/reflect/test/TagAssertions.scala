@@ -57,6 +57,11 @@ trait TagAssertions extends AnyWordSpec {
     assert(!(child <:< parent), clue); ()
   }
 
+  def assertChildSame(t: LightTypeTag, expected: LightTypeTag): Unit = {
+    assertChild(t, expected)
+    assertChild(expected, t)
+  }
+
   def assertCombine(outer: LightTypeTag, inner: Seq[LightTypeTag], expected: LightTypeTag): Unit = {
     val combined = outer.combine(inner: _*)
     val clue = s"($outer)•(${inner.mkString(",")}) => $combined =?= $expected"
@@ -75,6 +80,13 @@ trait TagAssertions extends AnyWordSpec {
     val combined = outer.combineNonPos(inner: _*)
     info(s"($outer)•(${inner.mkString(",")}) => $combined =?= $expected")
     assert(combined =:= expected)
+    ()
+  }
+
+  def assertIntersection(intersection: List[LightTypeTag], expected: LightTypeTag): Unit = {
+    val intersected = LightTypeTag.refinedType(intersection, LTag[Any].tag)
+    info(s"(${intersection.mkString(" & ")}) => $intersected =?= $expected")
+    assert(intersected =:= expected)
     ()
   }
 
