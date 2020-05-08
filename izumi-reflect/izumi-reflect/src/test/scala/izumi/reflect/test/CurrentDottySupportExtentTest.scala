@@ -7,17 +7,17 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
   trait Y
   trait Z extends Y
   trait XS[+K]
-  trait X[+AAAAAAARG, -B <: Y] extends XS[AAAAAAARG] {}
+  trait X[+AAAAAAARG, -B0 <: Y] extends XS[AAAAAAARG] {}
 
   trait A
   trait B extends A
 
   trait Listoid[+K]
-  
+
   trait Traitoid
   trait Invariantoid[V]
   trait SubInvariantoid[V] extends Invariantoid[V] with Traitoid
-  
+
   // FIXME: report upstream: LTT macro calls do not work inside class body / inside normal test
   //  or even inside a method without a type signature (if you remove `: Unit` here, compilation will fail)
   def test(): Unit = {
@@ -59,13 +59,13 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
       assertChild(listTag0.combine(intTag), listIntTag0)
 
 
-      val invTag0 = `LTT[_]`[SubInvariantoid]      
+      val invTag0 = `LTT[_]`[SubInvariantoid]
       val invIntTag0 = LTT[Invariantoid[Int]]
       val combined = invTag0.combine(intTag)
       assertChild(combined, LTT[Traitoid])
 
 //      println(invIntTag0.debug("invIntTag0"))
-//      println(invTag0.debug("invTag0"))      
+//      println(invTag0.debug("invTag0"))
 //      assertChild(combined, invIntTag0)
 
 
