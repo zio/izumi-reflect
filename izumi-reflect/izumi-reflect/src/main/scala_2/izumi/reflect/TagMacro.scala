@@ -22,6 +22,7 @@ import com.github.ghik.silencer.silent
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.ReflectionUtil.{Kind, kindOf}
 import izumi.reflect.TagMacro._
+import izumi.reflect.Tags.{HKTag, HKTagMaterializer, Tag}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0}
 
 import scala.annotation.implicitNotFound
@@ -48,7 +49,7 @@ class TagMacro(val c: blackbox.Context) {
       val ltag = ltagMacro.makeParsedLightTypeTagImpl(tpe)
       val cls = closestClass(tpe)
       c.Expr[Tag[T]] {
-        q"_root_.izumi.reflect.Tag.apply[$tpe]($cls, $ltag)"
+        q"_root_.izumi.reflect.Tags.Tag.apply[$tpe]($cls, $ltag)"
       }
     } else {
       makeTagImpl[T]
@@ -193,7 +194,7 @@ class TagMacro(val c: blackbox.Context) {
     val ltag = ltagMacro.makeParsedLightTypeTagImpl(strongCtorType)
     val cls = closestClass(strongCtorType)
     c.Expr[HKTag[ArgStruct]] {
-      q"_root_.izumi.reflect.HKTag.apply($cls, $ltag)"
+      q"_root_.izumi.reflect.Tags.HKTag.apply($cls, $ltag)"
     }
   }
 
@@ -449,7 +450,7 @@ class TagMacro(val c: blackbox.Context) {
 
 private object TagMacro {
   final val defaultTagImplicitError =
-    "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
+    "could not find implicit value for izumi.reflect.Tags.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
 
   final def tagFormatMap: Map[Kind, String] = {
     Map(
@@ -503,7 +504,7 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
     val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind)
 
     val resultType = c.typecheck(
-      tq"{ type T[${c.internal.typeDef(ctorParam)}] = _root_.izumi.reflect.HKTag[$ArgStruct] }"
+      tq"{ type T[${c.internal.typeDef(ctorParam)}] = _root_.izumi.reflect.Tags.HKTag[$ArgStruct] }"
       , c.TYPEmode, c.universe.definitions.NothingTpe, silent = false, withImplicitViewsDisabled = true, withMacrosDisabled = true
     ).tpe
 

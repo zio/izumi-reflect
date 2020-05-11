@@ -18,7 +18,7 @@
 
 package izumi.reflect.test
 
-import izumi.reflect._
+import izumi.reflect.Tags._
 import izumi.reflect.macrortti._
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
