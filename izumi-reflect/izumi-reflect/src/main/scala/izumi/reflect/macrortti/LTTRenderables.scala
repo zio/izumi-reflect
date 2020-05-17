@@ -23,7 +23,7 @@ import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izumi.reflect.macrortti.LightTypeTagRef._
 
-private[reflect] trait LTTRenderables extends WithRenderableSyntax {
+trait LTTRenderables extends WithRenderableSyntax {
 
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
 
@@ -156,7 +156,7 @@ private[reflect] trait LTTRenderables extends WithRenderableSyntax {
 
 }
 
-private[reflect] object LTTRenderables {
+object LTTRenderables {
 
   object Short extends LTTRenderables {
     def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
