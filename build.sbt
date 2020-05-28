@@ -4,21 +4,15 @@ enablePlugins(SbtgenVerificationPlugin)
 
 lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
+    ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
       "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-      "org.scalatest" %% "scalatest" % V.scalatest % Test
-    ) else Seq.empty },
-    libraryDependencies ++= {
-      val version = scalaVersion.value
-      if (version.startsWith("0.") || version.startsWith("3.")) {
-        Seq(
-          "com.sandinh" %% "scalatest" % V.scalatest % Test
-        )
-      } else Seq.empty
-    }
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    ) else Seq.empty }
   )
   .settings(
     organization := "dev.zio",
@@ -126,7 +120,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       "2.13.1",
       "2.12.10",
       "2.11.12",
-      "0.23.0-RC1"
+      "0.24.0-RC1"
     )
   )
 
@@ -135,21 +129,15 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     `izumi-reflect-thirdparty-boopickle-shaded` % "test->compile;compile->compile"
   )
   .settings(
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
+    ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
       "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-      "org.scalatest" %% "scalatest" % V.scalatest % Test
-    ) else Seq.empty },
-    libraryDependencies ++= {
-      val version = scalaVersion.value
-      if (version.startsWith("0.") || version.startsWith("3.")) {
-        Seq(
-          "com.sandinh" %% "scalatest" % V.scalatest % Test
-        )
-      } else Seq.empty
-    }
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    ) else Seq.empty }
   )
   .settings(
     organization := "dev.zio",
@@ -256,7 +244,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       "2.13.1",
       "2.12.10",
       "2.11.12",
-      "0.23.0-RC1"
+      "0.24.0-RC1"
     )
   )
 
@@ -287,7 +275,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
       "2.13.1",
       "2.12.10",
       "2.11.12",
-      "0.23.0-RC1"
+      "0.24.0-RC1"
     ),
     scalaVersion := crossScalaVersions.value.head
   )

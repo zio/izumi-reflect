@@ -42,8 +42,6 @@ object Izumi {
 
   object Deps {
     final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto)
-    // thanks, Sandinh!
-    final val scalatest_dotty = Library("com.sandinh", "scalatest", V.scalatest, LibraryType.Auto)
 
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
 
@@ -61,7 +59,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.10")
   final val scala213 = ScalaVersion("2.13.1")
-  final val scala3 = ScalaVersion("0.23.0-RC1")
+  final val scala3 = ScalaVersion("0.24.0-RC1")
 
   object Groups {
     final val izumi_reflect = Set(Group("izumi-reflect"))
@@ -222,8 +220,7 @@ object Izumi {
       ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       silencer_lib in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
-      scalatest in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala2),
-      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
+      scalatest in Scope.Test.all,
     ),
     rootPlugins = Projects.root.plugins,
     globalPlugins = Plugins(),
