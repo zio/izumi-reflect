@@ -1,18 +1,19 @@
 package izumi.reflect.dottyreflection
 
-import scala.deriving._
-import scala.quoted._
-import scala.quoted.matching._
-import scala.compiletime.{erasedValue, summonFrom, constValue}
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef._
+
 import reflect.Selectable.reflectiveSelectable
 import java.nio.charset.StandardCharsets
+
+import izumi.reflect.Tag.auto.T
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
+
+import scala.quoted.{Expr, QuoteContext, Type}
 
 object Inspect {
   inline def inspect[T <: AnyKind]: LightTypeTag = ${ inspectAny[T] }
