@@ -515,8 +515,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             // This case matches UniRefinement.unapply#it.RefinementTypeRef case
             case UniRefinement(_, _) =>
               None
-            case o =>
-              fromRef(o)
+            case _ =>
+              fromRef(tpef.typeSymbol.owner.asType.toType)
           }
         case k if k.termSymbol != NoSymbol =>
           val finalSymbol = dealiasSingletons(k.termSymbol)

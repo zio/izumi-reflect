@@ -537,6 +537,22 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(zy.tagA.isSuccess)
     }
 
+    "resolve type members up to defining class" in {
+      trait A {
+        class X
+        val xa = Tag[X]
+      }
+
+      trait B extends A {
+        val xb = Tag[X]
+      }
+
+      object B extends B
+
+      assert(B.xa.tag == B.xb.tag)
+      assert(Tag[A#X].tag == B.xa.tag)
+    }
+
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda" in {
       val t = intercept[TestFailedException] {
         assertCompiles(
