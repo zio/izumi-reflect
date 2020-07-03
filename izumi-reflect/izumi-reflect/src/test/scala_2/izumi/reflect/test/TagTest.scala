@@ -550,6 +550,7 @@ class TagTest extends AnyWordSpec with XY[String] {
       object B extends B
 
       assert(B.xa.tag == B.xb.tag)
+      assert(Tag[A#X].tag == B.xa.tag)
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda" in {
