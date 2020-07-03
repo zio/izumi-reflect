@@ -516,7 +516,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             case UniRefinement(_, _) =>
               None
             case o =>
-              fromRef(o)
+              val tsym = tpef.typeSymbol
+              fromRef {
+                o.baseClasses
+                  .map(_.asType.toType)
+                  .find(c => !c.members.exists(_ == tsym) || c.decls.exists(_ == tsym))
+                  .getOrElse(throw new IllegalStateException(s"$tpef isn't found neither as declaration in baseClasses nor as $o member"))
+              }
           }
         case k if k.termSymbol != NoSymbol =>
           val finalSymbol = dealiasSingletons(k.termSymbol)
