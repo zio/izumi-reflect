@@ -60,7 +60,7 @@ object Izumi {
   // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.12")
-  final val scala213 = ScalaVersion("2.13.2")
+  final val scala213 = ScalaVersion("2.13.3")
   final val scala3 = ScalaVersion("0.26.0-RC1")
 
   object Groups {
