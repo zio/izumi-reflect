@@ -18,7 +18,6 @@
 
 object V {
   val kind_projector = "0.11.0"
-  val silencer = "1.4.4"
-
-  val scalatest = "3.1.2"
+  val silencer = "1.7.0"
+  val scalatest = "3.2.0"
 }

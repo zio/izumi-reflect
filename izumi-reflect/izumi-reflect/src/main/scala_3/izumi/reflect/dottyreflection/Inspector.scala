@@ -77,6 +77,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case tb: TypeBounds => // weird thingy
         next().inspectTType(tb.hi)
 
+      case term: TermRef =>
+        asNameRef(term)
+
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TTYPE, UNSUPPORTED: LazyRef occured $lazyref")
         NameReference("???")
@@ -195,6 +198,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     t match {
       case ref: TypeRef =>
         asNameRefSym(ref.typeSymbol)
+      case term: TermRef =>
+        asNameRefSym(term.termSymbol)
       case t: ParamRef =>
         NameReference(t.binder.asInstanceOf[ {def paramNames: List[Object]}].paramNames(t.paramNum).toString)
     }
