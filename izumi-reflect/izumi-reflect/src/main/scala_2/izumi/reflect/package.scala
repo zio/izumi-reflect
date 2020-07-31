@@ -18,8 +18,6 @@
 
 package izumi
 
-import izumi.reflect.HKTag
-
 package object reflect {
 
   /**

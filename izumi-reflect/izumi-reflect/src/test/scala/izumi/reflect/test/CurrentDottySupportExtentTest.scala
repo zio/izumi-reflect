@@ -68,6 +68,12 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
 //      println(invTag0.debug("invTag0"))
 //      assertChild(combined, invIntTag0)
 
+      val tupleTag0 = LTT[(Any, Any)]
+      val tupleTag1 = LTT[(Baz, Baz)]
+      val tupleTag2 = LTT[(AnyVal, AnyVal)]
+      val tupleTag3 = LTT[(Double, Double)]
+      assertChild(tupleTag1, tupleTag0)
+      assertChild(tupleTag3, tupleTag2)
 
     }
 

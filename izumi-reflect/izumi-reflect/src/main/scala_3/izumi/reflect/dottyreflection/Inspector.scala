@@ -1,18 +1,9 @@
 package izumi.reflect.dottyreflection
 
-import java.nio.charset.StandardCharsets
-
-import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
+import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef._
-import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
-import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 
-import scala.compiletime.{constValue, erasedValue, summonFrom}
-import scala.deriving._
-import scala.quoted._
-import scala.quoted.matching._
+import scala.quoted.Type
 import scala.reflect.Selectable.reflectiveSelectable
 
 abstract class Inspector(protected val shift: Int) extends InspectorBase {
@@ -43,20 +34,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
             asNameRef(a.tycon)
           case o =>
             // https://github.com/lampepfl/dotty/issues/8520
-            val tycontree = a.tycon.asInstanceOf[TypeRef].typeSymbol.tree.asInstanceOf[TypeDef].rhs.asInstanceOf[TypeTree]
-            log(s"TYCON: ${tycontree}")
-            val params: List[Option[Tree]] = try {
-              val d = tycontree.asInstanceOf[{def constr: DefDef}]
-              log(s"TYCONDD: ${d.constr}")
-              log(d.constr.toString)
-              log(d.constr.typeParams.toString)
-              d.constr.typeParams.map(p => Some(p.rhs))
-            } catch {
-              case t: Throwable =>
-                //println(s"FAILEDON: ${tycontree}")
-                List.fill(a.args.size)(None)
-            }
-
+            val params = a.tycon.typeSymbol.typeMembers
             val zargs = a.args.zip(params)
 
             val args = zargs.map {
@@ -91,6 +69,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case tb: TypeBounds => // weird thingy
         next().inspectTType(tb.hi)
+
+      case term: TermRef =>
+        asNameRef(term)
 
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TTYPE, UNSUPPORTED: LazyRef occured $lazyref")
@@ -146,13 +127,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def inspectToB(tpe: TypeOrBounds, td: Option[Tree]): TypeParam = {
-    val variance = td match {
-      case Some(value: TypeRef) =>
-        extractVariance(value.typeSymbol)
-      case _ =>
-        Variance.Invariant
-    }
+  private def inspectToB(tpe: TypeOrBounds, td: Symbol): TypeParam = {
+    val variance = extractVariance(td)
 
     tpe match {
       case t: TypeBounds =>
@@ -215,6 +191,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     t match {
       case ref: TypeRef =>
         asNameRefSym(ref.typeSymbol)
+      case term: TermRef =>
+        asNameRefSym(term.termSymbol)
       case t: ParamRef =>
         NameReference(t.binder.asInstanceOf[ {def paramNames: List[Object]}].paramNames(t.paramNum).toString)
     }
