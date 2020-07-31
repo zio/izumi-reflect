@@ -1,14 +1,7 @@
 package izumi.reflect.dottyreflection
 
-import java.nio.charset.StandardCharsets
-
-import apple.laf.JRSUIUtils.Tree
-import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
+import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef._
-import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
-import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 
 import scala.quoted.Type
 import scala.reflect.Selectable.reflectiveSelectable
