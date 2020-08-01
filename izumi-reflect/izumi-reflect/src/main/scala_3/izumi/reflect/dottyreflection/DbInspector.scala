@@ -52,7 +52,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
     private def inspectTTypeToNameBases(tpe2: TType): List[(NameReference, NameReference)] = {
       tpe2 match {
         case a: AppliedType =>
-          val main = inspectTTypeToNameBases(a.tycon)
+          val main = a.baseClasses.flatMap(inspectSymbolToName) // (a.tycon)
           val args = a.args.filterNot(termination.contains).flatMap { x =>
             termination.add(x)
             inspectToBToName(x)
@@ -80,7 +80,8 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
     private def inspectSymbolToName(symbol: Symbol): List[(NameReference, NameReference)] = {
       symbol.tree match {
         case c: ClassDef =>
-          val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
+          //val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
+
           val trees = c.parents.collect {
             case tt: TypeTree =>
               tt
