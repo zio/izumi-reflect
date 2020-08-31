@@ -11,11 +11,6 @@ object Izumi {
   }
 
   object PV {
-    val sbt_mdoc = Version.VExpr("PV.sbt_mdoc")
-    val sbt_paradox_material_theme = Version.VExpr("PV.sbt_paradox_material_theme")
-    val sbt_ghpages = Version.VExpr("PV.sbt_ghpages")
-    val sbt_site = Version.VExpr("PV.sbt_site")
-    val sbt_unidoc = Version.VExpr("PV.sbt_unidoc")
     val sbt_scoverage = Version.VExpr("PV.sbt_scoverage")
     val sbt_pgp = Version.VExpr("PV.sbt_pgp")
 
@@ -231,11 +226,6 @@ object Izumi {
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
         SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
         SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
-        SbtPlugin("com.eed3si9n", "sbt-unidoc", PV.sbt_unidoc),
-        SbtPlugin("com.typesafe.sbt", "sbt-site", PV.sbt_site),
-        SbtPlugin("com.typesafe.sbt", "sbt-ghpages", PV.sbt_ghpages),
-        SbtPlugin("io.github.jonas", "sbt-paradox-material-theme", PV.sbt_paradox_material_theme),
-        SbtPlugin("org.scalameta", "sbt-mdoc", PV.sbt_mdoc),
       )
   )
 }
