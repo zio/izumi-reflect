@@ -60,7 +60,7 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
 
 
       val invTag0 = `LTT[_]`[SubInvariantoid]
-      val invIntTag0 = LTT[Invariantoid[Int]]
+      val _ = LTT[Invariantoid[Int]]
       val combined = invTag0.combine(intTag)
       assertChild(combined, LTT[Traitoid])
 

@@ -18,6 +18,7 @@
 
 package izumi.reflect.macrortti
 
+import com.github.ghik.silencer.silent
 import izumi.reflect.internal.fundamentals.collections.ImmutableMultiMap
 import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean._
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
@@ -45,6 +46,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   private[this] lazy val ib: ImmutableMultiMap[NameReference, NameReference] = LightTypeTag.mergeIDBs(self.idb, other.idb)
   private[this] lazy val bdb: ImmutableMultiMap[AbstractReference, AbstractReference] = LightTypeTag.mergeIDBs(self.basesdb, other.basesdb)
 
+  @silent("view.mapValues")
   def isChild(): Boolean = {
     val st = self.ref
     val ot = other.ref

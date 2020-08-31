@@ -18,6 +18,7 @@
 
 package izumi.reflect.macrortti
 
+import com.github.ghik.silencer.silent
 import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTagRef._
 
@@ -86,6 +87,7 @@ object RuntimeAPI {
       ref
     }
 
+    @silent("view.filterKeys")
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>

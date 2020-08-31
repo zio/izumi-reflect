@@ -20,6 +20,7 @@ package izumi.reflect.internal.fundamentals.platform.console
 
 import java.util.concurrent.atomic.AtomicBoolean
 
+import com.github.ghik.silencer.silent
 import izumi.reflect.DebugProperties
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
@@ -76,6 +77,7 @@ private[reflect] object TrivialLogger {
     config.forceLog || enabled.get()
   }
 
+  @silent("return statement")
   private[this] val enabled: AtomicBoolean = {
     def prop(): Boolean = {
       val sysProperty = DebugProperties.`izumi.reflect.debug.macro.rtti` // this is the only debug logging property supported in the library
