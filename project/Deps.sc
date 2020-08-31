@@ -49,6 +49,7 @@ object Izumi {
       .more(LibSetting.Raw("cross CrossVersion.full"))
     final val silencer_lib = Library("com.github.ghik", "silencer-lib", V.silencer, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
+    final val silencer_lib_dotty = Library("com.github.ghik", "silencer-lib_2.13.3", V.silencer, LibraryType.Invariant)
   }
 
   import Deps._
@@ -220,6 +221,7 @@ object Izumi {
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scalatest in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala2),
       scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
+      silencer_lib_dotty in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3),
     ),
     rootPlugins = Projects.root.plugins,
     globalPlugins = Plugins(),

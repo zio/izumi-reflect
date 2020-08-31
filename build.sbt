@@ -15,7 +15,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "org.scalatest" %% "scalatest" % V.scalatest % Test
+          "org.scalatest" %% "scalatest" % V.scalatest % Test,
+          "com.github.ghik" % "silencer-lib_2.13.3" % V.silencer % Provided
         )
       } else Seq.empty
     }
@@ -146,7 +147,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "org.scalatest" %% "scalatest" % V.scalatest % Test
+          "org.scalatest" %% "scalatest" % V.scalatest % Test,
+          "com.github.ghik" % "silencer-lib_2.13.3" % V.silencer % Provided
         )
       } else Seq.empty
     }
