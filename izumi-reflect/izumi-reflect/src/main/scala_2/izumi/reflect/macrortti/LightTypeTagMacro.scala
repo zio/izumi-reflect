@@ -28,7 +28,9 @@ import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}
 import scala.reflect.macros.blackbox
 
 final class LightTypeTagMacro(override val c: blackbox.Context)
-  extends LightTypeTagMacro0[blackbox.Context](c)(logger = TrivialMacroLogger.make[LightTypeTagMacro](c))
+  extends LightTypeTagMacro0[blackbox.Context](c)(
+    logger = TrivialMacroLogger.make[LightTypeTagMacro](c)
+  )
 
 private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
 
