@@ -83,7 +83,8 @@ class TagMacro(val c: blackbox.Context) {
       arg => if (!isLambdaParam(arg)) Some(arg) else None
     }
     val isSimplePartialApplication = {
-      lambdaResult.typeArgs
+      lambdaResult
+        .typeArgs
         .takeRight(outerLambda.typeParams.size)
         .map(_.typeSymbol) == outerLambda.typeParams
     }
@@ -146,26 +147,28 @@ class TagMacro(val c: blackbox.Context) {
               }
             }
 
-            val appliedLambdaRes = appliedType(ctorTyParam, origOrderingArgs.map {
-              case (_, argSym) =>
-                // WELL, EH...
-                c.internal.typeRef(NoPrefix, argSym, Nil)
-            })
+            val appliedLambdaRes = appliedType(
+              ctorTyParam,
+              origOrderingArgs.map {
+                case (_, argSym) =>
+                  // WELL, EH...
+                  c.internal.typeRef(NoPrefix, argSym, Nil)
+              }
+            )
             val res = c.internal.polyType(ctorTyParam :: (nonParamArgs.map(_._2) ++ lambdaParams), appliedLambdaRes)
-            logger.log(
-              s"""HK non-trivial lambda construction
-                 |ctorTyParam: ${showRaw(ctorTyParam.typeSignature)}
-                 |ctorTyParam.typeParams: ${showRaw(ctorTyParam.typeSignature.typeParams)}
-                 |origOrderingArgs: ${showRaw(origOrderingArgs)}
-                 |origOrderingArgs typeSignatures: ${showRaw(origOrderingArgs.map(_._2.typeSignature))}
-                 |paramArgs0: ${showRaw(paramArgs0)}
-                 |nonParamArgs: ${showRaw(nonParamArgs)}
-                 |lambdaParams: ${showRaw(lambdaParams)}
-                 |appliedLambdaRes args symbols: ${showRaw(appliedLambdaRes.typeArgs.map(_.typeSymbol))}
-                 |appliedLambdaRes args: ${showRaw(appliedLambdaRes.typeArgs)}
-                 |appliedLambdaRes: ${showRaw(appliedLambdaRes)}
-                 |res: ${showRaw(res)}
-                 |""".stripMargin)
+            logger.log(s"""HK non-trivial lambda construction
+              |ctorTyParam: ${showRaw(ctorTyParam.typeSignature)}
+              |ctorTyParam.typeParams: ${showRaw(ctorTyParam.typeSignature.typeParams)}
+              |origOrderingArgs: ${showRaw(origOrderingArgs)}
+              |origOrderingArgs typeSignatures: ${showRaw(origOrderingArgs.map(_._2.typeSignature))}
+              |paramArgs0: ${showRaw(paramArgs0)}
+              |nonParamArgs: ${showRaw(nonParamArgs)}
+              |lambdaParams: ${showRaw(lambdaParams)}
+              |appliedLambdaRes args symbols: ${showRaw(appliedLambdaRes.typeArgs.map(_.typeSymbol))}
+              |appliedLambdaRes args: ${showRaw(appliedLambdaRes.typeArgs)}
+              |appliedLambdaRes: ${showRaw(appliedLambdaRes)}
+              |res: ${showRaw(res)}
+              |""".stripMargin)
             val argTagsExceptCtor = {
               val args = nonParamArgs.map { case (t, _) => ReflectionUtil.norm(c.universe: c.universe.type)(t.dealias) }
               logger.log(s"HK COMPLEX Now summoning tags for args=$args")
@@ -233,28 +236,34 @@ class TagMacro(val c: blackbox.Context) {
         summonLightTypeTagOfAppropriateKind(t)
     }
     val intersectionTags = c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(summonedIntersectionTags))
-    val structTag = mkStruct(originalRefinement)
+    val (structTag, additionalTypeMembers) = mkStruct(intersection, originalRefinement)
     val cls = closestClass(originalRefinement)
 
     reify {
-      Tag.refinedTag[T](cls.splice, intersectionTags.splice, structTag.splice)
+      Tag.refinedTag[T](cls.splice, intersectionTags.splice, structTag.splice, additionalTypeMembers.splice)
     }
   }
 
   @inline
-  protected[this] def mkStruct(originalRefinement: Type): c.Expr[LightTypeTag] = {
-    originalRefinement.decls
-      .find(symbol => !ReflectionUtil.isSelfStrong(symbol.info))
-      .foreach {
-        s =>
-          val msg = s"  Encountered a type parameter ${s.info} as a part of structural refinement of $originalRefinement: It's not yet supported to summon a Tag for ${s.info} in that position!"
-
-          addImplicitError(msg)
-          c.abort(s.pos, getImplicitError())
+  protected[this] def mkStruct(intersection: List[Type], originalRefinement: Type): (c.Expr[LightTypeTag], c.Expr[Map[String, LightTypeTag]]) = {
+    val (strongDecls, weakDecls) = originalRefinement
+      .decls
+      .partition {
+        symbol =>
+          // types in method/val symbols are not resolved (would need a new runtime constructor, `methodTag`, like `refinedTag` for this case & dealing with method type parameters might be non-trivial)
+          symbol.isTerm ||
+          ReflectionUtil.isSelfStrong(symbol.info)
       }
 
-    // TODO: walk over members of struct and resolve Tags for them...
-    ltagMacro.makeParsedLightTypeTagImpl(originalRefinement)
+    val resolvedTags = weakDecls.map {
+      symbol =>
+        symbol.name.decodedName.toString -> summonLightTypeTagOfAppropriateKind(symbol.info)
+    }.toMap
+
+    val strongDeclsTpe = internal.refinedType(intersection, originalRefinement.typeSymbol.owner, internal.newScopeWith(strongDecls.toSeq: _*))
+    val resolvedTagsExpr = c.Expr[Map[String, LightTypeTag]](Liftable.liftMap[String, Expr[LightTypeTag]].apply(resolvedTags))
+
+    (ltagMacro.makeParsedLightTypeTagImpl(strongDeclsTpe), resolvedTagsExpr)
   }
 
   // we need to handle three cases – type args, refined types and type bounds (we don't handle type bounds currently)
@@ -394,11 +403,12 @@ class TagMacro(val c: blackbox.Context) {
 
   def getImplicitError(): String = {
     val annotations = symbolOf[Tag[Any]].annotations
-    annotations.headOption.flatMap(
-      AnnotationTools.findArgument(_) {
-        case Literal(Constant(s: String)) => s
-      }
-    ).getOrElse(defaultTagImplicitError)
+    annotations
+      .headOption.flatMap(
+        AnnotationTools.findArgument(_) {
+          case Literal(Constant(s: String)) => s
+        }
+      ).getOrElse(defaultTagImplicitError)
   }
 
   def abortWithImplicitError(): Nothing = {
@@ -430,18 +440,19 @@ class TagMacro(val c: blackbox.Context) {
     tagFormatMap.get(kind) match {
       case Some(_) => ""
       case None =>
-        val (typaramsWithKinds, appliedParams) = kind.args.zipWithIndex.map {
-          case (k, i) =>
-            val name = s"T${i + 1}"
-            k.format(name) -> name
-        }.unzip
+        val (typaramsWithKinds, appliedParams) = kind
+          .args.zipWithIndex.map {
+            case (k, i) =>
+              val name = s"T${i + 1}"
+              k.format(name) -> name
+          }.unzip
         s"""
-           |$tpe is of a kind $kind, which doesn't have a tag name. Please create a tag synonym as follows:
-           |
-           |  type TagXYZ[${kind.format(typeName = "K")}] = HKTag[ { type Arg[${typaramsWithKinds.mkString(", ")}] = K[${appliedParams.mkString(", ")}] } ]
-           |
-           |And use it in your context bound, as in def x[$tpe: TagXYZ] = ...
-           |OR use Tag.auto.T macro, as in def x[$tpe: Tag.auto.T] = ...""".stripMargin
+          |$tpe is of a kind $kind, which doesn't have a tag name. Please create a tag synonym as follows:
+          |
+          |  type TagXYZ[${kind.format(typeName = "K")}] = HKTag[ { type Arg[${typaramsWithKinds.mkString(", ")}] = K[${appliedParams.mkString(", ")}] } ]
+          |
+          |And use it in your context bound, as in def x[$tpe: TagXYZ] = ...
+          |OR use Tag.auto.T macro, as in def x[$tpe: Tag.auto.T] = ...""".stripMargin
     }
   }
 
@@ -482,15 +493,23 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
   def lambdaImpl: c.Tree = {
     val pos = c.macroApplication.pos
 
-    val targetTpe = c.enclosingUnit.body.collect {
-      case AppliedTypeTree(t, arg :: _) if t.exists(_.pos == pos) =>
-        c.typecheck(
-          tree = arg, mode = c.TYPEmode, pt = c.universe.definitions.NothingTpe,
-          silent = false, withImplicitViewsDisabled = true, withMacrosDisabled = true
-        ).tpe
-    }.headOption match {
+    val targetTpe = c
+      .enclosingUnit.body.collect {
+        case AppliedTypeTree(t, arg :: _) if t.exists(_.pos == pos) =>
+          c.typecheck(
+            tree = arg,
+            mode = c.TYPEmode,
+            pt = c.universe.definitions.NothingTpe,
+            silent = false,
+            withImplicitViewsDisabled = true,
+            withMacrosDisabled = true
+          ).tpe
+      }.headOption match {
       case None =>
-        c.abort(c.enclosingPosition, "Couldn't find an the type that `Tag.auto.T` macro was applied to, please make sure you use the correct syntax, as in `def tagk[F[_]: Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[F]]`")
+        c.abort(
+          c.enclosingPosition,
+          "Couldn't find an the type that `Tag.auto.T` macro was applied to, please make sure you use the correct syntax, as in `def tagk[F[_]: Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[F]]`"
+        )
       case Some(t) =>
         t
     }
@@ -502,10 +521,15 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
     val ctorParam = mkTypeParameter(NoSymbol, kind)
     val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind)
 
-    val resultType = c.typecheck(
-      tq"{ type T[${c.internal.typeDef(ctorParam)}] = _root_.izumi.reflect.HKTag[$ArgStruct] }"
-      , c.TYPEmode, c.universe.definitions.NothingTpe, silent = false, withImplicitViewsDisabled = true, withMacrosDisabled = true
-    ).tpe
+    val resultType = c
+      .typecheck(
+        tq"{ type T[${c.internal.typeDef(ctorParam)}] = _root_.izumi.reflect.HKTag[$ArgStruct] }",
+        c.TYPEmode,
+        c.universe.definitions.NothingTpe,
+        silent = false,
+        withImplicitViewsDisabled = true,
+        withMacrosDisabled = true
+      ).tpe
 
     val res = Literal(Constant(())).setType(resultType)
 
