@@ -176,8 +176,8 @@ abstract class LightTypeTag(
   def debug(name: String = ""): String = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString._
     s"""⚙️ $name: ${this.toString}
-       |⚡️bases: ${basesdb.view.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
-       |⚡️inheritance: ${idb.view.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
+       |⚡️bases: ${basesdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
+       |⚡️inheritance: ${idb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
        |⚙️ end $name""".stripMargin
   }
 
