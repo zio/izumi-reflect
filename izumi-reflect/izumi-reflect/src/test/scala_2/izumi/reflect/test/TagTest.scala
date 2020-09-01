@@ -576,13 +576,15 @@ class TagTest extends AnyWordSpec with XY[String] {
     "can resolve TagK's themselves correctly" in {
       trait X[A, B, C]
 
-      def tagk[F[_]]: Tag[TagK[F]] = Tag[TagK[F]]
-      def tagkk[F[_, _]]: Tag[TagKK[F]] = Tag[TagKK[F]]
-      def tagk3[F[_, _, _]]: Tag[TagK3[F]] = Tag[TagK3[F]]
+      def tagk[F[_]: TagK]: Tag[TagK[F]] = Tag[TagK[F]]
+      def tagkk[F[_, _]: TagKK]: Tag[TagKK[F]] = Tag[TagKK[F]]
+      def tagk3[F[_, _, _]: TagK3]: Tag[TagK3[F]] = Tag[TagK3[F]]
+      def tagtk[F[_[_], _]: TagTK]: Tag[TagTK[F]] = Tag[TagTK[F]]
 
-      assert(tagk[List].tag == TagK[List].tag)
-      assert(tagkk[Either].tag == TagKK[Either].tag)
-      assert(tagk3[X].tag == TagK3[X].tag)
+      assert(tagk[List].tag == Tag[TagK[List]].tag)
+      assert(tagkk[Either].tag == Tag[TagKK[Either]].tag)
+      assert(tagk3[X].tag == Tag[TagK3[X]].tag)
+      assert(tagtk[OptionT].tag == Tag[TagTK[OptionT]].tag)
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda" in {
