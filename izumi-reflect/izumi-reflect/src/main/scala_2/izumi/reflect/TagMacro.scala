@@ -250,7 +250,8 @@ class TagMacro(val c: blackbox.Context) {
       .decls
       .partition {
         symbol =>
-          // types in method/val symbols are not resolved (would need a new runtime constructor, `methodTag`, like `refinedTag` for this case & dealing with method type parameters might be non-trivial)
+          // skip resolution for types in methods/vals (that would need a new runtime constructor, `methodTag`, like `refinedTag` for the case & dealing with method type parameters may be non-trivial)
+          // see: "progression test: can't handle parameters in defs/vals in structural types"
           symbol.isTerm ||
           ReflectionUtil.isSelfStrong(symbol.info)
       }

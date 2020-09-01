@@ -587,6 +587,18 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(tagtk[OptionT].tag == Tag[TagTK[OptionT]].tag)
     }
 
+    "progression test: can't handle parameters in defs/vals in structural types" in {
+      def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
+      def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
+
+      intercept[TestFailedException] {
+        assert(t1[Int].tag == Tag[{ def x: Int }].tag)
+      }
+      intercept[TestFailedException] {
+        assert(t2[Int].tag == Tag[{ val x: Int }].tag)
+      }
+    }
+
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda" in {
       val t = intercept[TestFailedException] {
         assertCompiles(
