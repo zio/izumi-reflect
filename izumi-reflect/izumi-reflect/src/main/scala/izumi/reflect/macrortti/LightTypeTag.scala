@@ -155,7 +155,8 @@ abstract class LightTypeTag(
   }
 
   /** Fully-qualified rendering of a type, including packages and prefix types.
-    * Use [[toString]] for a rendering that omits package names */
+    * Use [[toString]] for a rendering that omits package names
+    */
   def repr: String = {
     import izumi.reflect.macrortti.LTTRenderables.Long._
     ref.render()
@@ -176,9 +177,9 @@ abstract class LightTypeTag(
   def debug(name: String = ""): String = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString._
     s"""⚙️ $name: ${this.toString}
-       |⚡️bases: ${basesdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
-       |⚡️inheritance: ${idb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
-       |⚙️ end $name""".stripMargin
+      |⚡️bases: ${basesdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
+      |⚡️inheritance: ${idb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
+      |⚙️ end $name""".stripMargin
   }
 
   override def equals(other: Any): Boolean = {
@@ -203,21 +204,42 @@ object LightTypeTag {
     }
   }
 
-  def refinedType(intersection: List[LightTypeTag], structure: LightTypeTag): LightTypeTag = {
+  /** Create a [[LightTypeTag]] formed of `intersection` with the structural refinement taken from `structure`
+    *
+    * @param structure the non-structural part of structure is ignored, except SubtypeDBs
+    * @param additionalTypeMembers additional type members
+    */
+  def refinedType(intersection: List[LightTypeTag], structure: LightTypeTag, additionalTypeMembers: Map[String, LightTypeTag]): LightTypeTag = {
     val parts = intersection.iterator.flatMap(_.ref.decompose).toSet
     val intersectionRef = LightTypeTagRef.maybeIntersection(parts)
-    val ref = structure.ref match {
-      case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty =>
-        LightTypeTagRef.Refinement(intersectionRef, decls)
-      case _ =>
+    val ref = {
+      val decls = structure.ref match {
+        case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty => decls
+        case _ => Set.empty
+      }
+      if (decls.nonEmpty || additionalTypeMembers.nonEmpty) {
+        val newDecls = decls.filterNot(additionalTypeMembers contains _.name) ++ additionalTypeMembers.iterator.map {
+            case (k, v) =>
+              RefinementDecl.TypeMember(k, v.ref match { case r: AbstractReference => r })
+          }
+        LightTypeTagRef.Refinement(intersectionRef, newDecls)
+      } else {
         intersectionRef
+      }
     }
 
-    def mergedBasesDB = LightTypeTag.mergeIDBs(structure.basesdb, intersection.iterator.map(_.basesdb))
+    def mergedBasesDB: Map[AbstractReference, Set[AbstractReference]] =
+      LightTypeTag.mergeIDBs(structure.basesdb, intersection.iterator.map(_.basesdb) ++ additionalTypeMembers.iterator.map(_._2.basesdb))
 
-    def mergedInheritanceDb = LightTypeTag.mergeIDBs(structure.idb, intersection.iterator.map(_.idb))
+    def mergedInheritanceDb: Map[NameReference, Set[NameReference]] =
+      LightTypeTag.mergeIDBs(structure.idb, intersection.iterator.map(_.idb) ++ additionalTypeMembers.iterator.map(_._2.idb))
 
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
+  }
+
+  @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
+  private[reflect] def refinedType(intersection: List[LightTypeTag], structure: LightTypeTag): LightTypeTag = {
+    refinedType(intersection, structure, Map.empty)
   }
 
   def parse[T](hashCode: Int, refString: String, basesString: String, @unused version: Int): LightTypeTag = {
@@ -625,11 +647,12 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.RefinementDecl.Signature = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.RefinementDecl.Signature(
-            state.unpickle[String],
-            state.unpickle[List[LightTypeTagRef.AppliedReference]],
-            state.unpickle[LightTypeTagRef.AppliedReference]
-          )
+          val value = LightTypeTagRef
+            .RefinementDecl.Signature(
+              state.unpickle[String],
+              state.unpickle[List[LightTypeTagRef.AppliedReference]],
+              state.unpickle[LightTypeTagRef.AppliedReference]
+            )
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
@@ -658,10 +681,11 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTag.ParsedLightTypeTag.SubtypeDBs = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTag.ParsedLightTypeTag.SubtypeDBs(
-            state.unpickle[Map[LightTypeTagRef.AbstractReference, Set[LightTypeTagRef.AbstractReference]]],
-            state.unpickle[Map[LightTypeTagRef.NameReference, Set[LightTypeTagRef.NameReference]]]
-          )
+          val value = LightTypeTag
+            .ParsedLightTypeTag.SubtypeDBs(
+              state.unpickle[Map[LightTypeTagRef.AbstractReference, Set[LightTypeTagRef.AbstractReference]]],
+              state.unpickle[Map[LightTypeTagRef.NameReference, Set[LightTypeTagRef.NameReference]]]
+            )
           state.addIdentityRef(value)
           value
         } else if (ic < 0)

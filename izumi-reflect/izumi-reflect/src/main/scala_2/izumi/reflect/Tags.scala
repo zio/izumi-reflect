@@ -39,7 +39,8 @@ trait AnyTag {
   def closestClass: Class[_]
 
   final def hasPreciseClass: Boolean = {
-    try tag.shortName == closestClass.getSimpleName catch {
+    try tag.shortName == closestClass.getSimpleName
+    catch {
       case i: InternalError if i.getMessage == "Malformed class name" => false
     }
   }
@@ -71,7 +72,9 @@ trait AnyTag {
   *
   * @see "Lightweight Scala Reflection and why Dotty needs TypeTags reimplemented" https://blog.7mind.io/lightweight-reflection.html
   */
-@implicitNotFound("could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ...")
+@implicitNotFound(
+  "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
+)
 trait Tag[T] extends AnyTag {
   def tag: LightTypeTag
   def closestClass: Class[_]
@@ -101,8 +104,7 @@ object Tag {
     * {{{
     *   def x[K[_[_, _], _[_], _[_[_], _, _, _]: Tag.auto.T]: Tag.auto.T[K] = implicitly[Tag.auto.T[K]]
     * }}}
-    *
-    **/
+    */
   def auto: Any = macro TagLambdaMacro.lambdaImpl
 
   @inline def apply[T: Tag]: Tag[T] = implicitly
@@ -119,10 +121,10 @@ object Tag {
     *
     * Example:
     * {{{
-    *   implicit def tagFromTagTAKA[T[_, _[_], _], K[_]: TagK, A0: Tag, A1: Tag](implicit t: LTagK3[T]): Tag[T[A0, K, A1]] =
-    *     Tag.appliedTag(t.tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
+    *   implicit def tagFromTagTAKA[T[_, _[_], _]: TagK3, K[_]: TagK, A0: Tag, A1: Tag]: Tag[T[A0, K, A1]] =
+    *     Tag.appliedTag(TagK3[T].tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
     * }}}
-    **/
+    */
   def appliedTag[R](tag: HKTag[_], args: List[LightTypeTag]): Tag[R] = {
     Tag(tag.closestClass, tag.tag.combine(args: _*))
   }
@@ -132,11 +134,16 @@ object Tag {
     *
     * `structType` is assumed to be a weak type of the entire type, e.g.
     * {{{
-    *   Tag[A with B {def abc: Unit}] == refinedTag(List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag)
+    *   Tag[A with B {def abc: Unit}] == refinedTag(classOf[Any], List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag, Map.empty)
     * }}}
-    **/
-  def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
-    Tag(lubClass, LightTypeTag.refinedType(intersection, structType))
+    */
+  def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag, additionalTypeMembers: Map[String, LightTypeTag]): Tag[R] = {
+    Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
+  }
+
+  @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
+  private[Tag] def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
+    refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
   implicit final def tagFromTagMacro[T]: Tag[T] = macro TagMacro.makeTag[T]

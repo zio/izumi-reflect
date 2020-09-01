@@ -47,7 +47,7 @@ sealed trait LightTypeTagRef {
     def appliedNamedReference(reference: AppliedNamedReference) = {
       reference match {
         case LightTypeTagRef.NameReference(_, _, _) => reference
-        case LightTypeTagRef.FullReference(ref, parameters@_, prefix) => NameReference(SymTypeName(ref), Boundaries.Empty, prefix)
+        case LightTypeTagRef.FullReference(ref, parameters @ _, prefix) => NameReference(SymTypeName(ref), Boundaries.Empty, prefix)
       }
     }
 
@@ -310,7 +310,9 @@ object LightTypeTagRef {
     override def toString: String = this.render()
   }
 
-  sealed trait RefinementDecl
+  sealed trait RefinementDecl {
+    def name: String
+  }
   object RefinementDecl {
     final case class Signature(name: String, input: List[AppliedReference], output: AppliedReference) extends RefinementDecl
     final case class TypeMember(name: String, ref: AbstractReference) extends RefinementDecl

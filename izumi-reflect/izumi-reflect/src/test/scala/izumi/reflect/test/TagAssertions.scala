@@ -84,7 +84,7 @@ trait TagAssertions extends AnyWordSpec {
   }
 
   def assertIntersection(intersection: List[LightTypeTag], expected: LightTypeTag): Unit = {
-    val intersected = LightTypeTag.refinedType(intersection, LTag[Any].tag)
+    val intersected = LightTypeTag.refinedType(intersection, LTag[Any].tag, Map.empty)
     info(s"(${intersection.mkString(" & ")}) => $intersected =?= $expected")
     assert(intersected =:= expected)
     ()

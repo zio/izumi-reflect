@@ -147,9 +147,9 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(Tag[With[Nothing]].tag == fromRuntime[With[Nothing]])
       assert(Tag[With[_]].tag == fromRuntime[With[_]])
 
-      assert(Tag[ {def a: Int; def g: Boolean}].tag == fromRuntime[ {def a: Int; def g: Boolean}])
+      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
       assert(Tag[Int with String].tag == fromRuntime[Int with String])
-      assert(Tag[Int {def a: Int}].tag == fromRuntime[Int {def a: Int}])
+      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
 
       assert(Tag[str.type].tag == fromRuntime[str.type])
       assert(Tag[this.Z].tag == fromRuntime[this.Z])
@@ -157,8 +157,8 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "Work for structural concrete types" in {
-      assert(Tag[With[str.type] with ({type T = str.type with Int})].tag == fromRuntime[With[str.type] with ({type T = str.type with Int})])
-      assert(Tag[With[str.type] with ({type T = str.type with Int})].tag != fromRuntime[With[str.type] with ({type T = str.type with Long})])
+      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
+      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
     }
 
     "Work with term type prefixes" in {
@@ -187,9 +187,9 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "Work for any abstract type with available Tag while preserving additional refinement" in {
-      def testTag[T: Tag] = Tag[T {def x: Int}]
+      def testTag[T: Tag] = Tag[T { def x: Int }]
 
-      assert(testTag[String].tag == fromRuntime[String {def x: Int}])
+      assert(testTag[String].tag == fromRuntime[String { def x: Int }])
     }
 
     "handle function local type aliases" in {
@@ -231,7 +231,7 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "Work for an abstract type with available TagK when TagK is requested through an explicit implicit" in {
-      def testTagK[F[_], T: Tag](implicit ev: HKTag[ {type Arg[C] = F[C]}]) = {
+      def testTagK[F[_], T: Tag](implicit ev: HKTag[{ type Arg[C] = F[C] }]) = {
         val _ = ev
         Tag[F[T {}] {}]
       }
@@ -240,9 +240,9 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "Tag.auto.T kind inference macro works for known cases" in {
-      def x[T[_] : Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[T]]
+      def x[T[_]: Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[T]]
 
-      def x2[T[_, _] : Tag.auto.T]: TagKK[T] = implicitly[Tag.auto.T[T]]
+      def x2[T[_, _]: Tag.auto.T]: TagKK[T] = implicitly[Tag.auto.T[T]]
 
       def x3[T[_, _, _[_[_], _], _[_], _]](implicit x: Tag.auto.T[T]): Tag.auto.T[T] = x
 
@@ -258,23 +258,22 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "Work for an abstract type with available TagKK" in {
-      def t1[F[_, _] : TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
+      def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
 
       assert(t1[ZOBA[Int, ?, ?], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
     }
 
     "Handle Tags outside of a predefined set" in {
-      type TagX[T[_, _, _[_[_], _], _[_], _]] = HKTag[ {type Arg[A, B, C[_[_], _], D[_], E] = T[A, B, C, D, E]}]
+      type TagX[T[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[A, B, C[_[_], _], D[_], E] = T[A, B, C, D, E] }]
 
-      def testTagX[F[_, _, _[_[_], _], _[_], _] : TagX, A: Tag, B: Tag, C[_[_], _] : TagTK, D[_] : TagK, E: Tag] = Tag[F[A, B, C, D, E]]
+      def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag] = Tag[F[A, B, C, D, E]]
 
       val value = testTagX[T2, Int, String, OptionT, List, Boolean]
       assert(value.tag == fromRuntime[T2[Int, String, OptionT, List, Boolean]])
     }
 
     "Shouldn't work for any abstract type without available TypeTag or Tag or TagK" in {
-      assertTypeError(
-        """
+      assertTypeError("""
       def testTag[T] = Tag[T]
       def testTagK[F[_], T] = Tag[F[T]]
          """)
@@ -282,22 +281,34 @@ class TagTest extends AnyWordSpec with XY[String] {
 
     "Work for any configuration of parameters" in {
 
-      def t1[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F[_] : TagK]: Tag[T1[A, B, C, D, E, F]] = Tag[T1[A, B, C, D, E, F]]
+      def t1[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F[_]: TagK]: Tag[T1[A, B, C, D, E, F]] = Tag[T1[A, B, C, D, E, F]]
 
       type ZOB[A, B, C] = Either[B, C]
 
-      assert(t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, ?]].tag
-        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, ?]]])
+      assert(
+        t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, ?]].tag
+        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, ?]]]
+      )
 
-      def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_] : TagK, SD: Tag, GG[A] <: L[A] : TagK, ZZZ[_, _] : TagKK, S: Tag, SDD: Tag, TG: Tag]: Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]] =
+      def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
+        : Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]] =
         Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]]
 
-      assert(t2[TagTest.this.Z, TagTest.this.Z, T1[ZOB[String, Int, Byte], String, String, String, String, List], TagTest.this.Z, XY, TagTest.this.Z, YX, Either, TagTest.this.Z, TagTest.this.Z, TagTest.this.Z].tag
-        == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]])
+      assert(
+        t2[TagTest.this.Z, TagTest.this.Z, T1[
+          ZOB[String, Int, Byte],
+          String,
+          String,
+          String,
+          String,
+          List
+        ], TagTest.this.Z, XY, TagTest.this.Z, YX, Either, TagTest.this.Z, TagTest.this.Z, TagTest.this.Z].tag
+        == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
+      )
     }
 
     "handle Swap type lambda" in {
-      def t1[F[_, _] : TagKK, A: Tag, B: Tag] = Tag[F[A, B]]
+      def t1[F[_, _]: TagKK, A: Tag, B: Tag] = Tag[F[A, B]]
 
       assert(t1[Swap, Int, String].tag == fromRuntime[Either[String, Int]])
     }
@@ -313,7 +324,7 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "Assemble from higher than TagKK tags" in {
-      def tag[T[_[_], _] : TagTK, F[_] : TagK, A: Tag] = Tag[T[F, A]]
+      def tag[T[_[_], _]: TagTK, F[_]: TagK, A: Tag] = Tag[T[F, A]]
 
       assert(tag[OptionT, Option, Int].tag == fromRuntime[OptionT[Option, Int]])
     }
@@ -356,7 +367,7 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK" in {
-      type `TagK<:Dep`[K[_ <: Dep]] = HKTag[ {type Arg[A <: Dep] = K[A]}]
+      type `TagK<:Dep`[K[_ <: Dep]] = HKTag[{ type Arg[A <: Dep] = K[A] }]
 
       implicitly[`TagK<:Dep`[Trait3]].tag.withoutArgs =:= LTag[Trait3[Nothing]].tag.withoutArgs
     }
@@ -455,14 +466,17 @@ class TagTest extends AnyWordSpec with XY[String] {
       val eitherRSwapTag = LTagK3[EitherRSwap].tag
       val throwableTag = LTag[Throwable].tag
 
-      val combinedTag = HKTag.appliedTagNonPosAux(classOf[Any],
-        ctor = ctorTag,
-        args = List(
-          Some(eitherRSwapTag),
-          Some(throwableTag),
-          None,
-          None
-        )).tag
+      val combinedTag = HKTag
+        .appliedTagNonPosAux(
+          classOf[Any],
+          ctor = ctorTag,
+          args = List(
+            Some(eitherRSwapTag),
+            Some(throwableTag),
+            None,
+            None
+          )
+        ).tag
       val expectedTag = TagKK[Lt[EitherRSwap, Throwable, ?, ?]].tag
       assert(combinedTag =:= expectedTag)
     }
@@ -537,7 +551,7 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(zy.tagA.isSuccess)
     }
 
-    "resolve type members up to defining class" in {
+    "consider class member's this-prefix to be the defining template, not the most specific prefix (deliberate omission for better ergonomics in cakes)" in {
       trait A {
         class X
         val xa = Tag[X]
@@ -553,10 +567,42 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(Tag[A#X].tag == B.xa.tag)
     }
 
+    "can handle parameters in structural types" in {
+      def t[T: Tag]: Tag[{ type X = T }] = Tag[{ type X = T }]
+
+      assert(t[Int].tag == Tag[{ type X = Int }].tag)
+    }
+
+    "can resolve TagK's themselves correctly" in {
+      trait X[A, B, C]
+
+      def tagk[F[_]: TagK]: Tag[TagK[F]] = Tag[TagK[F]]
+      def tagkk[F[_, _]: TagKK]: Tag[TagKK[F]] = Tag[TagKK[F]]
+      def tagk3[F[_, _, _]: TagK3]: Tag[TagK3[F]] = Tag[TagK3[F]]
+      def tagtk[F[_[_], _]: TagTK]: Tag[TagTK[F]] = Tag[TagTK[F]]
+
+      assert(tagk[List].tag == Tag[TagK[List]].tag)
+      assert(tagkk[Either].tag == Tag[TagKK[Either]].tag)
+      assert(tagk3[X].tag == Tag[TagK3[X]].tag)
+      assert(tagtk[OptionT].tag == Tag[TagTK[OptionT]].tag)
+    }
+
+    "progression test: can't handle parameters in defs/vals in structural types" in {
+      def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
+      def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
+
+      intercept[TestFailedException] {
+        assert(t1[Int].tag == Tag[{ def x: Int }].tag)
+      }
+      intercept[TestFailedException] {
+        assert(t2[Int].tag == Tag[{ val x: Int }].tag)
+      }
+    }
+
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda" in {
       val t = intercept[TestFailedException] {
         assertCompiles(
-      """
+          """
       def mk[F[+_, +_]: TagKK] = TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
       val tag = mk[Either]
 
@@ -564,13 +610,13 @@ class TagTest extends AnyWordSpec with XY[String] {
       """
         )
       }
-      assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/)
+      assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/ )
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in an anonymous deeply-nested type lambda" in {
       val t = intercept[TestFailedException] {
         assertCompiles(
-      """
+          """
       def mk[F[+_, +_]: TagKK] = TagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = F[A, E] })#l ] })#l ]
       val tag = mk[Either]
 
@@ -578,7 +624,7 @@ class TagTest extends AnyWordSpec with XY[String] {
       """
         )
       }
-      assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/)
+      assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/ )
     }
 
     "progression test: cannot resolve type prefix or a type projection (this case is no longer possible in dotty at all. not worth it to support?)" in {
@@ -605,17 +651,6 @@ class TagTest extends AnyWordSpec with XY[String] {
         def t[T[_ <: Dep]: `TagK<:Dep`, A: Tag] = Tag[T[A]]
 
         assert(t[Trait3, Dep].tag == safe[Trait3[Dep]].tag)
-        """)
-      }
-      assert(t.message.get contains "could not find implicit value")
-    }
-
-    "progression test: can't handle parameters in structural types yet" in {
-      val t = intercept[TestFailedException] {
-        assertCompiles("""
-        def t[T: Tag]: Tag[{ type X = T }] = Tag[{ type X = T }]
-
-        assert(t[Int].tpe == safe[{ type X = Int }])
         """)
       }
       assert(t.message.get contains "could not find implicit value")

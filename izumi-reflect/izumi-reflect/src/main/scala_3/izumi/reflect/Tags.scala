@@ -103,8 +103,8 @@ object Tag {
     *
     * Example:
     * {{{
-    *   implicit def tagFromTagTAKA[T[_, _[_], _], K[_]: TagK, A0: Tag, A1: Tag](implicit t: LTagK3[T]): Tag[T[A0, K, A1]] =
-    *     Tag.appliedTag(t.tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
+    *   implicit def tagFromTagTAKA[T[_, _[_], _]: TagK3, K[_]: TagK, A0: Tag, A1: Tag]: Tag[T[A0, K, A1]] =
+    *     Tag.appliedTag(TagK3[T].tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
     * }}}
     **/
   def appliedTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = {
@@ -116,11 +116,16 @@ object Tag {
     *
     * `structType` is assumed to be a weak type of the entire type, e.g.
     * {{{
-    *   Tag[A with B {def abc: Unit}] == refinedTag(List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag)
+    *   Tag[A with B {def abc: Unit}] == refinedTag(classOf[Any], List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag, Map.empty)
     * }}}
     **/
-  def refinedTag[R <: AnyKind](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
-    Tag(lubClass, LightTypeTag.refinedType(intersection, structType))
+  def refinedTag[R <: AnyKind](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag, additionalTypeMembers: Map[String, LightTypeTag]): Tag[R] = {
+    Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
+  }
+
+  @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
+  private[Tag] def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
+    refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
   inline implicit final def tagFromTagMacro[T]: Tag[T] = Tag(classOf[Any], Inspect.inspect[T])
