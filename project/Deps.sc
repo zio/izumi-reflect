@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.59`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.61`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -32,7 +32,7 @@ object Izumi {
     scalaNativeVersion = PV.scala_native_version,
     crossProjectVersion = PV.crossproject_version,
     bundlerVersion = Some(PV.scalajs_bundler_version),
-    sbtDottyVersion = PV.sbt_dotty_version,
+    sbtDottyVersion = PV.sbt_dotty_version
   )
 
   object Deps {
@@ -58,7 +58,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.12")
   final val scala213 = ScalaVersion("2.13.2")
-  final val scala3 = ScalaVersion("0.26.0")
+  final val scala3 = ScalaVersion("0.27.0-RC1")
 
   object Groups {
     final val izumi_reflect = Set(Group("izumi-reflect"))
@@ -71,22 +71,22 @@ object Izumi {
     val targetScala = Seq(scala3, scala213, scala212, scala211)
     private val jvmPlatform = PlatformEnv(
       platform = Platform.Jvm,
-      language = targetScala,
+      language = targetScala
     )
     private val jsPlatform = PlatformEnv(
       platform = Platform.Js,
       language = targetScala.filterNot(_.isDotty),
       settings = Seq(
         "coverageEnabled" := false,
-        "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) := "scalaJSLinkerConfig.value.withModuleKind(ModuleKind.CommonJSModule)".raw,
-      ),
+        "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) := "scalaJSLinkerConfig.value.withModuleKind(ModuleKind.CommonJSModule)".raw
+      )
     )
     private val nativePlatform = PlatformEnv(
       platform = Platform.Native,
       language = Seq(scala211),
       settings = Seq(
-        "coverageEnabled" := false,
-      ),
+        "coverageEnabled" := false
+      )
     )
     final val crossNative = Seq(jvmPlatform, jsPlatform, nativePlatform)
   }
@@ -97,13 +97,13 @@ object Izumi {
       final val id = ArtifactId("izumi-reflect-root")
       final val plugins = Plugins(
         enabled = Seq(Plugin("SbtgenVerificationPlugin")),
-        disabled = Seq.empty,
+        disabled = Seq.empty
       )
       final val settings = Seq()
 
       final val sharedAggSettings = Seq(
         "crossScalaVersions" := Targets.targetScala.map(_.value),
-        "scalaVersion" := "crossScalaVersions.value.head".raw,
+        "scalaVersion" := "crossScalaVersions.value.head".raw
       )
 
       final val rootSettings = Defaults.SharedOptions ++ Seq(
@@ -113,23 +113,23 @@ object Izumi {
           "sonatypeProfileName" := "dev.zio",
           "sonatypeSessionName" := """s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}"""".raw,
           "publishTo" in SettingScope.Build :=
-          """
-            |(if (!isSnapshot.value) {
-            |    sonatypePublishToBundle.value
-            |  } else {
-            |    Some(Opts.resolver.sonatypeSnapshots)
-            |})
-            |""".stripMargin.raw,
+            """
+              |(if (!isSnapshot.value) {
+              |    sonatypePublishToBundle.value
+              |  } else {
+              |    Some(Opts.resolver.sonatypeSnapshots)
+              |})
+              |""".stripMargin.raw,
           "credentials" in SettingScope.Build += """Credentials(file(".secrets/credentials.sonatype-nexus.properties"))""".raw,
           "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
           "licenses" in SettingScope.Build := """Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php"))""".raw,
           "developers" in SettingScope.Build :=
-          """List(
+            """List(
           Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net"),
           Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
         )""".raw,
           "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
-          "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
+          "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw
         )
 
       final val sharedSettings = Defaults.SbtMeta ++ Seq(
@@ -138,26 +138,26 @@ object Izumi {
           "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
           //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
           "scalacOptions" ++= Seq(
-            SettingKey(Some(scala212), None) := Defaults.Scala212Options,
-            SettingKey(Some(scala213), None) := Defaults.Scala213Options,
-            SettingKey(Some(scala211), None) := Const.EmptySeq,
-            SettingKey.Default := Seq(
-              "-Ykind-projector",
-              "-noindent",
-              "-language:implicitConversions",
+              SettingKey(Some(scala212), None) := Defaults.Scala212Options,
+              SettingKey(Some(scala213), None) := Defaults.Scala213Options,
+              SettingKey(Some(scala211), None) := Const.EmptySeq,
+              SettingKey.Default := Seq(
+                  "-Ykind-projector",
+                  "-noindent",
+                  "-language:implicitConversions"
+                )
             ),
-          ),
           "scalacOptions" ++= Seq(
-            SettingKey(Some(scala212), Some(true)) := Seq(
-              "-opt:l:inline",
-              "-opt-inline-from:izumi.reflect.**",
-            ),
-            SettingKey(Some(scala213), Some(true)) := Seq(
-              "-opt:l:inline",
-              "-opt-inline-from:izumi.reflect.**",
-            ),
-            SettingKey.Default := Const.EmptySeq
-          ),
+              SettingKey(Some(scala212), Some(true)) := Seq(
+                  "-opt:l:inline",
+                  "-opt-inline-from:izumi.reflect.**"
+                ),
+              SettingKey(Some(scala213), Some(true)) := Seq(
+                  "-opt:l:inline",
+                  "-opt-inline-from:izumi.reflect.**"
+                ),
+              SettingKey.Default := Const.EmptySeq
+            )
         )
 
     }
@@ -182,32 +182,32 @@ object Izumi {
         settings = Defaults.CrossScalaSources ++ Seq(
             SettingDef.RawSettingDef(
               """scalacOptions in Compile --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
-              FullSettingScope(SettingScope.Compile, Platform.All),
-            ),
-          ),
+              FullSettingScope(SettingScope.Compile, Platform.All)
+            )
+          )
       ),
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
         libs = Seq.empty,
         settings = Defaults.CrossScalaSources,
         depends = Seq(
-          Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
-        ),
-      ),
+          Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
+        )
+      )
     ),
     pathPrefix = Projects.izumi_reflect_aggregate.basePath,
     groups = Groups.izumi_reflect,
     defaultPlatforms = Targets.crossNative,
     enableProjectSharedAggSettings = false,
     settings = Seq(
-      "crossScalaVersions" := "Nil".raw,
+      "crossScalaVersions" := "Nil".raw
     )
   )
 
   val izumi_reflect: Project = Project(
     name = Projects.root.id,
     aggregates = Seq(
-      izumi_reflect_aggregate,
+      izumi_reflect_aggregate
     ),
     topLevelSettings = Projects.root.settings,
     sharedSettings = Projects.root.sharedSettings,
@@ -220,15 +220,16 @@ object Izumi {
       silencer_lib in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scalatest in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala2),
-      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
-      silencer_lib_dotty in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3),
+      // fixme: no scalatest for 0.27.0-RC1
+//      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
+      silencer_lib_dotty in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3)
     ),
     rootPlugins = Projects.root.plugins,
     globalPlugins = Plugins(),
     pluginConflictRules = Map.empty,
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
         SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
-        SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
+        SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage)
       )
   )
 }

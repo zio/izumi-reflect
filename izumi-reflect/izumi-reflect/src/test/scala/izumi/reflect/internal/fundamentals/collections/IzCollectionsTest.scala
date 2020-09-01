@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2019-2020 Septimal Mind Ltd
  * Copyright 2020 John A. De Goes and the ZIO Contributors
@@ -32,5 +31,3 @@ class IzCollectionsTest extends AnyWordSpec {
     }
   }
 }
-
-
