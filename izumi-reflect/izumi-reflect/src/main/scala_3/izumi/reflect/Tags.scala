@@ -123,6 +123,11 @@ object Tag {
     Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
   }
 
+  @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
+  private[reflect] def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
+    refinedTag(lubClass, intersection, structType, Map.empty)
+  }
+
   inline implicit final def tagFromTagMacro[T]: Tag[T] = Tag(classOf[Any], Inspect.inspect[T])
 }
 
