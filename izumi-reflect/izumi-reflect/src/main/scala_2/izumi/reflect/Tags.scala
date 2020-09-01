@@ -142,7 +142,7 @@ object Tag {
   }
 
   @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
-  private[reflect] def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
+  private[Tag] def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
     refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
