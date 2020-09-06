@@ -91,7 +91,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.2") => Seq(
+      case (_, "2.13.3") => Seq(
         "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Ybackend-parallelism",
@@ -117,7 +117,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.2") => Seq(
+      case (false, "2.13.3") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -126,7 +126,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "0.27.0-RC1",
-      "2.13.2",
+      "2.13.3",
       "2.12.12",
       "2.11.12"
     )
@@ -223,7 +223,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.2") => Seq(
+      case (_, "2.13.3") => Seq(
         "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Ybackend-parallelism",
@@ -249,7 +249,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.2") => Seq(
+      case (false, "2.13.3") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -258,7 +258,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "0.27.0-RC1",
-      "2.13.2",
+      "2.13.3",
       "2.12.12",
       "2.11.12"
     )
@@ -289,7 +289,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
     skip in publish := true,
     crossScalaVersions := Seq(
       "0.27.0-RC1",
-      "2.13.2",
+      "2.13.3",
       "2.12.12",
       "2.11.12"
     ),
