@@ -34,19 +34,12 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
 
       val barXTag = LTT[Bar[X]]
 
-      //      println(s"Baz tag: $bazTag")
-      //      println(s"Bar[X] tag: $barXTag")
-      //
-      //      println(bazTag.debug())
-      //      println(barXTag.debug())
-
       assertSame(bazTag, bazTag2)
       assertDifferent(bazTag, barXTag)
       assertChild(bazTag, bazTag2)
       assertNotChild(bazTag, barXTag)
 
       assertChild(LTT[B], LTT[A])
-
 
       val listTag = `LTT[_]`[Listoid]
       val listIntTag = LTT[Listoid[Int]]
@@ -58,15 +51,10 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
 
       assertChild(listTag0.combine(intTag), listIntTag0)
 
-
       val invTag0 = `LTT[_]`[SubInvariantoid]
       val _ = LTT[Invariantoid[Int]]
       val combined = invTag0.combine(intTag)
       assertChild(combined, LTT[Traitoid])
-
-//      println(invIntTag0.debug("invIntTag0"))
-//      println(invTag0.debug("invTag0"))
-//      assertChild(combined, invIntTag0)
 
       val tupleTag0 = LTT[(Any, Any)]
       val tupleTag1 = LTT[(Baz, Baz)]
@@ -75,6 +63,7 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
       assertChild(tupleTag1, tupleTag0)
       assertChild(tupleTag3, tupleTag2)
 
+      assertChild(`LTT[_]`[List].combine(LTT[B]),  `LTT[_]`[Seq].combine(LTT[A]))
     }
 
   }
