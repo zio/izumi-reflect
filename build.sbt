@@ -350,7 +350,8 @@ lazy val `izumi-reflect-root` = (project in file("."))
               Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
             ),
     scmInfo in ThisBuild := Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git")),
-    scalacOptions in ThisBuild += """-Xmacro-settings:scalatest-version=VExpr(V.scalatest)"""
+    scalacOptions in ThisBuild += """-Xmacro-settings:scalatest-version=VExpr(V.scalatest)""",
+    scalacOptions in ThisBuild += "-Xlint:-implicit-recursion"
   )
   .aggregate(
     `izumi-reflect-aggregate`
