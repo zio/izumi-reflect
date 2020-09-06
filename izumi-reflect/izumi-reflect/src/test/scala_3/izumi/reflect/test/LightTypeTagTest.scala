@@ -101,7 +101,7 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[FM2[I2]], LTT[FM1[I1, Unit]])
       assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
       assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
-//      assertChild(LTT[None.type], LTT[Option[Int]])
+      assertChild(LTT[None.type], LTT[Option[Int]])
 
       assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
       assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])

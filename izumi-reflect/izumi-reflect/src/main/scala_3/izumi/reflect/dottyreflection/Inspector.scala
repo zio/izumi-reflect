@@ -103,9 +103,11 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         next().inspectTree(t.rhs.asInstanceOf[TypeTree])
       case d: DefDef =>
         next().inspectTree(d.returnTpt)
+      case b: Bind =>
+        NameReference(b.name)
       case o =>
-        log(s"SYMBOL TREE, UNSUPPORTED: ${symbol} / $o / ${o.getClass}")
-        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: ${symbol} / $o / ${o.getClass}")
+        log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
+        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
     }
   }
 
