@@ -83,7 +83,7 @@ object LightTypeTagTest extends TagAssertions {
       assertChild(LTT[List[I2]], LTT[List[I1]])
       assertChild(LTT[Either[Nothing, Int]], LTT[Either[Throwable, Int]])
 
-//      assertChild(LTT[F2[I2]], LTT[F1[I1]])
+      assertChild(LTT[F2[I2]], LTT[F1[I1]])
 //      assertChild(LTT[FT2[IT2]], LTT[FT1[IT1]])
 //      assertChild(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
 //      assertDifferent(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
@@ -93,72 +93,72 @@ object LightTypeTagTest extends TagAssertions {
 //      assertDifferent(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
 //      assertSame(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT1]), LTT[FT1[IT1]])
 
-//      assertChild(LTT[FT2[IT2]], LTT[FT1[IT2]])
+      assertChild(LTT[FT2[IT2]], LTT[FT1[IT2]])
 
       assertChild(LTT[List[Int]], `LTT[_]`[List])
       assertNotChild(LTT[Set[Int]], `LTT[_]`[Set])
 
-//      assertChild(LTT[FM2[I2]], LTT[FM1[I1, Unit]])
-//      assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
-//      assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
-//      assertChild(LTT[None.type], LTT[Option[Int]])
-//
-//      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
-//      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
-//
-//      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
-//      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
-//
-//      // bottom boundary is weird!
-//      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
-//
-//      // I consider this stuff practically useless
-//      type X[A >: H4 <: H2] = Option[A]
-//      assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
-//      // allTypeReferences: we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
-//      //assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
-//
-//      assertChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X2, X1]])
-//      assertNotChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X1, X2]])
-//
-//      assertChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X1]), LTT[P0[X2, X1]])
-//      assertChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X2]])
-//      assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X1]])
-//      assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X1, X2]])
+      assertChild(LTT[FM2[I2]], LTT[FM1[I1, Unit]])
+      assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
+      assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
+      //assertChild(LTT[None.type], LTT[Option[Int]])
+
+      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
+      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
+
+      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
+      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
+
+      // bottom boundary is weird!
+      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+
+      // I consider this stuff practically useless
+      type X[A >: H4 <: H2] = Option[A]
+      //assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      // allTypeReferences: we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
+      //assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+
+      assertChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X2, X1]])
+      assertNotChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X1, X2]])
+
+      assertChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X1]), LTT[P0[X2, X1]])
+      assertChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X2]])
+      assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X1]])
+      assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X1, X2]])
 
     }
 
     "support additional mixin traits after first trait with a HKT parameter" in {
-//      assertChild(LTT[J[Option]], LTT[J1[Option]])
+      assertChild(LTT[J[Option]], LTT[J1[Option]])
       assertChild(LTT[J[Option]], LTT[J3])
       assertChild(LTT[J[Option]], LTT[J2])
-//      assertChild(LTT[J[Option]], LTT[J1[Option] with J2])
+      assertChild(LTT[J[Option]], LTT[J1[Option] with J2])
       assertChild(LTT[J[Option]], LTT[J2 with J3])
-//      assertChild(LTT[J[Option]], LTT[J1[Option] with J2 with J3])
+      assertChild(LTT[J[Option]], LTT[J1[Option] with J2 with J3])
     }
 
-//    "support swapped parents" in {
-//      // PDTs do not work on dotty yet
-//      //      trait KT1[+A1, +B1]
-//      //      trait KT2[+A2, +B2] extends KT1[B2, A2]
-//      //      trait KK1[+A, +B, +U]
-//      //      trait KK2[+A, +B] extends KK1[B, A, Unit]
-//
-//
-//      assertChild(LTT[KT2[H1, I1]], LTT[KT1[I1, H1]])
-//      assertNotChild(LTT[KT2[H1, I1]], LTT[KT1[H1, I1]])
-//
-//      assertChild(LTT[KT2[H2, I2]], LTT[KT1[I1, H1]])
-//      assertNotChild(LTT[KT2[H2, I2]], LTT[KT1[H1, I1]])
-//
-//      assertChild(LTT[KK2[Int, String]], LTT[KK1[String, Int, Unit]])
-//
-//      assertChild(LTT[KK2[H2, I2]], LTT[KK1[I1, H1, Unit]])
-//      assertNotChild(LTT[KK2[H2, I2]], LTT[KK1[H1, I1, Unit]])
-//
-//      assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
-//      assertNotChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[H1, *, Unit]])
-//    }
+    "support swapped parents" in {
+      // PDTs do not work on dotty yet
+      //      trait KT1[+A1, +B1]
+      //      trait KT2[+A2, +B2] extends KT1[B2, A2]
+      //      trait KK1[+A, +B, +U]
+      //      trait KK2[+A, +B] extends KK1[B, A, Unit]
+
+
+      assertChild(LTT[KT2[H1, I1]], LTT[KT1[I1, H1]])
+      assertNotChild(LTT[KT2[H1, I1]], LTT[KT1[H1, I1]])
+
+      assertChild(LTT[KT2[H2, I2]], LTT[KT1[I1, H1]])
+      assertNotChild(LTT[KT2[H2, I2]], LTT[KT1[H1, I1]])
+
+      assertChild(LTT[KK2[Int, String]], LTT[KK1[String, Int, Unit]])
+
+      assertChild(LTT[KK2[H2, I2]], LTT[KK1[I1, H1, Unit]])
+      assertNotChild(LTT[KK2[H2, I2]], LTT[KK1[H1, I1, Unit]])
+
+      //assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
+      assertNotChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[H1, *, Unit]])
+    }
 
 //    "support PDTs" in {
 //      val a = new C {
@@ -180,36 +180,36 @@ object LightTypeTagTest extends TagAssertions {
 //      assertSame(LTT[a2.A], LTT[String])
 //    }
 
-//    "support subtyping of parents parameterized with type lambdas" in {
-//      assertChild(LTT[RoleChild[Either]], LTT[RoleParent[Either[Throwable, ?]]])
-//    }
+    "support subtyping of parents parameterized with type lambdas" in {
+      assertChild(LTT[RoleChild[Either]], LTT[RoleParent[Either[Throwable, *]]])
+    }
 
-//    "support subtyping of parents parameterized with type lambdas in combined tags" in {
-//      val childBase = `LTT[_[_,_]]`[RoleChild]
-//      val childArg = `LTT[_,_]`[Either]
-//      val combinedTag = childBase.combine(childArg)
-//      val expectedTag = LTT[RoleParent[Either[Throwable, ?]]]
-//
-//      assertSame(combinedTag, LTT[RoleChild[Either]])
-//      assertChild(combinedTag, expectedTag)
-//    }
+    "support subtyping of parents parameterized with type lambdas in combined tags" in {
+      val childBase = `LTT[_[_,_]]`[RoleChild]
+      val childArg = `LTT[_,_]`[Either]
+      val combinedTag = childBase.combine(childArg)
+      val expectedTag = LTT[RoleParent[Either[Throwable, *]]]
 
-//    "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
-//      val childBase = `LTT[_[_,_],_,_]`[RoleChild2]
-//      val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
-//      val combinedTag = childBase.combine(childArgs: _*)
-//      val expectedTag = LTT[RoleParent[Either[Throwable, ?]]]
-//      val noncombinedTag = LTT[RoleChild2[Either, Int, String]]
-//
-//      assertSame(combinedTag, noncombinedTag)
-//      assertChild(noncombinedTag, expectedTag)
-//      assertChild(combinedTag, expectedTag)
-//    }
+      assertSame(combinedTag, LTT[RoleChild[Either]])
+      //assertChild(combinedTag, expectedTag)
+    }
+
+    "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
+      val childBase = `LTT[_[_,_],_,_]`[RoleChild2]
+      val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
+      val combinedTag = childBase.combine(childArgs: _*)
+      val expectedTag = LTT[RoleParent[Either[Throwable, *]]]
+      val noncombinedTag = LTT[RoleChild2[Either, Int, String]]
+
+      assertSame(combinedTag, noncombinedTag)
+      assertChild(noncombinedTag, expectedTag)
+      //assertChild(combinedTag, expectedTag)
+    }
 
 //    "support complex type lambdas" in {
-//      assertSame(`LTT[_,_]`[NestedTL[Const, ?, ?]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
-//      assertSame(`LTT[_[_]]`[NestedTL2[W1, W2, [K[_]] =>> K]], `LTT[_[_]]`[Lambda[G[_] => FM2[G[S[W2, W1]]]]])
-//      assertChild(`LTT[_,_]`[NestedTL[Const, ?, ?]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
+//      assertSame(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[[A, B] =>> FM2[(B, A)]])
+//      assertSame(`LTT[_[_]]`[[K[_]] =>> NestedTL2[W1, W2, K]], `LTT[_[_]]`[[G[_]] =>> FM2[G[S[W2, W1]]]])
+//      assertChild(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[[A, B] =>> FM2[(B, A)]])
 //    }
 
     "support TagK* family summoners" in {
@@ -236,12 +236,12 @@ object LightTypeTagTest extends TagAssertions {
 
       assertChild(LTT[F1], LTT[W3[Int]])
       assertChild(LTT[F1], LTT[W1])
-//      assertChild(LTT[F2], LTT[F1])
+      assertChild(LTT[F2], LTT[F1])
 
-//      assertChild(`LTT[_]`[W4], `LTT[_]`[W3])
-//      assertChild(`LTT[_]`[T1], `LTT[_]`[W3])
-//      assertChild(`LTT[_]`[T1], LTT[W1])
-//      assertChild(`LTT[_]`[T2], `LTT[_]`[T1])
+      //assertChild(`LTT[_]`[W4], `LTT[_]`[W3])
+      assertChild(`LTT[_]`[T1], `LTT[_]`[W3])
+      assertChild(`LTT[_]`[T1], LTT[W1])
+      //assertChild(`LTT[_]`[T2], `LTT[_]`[T1])
     }
 
     "intersections are associative" in {

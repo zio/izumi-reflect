@@ -1,4 +1,4 @@
--Xmx4G
+-Xmx4=8G
 -XX:ReservedCodeCacheSize=256m
 -XX:MaxMetaspaceSize=3G
 

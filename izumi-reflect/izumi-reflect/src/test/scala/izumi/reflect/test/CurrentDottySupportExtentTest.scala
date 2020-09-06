@@ -63,7 +63,11 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
       assertChild(tupleTag1, tupleTag0)
       assertChild(tupleTag3, tupleTag2)
 
-      assertChild(`LTT[_]`[List].combine(LTT[B]),  `LTT[_]`[Seq].combine(LTT[A]))
+//      println(`LTT[_]`[List].debug())
+//      println(`LTT[_]`[List[B]].debug())
+
+      assertChild(LTT[List[B]], LTT[Seq[A]])
+      assertChild(`LTT[_]`[List].combine(LTT[B]), `LTT[_]`[Seq].combine(LTT[A]))
     }
 
   }

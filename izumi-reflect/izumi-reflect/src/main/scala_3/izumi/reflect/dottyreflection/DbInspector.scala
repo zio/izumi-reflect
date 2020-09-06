@@ -44,9 +44,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
       val tpe2 = uns.tpe
 
       if (symbol.isNoSymbol)
-        inspectTTypeToNameBases(tpe2)
+        inspectTTypeToNameBases(tpe2).distinct
       else
-        inspectSymbolToName(symbol)
+        inspectSymbolToName(symbol).distinct
     }
 
     private def inspectTTypeToNameBases(tpe2: TType): List[(NameReference, NameReference)] = {
@@ -57,7 +57,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
             termination.add(x)
             inspectToBToName(x)
           }
-          main ++ args
+          (main ++ args).distinct
 
         case l: TypeLambda =>
           inspectTTypeToNameBases(l.resType)
@@ -70,6 +70,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
         case r: TypeRef =>
           inspectSymbolToName(r.typeSymbol)
+
+        case b: TypeBounds =>
+          inspectToBToName(b)
 
         case o =>
           log(s"DbInspector: UNSUPPORTED: $o")
@@ -102,7 +105,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
             }
           }
 
-          p ++ o
+          (p ++ o).distinct
 
         case t: TypeDef =>
           inspectTreeToName(t.rhs.asInstanceOf[TypeTree])
