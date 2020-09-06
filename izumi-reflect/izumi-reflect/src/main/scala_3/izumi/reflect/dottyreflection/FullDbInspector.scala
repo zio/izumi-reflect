@@ -48,7 +48,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case a: AppliedType =>
           val baseTypes = a.baseClasses.map(b => a.baseType(b))
 
-          val main = baseTypes.map {
+          val main = (selfRef, selfRef) +: baseTypes.map {
             bt =>
               val parentRef = inspector.inspectTType(a.tycon)
               (selfRef, parentRef)
