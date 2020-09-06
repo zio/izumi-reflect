@@ -56,10 +56,20 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         asNameRef(t)
 
       case a: AndType =>
-        IntersectionReference(flattenInspectAnd(a))
+        val elements = flattenInspectAnd(a)
+        if (elements.size == 1) {
+          elements.head
+        } else {
+          IntersectionReference(elements)
+        }
 
       case o: OrType =>
-        UnionReference(flattenInspectOr(o))
+        val elements = flattenInspectOr(o)
+        if (elements.size == 1) {
+          elements.head
+        } else {
+          UnionReference(elements)
+        }
 
       case r: TypeRef =>
         next().inspectSymbol(r.typeSymbol)
