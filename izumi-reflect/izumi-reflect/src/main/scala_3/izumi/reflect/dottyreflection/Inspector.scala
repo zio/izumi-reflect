@@ -104,8 +104,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case d: DefDef =>
         next().inspectTree(d.returnTpt)
       case o =>
-        log(s"SYMBOL TREE, UNSUPPORTED: $o")
-        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: ${o.getClass} - $o")
+        log(s"SYMBOL TREE, UNSUPPORTED: ${symbol} / $o / ${o.getClass}")
+        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: ${symbol} / $o / ${o.getClass}")
     }
   }
 

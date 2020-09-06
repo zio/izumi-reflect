@@ -132,4 +132,8 @@ object TestModel extends TestModelKindProjector {
 
   val PDTNormB = PDTNormA
 
+  trait KT1[+A1, +B1]
+  trait KT2[+A2, +B2] extends KT1[B2, A2]
+  trait KK1[+A, +B, +U]
+  trait KK2[+A, +B] extends KK1[B, A, Unit]
 }

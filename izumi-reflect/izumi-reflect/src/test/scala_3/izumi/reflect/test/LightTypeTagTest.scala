@@ -53,7 +53,7 @@ class LightTypeTagTest extends TagAssertions {
       assertCombine(`LTT[_[_]]`[[K[_]] =>> T0[Id, K]], `LTT[_]`[FP], LTT[T0[Id, FP]])
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[List], LTT[T1[List]])
       assertCombine(`LTT[_]`[List], LTT[Int], LTT[List[Int]])
-      assertCombine(`LTT[_,_]`[Either], LTT[Unit], `LTT[_]`[Either[Unit, ?]])
+      assertCombine(`LTT[_,_]`[Either], LTT[Unit], `LTT[_]`[Either[Unit, *]])
 
       assertCombine(`LTT[_[_[_],_[_]]]`[T2], `LTT[_[_],_[_]]`[T0], LTT[T2[T0]])
 
@@ -62,7 +62,7 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "support non-positional typetag combination" in {
-      assertCombineNonPos(`LTT[_,_]`[Either], Seq(None, Some(LTT[Unit])), `LTT[_]`[Either[?, Unit]])
+      assertCombineNonPos(`LTT[_,_]`[Either], Seq(None, Some(LTT[Unit])), `LTT[_]`[Either[*, Unit]])
     }
 
     "eradicate tautologies" in {
@@ -137,9 +137,13 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[J[Option]], LTT[J1[Option] with J2 with J3])
     }
 
-/*    "support swapped parents" in {
-      trait KT1[+A1, +B1]
-      trait KT2[+A2, +B2] extends KT1[B2, A2]
+    "support swapped parents" in {
+      // PDTs do not work on dotty yet
+      //      trait KT1[+A1, +B1]
+      //      trait KT2[+A2, +B2] extends KT1[B2, A2]      
+      //      trait KK1[+A, +B, +U]
+      //      trait KK2[+A, +B] extends KK1[B, A, Unit]
+
 
       assertChild(LTT[KT2[H1, I1]], LTT[KT1[I1, H1]])
       assertNotChild(LTT[KT2[H1, I1]], LTT[KT1[H1, I1]])
@@ -147,17 +151,14 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[KT2[H2, I2]], LTT[KT1[I1, H1]])
       assertNotChild(LTT[KT2[H2, I2]], LTT[KT1[H1, I1]])
 
-      trait KK1[+A, +B, +U]
-      trait KK2[+A, +B] extends KK1[B, A, Unit]
-
       assertChild(LTT[KK2[Int, String]], LTT[KK1[String, Int, Unit]])
 
       assertChild(LTT[KK2[H2, I2]], LTT[KK1[I1, H1, Unit]])
       assertNotChild(LTT[KK2[H2, I2]], LTT[KK1[H1, I1, Unit]])
 
-      assertChild(`LTT[_]`[KK2[H2, ?]], `LTT[_]`[KK1[?, H1, Unit]])
-      assertNotChild(`LTT[_]`[KK2[H2, ?]], `LTT[_]`[KK1[H1, ?, Unit]])
-    }*/
+      assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
+      assertNotChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[H1, *, Unit]])
+    }
 
     "support PDTs" in {
       val a = new C {
@@ -384,8 +385,8 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[Set[Int]].typeArgs.head, LTT[collection.Set[AnyVal]].typeArgs.head)
 
       assert(`LTT[_,_]`[Either].typeArgs.isEmpty)
-      assert(`LTT[_]`[Either[String, ?]].typeArgs == List(LTT[String]))
-//      assert(`LTT[_[_]]`[T0[List, ?[_]]].typeArgs == List(`LTT[_]`[List]))
+      assert(`LTT[_]`[Either[String, *]].typeArgs == List(LTT[String]))
+      assert(`LTT[_[_]]`[[T[_]] =>> T0[List, T]].typeArgs == List(`LTT[_]`[List]))
     }
 
     "support subtyping of a simple combined type" in {
