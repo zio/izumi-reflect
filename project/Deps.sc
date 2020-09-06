@@ -48,7 +48,7 @@ object Izumi {
       .more(LibSetting.Raw("cross CrossVersion.full"))
     final val silencer_plugin = Library("com.github.ghik", "silencer-plugin", V.silencer, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
-    final val collection_compat = Library("org.scala-lang.modules", "collection-compat", V.silencer, LibraryType.Auto)
+    final val collection_compat = Library("org.scala-lang.modules", "collection-compat", V.collection_compat, LibraryType.Auto)
       .more(LibSetting.Raw("cross CrossVersion.full"))
   }
 
