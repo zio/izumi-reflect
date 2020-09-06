@@ -6,6 +6,7 @@ object Izumi {
 
   object V {
     val silencer = Version.VExpr("V.silencer")
+    val collection_compat = Version.VExpr("V.collection_compat")
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
   }
@@ -47,9 +48,8 @@ object Izumi {
       .more(LibSetting.Raw("cross CrossVersion.full"))
     final val silencer_plugin = Library("com.github.ghik", "silencer-plugin", V.silencer, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
-    final val silencer_lib = Library("com.github.ghik", "silencer-lib", V.silencer, LibraryType.Invariant)
+    final val collection_compat = Library("org.scala-lang.modules", "collection-compat", V.silencer, LibraryType.Auto)
       .more(LibSetting.Raw("cross CrossVersion.full"))
-    final val silencer_lib_dotty = Library("com.github.ghik", "silencer-lib_2.13.3", V.silencer, LibraryType.Invariant)
   }
 
   import Deps._
@@ -218,12 +218,11 @@ object Izumi {
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
-      silencer_lib in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
+      collection_compat in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scalatest in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala2),
       // fixme: no scalatest for 0.27.0-RC1
 //      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
-      silencer_lib_dotty in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3)
     ),
     rootPlugins = Projects.root.plugins,
     globalPlugins = Plugins(),

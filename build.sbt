@@ -7,18 +7,10 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
-      "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
+      "org.scala-lang.modules" %% "collection-compat" % V.silencer % Provided cross CrossVersion.full,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
       "org.scalatest" %% "scalatest" % V.scalatest % Test
-    ) else Seq.empty },
-    libraryDependencies ++= {
-      val version = scalaVersion.value
-      if (version.startsWith("0.") || version.startsWith("3.")) {
-        Seq(
-          "com.github.ghik" % "silencer-lib_2.13.3" % V.silencer % Provided
-        )
-      } else Seq.empty
-    }
+    ) else Seq.empty }
   )
   .settings(
     organization := "dev.zio",
@@ -141,18 +133,10 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
-      "com.github.ghik" % "silencer-lib" % V.silencer % Provided cross CrossVersion.full,
+      "org.scala-lang.modules" %% "collection-compat" % V.silencer % Provided cross CrossVersion.full,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
       "org.scalatest" %% "scalatest" % V.scalatest % Test
-    ) else Seq.empty },
-    libraryDependencies ++= {
-      val version = scalaVersion.value
-      if (version.startsWith("0.") || version.startsWith("3.")) {
-        Seq(
-          "com.github.ghik" % "silencer-lib_2.13.3" % V.silencer % Provided
-        )
-      } else Seq.empty
-    }
+    ) else Seq.empty }
   )
   .settings(
     organization := "dev.zio",

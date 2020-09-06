@@ -21,7 +21,7 @@ package izumi.reflect.macrortti
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
-import com.github.ghik.silencer.silent
+import scala.annotation.nowarn
 import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
@@ -137,7 +137,7 @@ abstract class LightTypeTag(
     *       - You won't be able to call [[combine]] on result type
     * and partially applied types will not work correctly
     */
-  @silent("view.mapValues")
+  @nowarn("msg=view.mapValues")
   def withoutArgs: LightTypeTag = {
     LightTypeTag(ref.withoutArgs, basesdb.mapValues(_.map(_.withoutArgs)).toMap, idb)
   }
@@ -173,7 +173,7 @@ abstract class LightTypeTag(
   }
 
   /** Print internal structures state */
-  @silent("view.mapValues")
+  @nowarn("msg=view.mapValues")
   def debug(name: String = ""): String = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString._
     s"""⚙️ $name: ${this.toString}

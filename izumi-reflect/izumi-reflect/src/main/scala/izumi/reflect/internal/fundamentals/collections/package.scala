@@ -18,12 +18,12 @@
 
 package izumi.reflect.internal.fundamentals
 
-import com.github.ghik.silencer.silent
+import scala.annotation.nowarn
 
 import scala.collection.mutable
 
 package object collections {
-  @silent("deprecated")
+  @nowarn("msg=deprecated")
   private[reflect] type MutableMultiMap[A, B] = mutable.HashMap[A, mutable.Set[B]] with mutable.MultiMap[A, B]
   private[reflect] type ImmutableMultiMap[A, B] = Map[A, Set[B]]
 }
