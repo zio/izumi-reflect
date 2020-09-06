@@ -17,12 +17,12 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     val qctx: self.qctx.type = self.qctx
   }
 
-  def buildTypeRef[T <: AnyKind : Type]: AbstractReference = {
+  def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
     val tpe = implicitly[Type[T]]
     val uns = tpe.unseal
-    log(s" -------- about to inspect ${tpe} --------")
+    log(s" -------- about to inspect $tpe --------")
     val v = inspectTree(uns)
-    log(s" -------- done inspecting ${tpe} --------")
+    log(s" -------- done inspecting $tpe --------")
     v
   }
 
@@ -104,8 +104,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case d: DefDef =>
         next().inspectTree(d.returnTpt)
       case o =>
-        log(s"SYMBOL TREE, UNSUPPORTED: $o")
-        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: ${o.getClass} - $o")
+        log(s"SYMBOL TREE, UNSUPPORTED: ${symbol} / $o / ${o.getClass}")
+        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: ${symbol} / $o / ${o.getClass}")
     }
   }
 
@@ -138,7 +138,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-
   private def extractVariance(t: Symbol) = {
     if (t.flags.is(Flags.Covariant)) {
       Variance.Covariant
@@ -152,38 +151,38 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private def flattenInspectAnd(and: AndType): Set[AppliedReference] = {
     val (andTypes, otherTypes) =
       and match {
-        case AndType(l@AndType(_, _), r@AndType(_, _)) =>
+        case AndType(l @ AndType(_, _), r @ AndType(_, _)) =>
           (Set(l, r), Set.empty[TType])
-        case AndType(l@AndType(_, _), r) =>
+        case AndType(l @ AndType(_, _), r) =>
           (Set(l), Set(r))
-        case AndType(l, r@AndType(_, _)) =>
+        case AndType(l, r @ AndType(_, _)) =>
           (Set(r), Set(l))
         case AndType(l, r) =>
           (Set.empty[AndType], Set(l, r))
       }
     val andTypeTags = andTypes flatMap flattenInspectAnd
     val otherTypeTags = otherTypes map inspectTType map {
-      _.asInstanceOf[AppliedReference]
-    }
+        _.asInstanceOf[AppliedReference]
+      }
     andTypeTags ++ otherTypeTags
   }
 
   private def flattenInspectOr(or: OrType): Set[AppliedReference] = {
     val (orTypes, otherTypes) =
       or match {
-        case OrType(l@OrType(_, _), r@OrType(_, _)) =>
+        case OrType(l @ OrType(_, _), r @ OrType(_, _)) =>
           (Set(l, r), Set.empty[TType])
-        case OrType(l@OrType(_, _), r) =>
+        case OrType(l @ OrType(_, _), r) =>
           (Set(l), Set(r))
-        case OrType(l, r@OrType(_, _)) =>
+        case OrType(l, r @ OrType(_, _)) =>
           (Set(r), Set(l))
         case OrType(l, r) =>
           (Set.empty[OrType], Set(l, r))
       }
     val orTypeTags = orTypes flatMap flattenInspectOr
     val otherTypeTags = otherTypes map inspectTType map {
-      _.asInstanceOf[AppliedReference]
-    }
+        _.asInstanceOf[AppliedReference]
+      }
     orTypeTags ++ otherTypeTags
   }
 
@@ -194,7 +193,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case term: TermRef =>
         asNameRefSym(term.termSymbol)
       case t: ParamRef =>
-        NameReference(t.binder.asInstanceOf[ {def paramNames: List[Object]}].paramNames(t.paramNum).toString)
+        NameReference(t.binder.asInstanceOf[{ def paramNames: List[Object] }].paramNames(t.paramNum).toString)
     }
   }
 
@@ -203,4 +202,3 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     NameReference(SymName.SymTypeName(t.fullName), prefix = prefix)
   }
 }
-

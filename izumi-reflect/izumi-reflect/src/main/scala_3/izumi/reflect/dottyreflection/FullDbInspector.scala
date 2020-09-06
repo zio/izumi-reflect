@@ -46,14 +46,12 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
       tpe2 match {
         case a: AppliedType =>
-          val rref = inspector.inspectTType(a.tycon)
+          val baseTypes = a.baseClasses.map(b => a.baseType(b))
 
-          // https://github.com/lampepfl/dotty/issues/8514
-          val main = inspectTTypeToFullBases(a.tycon).map {
-            case (c, p) if c == rref => // TODO: XXX:
-              (selfRef, p)
-            case o =>
-              o
+          val main = baseTypes.map {
+            bt =>
+              val parentRef = inspector.inspectTType(a.tycon)
+              (selfRef, parentRef)
           }
 
           val args = a.args.filterNot(termination.contains).flatMap { x =>

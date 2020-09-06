@@ -15,7 +15,6 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "org.scalatest" %% "scalatest" % V.scalatest % Test,
           "com.github.ghik" % "silencer-lib_2.13.3" % V.silencer % Provided
         )
       } else Seq.empty
@@ -93,12 +92,14 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ycache-macro-class-loader:last-modified"
       )
       case (_, "2.13.2") => Seq(
-        "-Xlint:_,-eta-sam",
+        "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
+        if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Wdead-code",
         "-Wextra-implicit",
         "-Wnumeric-widen",
+        "-Woctal-literal",
         "-Wunused:_",
         "-Wvalue-discard",
         "-Ycache-plugin-class-loader:always",
@@ -124,7 +125,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
-      "0.26.0",
+      "0.27.0-RC1",
       "2.13.2",
       "2.12.12",
       "2.11.12"
@@ -147,7 +148,6 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "org.scalatest" %% "scalatest" % V.scalatest % Test,
           "com.github.ghik" % "silencer-lib_2.13.3" % V.silencer % Provided
         )
       } else Seq.empty
@@ -224,12 +224,14 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ycache-macro-class-loader:last-modified"
       )
       case (_, "2.13.2") => Seq(
-        "-Xlint:_,-eta-sam",
+        "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
+        if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Wdead-code",
         "-Wextra-implicit",
         "-Wnumeric-widen",
+        "-Woctal-literal",
         "-Wunused:_",
         "-Wvalue-discard",
         "-Ycache-plugin-class-loader:always",
@@ -255,7 +257,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
-      "0.26.0",
+      "0.27.0-RC1",
       "2.13.2",
       "2.12.12",
       "2.11.12"
@@ -286,7 +288,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Seq(
-      "0.26.0",
+      "0.27.0-RC1",
       "2.13.2",
       "2.12.12",
       "2.11.12"
@@ -329,7 +331,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       s"-Xmacro-settings:sbt-version=${sbtVersion.value}"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "0.26.0",
+    scalaVersion := "0.27.0-RC1",
     organization in ThisBuild := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
