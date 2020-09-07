@@ -35,6 +35,8 @@ jobs:
           bash sbtgen.sc --js --native
           rm -rfv _site
           rm -rfv izumi-reflect/_site
+          rm -rfv izumi-reflect/izumi-reflect/_site
+          rm -rfv izumi-reflect/*/_site
           rm -rfv */_site
           COMMAND="sbt +clean +test"
           if [[ "$GITHUB_REF" == refs/heads/develop || "$BRANCH_TAG" =~ ^v.*$ ]] ; then
