@@ -147,7 +147,7 @@ object Izumi {
                   "-language:implicitConversions"
                 )
             ),
-          "scalacOptions" in SettingScope.Raw("doc") -= "-Wconf:any:error",
+          "scalacOptions" -= "-Wconf:any:error",
           "scalacOptions" ++= Seq(
               SettingKey(Some(scala212), Some(true)) := Seq(
                   "-opt:l:inline",
