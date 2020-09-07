@@ -105,6 +105,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-language:implicitConversions"
       )
     } },
+    scalacOptions in doc -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.12") => Seq(
         "-opt:l:inline",
@@ -230,6 +231,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-language:implicitConversions"
       )
     } },
+    scalacOptions in doc -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.12") => Seq(
         "-opt:l:inline",
