@@ -135,17 +135,9 @@ object Izumi {
       final val sharedSettings = Defaults.SbtMeta ++ Seq(
           "test" in Platform.Native := "{}".raw,
           "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
-          "publishArtifact" in SettingScope.Raw("(Compile, packageDoc)") := Seq(
-              SettingKey(Some(scala3), None) := false,
-              SettingKey.Default := true
-            ),
-          "publishArtifact" in SettingScope.Raw("packageDoc") := Seq(
-              SettingKey(Some(scala3), None) := false,
-              SettingKey.Default := true
-            ),
-          "sources" in SettingScope.Raw("(Compile, packageDoc)") := Seq(
+          "sources" in SettingScope.Raw("(Compile, doc)") := Seq(
               SettingKey(Some(scala3), None) := Seq.empty[String],
-              SettingKey.Default := "(sources in (Compile, packageDoc)).value".raw
+              SettingKey.Default := "(sources in (Compile, doc)).value".raw
             ),
           "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
           //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,

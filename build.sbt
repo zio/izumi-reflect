@@ -43,19 +43,11 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       s"-Xmacro-settings:scala-version=${scalaVersion.value}",
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
     ),
-    publishArtifact in (Compile, packageDoc) := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => false
-      case (_, _) => true
-    } },
-    publishArtifact in packageDoc := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => false
-      case (_, _) => true
-    } },
-    sources in (Compile, packageDoc) := { (isSnapshot.value, scalaVersion.value) match {
+    sources in (Compile, doc) := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "0.27.0-RC1") => Seq(
       
       )
-      case (_, _) => (sources in (Compile, packageDoc)).value
+      case (_, _) => (sources in (Compile, doc)).value
     } },
     testOptions in Test += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
@@ -183,19 +175,11 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       s"-Xmacro-settings:scala-version=${scalaVersion.value}",
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
     ),
-    publishArtifact in (Compile, packageDoc) := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => false
-      case (_, _) => true
-    } },
-    publishArtifact in packageDoc := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => false
-      case (_, _) => true
-    } },
-    sources in (Compile, packageDoc) := { (isSnapshot.value, scalaVersion.value) match {
+    sources in (Compile, doc) := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "0.27.0-RC1") => Seq(
       
       )
-      case (_, _) => (sources in (Compile, packageDoc)).value
+      case (_, _) => (sources in (Compile, doc)).value
     } },
     testOptions in Test += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
