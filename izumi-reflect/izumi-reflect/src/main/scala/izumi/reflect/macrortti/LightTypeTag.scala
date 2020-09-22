@@ -247,9 +247,10 @@ object LightTypeTag {
       subtypeDBsSerializer.unpickle(UnpickleState(ByteBuffer.wrap(basesString.getBytes(StandardCharsets.ISO_8859_1))))
     }
 
-    new ParsedLightTypeTag(hashCode, refString, () => shared.bases, () => shared.idb)
+    new ParsedLightTypeTagM8(hashCode, refString, () => shared.bases, () => shared.idb)
   }
 
+  /** Old `ParsedLightTypeTag` generated before `1.0.0-M8`, must be kept for bincompat */
   final class ParsedLightTypeTag(
     override val hashCode: Int,
     private val refString: String,
@@ -262,8 +263,8 @@ object LightTypeTag {
 
     override def equals(other: Any): Boolean = {
       other match {
-        case that: ParsedLightTypeTag =>
-          refString == that.refString
+        case that: ParsedLightTypeTag if refString == that.refString =>
+          true
         case _ =>
           super.equals(other)
       }
@@ -271,6 +272,27 @@ object LightTypeTag {
   }
   object ParsedLightTypeTag {
     final case class SubtypeDBs(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]])
+  }
+
+  /** `ParsedLightTypeTag` since 1.0.0-M8 */
+  final class ParsedLightTypeTagM8(
+    override val hashCode: Int,
+    private val refString: String,
+    bases: () => Map[AbstractReference, Set[AbstractReference]],
+    db: () => Map[NameReference, Set[NameReference]]
+  ) extends LightTypeTag(bases, db) {
+    override lazy val ref: LightTypeTagRef = {
+      lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
+    }
+
+    override def equals(other: Any): Boolean = {
+      other match {
+        case that: ParsedLightTypeTagM8 =>
+          refString == that.refString
+        case _ =>
+          super.equals(other)
+      }
+    }
   }
 
   private[reflect] val (lttRefSerializer: Pickler[LightTypeTagRef], subtypeDBsSerializer: Pickler[SubtypeDBs]) = {
