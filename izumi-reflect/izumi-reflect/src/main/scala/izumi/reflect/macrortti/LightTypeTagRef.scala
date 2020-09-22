@@ -388,13 +388,13 @@ object LightTypeTagRef {
       OrderingListLambdaParameter.lt(inputx, inputy)
     case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
       OrderingSortedSetAbstractReference.lt(
-        setToSortedSet(OrderingAbstractReference)(refsx),
-        setToSortedSet(OrderingAbstractReference)(refsy)
+        setToSortedSet[AbstractReference](OrderingAbstractReference)(refsx),
+        setToSortedSet[AbstractReference](OrderingAbstractReference)(refsy)
       )
     case (UnionReference(refsx), UnionReference(refsy)) =>
       OrderingSortedSetAbstractReference.lt(
-        setToSortedSet(OrderingAbstractReference)(refsx),
-        setToSortedSet(OrderingAbstractReference)(refsy)
+        setToSortedSet[AbstractReference](OrderingAbstractReference)(refsx),
+        setToSortedSet[AbstractReference](OrderingAbstractReference)(refsy)
       )
     case (Refinement(referencex, declsx), Refinement(referencey, declsy)) =>
       OrderingAbstractReference.lt(referencex, referencey) ||
@@ -458,7 +458,7 @@ object LightTypeTagRef {
   }
   private[this] val OrderingListTypeParam: Ordering[List[TypeParam]] = Ordering.Implicits.seqOrdering(OrderingTypeParam)
 
-  private[reflect] def setToSortedSet[A](ord: Ordering[_ >: A])(set: Set[A]): SortedSet[A] = {
+  private[reflect] def setToSortedSet[A](ord: Ordering[_ >: A])(set: Set[_ <: A]): SortedSet[A] = {
     SortedSet.newBuilder(ord.asInstanceOf[Ordering[A]]).++=(set).result()
   }
 }
