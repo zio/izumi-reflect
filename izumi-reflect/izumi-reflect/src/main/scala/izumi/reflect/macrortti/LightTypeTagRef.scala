@@ -18,10 +18,11 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
+import scala.collection.SortedSet
 
 sealed trait LightTypeTagRef {
   final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {
@@ -353,4 +354,111 @@ object LightTypeTagRef {
     }
   }
 
+  private[reflect] final class OrderingTryHashCode[A](ord: Ordering[A]) extends Ordering[A] {
+    override def compare(x: A, y: A): Int = java.lang.Integer.compare(x.hashCode(), y.hashCode()) match {
+      case 0 => ord.compare(x, y)
+      case res => res
+    }
+  }
+
+  private[reflect] implicit def OrderingAbstractReferenceInstance[A <: AbstractReference]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
+
+  private[this] val OrderingVariance: Ordering[Variance] = Ordering.by {
+    case Variance.Invariant => 0
+    case Variance.Contravariant => 1
+    case Variance.Covariant => 2
+  }
+  private[this] val OrderingLambdaParameter: Ordering[LambdaParameter] = Ordering.by((_: LambdaParameter).name)
+  private[this] val OrderingListLambdaParameter: Ordering[List[LambdaParameter]] = Ordering.Implicits.seqOrdering(OrderingLambdaParameter)
+  private[this] val OrderingSymName: Ordering[SymName] = new OrderingTryHashCode(Ordering.fromLessThan {
+    case (SymName.SymTermName(namex), SymName.SymTermName(namey)) => Ordering.String.lt(namex, namey)
+    case (SymTypeName(namex), SymTypeName(namey)) => Ordering.String.lt(namex, namey)
+    case (SymLiteral(namex), SymLiteral(namey)) => Ordering.String.lt(namex, namey)
+    case (x, y) =>
+      def idx(symName: SymName): Int = symName match {
+        case SymTermName(_) => 0
+        case SymTypeName(_) => 1
+        case SymLiteral(_) => 2
+      }
+      idx(x) < idx(y)
+  })
+  private[this] val OrderingAbstractReference: Ordering[AbstractReference] = new OrderingTryHashCode(Ordering.fromLessThan {
+    case (Lambda(inputx, outputx), Lambda(inputy, outputy)) =>
+      OrderingAbstractReference.lt(outputx, outputy) ||
+      OrderingListLambdaParameter.lt(inputx, inputy)
+    case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
+      OrderingSortedSetAbstractReference.lt(
+        setToSortedSet(OrderingAbstractReference)(refsx),
+        setToSortedSet(OrderingAbstractReference)(refsy)
+      )
+    case (UnionReference(refsx), UnionReference(refsy)) =>
+      OrderingSortedSetAbstractReference.lt(
+        setToSortedSet(OrderingAbstractReference)(refsx),
+        setToSortedSet(OrderingAbstractReference)(refsy)
+      )
+    case (Refinement(referencex, declsx), Refinement(referencey, declsy)) =>
+      OrderingAbstractReference.lt(referencex, referencey) ||
+      OrderingSortedSetRefinementDecl.lt(
+        setToSortedSet(OrderingRefinementDecl)(declsx),
+        setToSortedSet(OrderingRefinementDecl)(declsy)
+      )
+    case (NameReference(refx, boundariesx, prefixx), NameReference(refy, boundariesy, prefixy)) =>
+      OrderingSymName.lt(refx, refy) ||
+      OrderingBoundaries.lt(boundariesx, boundariesy) ||
+      OrderingOptionAbstractReference.lt(prefixx, prefixy)
+    case (FullReference(refx, parametersx, prefixx), FullReference(refy, parametersy, prefixy)) =>
+      Ordering.String.lt(refx, refy) ||
+      OrderingListTypeParam.lt(parametersx, parametersy) ||
+      OrderingOptionAbstractReference.lt(prefixx, prefixy)
+    case (x, y) =>
+      def idx(abstractReference: AbstractReference): Int = abstractReference match {
+        case _: Lambda => 0
+        case _: IntersectionReference => 1
+        case _: UnionReference => 2
+        case _: Refinement => 3
+        case _: NameReference => 4
+        case _: FullReference => 5
+      }
+      idx(x) < idx(y)
+  })
+  private[this] val OrderingListAbstractReference: Ordering[List[AbstractReference]] = Ordering.Implicits.seqOrdering(OrderingAbstractReference)
+  private[this] val OrderingSortedSetAbstractReference: Ordering[SortedSet[AbstractReference]] = Ordering.Implicits.sortedSetOrdering(OrderingAbstractReference)
+  private[this] val OrderingOptionAbstractReference: Ordering[Option[AbstractReference]] = Ordering.Option(OrderingAbstractReference)
+  private[reflect] implicit val OrderingRefinementDecl: Ordering[RefinementDecl] = new OrderingTryHashCode(Ordering.fromLessThan {
+    case (RefinementDecl.Signature(namex, inputx, outputx), RefinementDecl.Signature(namey, inputy, outputy)) =>
+      Ordering.String.lt(namex, namey) ||
+      OrderingListAbstractReference.lt(inputx, inputy) ||
+      OrderingAbstractReference.lt(outputx, outputy)
+    case (RefinementDecl.TypeMember(namex, refx), RefinementDecl.TypeMember(namey, refy)) =>
+      Ordering.String.lt(namex, namey) ||
+      OrderingAbstractReference.lt(refx, refy)
+    case (x, y) =>
+      def idx(refinementDecl: RefinementDecl) = refinementDecl match {
+        case _: RefinementDecl.Signature => 0
+        case _: RefinementDecl.TypeMember => 1
+      }
+      idx(x) < idx(y)
+  })
+  private[this] val OrderingSortedSetRefinementDecl: Ordering[SortedSet[RefinementDecl]] = Ordering.Implicits.sortedSetOrdering(OrderingRefinementDecl)
+  private[this] val OrderingBoundaries: Ordering[Boundaries] = Ordering.fromLessThan {
+    case (Boundaries.Defined(rebx, retx), Boundaries.Defined(reby, rety)) =>
+      OrderingAbstractReference.lt(rebx, reby) ||
+      OrderingAbstractReference.lt(retx, rety)
+    case (x, y) =>
+      def idx(boundaries: Boundaries) = boundaries match {
+        case _: Boundaries.Empty.type => 0
+        case _: Boundaries.Defined => 1
+      }
+      idx(x) < idx(y)
+  }
+  private[this] val OrderingTypeParam: Ordering[TypeParam] = Ordering.fromLessThan {
+    case (TypeParam(namex, varx), TypeParam(namey, vary)) =>
+      OrderingAbstractReference.lt(namex, namey) ||
+      OrderingVariance.lt(varx, vary)
+  }
+  private[this] val OrderingListTypeParam: Ordering[List[TypeParam]] = Ordering.Implicits.seqOrdering(OrderingTypeParam)
+
+  private[reflect] def setToSortedSet[A](ord: Ordering[_ >: A])(set: Set[A]): SortedSet[A] = {
+    SortedSet.newBuilder(ord.asInstanceOf[Ordering[A]]).++=(set).result()
+  }
 }

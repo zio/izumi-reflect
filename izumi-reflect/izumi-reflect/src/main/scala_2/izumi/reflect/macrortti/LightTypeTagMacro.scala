@@ -78,8 +78,7 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
 
     @inline def serialize[A: Pickler](a: A): String = {
       val buffer = PickleImpl(a).toByteBuffer
-      val bytes = buffer.array()
-      new String(bytes, buffer.arrayOffset(), buffer.limit(), StandardCharsets.ISO_8859_1)
+      new String(buffer.array(), buffer.arrayOffset(), buffer.limit(), StandardCharsets.ISO_8859_1)
     }
 
     val hashCodeRef = res.hashCode()

@@ -29,6 +29,8 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
 
+import scala.collection.SortedSet
+
 /**
   * Extracts internal databases from [[LightTypeTag]].
   * Should not be used under normal circumstances.
@@ -487,7 +489,7 @@ object LightTypeTag {
             state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[Set[LightTypeTagRef.AppliedReference]](value.refs)
+            state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet[LightTypeTagRef.AppliedReference](OrderingAbstractReferenceInstance)(value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -514,7 +516,7 @@ object LightTypeTag {
             state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[Set[LightTypeTagRef.AppliedReference]](value.refs)
+            state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet(OrderingAbstractReferenceInstance[LightTypeTagRef.AppliedReference])(value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -597,7 +599,7 @@ object LightTypeTag {
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.AppliedReference](value.reference)
-            state.pickle[Set[LightTypeTagRef.RefinementDecl]](value.decls)
+            state.pickle[SortedSet[LightTypeTagRef.RefinementDecl]](setToSortedSet(OrderingRefinementDecl)(value.decls))
             state.addIdentityRef(value)
           }
         }
