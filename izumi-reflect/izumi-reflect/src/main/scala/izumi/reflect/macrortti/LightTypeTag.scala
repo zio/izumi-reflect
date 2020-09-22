@@ -262,8 +262,8 @@ object LightTypeTag {
 
     override def equals(other: Any): Boolean = {
       other match {
-        case that: ParsedLightTypeTag if refString == that.refString =>
-          true
+        case that: ParsedLightTypeTag =>
+          refString == that.refString
         case _ =>
           super.equals(other)
       }
