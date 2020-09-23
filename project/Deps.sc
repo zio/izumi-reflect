@@ -239,9 +239,7 @@ object Izumi {
       ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       collection_compat in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
-      scalatest in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala2)
-      // fixme: no scalatest for 0.27.0-RC1
-//      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
+      scalatest in Scope.Test.all
     ),
     rootPlugins = Projects.root.plugins,
     globalPlugins = Plugins(),

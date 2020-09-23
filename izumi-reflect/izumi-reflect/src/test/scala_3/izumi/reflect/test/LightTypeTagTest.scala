@@ -23,8 +23,8 @@ import izumi.reflect.macrortti._
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
-//class LightTypeTagTest extends TagAssertions {
-object LightTypeTagTest extends TagAssertions {
+class LightTypeTagTest extends TagAssertions {
+//object LightTypeTagTest extends TagAssertions {
 
   import TestModel._
 

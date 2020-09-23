@@ -18,5 +18,5 @@
 
 package izumi.reflect.test
 
-//class BasicDottyTest extends CurrentDottySupportExtentTest
-object BasicDottyTest extends CurrentDottySupportExtentTest
+class BasicDottyTest extends CurrentDottySupportExtentTest
+//object BasicDottyTest extends CurrentDottySupportExtentTest
