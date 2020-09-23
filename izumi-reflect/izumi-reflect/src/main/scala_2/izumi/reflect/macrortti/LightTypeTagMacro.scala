@@ -86,7 +86,7 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
     val strDBs = serialize(SubtypeDBs(res.basesdb, res.idb))(LightTypeTag.subtypeDBsSerializer)
 
     c.Expr[LightTypeTag](
-      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 0: _root_.scala.Int)"
+      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 1: _root_.scala.Int)"
     )
   }
 

@@ -37,6 +37,6 @@ object Inspect {
     //println(s"$ref => ${strRef.size} bytes, ${string2hex(strRef)}")
     //println(s"$dbs => ${strDbs.size} bytes, ${string2hex(strDbs)}")
     //prinltn(strDBs)
-    '{ LightTypeTag.parse(${Expr(ref.hashCode())}, ${Expr(strRef)}, ${Expr(strDbs)}, 0) }
+    '{ LightTypeTag.parse(${Expr(ref.hashCode())}, ${Expr(strRef)}, ${Expr(strDbs)}, 1) }
   }
 }
