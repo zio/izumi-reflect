@@ -9,3 +9,5 @@ addSbtPlugin("com.jsuereth" % "sbt-pgp" % PV.sbt_pgp)
 
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % PV.sbt_scoverage)
 
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % PV.sbt_mima_version)
+

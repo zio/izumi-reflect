@@ -33,7 +33,7 @@ jobs:
           env
           sudo curl -Lo /usr/local/bin/coursier  https://git.io/coursier-cli-linux && sudo chmod +x /usr/local/bin/coursier
           bash sbtgen.sc --js --native
-          COMMAND="sbt +clean +test"
+          COMMAND="sbt +clean +test +mimaReportBinaryIssues"
           if [[ "$GITHUB_REF" == refs/heads/develop || "$BRANCH_TAG" =~ ^v.*$ ]] ; then
             openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
             tar xvf secrets.tar
