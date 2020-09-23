@@ -1,4 +1,4 @@
-
+import com.typesafe.tools.mima.core._
 
 enablePlugins(SbtgenVerificationPlugin)
 
@@ -112,6 +112,10 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-noindent",
         "-language:implicitConversions"
       )
+    } },
+    mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "0.27.0-RC1") => Set.empty
+      case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
     } },
     scalacOptions -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
@@ -247,6 +251,10 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-language:implicitConversions"
       )
     } },
+    mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "0.27.0-RC1") => Set.empty
+      case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
+    } },
     scalacOptions -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.12") => Seq(
@@ -355,7 +363,15 @@ lazy val `izumi-reflect-root` = (project in file("."))
             ),
     scmInfo in ThisBuild := Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git")),
     scalacOptions in ThisBuild += """-Xmacro-settings:scalatest-version=VExpr(V.scalatest)""",
-    scalacOptions in ThisBuild += "-Xlint:-implicit-recursion"
+    scalacOptions in ThisBuild += "-Xlint:-implicit-recursion",
+    mimaBinaryIssueFilters in ThisBuild ++= Seq(
+      ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.Tag.refinedTag"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.refinedType"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")
+    ),
+    mimaFailOnProblem in ThisBuild := true,
+    mimaFailOnNoPrevious in ThisBuild := false
   )
   .aggregate(
     `izumi-reflect-aggregate`

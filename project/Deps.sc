@@ -20,6 +20,7 @@ object Izumi {
     val crossproject_version = Version.VExpr("PV.crossproject_version")
     val scalajs_bundler_version = Version.VExpr("PV.scalajs_bundler_version")
     val sbt_dotty_version = Version.VExpr("PV.sbt_dotty_version")
+    val sbt_mima_version = Version.VExpr("PV.sbt_mima_version")
   }
 
   def entrypoint(args: Seq[String]) = {
@@ -129,7 +130,15 @@ object Izumi {
         )""".raw,
         "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
         "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
-        "scalacOptions" in SettingScope.Build += "-Xlint:-implicit-recursion"
+        "scalacOptions" in SettingScope.Build += "-Xlint:-implicit-recursion",
+        "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
+          """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
+          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.Tag.refinedTag")""".raw,
+          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.refinedType")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")""".raw
+        ),
+        "mimaFailOnProblem" in SettingScope.Build := true,
+        "mimaFailOnNoPrevious" in SettingScope.Build := false
       )
 
       final val sharedSettings = Defaults.SbtMeta ++ Seq(
@@ -150,6 +159,10 @@ object Izumi {
             "-noindent",
             "-language:implicitConversions"
           )
+        ),
+        "mimaPreviousArtifacts" := Seq(
+          SettingKey(Some(scala3), None) := "Set.empty".raw,
+          SettingKey.Default := """Set(organization.value %% name.value % "1.0.0-M2")""".raw
         ),
         "scalacOptions" -= "-Wconf:any:error",
         "scalacOptions" ++= Seq(
@@ -218,7 +231,9 @@ object Izumi {
     sharedSettings = Projects.root.sharedSettings,
     sharedAggSettings = Projects.root.sharedAggSettings,
     rootSettings = Projects.root.rootSettings,
-    imports = Seq.empty,
+    imports = Seq(
+      Import("com.typesafe.tools.mima.core._")
+    ),
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
@@ -231,7 +246,8 @@ object Izumi {
     pluginConflictRules = Map.empty,
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
       SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
-      SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage)
+      SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
+      SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version)
     )
   )
 }
