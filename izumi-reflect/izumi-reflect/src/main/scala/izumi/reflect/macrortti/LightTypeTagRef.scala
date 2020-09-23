@@ -22,7 +22,7 @@ import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName,
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
-import scala.collection.SortedSet
+import scala.collection.immutable.SortedSet
 
 sealed trait LightTypeTagRef {
   final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {

@@ -34,7 +34,7 @@ class LightTypeTagTest extends TagAssertions {
         "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})"
       )
 //      assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
-      assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::gi[W1 & TestModel::I]1}")
+      assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::W1 & TestModel::I1}")
       assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
       assertRepr(`LTT[_]`[Nothing], "Nothing")
       assertRepr(LTT[Int], "Int")

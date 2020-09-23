@@ -29,7 +29,7 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
 
-import scala.collection.SortedSet
+import scala.collection.immutable.SortedSet
 
 /**
   * Extracts internal databases from [[LightTypeTag]].
