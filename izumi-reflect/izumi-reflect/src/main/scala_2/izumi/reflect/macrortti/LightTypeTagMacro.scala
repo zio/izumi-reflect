@@ -77,20 +77,23 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
     logger.log(s"LightTypeTagImpl: created LightTypeTag: $res")
 
     @inline def serialize[A: Pickler](a: A): String = {
-      val bytes = PickleImpl(a).toByteBuffer.array()
-      new String(bytes, 0, bytes.length, StandardCharsets.ISO_8859_1)
+      val buf = PickleImpl(a).toByteBuffer
+      new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
     }
 
     val hashCodeRef = res.hashCode()
     val strRef = serialize(res.ref)(LightTypeTag.lttRefSerializer)
     val strDBs = serialize(SubtypeDBs(res.basesdb, res.idb))(LightTypeTag.subtypeDBsSerializer)
 
-    c.Expr[LightTypeTag](q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 0: _root_.scala.Int)")
+    c.Expr[LightTypeTag](
+      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 1: _root_.scala.Int)"
+    )
   }
 
   @inline final def unpackArgStruct(t: Type): Type = {
     def badShapeError() = {
-      c.abort(c.enclosingPosition,
+      c.abort(
+        c.enclosingPosition,
         s"Expected type shape RefinedType `{ type Arg[A] = X[A] }` for summoning `LTag.StrongHK/WeakHK[X]`, but got $t (raw: ${showRaw(t)} ${t.getClass})"
       )
     }
