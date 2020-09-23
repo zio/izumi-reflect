@@ -19,6 +19,7 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
+import org.scalatest.exceptions.TestFailedException
 
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
@@ -446,6 +447,20 @@ class LightTypeTagTest extends TagAssertions {
       assertSame(t6, t7)
       assertChild(t6, t7)
       assertChild(t7, t6)
+    }
+
+    "progression test: can't support equal-bounded types" in {
+      object x {
+        type X >: String <: String
+      }
+      val tag = LTT[String]
+      val tag1 = LTT[x.X]
+      intercept[TestFailedException] {
+        assertSameRef(tag, tag1)
+      }
+      intercept[TestFailedException] {
+        assertSame(tag, tag1)
+      }
     }
   }
 }
