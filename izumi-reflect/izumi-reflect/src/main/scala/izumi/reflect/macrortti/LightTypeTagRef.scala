@@ -356,13 +356,6 @@ object LightTypeTagRef {
     }
   }
 
-  private[reflect] final class OrderingTryHashCode[A](ord: Ordering[A]) extends Ordering[A] {
-    override def compare(x: A, y: A): Int = java.lang.Integer.compare(x.hashCode(), y.hashCode()) match {
-      case 0 => ord.compare(x, y)
-      case res => res
-    }
-  }
-
   private[reflect] implicit def OrderingAbstractReferenceInstance[A <: AbstractReference]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
 
   private[this] val OrderingVariance: Ordering[Variance] = Ordering.by {
@@ -372,8 +365,8 @@ object LightTypeTagRef {
   }
   private[this] val OrderingLambdaParameter: Ordering[LambdaParameter] = Ordering.by((_: LambdaParameter).name)
   private[this] val OrderingListLambdaParameter: Ordering[List[LambdaParameter]] = OrderingCompat.listOrdering(OrderingLambdaParameter)
-  private[this] val OrderingSymName: Ordering[SymName] = new OrderingTryHashCode(Ordering.fromLessThan {
-    case (SymName.SymTermName(namex), SymName.SymTermName(namey)) => Ordering.String.lt(namex, namey)
+  private[this] val OrderingSymName: Ordering[SymName] = Ordering.fromLessThan {
+    case (SymTermName(namex), SymTermName(namey)) => Ordering.String.lt(namex, namey)
     case (SymTypeName(namex), SymTypeName(namey)) => Ordering.String.lt(namex, namey)
     case (SymLiteral(namex), SymLiteral(namey)) => Ordering.String.lt(namex, namey)
     case (x, y) =>
@@ -383,8 +376,8 @@ object LightTypeTagRef {
         case SymLiteral(_) => 2
       }
       idx(x) < idx(y)
-  })
-  private[this] val OrderingAbstractReference: Ordering[AbstractReference] = new OrderingTryHashCode(Ordering.fromLessThan {
+  }
+  private[this] val OrderingAbstractReference: Ordering[AbstractReference] = Ordering.fromLessThan {
     case (Lambda(inputx, outputx), Lambda(inputy, outputy)) =>
       OrderingAbstractReference.lt(outputx, outputy) ||
       OrderingListLambdaParameter.lt(inputx, inputy)
@@ -422,11 +415,11 @@ object LightTypeTagRef {
         case _: FullReference => 5
       }
       idx(x) < idx(y)
-  })
+  }
   private[this] val OrderingListAbstractReference: Ordering[List[AbstractReference]] = OrderingCompat.listOrdering(OrderingAbstractReference)
   private[this] val OrderingSortedSetAbstractReference: Ordering[SortedSet[AbstractReference]] = OrderingCompat.sortedSetOrdering(OrderingAbstractReference)
   private[this] val OrderingOptionAbstractReference: Ordering[Option[AbstractReference]] = Ordering.Option(OrderingAbstractReference)
-  private[reflect] implicit val OrderingRefinementDecl: Ordering[RefinementDecl] = new OrderingTryHashCode(Ordering.fromLessThan {
+  private[reflect] implicit val OrderingRefinementDecl: Ordering[RefinementDecl] = Ordering.fromLessThan {
     case (RefinementDecl.Signature(namex, inputx, outputx), RefinementDecl.Signature(namey, inputy, outputy)) =>
       Ordering.String.lt(namex, namey) ||
       OrderingListAbstractReference.lt(inputx, inputy) ||
@@ -440,7 +433,7 @@ object LightTypeTagRef {
         case _: RefinementDecl.TypeMember => 1
       }
       idx(x) < idx(y)
-  })
+  }
   private[this] val OrderingSortedSetRefinementDecl: Ordering[SortedSet[RefinementDecl]] = OrderingCompat.sortedSetOrdering(OrderingRefinementDecl)
   private[this] val OrderingBoundaries: Ordering[Boundaries] = Ordering.fromLessThan {
     case (Boundaries.Defined(rebx, retx), Boundaries.Defined(reby, rety)) =>
