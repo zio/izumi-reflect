@@ -8,9 +8,16 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
       "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-      "org.scalatest" %% "scalatest" % V.scalatest % Test
-    ) else Seq.empty }
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    ) else Seq.empty },
+    libraryDependencies ++= {
+      val version = scalaVersion.value
+      if (version.startsWith("0.") || version.startsWith("3.")) {
+        Seq(
+          "org.scalatest" %% "scalatest" % V.scalatest % Test
+        )
+      } else Seq.empty
+    }
   )
   .settings(
     organization := "dev.zio",
@@ -141,9 +148,16 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
       "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-      "org.scalatest" %% "scalatest" % V.scalatest % Test
-    ) else Seq.empty }
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    ) else Seq.empty },
+    libraryDependencies ++= {
+      val version = scalaVersion.value
+      if (version.startsWith("0.") || version.startsWith("3.")) {
+        Seq(
+          "org.scalatest" %% "scalatest" % V.scalatest % Test
+        )
+      } else Seq.empty
+    }
   )
   .settings(
     organization := "dev.zio",

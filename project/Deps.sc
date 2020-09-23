@@ -106,64 +106,64 @@ object Izumi {
       )
 
       final val rootSettings = Defaults.SharedOptions ++ Seq(
-          "crossScalaVersions" := "Nil".raw,
-          "scalaVersion" := Targets.targetScala.head.value,
-          "organization" in SettingScope.Build := "dev.zio",
-          "sonatypeProfileName" := "dev.zio",
-          "sonatypeSessionName" := """s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}"""".raw,
-          "publishTo" in SettingScope.Build :=
-            """
-              |(if (!isSnapshot.value) {
-              |    sonatypePublishToBundle.value
-              |  } else {
-              |    Some(Opts.resolver.sonatypeSnapshots)
-              |})
-              |""".stripMargin.raw,
-          "credentials" in SettingScope.Build += """Credentials(file(".secrets/credentials.sonatype-nexus.properties"))""".raw,
-          "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
-          "licenses" in SettingScope.Build := """Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php"))""".raw,
-          "developers" in SettingScope.Build :=
-            """List(
+        "crossScalaVersions" := "Nil".raw,
+        "scalaVersion" := Targets.targetScala.head.value,
+        "organization" in SettingScope.Build := "dev.zio",
+        "sonatypeProfileName" := "dev.zio",
+        "sonatypeSessionName" := """s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}"""".raw,
+        "publishTo" in SettingScope.Build :=
+          """
+            |(if (!isSnapshot.value) {
+            |    sonatypePublishToBundle.value
+            |  } else {
+            |    Some(Opts.resolver.sonatypeSnapshots)
+            |})
+            |""".stripMargin.raw,
+        "credentials" in SettingScope.Build += """Credentials(file(".secrets/credentials.sonatype-nexus.properties"))""".raw,
+        "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
+        "licenses" in SettingScope.Build := """Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php"))""".raw,
+        "developers" in SettingScope.Build :=
+          """List(
           Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net"),
           Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
         )""".raw,
-          "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
-          "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
-          "scalacOptions" in SettingScope.Build += "-Xlint:-implicit-recursion",
-        )
+        "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
+        "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
+        "scalacOptions" in SettingScope.Build += "-Xlint:-implicit-recursion"
+      )
 
       final val sharedSettings = Defaults.SbtMeta ++ Seq(
-          "test" in Platform.Native := "{}".raw,
-          "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
-          "sources" in SettingScope.Raw("(Compile, doc)") := Seq(
-              SettingKey(Some(scala3), None) := Seq.empty[String],
-              SettingKey.Default := "(sources in (Compile, doc)).value".raw
-            ),
-          "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
-          //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
-          "scalacOptions" ++= Seq(
-              SettingKey(Some(scala212), None) := Defaults.Scala212Options,
-              SettingKey(Some(scala213), None) := Defaults.Scala213Options,
-              SettingKey(Some(scala211), None) := Const.EmptySeq,
-              SettingKey.Default := Seq(
-                  "-Ykind-projector",
-                  "-noindent",
-                  "-language:implicitConversions"
-                )
-            ),
-          "scalacOptions" -= "-Wconf:any:error",
-          "scalacOptions" ++= Seq(
-              SettingKey(Some(scala212), Some(true)) := Seq(
-                  "-opt:l:inline",
-                  "-opt-inline-from:izumi.reflect.**"
-                ),
-              SettingKey(Some(scala213), Some(true)) := Seq(
-                  "-opt:l:inline",
-                  "-opt-inline-from:izumi.reflect.**"
-                ),
-              SettingKey.Default := Const.EmptySeq
-            )
+        "test" in Platform.Native := "{}".raw,
+        "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
+        "sources" in SettingScope.Raw("(Compile, doc)") := Seq(
+          SettingKey(Some(scala3), None) := Seq.empty[String],
+          SettingKey.Default := "(sources in (Compile, doc)).value".raw
+        ),
+        "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
+        //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
+        "scalacOptions" ++= Seq(
+          SettingKey(Some(scala212), None) := Defaults.Scala212Options,
+          SettingKey(Some(scala213), None) := Defaults.Scala213Options,
+          SettingKey(Some(scala211), None) := Const.EmptySeq,
+          SettingKey.Default := Seq(
+            "-Ykind-projector",
+            "-noindent",
+            "-language:implicitConversions"
+          )
+        ),
+        "scalacOptions" -= "-Wconf:any:error",
+        "scalacOptions" ++= Seq(
+          SettingKey(Some(scala212), Some(true)) := Seq(
+            "-opt:l:inline",
+            "-opt-inline-from:izumi.reflect.**"
+          ),
+          SettingKey(Some(scala213), Some(true)) := Seq(
+            "-opt:l:inline",
+            "-opt-inline-from:izumi.reflect.**"
+          ),
+          SettingKey.Default := Const.EmptySeq
         )
+      )
 
     }
 
@@ -185,11 +185,11 @@ object Izumi {
         libs = Seq.empty,
         depends = Seq.empty,
         settings = Defaults.CrossScalaSources ++ Seq(
-            SettingDef.RawSettingDef(
-              """scalacOptions in Compile --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
-              FullSettingScope(SettingScope.Compile, Platform.All)
-            )
+          SettingDef.RawSettingDef(
+            """scalacOptions in Compile --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
+            FullSettingScope(SettingScope.Compile, Platform.All)
           )
+        )
       ),
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
@@ -224,16 +224,14 @@ object Izumi {
       ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       collection_compat in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
-      scalatest in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala2),
-      // fixme: no scalatest for 0.27.0-RC1
-//      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3),
+      scalatest_dotty in Scope.Test.all.scalaVersion(ScalaVersionScope.AllScala3)
     ),
     rootPlugins = Projects.root.plugins,
     globalPlugins = Plugins(),
     pluginConflictRules = Map.empty,
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
-        SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
-        SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage)
-      )
+      SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
+      SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage)
+    )
   )
 }
