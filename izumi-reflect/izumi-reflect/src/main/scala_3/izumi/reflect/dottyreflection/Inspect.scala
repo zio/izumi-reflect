@@ -25,8 +25,8 @@ object Inspect {
     val dbs = SubtypeDBs(fullDb, nameDb)
 
     inline def serialize[A: Pickler](a: A): String = {
-      val bytes = PickleImpl(a).toByteBuffer.array()
-      new String(bytes, 0, bytes.length, StandardCharsets.ISO_8859_1)
+      val buf = PickleImpl(a).toByteBuffer
+      new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
     }
     val strRef = serialize(ref)(LightTypeTag.lttRefSerializer)
     val strDbs = serialize(dbs)(LightTypeTag.subtypeDBsSerializer)

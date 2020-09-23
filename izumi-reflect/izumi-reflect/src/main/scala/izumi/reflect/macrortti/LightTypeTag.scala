@@ -23,7 +23,6 @@ import java.nio.charset.StandardCharsets
 
 import izumi.reflect.DebugProperties
 import izumi.reflect.internal.OrderingCompat.setToSortedSet
-import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
