@@ -18,6 +18,8 @@
 
 package izumi.reflect.macrortti
 
+import izumi.reflect.internal.OrderingCompat
+import izumi.reflect.internal.OrderingCompat.setToSortedSet
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 
@@ -369,7 +371,7 @@ object LightTypeTagRef {
     case Variance.Covariant => 2
   }
   private[this] val OrderingLambdaParameter: Ordering[LambdaParameter] = Ordering.by((_: LambdaParameter).name)
-  private[this] val OrderingListLambdaParameter: Ordering[List[LambdaParameter]] = Ordering.Implicits.seqOrdering(OrderingLambdaParameter)
+  private[this] val OrderingListLambdaParameter: Ordering[List[LambdaParameter]] = OrderingCompat.listOrdering(OrderingLambdaParameter)
   private[this] val OrderingSymName: Ordering[SymName] = new OrderingTryHashCode(Ordering.fromLessThan {
     case (SymName.SymTermName(namex), SymName.SymTermName(namey)) => Ordering.String.lt(namex, namey)
     case (SymTypeName(namex), SymTypeName(namey)) => Ordering.String.lt(namex, namey)
@@ -421,8 +423,8 @@ object LightTypeTagRef {
       }
       idx(x) < idx(y)
   })
-  private[this] val OrderingListAbstractReference: Ordering[List[AbstractReference]] = Ordering.Implicits.seqOrdering(OrderingAbstractReference)
-  private[this] val OrderingSortedSetAbstractReference: Ordering[SortedSet[AbstractReference]] = Ordering.Implicits.sortedSetOrdering(OrderingAbstractReference)
+  private[this] val OrderingListAbstractReference: Ordering[List[AbstractReference]] = OrderingCompat.listOrdering(OrderingAbstractReference)
+  private[this] val OrderingSortedSetAbstractReference: Ordering[SortedSet[AbstractReference]] = OrderingCompat.sortedSetOrdering(OrderingAbstractReference)
   private[this] val OrderingOptionAbstractReference: Ordering[Option[AbstractReference]] = Ordering.Option(OrderingAbstractReference)
   private[reflect] implicit val OrderingRefinementDecl: Ordering[RefinementDecl] = new OrderingTryHashCode(Ordering.fromLessThan {
     case (RefinementDecl.Signature(namex, inputx, outputx), RefinementDecl.Signature(namey, inputy, outputy)) =>
@@ -439,7 +441,7 @@ object LightTypeTagRef {
       }
       idx(x) < idx(y)
   })
-  private[this] val OrderingSortedSetRefinementDecl: Ordering[SortedSet[RefinementDecl]] = Ordering.Implicits.sortedSetOrdering(OrderingRefinementDecl)
+  private[this] val OrderingSortedSetRefinementDecl: Ordering[SortedSet[RefinementDecl]] = OrderingCompat.sortedSetOrdering(OrderingRefinementDecl)
   private[this] val OrderingBoundaries: Ordering[Boundaries] = Ordering.fromLessThan {
     case (Boundaries.Defined(rebx, retx), Boundaries.Defined(reby, rety)) =>
       OrderingAbstractReference.lt(rebx, reby) ||
@@ -456,9 +458,5 @@ object LightTypeTagRef {
       OrderingAbstractReference.lt(namex, namey) ||
       OrderingVariance.lt(varx, vary)
   }
-  private[this] val OrderingListTypeParam: Ordering[List[TypeParam]] = Ordering.Implicits.seqOrdering(OrderingTypeParam)
-
-  private[reflect] def setToSortedSet[A](ord: Ordering[_ >: A])(set: Set[_ <: A]): SortedSet[A] = {
-    SortedSet.newBuilder(ord.asInstanceOf[Ordering[A]]).++=(set).result()
-  }
+  private[this] val OrderingListTypeParam: Ordering[List[TypeParam]] = OrderingCompat.listOrdering(OrderingTypeParam)
 }

@@ -21,7 +21,7 @@ package izumi.reflect.macrortti
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
-import scala.annotation.nowarn
+import izumi.reflect.internal.OrderingCompat.setToSortedSet
 import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
@@ -29,6 +29,7 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
 
+import scala.annotation.nowarn
 import scala.collection.immutable.SortedSet
 
 /**
@@ -298,9 +299,9 @@ object LightTypeTag {
   }
 
   private[reflect] val (lttRefSerializer: Pickler[LightTypeTagRef], subtypeDBsSerializer: Pickler[SubtypeDBs]) = {
+    import izumi.reflect.thirdparty.internal.boopickle
     import izumi.reflect.thirdparty.internal.boopickle.BasicPicklers.IntPickler
     import izumi.reflect.thirdparty.internal.boopickle.NoMacro.{Pickler => _, _}
-    import izumi.reflect.thirdparty.internal.boopickle
 
     implicit lazy val variance: Pickler[Variance] = IntPickler.xmap({
       case 0 => Variance.Invariant: Variance
