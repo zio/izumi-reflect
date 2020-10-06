@@ -260,8 +260,10 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val parameterizedBases = higherBases
       .filterNot {
         s =>
-          val btype = s.asType.toType
-          ignored.exists(_ =:= btype) || btype =:= tpef
+          s.isType && {
+            val btype = s.asType.toType
+            ignored.exists(_ =:= btype) || btype =:= tpef
+          }
       }
       .map(s => tpef.baseType(s))
 
