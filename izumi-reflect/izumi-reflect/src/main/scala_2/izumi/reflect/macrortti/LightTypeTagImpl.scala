@@ -37,7 +37,8 @@ object LightTypeTagImpl {
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
-    System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
       .getOrElse(true)
   }
 
@@ -112,26 +113,27 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         allbases.map(b => (i, makeRef(b)))
     }
 
-    val unparameterizedInheritanceData = baseclassReferences.flatMap {
-      case (i, ref) =>
-        val tpef = norm(i.dealias.resultType)
-        val prefix = getPrefix(tpef)
-        val targetRef = makeNameReference(i, tpef.typeSymbol, Boundaries.Empty, prefix)
+    val unparameterizedInheritanceData = baseclassReferences
+      .flatMap {
+        case (i, ref) =>
+          val tpef = norm(i.dealias.resultType)
+          val prefix = getPrefix(tpef)
+          val targetRef = makeNameReference(i, tpef.typeSymbol, Boundaries.Empty, prefix)
 
-        val srcname = i match {
-          case a: TypeRefApi =>
-            val srcname = symName(a.sym)
-            if (srcname != targetRef.ref) {
-              Seq((NameReference(srcname, Boundaries.Empty, prefix), targetRef))
-            } else {
+          val srcname = i match {
+            case a: TypeRefApi =>
+              val srcname = symName(a.sym)
+              if (srcname != targetRef.ref) {
+                Seq((NameReference(srcname, Boundaries.Empty, prefix), targetRef))
+              } else {
+                Seq.empty
+              }
+            case _ =>
               Seq.empty
-            }
-          case _ =>
-            Seq.empty
-        }
+          }
 
-        srcname ++ Seq((targetRef, ref))
-    }
+          srcname ++ Seq((targetRef, ref))
+      }
       .toMultimap
       .map {
         case (t, parents) =>
@@ -178,7 +180,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private def makeBaseClasses(tpe: Type): Seq[(AbstractReference, AbstractReference)] = {
     def makeBaseLambdas(tpe: Type): Seq[AbstractReference] = {
-      val basetypes = tpe.baseClasses
+      val basetypes = tpe
+        .baseClasses
         .map(tpe.baseType)
         .filterNot(_.typeSymbol.fullName == tpe.typeSymbol.fullName)
 
@@ -187,7 +190,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val lambdas = if (targs.nonEmpty) {
         basetypes.flatMap {
           base =>
-
             val lamParams = makeLambdaParams(None, targs)
             val reference = makeRef(base, lamParams.toMap)
 
@@ -238,12 +240,16 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       // we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
       // tpe.etaExpand.resultType.dealias.typeArgs.flatMap(_.dealias.resultType.typeSymbol.typeSignature match {
-      val more = tpe.dealias.resultType.typeArgs.flatMap(t => norm(t.dealias.resultType.typeSymbol.typeSignature) match {
-        case t: TypeBoundsApi =>
-          Seq(t.hi, t.lo)
-        case _ =>
-          Seq.empty
-      })
+      val more = tpe
+        .dealias.resultType.typeArgs.flatMap(
+          t =>
+            norm(t.dealias.resultType.typeSymbol.typeSignature) match {
+              case t: TypeBoundsApi =>
+                Seq(t.hi, t.lo)
+              case _ =>
+                Seq.empty
+            }
+        )
 
       val next = (tpe.typeArgs ++ tpe.dealias.resultType.typeArgs ++ more).filterNot(inh.contains)
       next.foreach(a => extract(a, inh))
@@ -260,7 +266,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val parameterizedBases = higherBases
       .filterNot {
         s =>
-          s.isType && {
+          !s.isType || {
             val btype = s.asType.toType
             ignored.exists(_ =:= btype) || btype =:= tpef
           }
@@ -327,7 +333,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val out = Lambda(lamParams.map(_._2), reference)
       if (!out.allArgumentsReferenced) {
         val kvParams = lamParams.map { case (k, v) => s"$v = $k" }
-        thisLevel.log(s"⚠️ unused 𝝺 args! type $t => $out, context: $terminalNames, 𝝺 params: $kvParams, 𝝺 result: $result => $reference, referenced: ${out.referenced} ")
+        thisLevel.log(
+          s"⚠️ unused 𝝺 args! type $t => $out, context: $terminalNames, 𝝺 params: $kvParams, 𝝺 result: $result => $reference, referenced: ${out.referenced} "
+        )
       }
 
       thisLevel.log(s"✳️ Restored $t => $out")
@@ -393,7 +401,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         // PolyType is not a type, we have to use tpe
         makeLambda(tpe)
       case p if p.takesTypeArgs =>
-
         if (terminalNames.contains(p.typeSymbol.fullName)) {
           unpackRefined(p, terminalNames)
         } else {
@@ -426,7 +433,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       (tpef: AnyRef) match {
         case x: it.RefinementTypeRef =>
           Some((x.parents.map(_.asInstanceOf[Type]), x.decls.toList.asInstanceOf[List[SymbolApi]]))
-        case r: RefinedTypeApi@unchecked =>
+        case r: RefinedTypeApi @unchecked =>
           Some((r.parents, r.decls.toList))
         case _ =>
           None
@@ -555,7 +562,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private def symName(sym: Symbol): SymName = {
     val o = sym.owner
-    val base = if (o.asInstanceOf[ {def hasMeaninglessName: Boolean}].hasMeaninglessName) {
+    val base = if (o.asInstanceOf[{ def hasMeaninglessName: Boolean }].hasMeaninglessName) {
       sym.name.decodedName.toString
     } else {
       sym.fullName
@@ -591,7 +598,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   /** Mini `normalize`. We don't wanna do scary things such as beta-reduce. And AFAIK the only case that can make us
-    * confuse a type-parameter for a non-parameter is an empty refinement `T {}`. So we just strip it when we get it. */
+    * confuse a type-parameter for a non-parameter is an empty refinement `T {}`. So we just strip it when we get it.
+    */
   @tailrec
   // ReflectionUtil.norm but with added logging
   protected[this] final def norm(x: Type): Type = {
