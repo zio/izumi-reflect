@@ -587,6 +587,24 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(tagtk[OptionT].tag == Tag[TagTK[OptionT]].tag)
     }
 
+    "regression test: ignore function-local anonymous classes (https://github.com/zio/zio/issues/4285)" in {
+      class ZIO[-R, +E, +A] {
+        def map[B](f: A => B): ZIO[R, E, B] = new ZIO
+        def toLayer[A1 >: A: Tag]: ZLayer[R, E, Has[A1]] = new ZLayer(Tag[Has[A1]])
+      }
+      class ZLayer[-R, +E, +A](val t: Tag[_ <: A])
+      final class Has[X]
+
+      type UIO[T] = ZIO[Any, Nothing, T]
+      def f[T]: UIO[T] = new ZIO
+      trait S[T] { val param: T }
+
+      def reproduce[T: Tag]: ZLayer[Any, Nothing, Has[S[T]]] =
+        f[T].map(p => new S[T] { override val param: T = p }).toLayer
+
+      assert(reproduce[Unit].t.tag == Tag[Has[S[Unit]]].tag)
+    }
+
     "progression test: can't handle parameters in defs/vals in structural types" in {
       def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
       def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
