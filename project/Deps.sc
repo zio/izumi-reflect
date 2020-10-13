@@ -123,7 +123,7 @@ object Izumi {
             |""".stripMargin.raw,
         "credentials" in SettingScope.Build += """Credentials(file(".secrets/credentials.sonatype-nexus.properties"))""".raw,
         "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
-        "licenses" in SettingScope.Build := """Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php"))""".raw,
+        "licenses" in SettingScope.Build := """Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0"))""".raw,
         "developers" in SettingScope.Build :=
           """List(
           Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net"),

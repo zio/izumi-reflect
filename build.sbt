@@ -356,7 +356,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ,
     credentials in ThisBuild += Credentials(file(".secrets/credentials.sonatype-nexus.properties")),
     homepage in ThisBuild := Some(url("https://zio.dev")),
-    licenses in ThisBuild := Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php")),
+    licenses in ThisBuild := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     developers in ThisBuild := List(
               Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net"),
               Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
