@@ -25,5 +25,5 @@ object PV {
   val crossproject_version = "1.0.0"
   val scalajs_bundler_version = "0.17.0"
   val sbt_dotty_version = "0.4.2"
-  val sbt_mima_version = "0.8.0"
+  val sbt_mima_version = "0.8.1"
 }
