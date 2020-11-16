@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.62`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.64`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -58,7 +58,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.12")
   final val scala213 = ScalaVersion("2.13.3")
-  final val scala3 = ScalaVersion("0.27.0-RC1")
+  final val scala3 = ScalaVersion("3.0.0-M1")
 
   object Groups {
     final val izumi_reflect = Set(Group("izumi-reflect"))
@@ -142,7 +142,7 @@ object Izumi {
         "mimaFailOnNoPrevious" in SettingScope.Build := false
       )
 
-      final val sharedSettings = Defaults.SbtMeta ++ Seq(
+      final val sharedSettings = Defaults.SbtMetaOptions ++ Seq(
         "test" in Platform.Native := "{}".raw,
         "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
         "sources" in SettingScope.Raw("(Compile, doc)") := Seq(

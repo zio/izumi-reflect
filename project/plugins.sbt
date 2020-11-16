@@ -1,5 +1,3 @@
-// https://github.com/lampepfl/dotty-example-project#projectpluginssbt
-addSbtPlugin("ch.epfl.lamp" % "sbt-dotty" % PV.sbt_dotty_version)
 
 ////////////////////////////////////////////////////////////////////////////////
 
