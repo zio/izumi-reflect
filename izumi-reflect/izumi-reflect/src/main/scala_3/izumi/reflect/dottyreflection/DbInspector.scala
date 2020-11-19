@@ -13,7 +13,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   self =>
 
   // @formatter:off
-  import qctx.tasty.{Type => TType, given _, _}
+  import qctx.tasty.{given, _}
   private lazy val inspector = new Inspector(0) { val qctx: DbInspector.this.qctx.type = DbInspector.this.qctx }
   // @formatter:on
 
@@ -37,7 +37,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
 
   private class Run() {
-    private val termination = mutable.HashSet[TypeOrBounds]()
+    private val termination = mutable.HashSet[TypeRepr]()
 
     def inspectTreeToName(uns: TypeTree): List[(NameReference, NameReference)] = {
       val symbol = uns.symbol
@@ -49,7 +49,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
         inspectSymbolToName(symbol).distinct
     }
 
-    private def inspectTTypeToNameBases(tpe2: TType): List[(NameReference, NameReference)] = {
+    private def inspectTTypeToNameBases(tpe2: TypeRepr): List[(NameReference, NameReference)] = {
       tpe2 match {
         case a: AppliedType =>
           val main = a.baseClasses.flatMap(inspectSymbolToName) // (a.tycon)
@@ -114,11 +114,11 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
       }
     }
 
-    private def inspectToBToName(tpe: TypeOrBounds): List[(NameReference, NameReference)] = {
+    private def inspectToBToName(tpe: TypeRepr): List[(NameReference, NameReference)] = {
       tpe match {
         case t: TypeBounds =>
           inspectTTypeToNameBases(t.hi) ++ inspectTTypeToNameBases(t.low)
-        case t: TType =>
+        case t: TypeRepr =>
           inspectTTypeToNameBases(t)
       }
     }

@@ -5,8 +5,8 @@ import scala.quoted.QuoteContext
 trait InspectorBase {
   // @formatter:off
   val qctx: QuoteContext
-  given as qctx.type = qctx
-  import qctx.tasty.{Type => TType, given _, _}
+  given qctx.type = qctx
+  import qctx.reflect.{given, _}
   // @formatter:on
 
   protected def shift: Int

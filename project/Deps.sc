@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.64`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.65`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -68,8 +68,8 @@ object Izumi {
     // switch order to use dotty in IDEA
 //    val targetScala = Seq(scala211, scala212, scala213, scala3)
 //    val targetScala = Seq(scala212, scala213, scala211, scala3)
-    val targetScala = Seq(scala213, scala212, scala211, scala3)
-//    val targetScala = Seq(scala3, scala213, scala212, scala211)
+//    val targetScala = Seq(scala213, scala212, scala211, scala3)
+    val targetScala = Seq(scala3, scala213, scala212, scala211)
     private val jvmPlatform = PlatformEnv(
       platform = Platform.Jvm,
       language = targetScala
