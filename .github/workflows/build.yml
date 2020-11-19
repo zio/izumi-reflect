@@ -8,8 +8,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: rlespinasse/github-slug-action@2.0.0
-      - name: Set env
-        run: echo ::set-env name=BRANCH_TAG::$(git describe --contains | grep v | grep -v '~' | head -n 1 || true)
       - name: Cache SBT ivy cache
         uses: actions/cache@v1
         with:
@@ -34,6 +32,7 @@ jobs:
           sudo curl -Lo /usr/local/bin/coursier  https://git.io/coursier-cli-linux && sudo chmod +x /usr/local/bin/coursier
           bash sbtgen.sc --js --native
           COMMAND="sbt +clean +test +mimaReportBinaryIssues"
+          BRANCH_TAG="$(git describe --contains | grep v | grep -v '~' | head -n 1 || true)"
           if [[ "$GITHUB_REF" == refs/heads/develop || "$BRANCH_TAG" =~ ^v.*$ ]] ; then
             openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
             tar xvf secrets.tar
