@@ -13,7 +13,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   self =>
 
   // @formatter:off
-  import qctx.tasty.{given, _}
+  import qctx.reflect.{given, _}
   private lazy val inspector = new Inspector(0) { val qctx: DbInspector.this.qctx.type = DbInspector.this.qctx }
   // @formatter:on
 

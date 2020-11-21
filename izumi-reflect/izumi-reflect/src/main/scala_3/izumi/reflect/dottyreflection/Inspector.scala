@@ -113,6 +113,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         next().inspectTree(t.rhs.asInstanceOf[TypeTree])
       case d: DefDef =>
         next().inspectTree(d.returnTpt)
+      case v: ValDef =>
+        NameReference(v.name)
       case b: Bind =>
         NameReference(b.name)
       case o =>
@@ -123,7 +125,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private def prefixOf(symbol: Symbol): Option[AppliedReference] = {
     val mo = symbol.maybeOwner
-    if (!mo.exists || mo.isNoSymbol || mo.isPackageDef || mo.isValDef) {
+    if (!mo.exists || mo.isNoSymbol || mo.isPackageDef) {
       None
     } else {
       inspectSymbol(mo) match {
