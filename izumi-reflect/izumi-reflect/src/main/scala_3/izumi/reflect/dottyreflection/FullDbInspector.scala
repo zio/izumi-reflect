@@ -12,7 +12,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   self =>
 
   // @formatter:off
-  import qctx.tasty.{Type => TType, given _, _}
+  import qctx.reflect.{given, _}
   private lazy val inspector = new Inspector(0) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
   // @formatter:on
 
@@ -29,7 +29,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   }
 
   class Run() {
-    private val termination = mutable.HashSet[TypeOrBounds]()
+    private val termination = mutable.HashSet[TypeRepr]()
 
     def inspectTreeToFull(uns: TypeTree): List[(AbstractReference, AbstractReference)] = {
       val symbol = uns.symbol
@@ -41,7 +41,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         inspectSymbolToFull(symbol).distinct
     }
 
-    private def inspectTTypeToFullBases(tpe2: TType): List[(AbstractReference, AbstractReference)] = {
+    private def inspectTTypeToFullBases(tpe2: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       val selfRef = inspector.inspectTType(tpe2)
 
       tpe2 match {
@@ -111,11 +111,11 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
     }
 
-    private def inspectToBToFull(tpe: TypeOrBounds): List[(AbstractReference, AbstractReference)] = {
+    private def inspectToBToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       tpe match {
         case t: TypeBounds =>
           inspectTTypeToFullBases(t.hi) ++ inspectTTypeToFullBases(t.low)
-        case t: TType =>
+        case t: TypeRepr =>
           inspectTTypeToFullBases(t)
       }
     }
