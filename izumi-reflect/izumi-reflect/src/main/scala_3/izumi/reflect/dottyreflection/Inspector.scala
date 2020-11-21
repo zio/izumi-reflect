@@ -10,7 +10,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   self =>
 
   // @formatter:off
-  import qctx.tasty.{Type => TType, _}
+  import qctx.reflect.{given, _}
   // @formatter:on
 
   private def next() = new Inspector(shift + 1) {
@@ -26,7 +26,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     v
   }
 
-  private[dottyreflection] def inspectTType(tpe2: TType): AbstractReference = {
+  private[dottyreflection] def inspectTType(tpe2: TypeRepr): AbstractReference = {
     tpe2 match {
       case a: AppliedType =>
         a.args match {
@@ -113,6 +113,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         next().inspectTree(t.rhs.asInstanceOf[TypeTree])
       case d: DefDef =>
         next().inspectTree(d.returnTpt)
+      case v: ValDef =>
+        NameReference(v.name)
       case b: Bind =>
         NameReference(b.name)
       case o =>
@@ -122,30 +124,26 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private def prefixOf(symbol: Symbol): Option[AppliedReference] = {
-    if (symbol.maybeOwner.isNoSymbol) {
+    val mo = symbol.maybeOwner
+    if (!mo.exists || mo.isNoSymbol || mo.isPackageDef) {
       None
     } else {
-      symbol.maybeOwner.tree match {
-        case _: PackageDef =>
+      inspectSymbol(mo) match {
+        case a: AppliedReference =>
+          Some(a)
+        case _ =>
           None
-        case o =>
-          inspectSymbol(symbol.maybeOwner) match {
-            case a: AppliedReference =>
-              Some(a)
-            case _ =>
-              None
-          }
       }
     }
   }
 
-  private def inspectToB(tpe: TypeOrBounds, td: Symbol): TypeParam = {
+  private def inspectToB(tpe: TypeRepr, td: Symbol): TypeParam = {
     val variance = extractVariance(td)
 
     tpe match {
       case t: TypeBounds =>
         TypeParam(inspectTType(t.hi), variance)
-      case t: TType =>
+      case t: TypeRepr =>
         TypeParam(inspectTType(t), variance)
     }
   }
@@ -164,7 +162,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     val (andTypes, otherTypes) =
       and match {
         case AndType(l @ AndType(_, _), r @ AndType(_, _)) =>
-          (Set(l, r), Set.empty[TType])
+          (Set(l, r), Set.empty[TypeRepr])
         case AndType(l @ AndType(_, _), r) =>
           (Set(l), Set(r))
         case AndType(l, r @ AndType(_, _)) =>
@@ -183,7 +181,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     val (orTypes, otherTypes) =
       or match {
         case OrType(l @ OrType(_, _), r @ OrType(_, _)) =>
-          (Set(l, r), Set.empty[TType])
+          (Set(l, r), Set.empty[TypeRepr])
         case OrType(l @ OrType(_, _), r) =>
           (Set(l), Set(r))
         case OrType(l, r @ OrType(_, _)) =>
@@ -198,7 +196,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     orTypeTags ++ otherTypeTags
   }
 
-  private def asNameRef(t: TType): NameReference = {
+  private def asNameRef(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
         asNameRefSym(ref.typeSymbol)

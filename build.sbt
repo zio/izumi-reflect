@@ -42,11 +42,14 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     },
     scalacOptions in Compile --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_"),
     scalacOptions ++= Seq(
+      s"-Xmacro-settings:product-name=${name.value}",
+      s"-Xmacro-settings:product-version=${version.value}",
+      s"-Xmacro-settings:product-group=${organization.value}",
       s"-Xmacro-settings:scala-version=${scalaVersion.value}",
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
     ),
     sources in (Compile, doc) := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => Seq(
+      case (_, "3.0.0-M1") => Seq(
       
       )
       case (_, _) => (sources in (Compile, doc)).value
@@ -55,10 +58,10 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.12.12") => Seq(
         "-Xsource:2.13",
-        "-Ybackend-parallelism",
-        math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Ypartial-unification",
         "-Yno-adapted-args",
+        "-Ybackend-parallelism",
+        math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Xlint:adapted-args",
         "-Xlint:by-name-right-associative",
         "-Xlint:constant",
@@ -114,7 +117,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       )
     } },
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => Set.empty
+      case (_, "3.0.0-M1") => Set.empty
       case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
     } },
     scalacOptions -= "-Wconf:any:error",
@@ -131,10 +134,10 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
+      "3.0.0-M1",
       "2.13.3",
       "2.12.12",
-      "2.11.12",
-      "0.27.0-RC1"
+      "2.11.12"
     )
   )
 
@@ -180,11 +183,14 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
        })
     },
     scalacOptions ++= Seq(
+      s"-Xmacro-settings:product-name=${name.value}",
+      s"-Xmacro-settings:product-version=${version.value}",
+      s"-Xmacro-settings:product-group=${organization.value}",
       s"-Xmacro-settings:scala-version=${scalaVersion.value}",
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
     ),
     sources in (Compile, doc) := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => Seq(
+      case (_, "3.0.0-M1") => Seq(
       
       )
       case (_, _) => (sources in (Compile, doc)).value
@@ -193,10 +199,10 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.12.12") => Seq(
         "-Xsource:2.13",
-        "-Ybackend-parallelism",
-        math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Ypartial-unification",
         "-Yno-adapted-args",
+        "-Ybackend-parallelism",
+        math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Xlint:adapted-args",
         "-Xlint:by-name-right-associative",
         "-Xlint:constant",
@@ -252,7 +258,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       )
     } },
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "0.27.0-RC1") => Set.empty
+      case (_, "3.0.0-M1") => Set.empty
       case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
     } },
     scalacOptions -= "-Wconf:any:error",
@@ -269,10 +275,10 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     } },
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
+      "3.0.0-M1",
       "2.13.3",
       "2.12.12",
-      "2.11.12",
-      "0.27.0-RC1"
+      "2.11.12"
     )
   )
 
@@ -300,10 +306,10 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     skip in publish := true,
     crossScalaVersions := Seq(
+      "3.0.0-M1",
       "2.13.3",
       "2.12.12",
-      "2.11.12",
-      "0.27.0-RC1"
+      "2.11.12"
     ),
     scalaVersion := crossScalaVersions.value.head
   )
@@ -338,12 +344,14 @@ lazy val `izumi-reflect-root` = (project in file("."))
       "-XDignore.symbol.file"
     ),
     scalacOptions in ThisBuild ++= Seq(
-      s"-Xmacro-settings:product-version=${version.value}",
-      s"-Xmacro-settings:product-group=${organization.value}",
-      s"-Xmacro-settings:sbt-version=${sbtVersion.value}"
+      s"-Xmacro-settings:sbt-version=${sbtVersion.value}",
+      s"-Xmacro-settings:git-repo-clean=${com.typesafe.sbt.SbtGit.GitKeys.gitUncommittedChanges.value}",
+      s"-Xmacro-settings:git-branch=${com.typesafe.sbt.SbtGit.GitKeys.gitCurrentBranch.value}",
+      s"-Xmacro-settings:git-described-version=${com.typesafe.sbt.SbtGit.GitKeys.gitDescribedVersion.value.getOrElse("")}",
+      s"-Xmacro-settings:git-head-commit=${com.typesafe.sbt.SbtGit.GitKeys.gitHeadCommit.value.getOrElse("")}"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "2.13.3",
+    scalaVersion := "3.0.0-M1",
     organization in ThisBuild := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
