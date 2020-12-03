@@ -1,10 +1,10 @@
 package izumi.reflect.dottyreflection
 
-import scala.quoted.QuoteContext
+import scala.quoted.Quotes
 
 trait InspectorBase {
   // @formatter:off
-  val qctx: QuoteContext
+  val qctx: Quotes
   given qctx.type = qctx
   import qctx.reflect.{given, _}
   // @formatter:on

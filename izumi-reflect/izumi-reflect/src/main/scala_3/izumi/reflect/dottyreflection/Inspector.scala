@@ -19,7 +19,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
     val tpe = implicitly[Type[T]]
-    val uns = tpe.unseal
+    val uns = TypeTree.of[T]
     log(s" -------- about to inspect $tpe --------")
     val v = inspectTree(uns)
     log(s" -------- done inspecting $tpe --------")

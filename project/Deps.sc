@@ -58,7 +58,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.12")
   final val scala213 = ScalaVersion("2.13.3")
-  final val scala3 = ScalaVersion("3.0.0-M1")
+  final val scala3 = ScalaVersion("3.0.0-M2")
 
   object Groups {
     final val izumi_reflect = Set(Group("izumi-reflect"))

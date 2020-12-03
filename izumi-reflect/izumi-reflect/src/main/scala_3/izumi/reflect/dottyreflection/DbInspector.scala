@@ -20,7 +20,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
   def buildNameDb[T <: AnyKind : Type]: Map[NameReference, Set[NameReference]] = {
     val tpe = implicitly[Type[T]]
-    val uns = tpe.unseal
+    val uns = TypeTree.of[T]
     new Run().inspectTreeToName(uns)
       .toMultimap
       .map {

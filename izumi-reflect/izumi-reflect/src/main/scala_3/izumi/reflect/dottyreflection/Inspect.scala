@@ -13,12 +13,12 @@ import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 
-import scala.quoted.{Expr, QuoteContext, Type}
+import scala.quoted.{Expr, Quotes, Type}
 
 object Inspect {
   inline def inspect[T <: AnyKind]: LightTypeTag = ${ inspectAny[T] }
 
-  def inspectAny[T <: AnyKind : Type](using qctx: QuoteContext): Expr[LightTypeTag] = {
+  def inspectAny[T <: AnyKind : Type](using qctx: Quotes): Expr[LightTypeTag] = {
     val ref = TypeInspections.apply[T]
     val nameDb = TypeInspections.nameDb[T]
     val fullDb = TypeInspections.fullDb[T]

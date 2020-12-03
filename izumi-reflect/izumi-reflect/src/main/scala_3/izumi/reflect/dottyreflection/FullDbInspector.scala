@@ -18,7 +18,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
   def buildFullDb[T <: AnyKind : Type]: Map[AbstractReference, Set[AbstractReference]] = {
     val tpe = implicitly[Type[T]]
-    val uns = tpe.unseal
+    val uns = TypeTree.of[T]
     new Run().inspectTreeToFull(uns)
       .toMultimap
       .map {
