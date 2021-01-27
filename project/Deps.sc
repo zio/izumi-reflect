@@ -81,7 +81,7 @@ object Izumi {
     )
     private val nativePlatform = PlatformEnv(
       platform = Platform.Native,
-      language = Seq(scala211),
+      language = targetScala.filterNot(_.isDotty),
       settings = Seq(
         "coverageEnabled" := false
       )
