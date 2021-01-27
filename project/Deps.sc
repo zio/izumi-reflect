@@ -5,7 +5,6 @@ import izumi.sbtgen.model._
 object Izumi {
 
   object V {
-    val silencer = Version.VExpr("V.silencer")
     val collection_compat = Version.VExpr("V.collection_compat")
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
@@ -46,8 +45,6 @@ object Izumi {
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
-      .more(LibSetting.Raw("cross CrossVersion.full"))
-    final val silencer_plugin = Library("com.github.ghik", "silencer-plugin", V.silencer, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
     final val collection_compat = Library("org.scala-lang.modules", "scala-collection-compat", V.collection_compat, LibraryType.Auto)
   }
@@ -237,7 +234,6 @@ object Izumi {
     ),
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
-      ScopedLibrary(silencer_plugin, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       collection_compat in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scalatest in Scope.Test.all
