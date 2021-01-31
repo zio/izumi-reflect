@@ -21,15 +21,18 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     val tpe = implicitly[Type[T]]
     val uns = TypeTree.of[T]
     log(s" -------- about to inspect $tpe --------")
-    val v = inspectTree(uns) match {
-      // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
-      case NameReference(_, boundaries: Boundaries.Defined, prefix) =>
-        NameReference(SymName.SymTypeName(uns.tpe.dealias.typeSymbol.name), boundaries, prefix)
-      case x => x
-    }
+    val v = inspectTree(uns)
     log(s" -------- done inspecting $tpe --------")
     v
   }
+
+  private[dottyreflection] def fixReferenceName(reference: AbstractReference, typeRepr: TypeRepr): AbstractReference =
+    reference match {
+      // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
+      case NameReference(_, boundaries: Boundaries.Defined, prefix) => // todo: don't perform type renaming for wildcards
+        NameReference(SymName.SymTypeName(typeRepr.dealias.typeSymbol.name), boundaries, prefix)
+      case x => x
+    }
 
   private[dottyreflection] def inspectTType(tpe2: TypeRepr): AbstractReference = {
     tpe2 match {
@@ -77,7 +80,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         }
 
       case r: TypeRef =>
-        next().inspectSymbol(r.typeSymbol)
+        fixReferenceName(next().inspectSymbol(r.typeSymbol), r)
 
       case a: AnnotatedType =>
         next().inspectTType(a.underlying)
@@ -112,7 +115,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     if (symbol.isNoSymbol)
       inspectTType(tpe2)
     else
-      inspectSymbol(symbol)
+      fixReferenceName(inspectSymbol(symbol), tpe2)
   }
 
   private[dottyreflection] def inspectSymbol(symbol: Symbol): AbstractReference = {
@@ -147,16 +150,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def inspectToB(tpe: TypeRepr, td: Symbol): TypeParam = {
-    val variance = extractVariance(td)
-
-    tpe match {
-      case t: TypeBounds =>
-        TypeParam(inspectTType(t.hi), variance)
-      case t: TypeRepr =>
-        TypeParam(inspectTType(t), variance)
-    }
-  }
+  private def inspectToB(tpe: TypeRepr, td: Symbol): TypeParam = TypeParam(inspectTType(tpe), extractVariance(td))
 
   private def extractVariance(t: Symbol) = {
     if (t.flags.is(Flags.Covariant)) {
