@@ -46,6 +46,26 @@ class LightTypeTagTest extends TagAssertions {
 //      assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
 //    }
 
+    "support distinction between subtypes" in {
+      type SubStrA <: String
+      type SubStrB <: String
+      type SubStrC = String
+      type SubStrD = SubStrA
+      val tag = LTT[SubStrC]
+      val tag1 = LTT[String]
+      val tag2 = LTT[SubStrA]
+      val tag3 = LTT[SubStrB]
+      val tag4 = LTT[SubStrD]
+
+      assertDifferent(tag2, tag1)
+      assertChild(tag2, tag1)
+      assertNotChild(tag1, tag2)
+      assertDifferent(tag2, tag3)
+      assertSame(tag, tag1)
+      assertNotChild(tag2, tag3)
+      assertSame(tag2, tag4)
+    }
+
     "support typetag combination" in {
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[Id], LTT[T1[Id]])
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[FP], LTT[T1[FP]])
