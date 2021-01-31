@@ -29,7 +29,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private[dottyreflection] def fixReferenceName(reference: AbstractReference, typeRepr: TypeRepr): AbstractReference =
     reference match {
       // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
-      case NameReference(_, boundaries: Boundaries.Defined, prefix) => // todo: don't perform type renaming for wildcards
+      case NameReference(x, boundaries: Boundaries.Defined, prefix) =>
         NameReference(SymName.SymTypeName(typeRepr.dealias.typeSymbol.name), boundaries, prefix)
       case x => x
     }
@@ -150,7 +150,17 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def inspectToB(tpe: TypeRepr, td: Symbol): TypeParam = TypeParam(inspectTType(tpe), extractVariance(td))
+  private def inspectToB(tpe: TypeRepr, td: Symbol): TypeParam = {
+    val variance = extractVariance(td)
+
+    tpe match {
+      case t: TypeBounds =>
+        val x = inspectTType(t.hi)
+        TypeParam(x, variance)
+      case t: TypeRepr =>
+        TypeParam(inspectTType(t), variance)
+    }
+  }
 
   private def extractVariance(t: Symbol) = {
     if (t.flags.is(Flags.Covariant)) {

@@ -127,14 +127,14 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
       //assertChild(LTT[None.type], LTT[Option[Int]])
 
-//      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]]) // TODO: Fix regression
+      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
       assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
 
-//      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]]) // TODO: Fix regression
+      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
       assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
 
       // bottom boundary is weird!
-//      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]]) // TODO: Fix regression
+      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
 
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Option[A]
