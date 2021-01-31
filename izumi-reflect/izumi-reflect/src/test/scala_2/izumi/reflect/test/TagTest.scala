@@ -260,7 +260,7 @@ class TagTest extends AnyWordSpec with XY[String] {
     "Work for an abstract type with available TagKK" in {
       def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
 
-      assert(t1[ZOBA[Int, ?, ?], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
+      assert(t1[ZOBA[Int, *, *], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
     }
 
     "Handle Tags outside of a predefined set" in {
@@ -286,8 +286,8 @@ class TagTest extends AnyWordSpec with XY[String] {
       type ZOB[A, B, C] = Either[B, C]
 
       assert(
-        t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, ?]].tag
-        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, ?]]]
+        t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, *]].tag
+        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, *]]]
       )
 
       def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
@@ -406,57 +406,57 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "resolve TagK from TagKK" in {
-      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, ?]]
+      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, *]]
       val tagEitherThrowable = getTag[Either].tag
-      val tag = TagK[Either[Throwable, ?]].tag
+      val tag = TagK[Either[Throwable, *]].tag
 
       assert(tagEitherThrowable =:= tag)
       assert(tagEitherThrowable <:< tag)
-      assert(tagEitherThrowable <:< TagK[Either[Any, ?]].tag)
-      assert(TagK[Either[Nothing, ?]].tag <:< tagEitherThrowable)
+      assert(tagEitherThrowable <:< TagK[Either[Any, *]].tag)
+      assert(TagK[Either[Nothing, *]].tag <:< tagEitherThrowable)
     }
 
     "can materialize TagK for type lambdas that close on a generic parameter with available Tag" in {
-      def partialEitherTagK[A: Tag] = TagK[Either[A, ?]]
+      def partialEitherTagK[A: Tag] = TagK[Either[A, *]]
 
       val tag = partialEitherTagK[Int].tag
-      val expectedTag = TagK[Either[Int, ?]].tag
+      val expectedTag = TagK[Either[Int, *]].tag
 
       assert(tag =:= expectedTag)
     }
 
     "can materialize TagK for type lambdas that close on a generic parameter with available Tag when the constructor is a type parameter" in {
-      def partialFTagK[F[_, _]: TagKK, A: Tag] = TagK[F[A, ?]]
+      def partialFTagK[F[_, _]: TagKK, A: Tag] = TagK[F[A, *]]
 
       val tag = partialFTagK[Either, Int].tag
-      val expectedTag = TagK[Either[Int, ?]].tag
+      val expectedTag = TagK[Either[Int, *]].tag
 
       assert(tag =:= expectedTag)
     }
 
     "type parameter covariance works after combine" in {
-      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, ?]]
+      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, *]]
       val tagEitherThrowable = getTag[Either].tag
-      val tagEitherSerializable = TagK[Either[java.io.Serializable, ?]]
+      val tagEitherSerializable = TagK[Either[java.io.Serializable, *]]
       assert(tagEitherThrowable <:< tagEitherSerializable.tag)
     }
 
     "combine Const Lambda to TagK" in {
-      def get[F[_, _]: TagKK] = TagK[F[Int, ?]]
+      def get[F[_, _]: TagKK] = TagK[F[Int, *]]
       val tag = get[Const]
 
-      assert(tag.tag =:= TagK[Const[Int, ?]].tag)
-      assert(tag.tag <:< TagK[Const[AnyVal, ?]].tag)
-      assert(tag.tag.hashCode() == TagK[Const[Int, ?]].tag.hashCode())
+      assert(tag.tag =:= TagK[Const[Int, *]].tag)
+      assert(tag.tag <:< TagK[Const[AnyVal, *]].tag)
+      assert(tag.tag.hashCode() == TagK[Const[Int, *]].tag.hashCode())
     }
 
     "combined TagK 3 & 2 parameter coherence" in {
-      def get[F[+_, +_]: TagKK] = TagK[F[Throwable, ?]]
+      def get[F[+_, +_]: TagKK] = TagK[F[Throwable, *]]
       val tag = get[IO]
 
-      assert(tag.tag =:= TagK[IO[Throwable, ?]].tag)
-      assert(tag.tag <:< TagK[IO[Throwable, ?]].tag)
-      assert(tag.tag <:< TagK[IO[Any, ?]].tag)
+      assert(tag.tag =:= TagK[IO[Throwable, *]].tag)
+      assert(tag.tag <:< TagK[IO[Throwable, *]].tag)
+      assert(tag.tag <:< TagK[IO[Any, *]].tag)
     }
 
     "resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters (low-level)" in {
@@ -477,24 +477,24 @@ class TagTest extends AnyWordSpec with XY[String] {
             None
           )
         ).tag
-      val expectedTag = TagKK[Lt[EitherRSwap, Throwable, ?, ?]].tag
+      val expectedTag = TagKK[Lt[EitherRSwap, Throwable, *, *]].tag
       assert(combinedTag =:= expectedTag)
     }
 
     "resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters" in {
-      def getTag[F[-_, +_, +_]: TagK3] = TagKK[F[?, ?, Throwable]]
+      def getTag[F[-_, +_, +_]: TagK3] = TagKK[F[*, *, Throwable]]
       val tagEitherSwap = getTag[EitherRSwap].tag
       val tagEitherThrowable = getTag[EitherR].tag
 
-      val expectedTagSwap = TagKK[EitherRSwap[?, ?, Throwable]].tag
-      val expectedTagEitherThrowable = TagKK[EitherR[?, ?, Throwable]].tag
+      val expectedTagSwap = TagKK[EitherRSwap[*, *, Throwable]].tag
+      val expectedTagEitherThrowable = TagKK[EitherR[*, *, Throwable]].tag
 
       assert(!(tagEitherSwap =:= expectedTagEitherThrowable))
       assert(tagEitherSwap =:= expectedTagSwap)
       assert(tagEitherThrowable =:= expectedTagEitherThrowable)
       assert(tagEitherSwap <:< expectedTagSwap)
-      assert(tagEitherSwap <:< TagKK[EitherRSwap[?, ?, Any]].tag)
-      assert(TagKK[EitherRSwap[?, ?, Nothing]].tag <:< tagEitherSwap)
+      assert(tagEitherSwap <:< TagKK[EitherRSwap[*, *, Any]].tag)
+      assert(TagKK[EitherRSwap[*, *, Nothing]].tag <:< tagEitherSwap)
     }
 
     "combine higher-kinded types without losing ignored type arguments" in {
@@ -505,7 +505,7 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "resolve a higher-kinded type inside a named type lambda with ignored type arguments" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, ?, ?, ?]]]
+      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, *, *, *]]]
       val tag = mk[IO]
 
       assert(tag.tag == Tag[BlockingIO[IO]].tag)
@@ -519,10 +519,10 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "correctly resolve a higher-kinded nested type inside a named swap type lambda" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BIOService[SwapF2[F, ?, ?]]]
+      def mk[F[+_, +_]: TagKK] = Tag[BIOService[SwapF2[F, *, *]]]
       val tag = mk[Either]
 
-      assert(tag.tag == Tag[BIOService[SwapF2[Either, ?, ?]]].tag)
+      assert(tag.tag == Tag[BIOService[SwapF2[Either, *, *]]].tag)
       assert(tag.tag == Tag[BIOService[Swap]].tag)
       assert(tag.tag == Tag[BIOService[Lambda[(E, A) => Either[A, E]]]].tag)
     }
@@ -531,7 +531,7 @@ class TagTest extends AnyWordSpec with XY[String] {
       def mk[F[+_, +_]: TagKK] = Tag[BIOService[Lambda[(E, A) => F[A, E]]]]
       val tag = mk[Either]
 
-      assert(tag.tag == Tag[BIOService[SwapF2[Either, ?, ?]]].tag)
+      assert(tag.tag == Tag[BIOService[SwapF2[Either, *, *]]].tag)
       assert(tag.tag == Tag[BIOService[Swap]].tag)
       assert(tag.tag == Tag[BIOService[Lambda[(E, A) => Either[A, E]]]].tag)
     }

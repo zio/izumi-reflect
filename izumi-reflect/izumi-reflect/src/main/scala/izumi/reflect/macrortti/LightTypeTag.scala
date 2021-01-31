@@ -79,7 +79,7 @@ abstract class LightTypeTag(
     * lambda taking remaining arguments:
     *
     * {{{
-    *   F[?, ?, ?].combine(A, B) = F[A, B, ?]
+    *   F[*, *, *].combine(A, B) = F[A, B, *]
     * }}}
     */
   def combine(args: LightTypeTag*): LightTypeTag = {
@@ -110,7 +110,7 @@ abstract class LightTypeTag(
     * The resulting type lambda will take parameters in places where `args` was None:
     *
     * {{{
-    *   F[?, ?, ?].combine(Some(A), None, Some(C)) = F[A, ?, C]
+    *   F[*, *, *].combine(Some(A), None, Some(C)) = F[A, *, C]
     * }}}
     */
   def combineNonPos(args: Option[LightTypeTag]*): LightTypeTag = {
