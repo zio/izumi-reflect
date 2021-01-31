@@ -155,8 +155,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
     tpe match {
       case t: TypeBounds =>
-        val x = inspectTType(t.hi)
-        TypeParam(x, variance)
+        TypeParam(inspectTType(t.hi), variance)
       case t: TypeRepr =>
         TypeParam(inspectTType(t), variance)
     }
