@@ -22,9 +22,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     val uns = TypeTree.of[T]
     log(s" -------- about to inspect $tpe --------")
     val v = inspectTree(uns) match {
-        // if NameReference was returned by the TypeBounds branch of inspectTType, the type name is a stand-in and should be fixed
-      case NameReference(_, a@Boundaries.Defined(lo, hi), b) if lo != hi =>
-        NameReference(SymName.SymTypeName(uns.tpe.dealias.typeSymbol.name), a, b)
+      // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
+      case NameReference(_, boundaries: Boundaries.Defined, prefix) =>
+        NameReference(SymName.SymTypeName(uns.tpe.dealias.typeSymbol.name), boundaries, prefix)
       case x => x
     }
     log(s" -------- done inspecting $tpe --------")
@@ -83,11 +83,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         next().inspectTType(a.underlying)
 
       case tb: TypeBounds => // weird thingy
-        val nxt = next()
-        val hi = nxt.inspectTType(tb.hi)
-        val low = nxt.inspectTType(tb.low)
+        val hi = next().inspectTType(tb.hi)
+        val low = next().inspectTType(tb.low)
         if (hi == low) hi
-        // if hi and low boundaries are defined and distinct, type is not reducible to one of them - howevee at this
+        // if hi and low boundaries are defined and distinct, type is not reducible to one of them - however at this
         // point the type name isn't available and we need to use a stand-in...
         else NameReference(SymName.SymTypeName(tb.typeSymbol.name), Boundaries.Defined(low, hi))
 
