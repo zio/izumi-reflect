@@ -73,7 +73,7 @@ class LightTypeTagTest extends TagAssertions {
 //    }
 
     "support self-intersection (X with X)" in {
-      assertSame(`LTT`[String with String], `LTT`[String])
+      assertDifferent(`LTT`[String with String], `LTT`[String])
     }
 
     "support subtype checks" in {
