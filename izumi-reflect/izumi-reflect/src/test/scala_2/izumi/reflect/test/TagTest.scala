@@ -588,15 +588,15 @@ class TagTest extends AnyWordSpec with XY[String] {
     }
 
     "regression test: ignore function-local anonymous classes (https://github.com/zio/zio/issues/4285)" in {
-      class ZIO[-R, +E, +A] {
-        def map[B](f: A => B): ZIO[R, E, B] = new ZIO
+      class ZIO[-R, +E, +A](val a: Any) {
+        def map[B](f: A => B): ZIO[R, E, B] = new ZIO(f)
         def toLayer[A1 >: A: Tag]: ZLayer[R, E, Has[A1]] = new ZLayer(Tag[Has[A1]])
       }
       class ZLayer[-R, +E, +A](val t: Tag[_ <: A])
       final class Has[X]
 
       type UIO[T] = ZIO[Any, Nothing, T]
-      def f[T]: UIO[T] = new ZIO
+      def f[T]: UIO[T] = new ZIO(1)
       trait S[T] { val param: T }
 
       def reproduce[T: Tag]: ZLayer[Any, Nothing, Has[S[T]]] =

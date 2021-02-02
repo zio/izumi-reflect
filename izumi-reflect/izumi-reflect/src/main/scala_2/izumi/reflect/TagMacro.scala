@@ -129,7 +129,7 @@ class TagMacro(val c: blackbox.Context) {
           HKTag.appliedTagNonPos[ArgStruct](constructorTag.splice, argTags.splice)
         }
       } else {
-        outerLambda match {
+        (outerLambda: @unchecked) match {
           case PolyType(params, _) =>
             // FIXME: kindOf repeated again
             val ctorTyParam = mkTypeParameter(outerLambda.typeSymbol, kindOf(lambdaResult.typeConstructor))

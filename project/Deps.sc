@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.66`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.67`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -131,7 +131,6 @@ object Izumi {
         )""".raw,
         "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
         "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
-        "scalacOptions" in SettingScope.Build += "-Xlint:-implicit-recursion",
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.Tag.refinedTag")""".raw,
@@ -164,6 +163,15 @@ object Izumi {
         "mimaPreviousArtifacts" := Seq(
           SettingKey(Some(scala3), None) := "Set.empty".raw,
           SettingKey.Default := """Set(organization.value %% name.value % "1.0.0-M2")""".raw
+        ),
+        "scalacOptions" ++= Seq(
+          SettingKey(Some(scala212), None) := Seq(
+            "-Wconf:msg=nowarn:silent"
+          ),
+          SettingKey(Some(scala213), None) := Seq(
+            "-Xlint:-implicit-recursion"
+          ),
+          SettingKey.Default := Const.EmptySeq
         ),
         "scalacOptions" -= "-Wconf:any:error",
         "scalacOptions" ++= Seq(

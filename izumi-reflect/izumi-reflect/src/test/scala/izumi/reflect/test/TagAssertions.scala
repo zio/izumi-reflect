@@ -37,13 +37,13 @@ trait TagAssertions extends AnyWordSpec {
     val clue = s"$t =?= $expected"
     info(clue)
     assert(t =:= expected, clue)
-    assert(t.ref == expected.ref, s"ref: $clue")
+    assert(t.ref == expected.ref, s"ref: $clue"); ()
   }
 
   def assertSameRef(t: LightTypeTag, expected: LightTypeTag): Unit = {
     val clue = s"$t =?= $expected"
     info(clue)
-    assert(t.ref == expected.ref, s"ref: $clue")
+    assert(t.ref == expected.ref, s"ref: $clue"); ()
   }
 
   def assertDifferent(t: LightTypeTag, expected: LightTypeTag): Unit = {
