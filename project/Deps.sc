@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.67`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.68`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -23,8 +23,30 @@ object Izumi {
     val sbt_mima_version = Version.VExpr("PV.sbt_mima_version")
   }
 
+  // DON'T REMOVE, these variables are read from CI build (build.sh)
+  final val scala211 = ScalaVersion("2.11.12")
+  final val scala212 = ScalaVersion("2.12.13")
+  final val scala213 = ScalaVersion("2.13.4")
+  final val scala3 = ScalaVersion("3.0.0-M3")
+
+  // launch with `./sbtgen.sc 213` to use 2.13 in IDEA or switch version order here
+  var targetScala = Seq(scala3, scala213, scala212, scala211)
+
   def entrypoint(args: Seq[String]) = {
-    Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ args)
+    val newArgs = args diff Seq(
+      args
+        .collectFirst {
+          case s @ "213" => s -> scala213
+          case s @ "212" => s -> scala212
+          case s @ "211" => s -> scala211
+          case s @ "3" => s -> scala3
+        }.map {
+          case (s, target) =>
+            targetScala = target :: targetScala.filterNot(_ == target).toList
+            s
+        }.orNull
+    )
+    Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ newArgs)
   }
 
   val settings = GlobalSettings(
@@ -54,22 +76,12 @@ object Izumi {
 
   import Deps._
 
-  // DON'T REMOVE, these variables are read from CI build (build.sh)
-  final val scala211 = ScalaVersion("2.11.12")
-  final val scala212 = ScalaVersion("2.12.13")
-  final val scala213 = ScalaVersion("2.13.4")
-  final val scala3 = ScalaVersion("3.0.0-M3")
-
   object Groups {
     final val izumi_reflect = Set(Group("izumi-reflect"))
   }
 
   object Targets {
-    // switch order to use dotty in IDEA
-//    val targetScala = Seq(scala211, scala212, scala213, scala3)
-//    val targetScala = Seq(scala212, scala213, scala211, scala3)
-//    val targetScala = Seq(scala213, scala212, scala211, scala3)
-    val targetScala = Seq(scala3, scala213, scala212, scala211)
+    def targetScala = Izumi.targetScala
     private val jvmPlatform = PlatformEnv(
       platform = Platform.Jvm,
       language = targetScala
@@ -231,7 +243,7 @@ object Izumi {
     )
   )
 
-  val izumi_reflect: Project = Project(
+  final lazy val izumi_reflect: Project = Project(
     name = Projects.root.id,
     aggregates = Seq(
       izumi_reflect_aggregate
