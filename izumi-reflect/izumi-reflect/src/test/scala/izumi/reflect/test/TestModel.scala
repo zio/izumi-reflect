@@ -20,6 +20,8 @@ package izumi.reflect.test
 
 import scala.annotation.StaticAnnotation
 
+import izumi.reflect.macrortti.LTag
+
 object TestModel extends TestModelKindProjector {
   final class IdAnnotation(val name: String) extends StaticAnnotation
 
@@ -136,4 +138,11 @@ object TestModel extends TestModelKindProjector {
   trait KT2[+A2, +B2] extends KT1[B2, A2]
   trait KK1[+A, +B, +U]
   trait KK2[+A, +B] extends KK1[B, A, Unit]
+
+  class \/[L, R](implicit lt: LTag[L], rt: LTag[R])
+  type SubStrA <: String
+  type SubStrB <: String
+  type SubStrC = String
+  type SubStrD = SubStrA
+  type SubSubStr <: SubStrA
 }

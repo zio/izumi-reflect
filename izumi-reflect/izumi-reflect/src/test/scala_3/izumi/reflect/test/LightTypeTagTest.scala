@@ -19,9 +19,10 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
-
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries}
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
+
 
 class LightTypeTagTest extends TagAssertions {
 //object LightTypeTagTest extends TagAssertions {
@@ -47,26 +48,35 @@ class LightTypeTagTest extends TagAssertions {
 //    }
 
     "support distinction between subtypes" in {
-      class \/[L, R](implicit lt: LTag[L], rt: LTag[R])
-      type SubStrA <: String
-      type SubStrB <: String
-      type SubStrC = String
-      type SubStrD = SubStrA
-      val tag = LTT[SubStrC]
-      val tag1 = LTT[String]
-      val tag2 = LTT[SubStrA]
-      val tag3 = LTT[SubStrB]
-      val tag4 = LTT[SubStrD]
+      val strLTT = LTT[String]
+      val subStrALTT = LTT[SubStrA]
+      val subStrCLTT = LTT[SubStrC]
+      val subStrBLTT = LTT[SubStrB]
+      val subStrDLTT = LTT[SubStrD]
+      val subSubStrLTT = LTT[SubSubStr]
       val foo = LTT[SubStrA \/ Int]
-      val bar =  `LTT[_,_]`[\/].combine(tag2, LTT[Int])
-
-      assertDifferent(tag2, tag1)
-      assertChild(tag2, tag1)
-      assertNotChild(tag1, tag2)
-      assertDifferent(tag2, tag3)
-      assertSame(tag, tag1)
-      assertNotChild(tag2, tag3)
-      assertSame(tag2, tag4)
+      val bar = `LTT[_,_]`[\/].combine(subStrALTT, LTT[Int])
+      val strUnpacker = LightTypeTagUnpacker(strLTT)
+      val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
+      val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
+      assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
+      val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
+      val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
+      assert(substrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+      assert(substrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+      assert(subsubstrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+      assertDifferent(subStrALTT, strLTT)
+      assertChild(subStrALTT, strLTT)
+      assertChild(subSubStrLTT, strLTT)
+      assertChild(subSubStrLTT, subStrALTT)
+      assertNotChild(strLTT, subStrALTT)
+      assertNotChild(subStrALTT, subSubStrLTT)
+      assertNotChild(subSubStrLTT, subStrBLTT)
+      assertDifferent(subStrALTT, subStrBLTT)
+      assertSame(subStrCLTT, strLTT)
+      assertNotChild(subStrALTT, subStrBLTT)
+      assertSame(subStrALTT, subStrDLTT)
       assertSame(foo, bar)
     }
 
