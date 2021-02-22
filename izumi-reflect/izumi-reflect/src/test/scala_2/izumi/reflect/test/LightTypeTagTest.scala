@@ -19,8 +19,8 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
+import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries}
 import org.scalatest.exceptions.TestFailedException
-
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
@@ -44,6 +44,41 @@ class LightTypeTagTest extends TagAssertions {
       assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
       assertRepr(`LTT[_]`[Either[Unit, ?]], "λ %0 → Either[+Unit,+0]")
       assertRepr(`LTT[_]`[S[Unit, ?]], "λ %0 → Either[+0,+Unit]")
+    }
+
+    "support distinction between subtypes" in {
+      val strLTT = LTT[String]
+      val subStrALTT = LTT[SubStrA]
+      val subStrCLTT = LTT[SubStrC]
+      val subStrBLTT = LTT[SubStrB]
+      val subStrDLTT = LTT[SubStrD]
+      val subSubStrLTT = LTT[SubSubStr]
+      val foo = LTT[SubStrA \/ Int]
+      val bar = `LTT[_,_]`[\/].combine(subStrALTT, LTT[Int])
+      val strUnpacker = LightTypeTagUnpacker(strLTT)
+      val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
+      val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
+      assert(subStrALTT.repr == "izumi.reflect.test.TestModel::izumi.reflect.test.TestModel.SubStrA|<scala.Nothing..java.lang.String>")
+      val strTR = strLTT.ref.asInstanceOf[AppliedNamedReference]
+      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedNamedReference]
+      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedNamedReference]
+      assert(strUnpacker.bases.keySet == Set(strTR))
+      assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR) ; case p => p })
+      assert(substrUnpacker.inheritance == strUnpacker.inheritance.map { case (s, v) if s.toString == "String" => subStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName) ; case p => p })
+      assert(subsubstrUnpacker.bases == strUnpacker.bases.map { case (strTR, v) => subSubStrTR -> (v + strTR) ; case p => p })
+      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance.map { case (s, v) if s.toString == "String" => subSubStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName) ; case p => p })
+      assertDifferent(subStrALTT, strLTT)
+      assertChild(subStrALTT, strLTT)
+      assertChild(subSubStrLTT, strLTT)
+      assertChild(subSubStrLTT, subStrALTT)
+      assertNotChild(strLTT, subStrALTT)
+      assertNotChild(subStrALTT, subSubStrLTT)
+      assertNotChild(subSubStrLTT, subStrBLTT)
+      assertDifferent(subStrALTT, subStrBLTT)
+      assertSame(subStrCLTT, strLTT)
+      assertNotChild(subStrALTT, subStrBLTT)
+      assertSame(subStrALTT, subStrDLTT)
+      assertSame(foo, bar)
     }
 
     "support typetag combination" in {

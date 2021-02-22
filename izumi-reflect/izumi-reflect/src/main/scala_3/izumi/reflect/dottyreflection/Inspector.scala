@@ -26,6 +26,15 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     v
   }
 
+  private[dottyreflection] def fixReferenceName(reference: AbstractReference, typeRepr: TypeRepr): AbstractReference =
+    reference match {
+      // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
+      case NameReference(_, boundaries: Boundaries.Defined, _) =>
+        val dealiased = typeRepr.dealias.typeSymbol
+        NameReference(SymName.SymTypeName(dealiased.name), boundaries, prefixOf(dealiased))
+      case x => x
+    }
+
   private[dottyreflection] def inspectTType(tpe2: TypeRepr): AbstractReference = {
     tpe2 match {
       case a: AppliedType =>
@@ -72,13 +81,18 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         }
 
       case r: TypeRef =>
-        next().inspectSymbol(r.typeSymbol)
+        fixReferenceName(next().inspectSymbol(r.typeSymbol), r)
 
       case a: AnnotatedType =>
         next().inspectTType(a.underlying)
 
       case tb: TypeBounds => // weird thingy
-        next().inspectTType(tb.hi)
+        val hi = next().inspectTType(tb.hi)
+        val low = next().inspectTType(tb.low)
+        if (hi == low) hi
+        // if hi and low boundaries are defined and distinct, type is not reducible to one of them - however at this
+        // point the type name isn't available and we need to use a stand-in...
+        else NameReference(SymName.SymTypeName(tb.typeSymbol.name), Boundaries.Defined(low, hi))
 
       case term: TermRef =>
         asNameRef(term)
@@ -102,7 +116,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     if (symbol.isNoSymbol)
       inspectTType(tpe2)
     else
-      inspectSymbol(symbol)
+      fixReferenceName(inspectSymbol(symbol), tpe2)
   }
 
   private[dottyreflection] def inspectSymbol(symbol: Symbol): AbstractReference = {

@@ -19,9 +19,10 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
-
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries}
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
+
 
 class LightTypeTagTest extends TagAssertions {
 //object LightTypeTagTest extends TagAssertions {
@@ -45,6 +46,39 @@ class LightTypeTagTest extends TagAssertions {
 //      assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
 //      assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
 //    }
+
+    "support distinction between subtypes" in {
+      val strLTT = LTT[String]
+      val subStrALTT = LTT[SubStrA]
+      val subStrCLTT = LTT[SubStrC]
+      val subStrBLTT = LTT[SubStrB]
+      val subStrDLTT = LTT[SubStrD]
+      val subSubStrLTT = LTT[SubSubStr]
+      val foo = LTT[SubStrA \/ Int]
+      val bar = `LTT[_,_]`[\/].combine(subStrALTT, LTT[Int])
+      val strUnpacker = LightTypeTagUnpacker(strLTT)
+      val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
+      val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
+      assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
+      val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
+      val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
+      assert(substrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+      assert(substrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+      assert(subsubstrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+      assertDifferent(subStrALTT, strLTT)
+      assertChild(subStrALTT, strLTT)
+      assertChild(subSubStrLTT, strLTT)
+      assertChild(subSubStrLTT, subStrALTT)
+      assertNotChild(strLTT, subStrALTT)
+      assertNotChild(subStrALTT, subSubStrLTT)
+      assertNotChild(subSubStrLTT, subStrBLTT)
+      assertDifferent(subStrALTT, subStrBLTT)
+      assertSame(subStrCLTT, strLTT)
+      assertNotChild(subStrALTT, subStrBLTT)
+      assertSame(subStrALTT, subStrDLTT)
+      assertSame(foo, bar)
+    }
 
     "support typetag combination" in {
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[Id], LTT[T1[Id]])
