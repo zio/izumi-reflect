@@ -1,35 +1,26 @@
 package izumi.reflect.test
 
-import izumi.reflect.Tag
 import izumi.reflect.macrortti._
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries}
+import org.scalatest.exceptions.TestFailedException
 
-import scala.collection.immutable.ListSet
-import scala.collection.{BitSet, immutable, mutable}
-
+/** Things that DO NOT work currently in Scala 3 version but work in Scala 2 version */
 class DottyProgressionTests extends TagAssertions {
 
   import TestModel._
 
   "dotty version" should {
 
-    "does not fail on unresolved type parameters" in {
-//      def badTag[T]: Tag[T] = izumi.reflect.Tag.tagFromTagMacro[T]
-      assertCompiles(
-        """
-        def badTag[T]: Tag[T] = Tag[T]
-        """)
-    }
-
-    "does not fail on intersection/union of unresolved type parameters" in {
-      assertCompiles(
-              """
-              def badTag[T, U]: Tag[T & U] = Tag[T & U]
-              """)
-      assertCompiles(
-              """
-              def badTag[T, U]: Tag[T | U] = Tag[T | U]
-              """)
+    "fails to check subtyping when higher-kinds are involved" in {
+      intercept[TestFailedException] {
+        assertChild(LTT[FT2[IT2]], LTT[FT1[IT1]])
+        assertChild(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+        assertDifferent(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+        assertChild(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+        assertDifferent(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+        assertChild(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+        assertDifferent(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+        assertSame(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+      }
     }
 
   }
