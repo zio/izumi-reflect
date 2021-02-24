@@ -7,7 +7,7 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
   trait Y
   trait Z extends Y
   trait XS[+K]
-  trait X[+AAAAAAARG, -B0 <: Y] extends XS[AAAAAAARG] {}
+  trait X[+AAAAAAARG, -B0] extends XS[AAAAAAARG] {}
 
   trait A
   trait B extends A
@@ -22,7 +22,7 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
     val intTag = LTT[Int]
 
     class Foo[+F[_]]()
-    class Bar[+F[+_, +_]]() extends Foo[F[Int, *]]
+    class Bar[+F[+_, -_]]() extends Foo[F[Int, *]]
     class Baz() extends X[String, Z]
 
     val bazTag = LTT[Baz]

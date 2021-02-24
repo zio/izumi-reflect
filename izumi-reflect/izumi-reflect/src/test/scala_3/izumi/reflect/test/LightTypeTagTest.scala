@@ -19,13 +19,12 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, Lambda}
+
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
-
 class LightTypeTagTest extends TagAssertions {
-//object LightTypeTagTest extends TagAssertions {
 
   import TestModel._
 
@@ -66,6 +65,7 @@ class LightTypeTagTest extends TagAssertions {
       assert(substrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
       assert(subsubstrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
       assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+
       assertDifferent(subStrALTT, strLTT)
       assertChild(subStrALTT, strLTT)
       assertChild(subSubStrLTT, strLTT)
@@ -74,7 +74,11 @@ class LightTypeTagTest extends TagAssertions {
       assertNotChild(subStrALTT, subSubStrLTT)
       assertNotChild(subSubStrLTT, subStrBLTT)
       assertDifferent(subStrALTT, subStrBLTT)
+
       assertSame(subStrCLTT, strLTT)
+      assertChild(subStrCLTT, strLTT)
+      assertChild(strLTT, subStrCLTT)
+
       assertNotChild(subStrALTT, subStrBLTT)
       assertSame(subStrALTT, subStrDLTT)
       assertSame(foo, bar)
@@ -118,14 +122,14 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[Either[Nothing, Int]], LTT[Either[Throwable, Int]])
 
       assertChild(LTT[F2[I2]], LTT[F1[I1]])
-//      assertChild(LTT[FT2[IT2]], LTT[FT1[IT1]])
-//      assertChild(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-//      assertDifferent(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-//      assertChild(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT1]), LTT[FT1[IT1]])
-//      assertDifferent(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT1]), LTT[FT1[IT1]])
-//      assertChild(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-//      assertDifferent(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-//      assertSame(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT1]), LTT[FT1[IT1]])
+      assertChild(LTT[FT2[IT2]], LTT[FT1[IT1]])
+      assertChild(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertDifferent(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertChild(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+      assertDifferent(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+      assertChild(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertDifferent(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertSame(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
 
       assertChild(LTT[FT2[IT2]], LTT[FT1[IT2]])
 
@@ -229,7 +233,7 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
-      val childBase = `LTT[_[_,_],_,_]`[RoleChild2]
+      val childBase = `LTT[_[+_,+_],_,_]`[RoleChild2]
       val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
       val combinedTag = childBase.combine(childArgs: _*)
       val expectedTag = LTT[RoleParent[Either[Throwable, *]]]
@@ -444,12 +448,12 @@ class LightTypeTagTest extends TagAssertions {
 //      assertDebugSame(javaLangString, weirdPredefString)
     }
 
-//    "combine higher-kinded type lambdas without losing ignored type arguments" in {
-//      val tag = `LTT[_[_,_]]`[Lambda[`F[+_, +_]` => BlockingIO3[Lambda[(`-R`, `+E`, `+A`) => F[E, A]]]]]
-//
-//      val res = tag.combine(`LTT[_,_]`[IO])
-//      assert(res == LTT[BlockingIO[IO]])
-//    }
+    "combine higher-kinded type lambdas without losing ignored type arguments" in {
+      val tag = `LTT[_[+_,+_]]`[[F[+_, +_]] =>> BlockingIO3[[R, E, A] =>> F[E, A]]]
+
+      val res = tag.combine(`LTT[_,_]`[IO])
+      assert(res == LTT[BlockingIO[IO]])
+    }
 
 //    "normalize stable PDTs (https://github.com/zio/zio/issues/3390)" in {
 //      val t1 = LTT[PDTNormA.Service]

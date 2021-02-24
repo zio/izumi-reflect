@@ -67,6 +67,7 @@ class LightTypeTagTest extends TagAssertions {
       assert(substrUnpacker.inheritance == strUnpacker.inheritance.map { case (s, v) if s.toString == "String" => subStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName) ; case p => p })
       assert(subsubstrUnpacker.bases == strUnpacker.bases.map { case (strTR, v) => subSubStrTR -> (v + strTR) ; case p => p })
       assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance.map { case (s, v) if s.toString == "String" => subSubStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName) ; case p => p })
+
       assertDifferent(subStrALTT, strLTT)
       assertChild(subStrALTT, strLTT)
       assertChild(subSubStrLTT, strLTT)
@@ -75,7 +76,11 @@ class LightTypeTagTest extends TagAssertions {
       assertNotChild(subStrALTT, subSubStrLTT)
       assertNotChild(subSubStrLTT, subStrBLTT)
       assertDifferent(subStrALTT, subStrBLTT)
+
       assertSame(subStrCLTT, strLTT)
+      assertChild(subStrCLTT, strLTT)
+      assertChild(strLTT, subStrCLTT)
+
       assertNotChild(subStrALTT, subStrBLTT)
       assertSame(subStrALTT, subStrDLTT)
       assertSame(foo, bar)
@@ -121,13 +126,13 @@ class LightTypeTagTest extends TagAssertions {
 
       assertChild(LTT[F2[I2]], LTT[F1[I1]])
       assertChild(LTT[FT2[IT2]], LTT[FT1[IT1]])
-      assertChild(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-      assertDifferent(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-      assertChild(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT1]), LTT[FT1[IT1]])
-      assertDifferent(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[_]]`[IT1]), LTT[FT1[IT1]])
-      assertChild(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-      assertDifferent(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT2]), LTT[FT1[IT1]])
-      assertSame(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[_]]`[IT1]), LTT[FT1[IT1]])
+      assertChild(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertDifferent(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertChild(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+      assertDifferent(`LTT[_[_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+      assertChild(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertDifferent(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
+      assertSame(`LTT[_[_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
 
       assertChild(LTT[FT2[IT2]], LTT[FT1[IT2]])
 
@@ -230,7 +235,7 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
-      val childBase = `LTT[_[_,_],_,_]`[RoleChild2]
+      val childBase = `LTT[_[+_,+_],_,_]`[RoleChild2]
       val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
       val combinedTag = childBase.combine(childArgs: _*)
       val expectedTag = LTT[RoleParent[Either[Throwable, ?]]]
@@ -446,7 +451,7 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "combine higher-kinded type lambdas without losing ignored type arguments" in {
-      val tag = `LTT[_[_,_]]`[Lambda[`F[+_, +_]` => BlockingIO3[Lambda[(`-R`, `+E`, `+A`) => F[E, A]]]]]
+      val tag = `LTT[_[+_,+_]]`[Lambda[`F[+_, +_]` => BlockingIO3[Lambda[(`-R`, `+E`, `+A`) => F[E, A]]]]]
 
       val res = tag.combine(`LTT[_,_]`[IO])
       assert(res == LTT[BlockingIO[IO]])

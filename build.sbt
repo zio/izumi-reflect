@@ -9,16 +9,20 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    ) else Seq.empty },
+    libraryDependencies ++= { if (Seq(
+      "2.11.12",
+      "2.12.13"
+    ) contains scalaVersion.value) Seq(
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
     ) else Seq.empty }
   )
   .settings(
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "3.0.0-M3",
-      "2.13.4",
+      "2.13.5",
       "2.12.13",
       "2.11.12"
     ),
@@ -83,7 +87,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.4") => Seq(
+      case (_, "2.13.5") => Seq(
         "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -115,7 +119,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       case (_, "2.12.13") => Seq(
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.4") => Seq(
+      case (_, "2.13.5") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
@@ -126,7 +130,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.4") => Seq(
+      case (false, "2.13.5") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -165,16 +169,20 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
-      compilerPlugin("com.github.ghik" % "silencer-plugin" % V.silencer cross CrossVersion.full),
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    ) else Seq.empty },
+    libraryDependencies ++= { if (Seq(
+      "2.11.12",
+      "2.12.13"
+    ) contains scalaVersion.value) Seq(
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
     ) else Seq.empty }
   )
   .settings(
     scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "3.0.0-M3",
-      "2.13.4",
+      "2.13.5",
       "2.12.13",
       "2.11.12"
     ),
@@ -239,7 +247,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.4") => Seq(
+      case (_, "2.13.5") => Seq(
         "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -271,7 +279,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       case (_, "2.12.13") => Seq(
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.4") => Seq(
+      case (_, "2.13.5") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
@@ -282,7 +290,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.4") => Seq(
+      case (false, "2.13.5") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -335,7 +343,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
     skip in publish := true,
     crossScalaVersions := Seq(
       "3.0.0-M3",
-      "2.13.4",
+      "2.13.5",
       "2.12.13",
       "2.11.12"
     ),
