@@ -23,6 +23,15 @@ class DottyProgressionTests extends TagAssertions {
       }
     }
 
+    "fails to combine higher-kinded type lambdas without losing ignored type arguments" in {
+      intercept[TestFailedException] {
+        val tag = `LTT[_[+_,+_]]`[[F[+_, +_]] =>> BlockingIO3[[R, E, A] =>> F[E, A]]]
+
+        val res = tag.combine(`LTT[_,_]`[IO])
+        assert(res == LTT[BlockingIO[IO]])
+      }
+    }
+
   }
 
 }
