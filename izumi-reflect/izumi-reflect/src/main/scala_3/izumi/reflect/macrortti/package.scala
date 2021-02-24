@@ -18,8 +18,6 @@
 
 package izumi.reflect
 
-import izumi.reflect.Tag.auto.T
-
 package object macrortti {
   type LWeakTag[T <: AnyKind] = LTag.Weak[T]
   object LWeakTag {
