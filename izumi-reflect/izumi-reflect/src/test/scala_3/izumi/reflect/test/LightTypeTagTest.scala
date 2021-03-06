@@ -45,45 +45,45 @@ class LightTypeTagTest extends TagAssertions {
 //      assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
 //      assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
 //    }
-
-    "support distinction between subtypes" in {
-      val strLTT = LTT[String]
-      val subStrALTT = LTT[SubStrA]
-      val subStrCLTT = LTT[SubStrC]
-      val subStrBLTT = LTT[SubStrB]
-      val subStrDLTT = LTT[SubStrD]
-      val subSubStrLTT = LTT[SubSubStr]
-      val foo = LTT[SubStrA \/ Int]
-      val bar = `LTT[_,_]`[\/].combine(subStrALTT, LTT[Int])
-      val strUnpacker = LightTypeTagUnpacker(strLTT)
-      val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
-      val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
-      assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
-      val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
-      val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
-      assert(substrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
-      assert(substrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
-      assert(subsubstrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
-      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
-
-      assertDifferent(subStrALTT, strLTT)
-      assertChild(subStrALTT, strLTT)
-      assertChild(subSubStrLTT, strLTT)
-      assertChild(subSubStrLTT, subStrALTT)
-      assertNotChild(strLTT, subStrALTT)
-      assertNotChild(subStrALTT, subSubStrLTT)
-      assertNotChild(subSubStrLTT, subStrBLTT)
-      assertDifferent(subStrALTT, subStrBLTT)
-
-      assertSame(subStrCLTT, strLTT)
-      assertChild(subStrCLTT, strLTT)
-      assertChild(strLTT, subStrCLTT)
-
-      assertNotChild(subStrALTT, subStrBLTT)
-      assertSame(subStrALTT, subStrDLTT)
-      assertSame(foo, bar)
-    }
-
+//
+//    "support distinction between subtypes" in {
+//      val strLTT = LTT[String]
+//      val subStrALTT = LTT[SubStrA]
+//      val subStrCLTT = LTT[SubStrC]
+//      val subStrBLTT = LTT[SubStrB]
+//      val subStrDLTT = LTT[SubStrD]
+//      val subSubStrLTT = LTT[SubSubStr]
+//      val foo = LTT[SubStrA \/ Int]
+//      val bar = `LTT[_,_]`[\/].combine(subStrALTT, LTT[Int])
+//      val strUnpacker = LightTypeTagUnpacker(strLTT)
+//      val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
+//      val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
+//      assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
+//      val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
+//      val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
+//      assert(substrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+//      assert(substrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+//      assert(subsubstrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+//      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+//
+//      assertDifferent(subStrALTT, strLTT)
+//      assertChild(subStrALTT, strLTT)
+//      assertChild(subSubStrLTT, strLTT)
+//      assertChild(subSubStrLTT, subStrALTT)
+//      assertNotChild(strLTT, subStrALTT)
+//      assertNotChild(subStrALTT, subSubStrLTT)
+//      assertNotChild(subSubStrLTT, subStrBLTT)
+//      assertDifferent(subStrALTT, subStrBLTT)
+//
+//      assertSame(subStrCLTT, strLTT)
+//      assertChild(subStrCLTT, strLTT)
+//      assertChild(strLTT, subStrCLTT)
+//
+//      assertNotChild(subStrALTT, subStrBLTT)
+//      assertSame(subStrALTT, subStrDLTT)
+//      assertSame(foo, bar)
+//    }
+//
 //
 //    "support typetag combination" in {
 //      assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[Id], LTT[T1[Id]])
@@ -288,34 +288,34 @@ class LightTypeTagTest extends TagAssertions {
       type F1 = (W3[Int] with W1) with I1
       type F2 = W3[Int] with (W1 with I1)
 
-//      type T1[A] = (W3[A] with W1) with I1
-//      type T2[A] = W3[A] with (W1 with I1)
+      type T1[A] = (W3[A] with W1) with I1
+      type T2[A] = W3[A] with (W1 with I1)
 
       LTT[F1]
-//      assertSame(LTT[F1], LTT[F2])
-//      assertChildSame(LTT[F1], LTT[F2])
+      assertSame(LTT[F1], LTT[F2])
+      assertChildSame(LTT[F1], LTT[F2])
 
-//      assertSame(`LTT[_]`[T1], `LTT[_]`[T2])
-//      assertChildSame(`LTT[_]`[T1], `LTT[_]`[T2])
+      assertSame(`LTT[_]`[T1], `LTT[_]`[T2])
+      assertChildSame(`LTT[_]`[T1], `LTT[_]`[T2])
     }
 //
-//    "runtime-combined intersections are associative" in {
-//      type F = W3[Int] with W1
-//      type F1 = (W3[Int] with W1) with I1
-//      type F2 = W3[Int] with (W1 with I1)
-//
-//      type T1[A] = W3[Int] with (W1 with A)
-//      type T2[A] = (W3[Int] with W1) with A
-//
-//      assertIntersection(List(LTT[F], LTT[I1]), LTT[F1])
-//      assertIntersection(List(LTT[F], LTT[I1]), LTT[F2])
-//
-//      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F1])
-//      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F2])
-//
-//      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F1])
-//      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F2])
-//    }
+    "runtime-combined intersections are associative" in {
+      type F = W3[Int] with W1
+      type F1 = (W3[Int] with W1) with I1
+      type F2 = W3[Int] with (W1 with I1)
+
+      type T1[A] = W3[Int] with (W1 with A)
+      type T2[A] = (W3[Int] with W1) with A
+
+      assertIntersection(List(LTT[F], LTT[I1]), LTT[F1])
+      assertIntersection(List(LTT[F], LTT[I1]), LTT[F2])
+
+      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F1])
+      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F2])
+
+      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F1])
+      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F2])
+    }
 //
 ////    "support structural & refinement type equality" in {
 ////      assertDifferent(LTT[W4[str.type] with ({ type T = str.type with Int })], LTT[W4[str.type] with ({ type T = str.type with Long })])

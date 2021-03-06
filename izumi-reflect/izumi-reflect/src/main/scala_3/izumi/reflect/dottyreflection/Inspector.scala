@@ -32,7 +32,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case x => x
     }
 
-  private[dottyreflection] def inspectTType(tpe: TypeRepr): AbstractReference = {
+  private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr): AbstractReference = {
     tpe match {
       case a: AppliedType =>
         a.args match {
@@ -52,7 +52,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         }
 
       case l: TypeLambda =>
-        val resType = next().inspectTType(l.resType)
+        val resType = next().inspectTypeRepr(l.resType)
         val paramNames = l.paramNames.map(LambdaParameter(_))
         LightTypeTagRef.Lambda(paramNames, resType)
 
@@ -79,11 +79,11 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         fixReferenceName(next().inspectSymbol(r.typeSymbol), r)
 
       case a: AnnotatedType =>
-        next().inspectTType(a.underlying)
+        next().inspectTypeRepr(a.underlying)
 
       case tb: TypeBounds => // weird thingy
-        val hi = next().inspectTType(tb.hi)
-        val low = next().inspectTType(tb.low)
+        val hi = next().inspectTypeRepr(tb.hi)
+        val low = next().inspectTypeRepr(tb.low)
         if (hi == low) hi
         // if hi and low boundaries are defined and distinct, type is not reducible to one of them - however at this
         // point the type name isn't available and we need to use a stand-in...
@@ -107,10 +107,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private[dottyreflection] def inspectTree(uns: TypeTree): AbstractReference = {
     val symbol = uns.symbol
     log(s" -------- deep inspect ${uns.show} `${uns.symbol}` ${uns.getClass.getName} $uns --------")
-    val res = if (!symbol.isNoSymbol) {
+    val res = if (false) {
       inspectSymbol(symbol)
     } else {
-      inspectTType(uns.tpe)
+      inspectTypeRepr(uns.tpe)
     }
     log(s" -------- done deep inspecting ${uns.show} --------")
     res
@@ -156,9 +156,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     val variance = extractVariance(td)
     tpe match {
       case t: TypeBounds =>
-        TypeParam(inspectTType(t.hi), variance)
+        TypeParam(inspectTypeRepr(t.hi), variance)
       case t: TypeRepr =>
-        TypeParam(inspectTType(t), variance)
+        TypeParam(inspectTypeRepr(t), variance)
     }
   }
 
@@ -185,7 +185,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
           (Set.empty[AndType], Set(l, r))
       }
     val andTypeTags = andTypes.flatMap(flattenInspectAnd)
-    val otherTypeTags = otherTypes.map(inspectTType(_).asInstanceOf[AppliedReference])
+    val otherTypeTags = otherTypes.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
     andTypeTags ++ otherTypeTags
   }
 
@@ -202,7 +202,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
           (Set.empty[OrType], Set(l, r))
       }
     val orTypeTags = orTypes flatMap flattenInspectOr
-    val otherTypeTags = otherTypes.map(inspectTType(_).asInstanceOf[AppliedReference])
+    val otherTypeTags = otherTypes.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
     orTypeTags ++ otherTypeTags
   }
 

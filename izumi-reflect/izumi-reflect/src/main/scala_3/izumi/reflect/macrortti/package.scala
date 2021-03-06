@@ -70,7 +70,7 @@ package object macrortti {
   }
 
 //   simple materializers
-  transparent inline def LTT[T]: LightTypeTag = dottyreflection.Inspect.inspect[T]
+  inline def LTT[T]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   transparent inline def `LTT[_]`[T[_]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   transparent inline def `LTT[+_]`[T[+ _]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   transparent inline def `LTT[A,B,_>:B<:A]`[A, B <: A, T[_ >: B <: A]]: LightTypeTag = dottyreflection.Inspect.inspect[T]

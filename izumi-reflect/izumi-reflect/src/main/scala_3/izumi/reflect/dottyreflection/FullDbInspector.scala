@@ -42,7 +42,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
 
     private def inspectTTypeToFullBases(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
-      val selfRef = inspector.inspectTType(tpe)
+      val selfRef = inspector.inspectTypeRepr(tpe)
 
       tpe match {
         case a: AppliedType =>
@@ -51,7 +51,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
           val main = (selfRef, selfRef) +: baseTypes.map {
             bt =>
-              val parentRef = inspector.inspectTType(bt)
+              val parentRef = inspector.inspectTypeRepr(bt)
               (selfRef, parentRef)
           }
 
