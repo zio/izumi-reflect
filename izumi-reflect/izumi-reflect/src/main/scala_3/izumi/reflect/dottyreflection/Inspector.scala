@@ -107,10 +107,13 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private[dottyreflection] def inspectTypeTree(uns: TypeTree): AbstractReference = {
     val symbol = uns.symbol
     log(s" -------- deep inspect ${uns.show} `${if (symbol.isNoSymbol) "NoSymbol" else symbol}` ${uns.getClass.getName} $uns --------")
-    val res = if (false) {
-      inspectSymbolTree(symbol)
-    } else {
-      inspectTypeRepr(uns.tpe)
+    val res = {
+      // FIXME: `inspectSymbolTree` seems unnecessary and lead to bad results after blackbox macros were introduced
+      if (true) {
+        inspectTypeRepr(uns.tpe)
+      } else {
+        inspectSymbolTree(symbol)
+      }
     }
     log(s" -------- done deep inspecting ${uns.show} --------")
     res

@@ -9,6 +9,9 @@ trait InspectorBase {
 
   protected def shift: Int
 
+  inline val debug = false
+  type debug = debug.type
+
   inline final protected def logStart(inline s: String): Unit = {
     if (debug) println(" " * shift + s)
   }

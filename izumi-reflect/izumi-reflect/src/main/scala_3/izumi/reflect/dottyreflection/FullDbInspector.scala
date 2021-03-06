@@ -16,7 +16,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   // @formatter:on
 
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
-    val tpe = implicitly[Type[T]]
     val uns = TypeTree.of[T]
     new Run()
       .inspectTreeToFull(uns)
@@ -33,15 +32,15 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
     def inspectTreeToFull(uns: TypeTree): List[(AbstractReference, AbstractReference)] = {
       val symbol = uns.symbol
-      val tpe2 = uns.tpe
-
-      if (symbol.isNoSymbol)
-        inspectTTypeToFullBases(tpe2).distinct
-      else
+      // FIXME: `inspectSymbolToFull` seems unnecessary and lead to bad results after blackbox macros were introduce{d
+      if (true) {
+        inspectTypeReprToFullBases(uns.tpe).distinct
+      } else {
         inspectSymbolToFull(symbol).distinct
+      }
     }
 
-    private def inspectTTypeToFullBases(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
+    private def inspectTypeReprToFullBases(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       val selfRef = inspector.inspectTypeRepr(tpe)
 
       tpe match {
@@ -76,10 +75,10 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           out.distinct
 
         case a: AndType =>
-          inspectTTypeToFullBases(a.left) ++ inspectTTypeToFullBases(a.right)
+          inspectTypeReprToFullBases(a.left) ++ inspectTypeReprToFullBases(a.right)
 
         case o: OrType =>
-          inspectTTypeToFullBases(o.left) ++ inspectTTypeToFullBases(o.right)
+          inspectTypeReprToFullBases(o.left) ++ inspectTypeReprToFullBases(o.right)
 
         case r: TypeRef =>
           inspectSymbolToFull(r.typeSymbol)
@@ -121,9 +120,9 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     private def inspectToBToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       tpe match {
         case t: TypeBounds =>
-          inspectTTypeToFullBases(t.hi) ++ inspectTTypeToFullBases(t.low)
+          inspectTypeReprToFullBases(t.hi) ++ inspectTypeReprToFullBases(t.low)
         case t: TypeRepr =>
-          inspectTTypeToFullBases(t)
+          inspectTypeReprToFullBases(t)
       }
     }
   }
