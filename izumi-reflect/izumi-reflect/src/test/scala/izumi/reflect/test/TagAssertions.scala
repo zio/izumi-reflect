@@ -85,16 +85,16 @@ trait TagAssertions extends AnyWordSpec {
 
   def assertCombineNonPos(outer: LightTypeTag, inner: Seq[Option[LightTypeTag]], expected: LightTypeTag): Unit = {
     val combined = outer.combineNonPos(inner: _*)
-    info(s"($outer)•(${inner.mkString(",")}) => $combined =?= $expected")
-    assert(combined =:= expected)
-    ()
+    val clue = s"($outer)•(${inner.mkString(",")}) => $combined =?= $expected"
+    info(clue)
+    assert(combined =:= expected, clue); ()
   }
 
   def assertIntersection(intersection: List[LightTypeTag], expected: LightTypeTag): Unit = {
     val intersected = LightTypeTag.refinedType(intersection, LTag[Any].tag, Map.empty)
-    info(s"(${intersection.mkString(" & ")}) => $intersected =?= $expected")
-    assert(intersected =:= expected)
-    ()
+    val clue = s"(${intersection.mkString(" & ")}) => $intersected =?= $expected"
+    info(clue)
+    assert(intersected =:= expected, clue); ()
   }
 
   def literalLtt(s: String)(implicit l: LTag[s.type]): LightTypeTag = l.tag

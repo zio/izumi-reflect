@@ -6,7 +6,7 @@ trait InspectorBase {
   // @formatter:off
   val qctx: Quotes
   given qctx.type = qctx
-  import qctx.reflect.{given, _}
+  import qctx.reflect._
   // @formatter:on
 
   protected def shift: Int

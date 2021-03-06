@@ -7,19 +7,19 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import scala.collection.mutable
 import scala.quoted._
 
-
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   self =>
 
   // @formatter:off
-  import qctx.reflect.{given, _}
+  import qctx.reflect._
   private lazy val inspector = new Inspector(0) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
   // @formatter:on
 
-  def buildFullDb[T <: AnyKind : Type]: Map[AbstractReference, Set[AbstractReference]] = {
+  def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
     val tpe = implicitly[Type[T]]
     val uns = TypeTree.of[T]
-    new Run().inspectTreeToFull(uns)
+    new Run()
+      .inspectTreeToFull(uns)
       .toMultimap
       .map {
         case (t, parents) =>
@@ -54,17 +54,18 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
               (selfRef, parentRef)
           }
 
-          val args = a.args.filterNot(termination.contains).flatMap { x =>
-            termination.add(x)
-            inspectToBToFull(x)
+          val args = a.args.filterNot(termination.contains).flatMap {
+            x =>
+              termination.add(x)
+              inspectToBToFull(x)
           }
-          (main  ++ args).distinct
+          (main ++ args).distinct
 
         case l: TypeLambda =>
           val parents = inspectToBToFull(l.resType)
           val selfL = selfRef.asInstanceOf[LightTypeTagRef.Lambda]
           val out = parents.map {
-            case (c, p)  =>
+            case (c, p) =>
               if (c == selfL.output) {
                 (selfL, p)
               } else {
@@ -78,7 +79,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
         case o: OrType =>
           inspectTTypeToFullBases(o.left) ++ inspectTTypeToFullBases(o.right)
-
 
         case r: TypeRef =>
           inspectSymbolToFull(r.typeSymbol)
@@ -101,7 +101,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           }
           val o = trees.flatMap(inspectTreeToFull)
           val selfRef = inspector.inspectSymbol(symbol)
-          val p = trees.flatMap { t => List((selfRef, inspector.inspectTree(t))) }
+          val p = trees.flatMap(t => List((selfRef, inspector.inspectTree(t))))
           (p ++ o).distinct
 
         case t: TypeDef =>
@@ -122,4 +122,3 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   }
 
 }
-

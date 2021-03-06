@@ -8,20 +8,19 @@ import scala.collection.mutable
 
 import scala.quoted._
 
-
 abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   self =>
 
   // @formatter:off
-  import qctx.reflect.{given, _}
+  import qctx.reflect._
   private lazy val inspector = new Inspector(0) { val qctx: DbInspector.this.qctx.type = DbInspector.this.qctx }
   // @formatter:on
 
-
-  def buildNameDb[T <: AnyKind : Type]: Map[NameReference, Set[NameReference]] = {
+  def buildNameDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe = implicitly[Type[T]]
     val uns = TypeTree.of[T]
-    new Run().inspectTreeToName(uns)
+    new Run()
+      .inspectTreeToName(uns)
       .toMultimap
       .map {
         case (t, parents) =>
@@ -34,7 +33,6 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
       }
       .filterNot(_._2.isEmpty)
   }
-
 
   private class Run() {
     private val termination = mutable.HashSet[TypeRepr]()
@@ -53,9 +51,10 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
       tpe2 match {
         case a: AppliedType =>
           val main = a.baseClasses.flatMap(inspectSymbolToName) // (a.tycon)
-          val args = a.args.filterNot(termination.contains).flatMap { x =>
-            termination.add(x)
-            inspectToBToName(x)
+          val args = a.args.filterNot(termination.contains).flatMap {
+            x =>
+              termination.add(x)
+              inspectToBToName(x)
           }
           (main ++ args).distinct
 
@@ -92,17 +91,18 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
           val o = trees.flatMap(inspectTreeToName)
           val selfRef = inspector.asNameRefSym(symbol)
 
-          val p = trees.flatMap { t =>
-            val tRef = inspector.inspectTree(t)
+          val p = trees.flatMap {
+            t =>
+              val tRef = inspector.inspectTree(t)
 
-            tRef match {
-              case n: NameReference =>
-                List((selfRef, n))
-              case n: FullReference =>
-                List((selfRef, n.asName))
-              case _ =>
-                List.empty
-            }
+              tRef match {
+                case n: NameReference =>
+                  List((selfRef, n))
+                case n: FullReference =>
+                  List((selfRef, n.asName))
+                case _ =>
+                  List.empty
+              }
           }
 
           (p ++ o).distinct
@@ -125,4 +125,3 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   }
 
 }
-

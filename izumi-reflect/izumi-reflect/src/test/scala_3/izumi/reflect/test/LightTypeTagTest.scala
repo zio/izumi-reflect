@@ -298,21 +298,21 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "runtime-combined intersections are associative" in {
-      type F1 = W3[Int] with W1
-      type F11 = (W3[Int] with W1) with I1
-      type F12 = W3[Int] with (W1 with I1)
+      type F = W3[Int] with W1
+      type F1 = (W3[Int] with W1) with I1
+      type F2 = W3[Int] with (W1 with I1)
 
       type T1[A] = W3[Int] with (W1 with A)
       type T2[A] = (W3[Int] with W1) with A
 
-      assertIntersection(List(LTT[F1], LTT[I1]), LTT[F11])
-      assertIntersection(List(LTT[F1], LTT[I1]), LTT[F12])
+      assertIntersection(List(LTT[F], LTT[I1]), LTT[F1])
+      assertIntersection(List(LTT[F], LTT[I1]), LTT[F2])
 
-      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F11])
-      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F12])
+      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F1])
+      assertCombine(`LTT[_]`[T1], LTT[I1], LTT[F2])
 
-      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F11])
-      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F12])
+      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F1])
+      assertCombine(`LTT[_]`[T2], LTT[I1], LTT[F2])
     }
 
 //    "support structural & refinement type equality" in {

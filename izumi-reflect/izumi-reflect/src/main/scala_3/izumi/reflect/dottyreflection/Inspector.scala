@@ -9,9 +9,7 @@ import scala.reflect.Selectable.reflectiveSelectable
 abstract class Inspector(protected val shift: Int) extends InspectorBase {
   self =>
 
-  // @formatter:off
-  import qctx.reflect.{given, _}
-  // @formatter:on
+  import qctx.reflect._
 
   private def next() = new Inspector(shift + 1) {
     val qctx: self.qctx.type = self.qctx
@@ -66,7 +64,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case a: AndType =>
         val elements = flattenInspectAnd(a)
-        if (elements.size == 1) {
+        if (elements.sizeIs == 1) {
           elements.head
         } else {
           IntersectionReference(elements)
@@ -74,7 +72,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case o: OrType =>
         val elements = flattenInspectOr(o)
-        if (elements.size == 1) {
+        if (elements.sizeIs == 1) {
           elements.head
         } else {
           UnionReference(elements)
@@ -153,7 +151,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private def inspectToB(tpe: TypeRepr, td: Symbol): TypeParam = {
     val variance = extractVariance(td)
-
     tpe match {
       case t: TypeBounds =>
         TypeParam(inspectTType(t.hi), variance)
@@ -184,10 +181,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         case AndType(l, r) =>
           (Set.empty[AndType], Set(l, r))
       }
-    val andTypeTags = andTypes flatMap flattenInspectAnd
-    val otherTypeTags = otherTypes map inspectTType map {
-        _.asInstanceOf[AppliedReference]
-      }
+    val andTypeTags = andTypes.flatMap(flattenInspectAnd)
+    val otherTypeTags = otherTypes.map(inspectTType(_).asInstanceOf[AppliedReference])
     andTypeTags ++ otherTypeTags
   }
 
@@ -204,9 +199,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
           (Set.empty[OrType], Set(l, r))
       }
     val orTypeTags = orTypes flatMap flattenInspectOr
-    val otherTypeTags = otherTypes map inspectTType map {
-        _.asInstanceOf[AppliedReference]
-      }
+    val otherTypeTags = otherTypes.map(inspectTType(_).asInstanceOf[AppliedReference])
     orTypeTags ++ otherTypeTags
   }
 
