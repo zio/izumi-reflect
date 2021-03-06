@@ -54,8 +54,9 @@ trait TagAssertions extends AnyWordSpec {
 
   def assertChild(child: LightTypeTag, parent: LightTypeTag): Unit = {
     val clue = s"$child <?< $parent"
+    def failClue = s"1: ${child.debug()}\n2: ${child.debug()}"
     info(clue)
-    assert(child <:< parent, clue); ()
+    assert(child <:< parent, s"$clue\n$failClue"); ()
   }
 
   def assertNotChild(child: LightTypeTag, parent: LightTypeTag): Unit = {

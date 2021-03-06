@@ -104,8 +104,8 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           if (trees.nonEmpty) log(s"Found parent trees for symbol ${symbol.tree.show}: $trees")
 
           val o = trees.flatMap(inspectTreeToFull)
-          val selfRef = inspector.inspectSymbol(symbol)
-          val p = trees.flatMap(t => List((selfRef, inspector.inspectTree(t))))
+          val selfRef = inspector.inspectSymbolTree(symbol)
+          val p = trees.flatMap(t => List((selfRef, inspector.inspectTypeTree(t))))
           (p ++ o).distinct
 
         case t: TypeDef =>

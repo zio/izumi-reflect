@@ -4,7 +4,6 @@ import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef._
-import izumi.reflect.dottyreflection.InspectorBase.debug
 
 import reflect.Selectable.reflectiveSelectable
 import java.nio.charset.StandardCharsets

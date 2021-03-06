@@ -18,7 +18,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
     val uns = TypeTree.of[T]
     log(s" -------- about to inspect ${uns.show} --------")
-    val res = inspectTree(uns)
+    val res = inspectTypeRepr(uns.tpe)
     log(s" -------- done inspecting ${uns.show} --------")
     res
   }
@@ -76,7 +76,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         }
 
       case r: TypeRef =>
-        fixReferenceName(next().inspectSymbol(r.typeSymbol), r)
+        fixReferenceName(next().inspectSymbolTree(r.typeSymbol), r)
 
       case a: AnnotatedType =>
         next().inspectTypeRepr(a.underlying)
@@ -93,18 +93,18 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         asNameRef(term)
 
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
-        log(s"TTYPE, UNSUPPORTED: LazyRef occured $lazyref")
+        log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
         NameReference("???")
 
       case o =>
-        log(s"TTYPE, UNSUPPORTED: $o")
+        log(s"TYPEREPR UNSUPPORTED: $o")
         throw new RuntimeException(s"TTYPE, UNSUPPORTED: ${o.getClass} - $o")
       //???
 
     }
   }
 
-  private[dottyreflection] def inspectTree(uns: TypeTree): AbstractReference = {
+  private[dottyreflection] def inspectTypeTree(uns: TypeTree): AbstractReference = {
     val symbol = uns.symbol
     log(s" -------- deep inspect ${uns.show} `${uns.symbol}` ${uns.getClass.getName} $uns --------")
     val res = if (false) {
@@ -116,16 +116,16 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     res
   }
 
-  private[dottyreflection] def inspectSymbol(symbol: Symbol): AbstractReference = {
+  private[dottyreflection] def inspectSymbolTree(symbol: Symbol): AbstractReference = {
     symbol.tree match {
       case c: ClassDef =>
         asNameRefSym(symbol)
-      case t: TypeDef =>
+      case t: TypeDef => // FIXME: does not work for parameterized type aliases or non-alias abstract types
         log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
-        next().inspectTree(t.rhs.asInstanceOf[TypeTree])
+        next().inspectTypeTree(t.rhs.asInstanceOf[TypeTree])
       case d: DefDef =>
         log(s"inspectSymbol: Found DefDef symbol ${d.show}")
-        next().inspectTree(d.returnTpt)
+        next().inspectTypeTree(d.returnTpt)
       case v: ValDef =>
         log(s"inspectSymbol: Found ValDef symbol ${v.show}")
         NameReference(v.name)
@@ -143,7 +143,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     if (!mo.exists || mo.isNoSymbol || mo.isPackageDef) {
       None
     } else {
-      inspectSymbol(mo) match {
+      inspectSymbolTree(mo) match {
         case a: AppliedReference =>
           Some(a)
         case _ =>

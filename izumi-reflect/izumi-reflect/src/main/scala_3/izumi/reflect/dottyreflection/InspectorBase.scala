@@ -1,7 +1,5 @@
 package izumi.reflect.dottyreflection
 
-import izumi.reflect.dottyreflection.InspectorBase.debug
-
 import scala.quoted.Quotes
 
 trait InspectorBase {
@@ -26,8 +24,4 @@ trait InspectorBase {
       println(s"Attrs[${tree.show}]: type=${symbol.isType}, term=${symbol.isTerm}, packageDef=${symbol.isPackageDef}, classDef=${symbol.isClassDef}, typeDef=${symbol.isValDef}, defdef=${symbol.isDefDef}, bind=${symbol.isBind}, nosymbol=${symbol.isNoSymbol}")
     }
   }
-}
-
-private object InspectorBase {
-  inline val debug = true
 }
