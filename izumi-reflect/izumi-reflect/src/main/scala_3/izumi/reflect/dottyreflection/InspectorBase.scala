@@ -3,27 +3,28 @@ package izumi.reflect.dottyreflection
 import scala.quoted.Quotes
 
 trait InspectorBase {
-  // @formatter:off
+
   val qctx: Quotes
-  given qctx.type = qctx
-  import qctx.reflect.{given, _}
-  // @formatter:on
+  import qctx.reflect._
 
   protected def shift: Int
-  inline val debug = false
 
-  protected def logStart(s: => String): Unit = {
+  inline val debug = false
+  type debug = debug.type
+
+  inline final protected def logStart(inline s: String): Unit = {
     if (debug) println(" " * shift + s)
   }
 
-  protected def log(s: => String): Unit = {
+  inline final protected def log(inline s: String): Unit = {
     if (debug) println(" " * shift + " -> " + s)
   }
 
-  protected def logTpeAttrs[T](uns: => TypeTree): Unit = {
+  inline final protected def logTpeAttrs[T](inline uns: TypeTree): Unit = {
     if (debug) {
-      val symbol = uns.symbol
-      println(s"Attrs[$uns]: type=${symbol.isType}, term=${symbol.isTerm}, packageDef=${symbol.isPackageDef}, classDef=${symbol.isClassDef}, typeDef=${symbol.isValDef}, defdef=${symbol.isDefDef}, bind=${symbol.isBind}, nosymbol=${symbol.isNoSymbol}")
+      val tree = uns
+      val symbol = tree.symbol
+      println(s"Attrs[${tree.show}]: type=${symbol.isType}, term=${symbol.isTerm}, packageDef=${symbol.isPackageDef}, classDef=${symbol.isClassDef}, typeDef=${symbol.isValDef}, defdef=${symbol.isDefDef}, bind=${symbol.isBind}, nosymbol=${symbol.isNoSymbol}")
     }
   }
 }

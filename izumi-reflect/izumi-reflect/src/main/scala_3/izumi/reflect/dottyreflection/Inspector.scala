@@ -9,34 +9,37 @@ import scala.reflect.Selectable.reflectiveSelectable
 abstract class Inspector(protected val shift: Int) extends InspectorBase {
   self =>
 
-  // @formatter:off
-  import qctx.reflect.{given, _}
-  // @formatter:on
+  import qctx.reflect._
 
   private def next() = new Inspector(shift + 1) {
     val qctx: self.qctx.type = self.qctx
   }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
-    val tpe = implicitly[Type[T]]
     val uns = TypeTree.of[T]
-    log(s" -------- about to inspect $tpe --------")
-    val v = inspectTree(uns)
-    log(s" -------- done inspecting $tpe --------")
-    v
+    log(s" -------- about to inspect ${uns.show} --------")
+    val res = inspectTypeRepr(uns.tpe)
+    log(s" -------- done inspecting ${uns.show} --------")
+    res
   }
 
   private[dottyreflection] def fixReferenceName(reference: AbstractReference, typeRepr: TypeRepr): AbstractReference =
     reference match {
       // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
       case NameReference(_, boundaries: Boundaries.Defined, _) =>
-        val dealiased = typeRepr.dealias.typeSymbol
-        NameReference(SymName.SymTypeName(dealiased.name), boundaries, prefixOf(dealiased))
-      case x => x
+        typeRepr match {
+          // FIXME: For some reason `.dealias` on ParamRef causes StackOverflow, oh well
+          case _: ParamRef => reference
+          case _ =>
+            val dealiased = typeRepr.dealias.typeSymbol
+            NameReference(SymName.SymTypeName(dealiased.name), boundaries, prefixOf(dealiased))
+        }
+      case _ =>
+        reference
     }
 
-  private[dottyreflection] def inspectTType(tpe2: TypeRepr): AbstractReference = {
-    tpe2 match {
+  private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr): AbstractReference = {
+    tpe match {
       case a: AppliedType =>
         a.args match {
           case Nil =>
@@ -47,18 +50,16 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
             val zargs = a.args.zip(params)
 
             val args = zargs.map {
-              case (tpe, defn) =>
-                next().inspectToB(tpe, defn)
+              case (t, defn) =>
+                next().inspectToB(t, defn)
             }
             val nameref = asNameRef(a.tycon)
             FullReference(nameref.ref.name, args, prefix = nameref.prefix)
         }
 
       case l: TypeLambda =>
-        val resType = next().inspectTType(l.resType)
-        val paramNames = l.paramNames.map {
-          LambdaParameter(_)
-        }
+        val resType = next().inspectTypeRepr(l.resType)
+        val paramNames = l.paramNames.map(LambdaParameter(_))
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case t: ParamRef =>
@@ -66,7 +67,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case a: AndType =>
         val elements = flattenInspectAnd(a)
-        if (elements.size == 1) {
+        if (elements.sizeIs == 1) {
           elements.head
         } else {
           IntersectionReference(elements)
@@ -74,21 +75,21 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case o: OrType =>
         val elements = flattenInspectOr(o)
-        if (elements.size == 1) {
+        if (elements.sizeIs == 1) {
           elements.head
         } else {
           UnionReference(elements)
         }
 
       case r: TypeRef =>
-        fixReferenceName(next().inspectSymbol(r.typeSymbol), r)
+        fixReferenceName(next().inspectSymbolTree(r.typeSymbol), r)
 
       case a: AnnotatedType =>
-        next().inspectTType(a.underlying)
+        next().inspectTypeRepr(a.underlying)
 
       case tb: TypeBounds => // weird thingy
-        val hi = next().inspectTType(tb.hi)
-        val low = next().inspectTType(tb.low)
+        val hi = next().inspectTypeRepr(tb.hi)
+        val low = next().inspectTypeRepr(tb.low)
         if (hi == low) hi
         // if hi and low boundaries are defined and distinct, type is not reducible to one of them - however at this
         // point the type name isn't available and we need to use a stand-in...
@@ -98,38 +99,47 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         asNameRef(term)
 
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
-        log(s"TTYPE, UNSUPPORTED: LazyRef occured $lazyref")
+        log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
         NameReference("???")
 
       case o =>
-        log(s"TTYPE, UNSUPPORTED: $o")
+        log(s"TYPEREPR UNSUPPORTED: $o")
         throw new RuntimeException(s"TTYPE, UNSUPPORTED: ${o.getClass} - $o")
       //???
 
     }
   }
 
-  private[dottyreflection] def inspectTree(uns: TypeTree): AbstractReference = {
+  private[dottyreflection] def inspectTypeTree(uns: TypeTree): AbstractReference = {
     val symbol = uns.symbol
-    val tpe2 = uns.tpe
-//    logStart(s"INSPECT: $uns: ${uns.getClass}")
-    if (symbol.isNoSymbol)
-      inspectTType(tpe2)
-    else
-      fixReferenceName(inspectSymbol(symbol), tpe2)
+    log(s" -------- deep inspect ${uns.show} `${if (symbol.isNoSymbol) "NoSymbol" else symbol}` ${uns.getClass.getName} $uns --------")
+    val res = {
+      // FIXME: `inspectSymbolTree` seems unnecessary and lead to bad results after blackbox macros were introduced
+      if (true) {
+        inspectTypeRepr(uns.tpe)
+      } else {
+        inspectSymbolTree(symbol)
+      }
+    }
+    log(s" -------- done deep inspecting ${uns.show} --------")
+    res
   }
 
-  private[dottyreflection] def inspectSymbol(symbol: Symbol): AbstractReference = {
+  private[dottyreflection] def inspectSymbolTree(symbol: Symbol): AbstractReference = {
     symbol.tree match {
       case c: ClassDef =>
         asNameRefSym(symbol)
-      case t: TypeDef =>
-        next().inspectTree(t.rhs.asInstanceOf[TypeTree])
+      case t: TypeDef => // FIXME: does not work for parameterized type aliases or non-alias abstract types
+        log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
+        next().inspectTypeTree(t.rhs.asInstanceOf[TypeTree])
       case d: DefDef =>
-        next().inspectTree(d.returnTpt)
+        log(s"inspectSymbol: Found DefDef symbol ${d.show}")
+        next().inspectTypeTree(d.returnTpt)
       case v: ValDef =>
+        log(s"inspectSymbol: Found ValDef symbol ${v.show}")
         NameReference(v.name)
       case b: Bind =>
+        log(s"inspectSymbol: Found Bind symbol ${b.show}")
         NameReference(b.name)
       case o =>
         log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
@@ -142,7 +152,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     if (!mo.exists || mo.isNoSymbol || mo.isPackageDef) {
       None
     } else {
-      inspectSymbol(mo) match {
+      inspectSymbolTree(mo) match {
         case a: AppliedReference =>
           Some(a)
         case _ =>
@@ -153,12 +163,11 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private def inspectToB(tpe: TypeRepr, td: Symbol): TypeParam = {
     val variance = extractVariance(td)
-
     tpe match {
       case t: TypeBounds =>
-        TypeParam(inspectTType(t.hi), variance)
+        TypeParam(inspectTypeRepr(t.hi), variance)
       case t: TypeRepr =>
-        TypeParam(inspectTType(t), variance)
+        TypeParam(inspectTypeRepr(t), variance)
     }
   }
 
@@ -184,10 +193,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         case AndType(l, r) =>
           (Set.empty[AndType], Set(l, r))
       }
-    val andTypeTags = andTypes flatMap flattenInspectAnd
-    val otherTypeTags = otherTypes map inspectTType map {
-        _.asInstanceOf[AppliedReference]
-      }
+    val andTypeTags = andTypes.flatMap(flattenInspectAnd)
+    val otherTypeTags = otherTypes.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
     andTypeTags ++ otherTypeTags
   }
 
@@ -204,9 +211,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
           (Set.empty[OrType], Set(l, r))
       }
     val orTypeTags = orTypes flatMap flattenInspectOr
-    val otherTypeTags = otherTypes map inspectTType map {
-        _.asInstanceOf[AppliedReference]
-      }
+    val otherTypeTags = otherTypes.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
     orTypeTags ++ otherTypeTags
   }
 

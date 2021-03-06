@@ -4,7 +4,7 @@
 
 -XX:+OmitStackTraceInFastThrow
 -XX:SoftRefLRUPolicyMSPerMB=50
--Dsun.io.useCanonCaches=falsex
+-Dsun.io.useCanonCaches=false
 -noverify
 -server
 

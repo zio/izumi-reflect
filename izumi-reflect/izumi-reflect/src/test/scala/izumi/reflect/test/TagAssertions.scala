@@ -18,7 +18,7 @@
 
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.{LTag, LightTypeTag}
+import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 import org.scalatest.wordspec.AnyWordSpec
 
 trait TagAssertions extends AnyWordSpec {
@@ -54,14 +54,16 @@ trait TagAssertions extends AnyWordSpec {
 
   def assertChild(child: LightTypeTag, parent: LightTypeTag): Unit = {
     val clue = s"$child <?< $parent"
+    def failClue = s"1: ${child.debug()}\n2: ${child.debug()}"
     info(clue)
-    assert(child <:< parent, clue); ()
+    assert(child <:< parent, s"$clue\n$failClue"); ()
   }
 
   def assertNotChild(child: LightTypeTag, parent: LightTypeTag): Unit = {
     val clue = s"$child <!< $parent"
+    def failClue = s"1: ${child.debug()}\n2: ${child.debug()}"
     info(clue)
-    assert(!(child <:< parent), clue); ()
+    assert(!(child <:< parent), s"$clue\n$failClue"); ()
   }
 
   def assertChildSame(t: LightTypeTag, expected: LightTypeTag): Unit = {
@@ -85,16 +87,16 @@ trait TagAssertions extends AnyWordSpec {
 
   def assertCombineNonPos(outer: LightTypeTag, inner: Seq[Option[LightTypeTag]], expected: LightTypeTag): Unit = {
     val combined = outer.combineNonPos(inner: _*)
-    info(s"($outer)•(${inner.mkString(",")}) => $combined =?= $expected")
-    assert(combined =:= expected)
-    ()
+    val clue = s"($outer)•(${inner.mkString(",")}) => $combined =?= $expected"
+    info(clue)
+    assert(combined =:= expected, clue); ()
   }
 
   def assertIntersection(intersection: List[LightTypeTag], expected: LightTypeTag): Unit = {
-    val intersected = LightTypeTag.refinedType(intersection, LTag[Any].tag, Map.empty)
-    info(s"(${intersection.mkString(" & ")}) => $intersected =?= $expected")
-    assert(intersected =:= expected)
-    ()
+    val intersected = LightTypeTag.refinedType(intersection, LTT[Any], Map.empty)
+    val clue = s"(${intersection.mkString(" & ")}) => $intersected =?= $expected"
+    info(clue)
+    assert(intersected =:= expected, clue); ()
   }
 
   def literalLtt(s: String)(implicit l: LTag[s.type]): LightTypeTag = l.tag

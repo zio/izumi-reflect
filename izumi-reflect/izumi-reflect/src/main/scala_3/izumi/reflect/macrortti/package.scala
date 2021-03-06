@@ -75,10 +75,15 @@ package object macrortti {
   inline def `LTT[+_]`[T[+ _]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[A,B,_>:B<:A]`[A, B <: A, T[_ >: B <: A]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_]]`[T[_[_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
+  inline def `LTT[_[+_]]`[T[_[+_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_[_]]]`[T[_[_[_]]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
+  // Note that this variation is not required on Scala 2.13.5, a mismatch between versions on variance handling currently
+  inline def `LTT[_[+_[_]]]`[T[_[+_[_]]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_,_]`[T[_, _]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_,_]]`[T[_[_, _]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
+  inline def `LTT[_[+_,+_]]`[T[_[+_, +_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_,_],_,_]`[T[_[_, _], _, _]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
+  inline def `LTT[_[+_,+_],_,_]`[T[_[+_, +_], _, _]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_],_[_]]`[T[_[_], _[_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_[_],_[_]]]`[T[_[_[_], _[_]]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
 }
