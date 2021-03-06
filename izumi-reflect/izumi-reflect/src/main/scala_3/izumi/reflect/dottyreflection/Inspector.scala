@@ -106,9 +106,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private[dottyreflection] def inspectTypeTree(uns: TypeTree): AbstractReference = {
     val symbol = uns.symbol
-    log(s" -------- deep inspect ${uns.show} `${uns.symbol}` ${uns.getClass.getName} $uns --------")
+    log(s" -------- deep inspect ${uns.show} `${if (symbol.isNoSymbol) "NoSymbol" else symbol}` ${uns.getClass.getName} $uns --------")
     val res = if (false) {
-      inspectSymbol(symbol)
+      inspectSymbolTree(symbol)
     } else {
       inspectTypeRepr(uns.tpe)
     }
