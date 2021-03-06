@@ -11,7 +11,7 @@ import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import scala.quoted.{Expr, Quotes, Type}
 
 object Inspect {
-  transparent inline def inspect[T <: AnyKind]: LightTypeTag = ${ inspectAny[T] }
+  inline def inspect[T <: AnyKind]: LightTypeTag = ${ inspectAny[T] }
 
   def inspectAny[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {
     val ref = TypeInspections.apply[T]
