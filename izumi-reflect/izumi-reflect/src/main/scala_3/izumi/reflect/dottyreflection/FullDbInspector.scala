@@ -41,12 +41,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         inspectSymbolToFull(symbol).distinct
     }
 
-    private def inspectTTypeToFullBases(tpe2: TypeRepr): List[(AbstractReference, AbstractReference)] = {
-      val selfRef = inspector.inspectTType(tpe2)
+    private def inspectTTypeToFullBases(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
+      val selfRef = inspector.inspectTType(tpe)
 
-      tpe2 match {
+      tpe match {
         case a: AppliedType =>
           val baseTypes = a.baseClasses.map(b => a.baseType(b)).filterNot(termination.contains)
+          log(s"For `$tpe` found base types $baseTypes")
 
           val main = (selfRef, selfRef) +: baseTypes.map {
             bt =>
@@ -83,8 +84,12 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case r: TypeRef =>
           inspectSymbolToFull(r.typeSymbol)
 
+        case r: ParamRef =>
+          inspectSymbolToFull(r.typeSymbol)
+
         case b: TypeBounds =>
           inspectToBToFull(b)
+
         case o =>
           log(s"FullDbInspector: UNSUPPORTED: $o")
           List.empty
@@ -94,19 +99,21 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     private def inspectSymbolToFull(symbol: Symbol): List[(AbstractReference, AbstractReference)] = {
       symbol.tree match {
         case c: ClassDef =>
-          val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
-          val trees = c.parents.collect {
-            case tt: TypeTree =>
-              tt
-          }
+//          val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
+          val trees = c.parents.collect { case tt: TypeTree => tt }
+          if (trees.nonEmpty) log(s"Found parent trees for symbol ${symbol.tree.show}: $trees")
+
           val o = trees.flatMap(inspectTreeToFull)
           val selfRef = inspector.inspectSymbol(symbol)
           val p = trees.flatMap(t => List((selfRef, inspector.inspectTree(t))))
           (p ++ o).distinct
 
         case t: TypeDef =>
+          log(s"FullDbInspector: Found TypeDef symbol ${t.show}")
           inspectTreeToFull(t.rhs.asInstanceOf[TypeTree])
+
         case o =>
+          throw new RuntimeException(s"Shit tree: $o")
           List.empty
       }
     }

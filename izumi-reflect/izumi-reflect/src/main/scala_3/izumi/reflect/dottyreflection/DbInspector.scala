@@ -70,6 +70,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
         case r: TypeRef =>
           inspectSymbolToName(r.typeSymbol)
 
+        case r: ParamRef =>
+          inspectSymbolToName(r.typeSymbol)
+
         case b: TypeBounds =>
           inspectToBToName(b)
 
@@ -84,10 +87,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
         case c: ClassDef =>
           //val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
 
-          val trees = c.parents.collect {
-            case tt: TypeTree =>
-              tt
-          }
+          val trees = c.parents.collect { case tt: TypeTree => tt }
           val o = trees.flatMap(inspectTreeToName)
           val selfRef = inspector.asNameRefSym(symbol)
 

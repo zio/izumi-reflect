@@ -18,7 +18,7 @@
 
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.{LTag, LightTypeTag}
+import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 import org.scalatest.wordspec.AnyWordSpec
 
 trait TagAssertions extends AnyWordSpec {
@@ -91,7 +91,8 @@ trait TagAssertions extends AnyWordSpec {
   }
 
   def assertIntersection(intersection: List[LightTypeTag], expected: LightTypeTag): Unit = {
-    val intersected = LightTypeTag.refinedType(intersection, LTag[Any].tag, Map.empty)
+//    val intersected = LightTypeTag.refinedType(intersection, LTT[Any], Map.empty)
+    val intersected = LightTypeTag.refinedType(intersection, null, Map.empty)
     val clue = s"(${intersection.mkString(" & ")}) => $intersected =?= $expected"
     info(clue)
     assert(intersected =:= expected, clue); ()

@@ -16,12 +16,11 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
-    val tpe = implicitly[Type[T]]
     val uns = TypeTree.of[T]
-    log(s" -------- about to inspect $tpe --------")
-    val v = inspectTree(uns)
-    log(s" -------- done inspecting $tpe --------")
-    v
+    log(s" -------- about to inspect ${uns.show} --------")
+    val res = inspectTree(uns)
+    log(s" -------- done inspecting ${uns.show} --------")
+    res
   }
 
   private[dottyreflection] def fixReferenceName(reference: AbstractReference, typeRepr: TypeRepr): AbstractReference =
@@ -33,8 +32,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case x => x
     }
 
-  private[dottyreflection] def inspectTType(tpe2: TypeRepr): AbstractReference = {
-    tpe2 match {
+  private[dottyreflection] def inspectTType(tpe: TypeRepr): AbstractReference = {
+    tpe match {
       case a: AppliedType =>
         a.args match {
           case Nil =>
@@ -45,8 +44,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
             val zargs = a.args.zip(params)
 
             val args = zargs.map {
-              case (tpe, defn) =>
-                next().inspectToB(tpe, defn)
+              case (t, defn) =>
+                next().inspectToB(t, defn)
             }
             val nameref = asNameRef(a.tycon)
             FullReference(nameref.ref.name, args, prefix = nameref.prefix)
@@ -54,9 +53,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case l: TypeLambda =>
         val resType = next().inspectTType(l.resType)
-        val paramNames = l.paramNames.map {
-          LambdaParameter(_)
-        }
+        val paramNames = l.paramNames.map(LambdaParameter(_))
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case t: ParamRef =>
@@ -109,12 +106,14 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private[dottyreflection] def inspectTree(uns: TypeTree): AbstractReference = {
     val symbol = uns.symbol
-    val tpe2 = uns.tpe
-//    logStart(s"INSPECT: $uns: ${uns.getClass}")
-    if (symbol.isNoSymbol)
-      inspectTType(tpe2)
-    else
-      fixReferenceName(inspectSymbol(symbol), tpe2)
+    log(s" -------- deep inspect ${uns.show} `${uns.symbol}` ${uns.getClass.getName} $uns --------")
+    val res = if (!symbol.isNoSymbol) {
+      inspectSymbol(symbol)
+    } else {
+      inspectTType(uns.tpe)
+    }
+    log(s" -------- done deep inspecting ${uns.show} --------")
+    res
   }
 
   private[dottyreflection] def inspectSymbol(symbol: Symbol): AbstractReference = {
@@ -122,12 +121,16 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case c: ClassDef =>
         asNameRefSym(symbol)
       case t: TypeDef =>
+        log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
         next().inspectTree(t.rhs.asInstanceOf[TypeTree])
       case d: DefDef =>
+        log(s"inspectSymbol: Found DefDef symbol ${d.show}")
         next().inspectTree(d.returnTpt)
       case v: ValDef =>
+        log(s"inspectSymbol: Found ValDef symbol ${v.show}")
         NameReference(v.name)
       case b: Bind =>
+        log(s"inspectSymbol: Found Bind symbol ${b.show}")
         NameReference(b.name)
       case o =>
         log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
