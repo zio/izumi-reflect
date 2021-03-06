@@ -1,14 +1,33 @@
 package izumi.reflect.test
 
+import izumi.reflect.Tag
 import izumi.reflect.macrortti._
 import org.scalatest.exceptions.TestFailedException
 
-/** Things that DO NOT work currently in Scala 3 version but work in Scala 2 version */
+/** Things that DO NOT work correctly in Scala 3 version but work in Scala 2 version */
 class DottyProgressionTests extends TagAssertions {
 
   import TestModel._
 
   "dotty version" should {
+
+    "does not fail on unresolved type parameters" in {
+      assertCompiles(
+        """
+        def badTag[T]: Tag[T] = Tag[T]
+        """)
+    }
+
+    "does not fail on intersection/union of unresolved type parameters" in {
+      assertCompiles(
+        """
+        def badTag[T, U]: Tag[T & U] = Tag[T & U]
+        """)
+      assertCompiles(
+        """
+        def badTag[T, U]: Tag[T | U] = Tag[T | U]
+        """)
+    }
 
     "fails to check subtyping when higher-kinds are involved" in {
       intercept[TestFailedException] {

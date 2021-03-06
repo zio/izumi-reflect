@@ -27,9 +27,15 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     reference match {
       // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
       case NameReference(_, boundaries: Boundaries.Defined, _) =>
-        val dealiased = typeRepr.dealias.typeSymbol
-        NameReference(SymName.SymTypeName(dealiased.name), boundaries, prefixOf(dealiased))
-      case x => x
+        typeRepr match {
+          // FIXME: For some reason `.dealias` on ParamRef causes StackOverflow, oh well
+          case _: ParamRef => reference
+          case _ =>
+            val dealiased = typeRepr.dealias.typeSymbol
+            NameReference(SymName.SymTypeName(dealiased.name), boundaries, prefixOf(dealiased))
+        }
+      case _ =>
+        reference
     }
 
   private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr): AbstractReference = {
