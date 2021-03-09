@@ -1,6 +1,19 @@
 package izumi.reflect.test
 
 import izumi.reflect.Tag
+import izumi.reflect.macrortti.LTT
+
+class DottyRegressionTests extends TagAssertions {
+  "regression tests" should {
+    "support string constant types" in {
+      assertDifferent(LTT["abc"], LTT[String])
+      assertDifferent(LTT["abc"], LTT["cba"])
+      assertChild(LTT["abc"], LTT["abc"])
+      assertChild(LTT["abc"], LTT[String])
+      assertNotChild(LTT[String], LTT["abc"])
+    }
+  }
+}
 
 object DottyRegressionTests {
   //https://github.com/zio/izumi-reflect/issues/135#issue-801046733

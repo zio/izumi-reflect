@@ -89,6 +89,9 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case b: TypeBounds =>
           inspectToBToFull(b)
 
+        case c: ConstantType =>
+          inspectTypeReprToFullBases(c.widen)
+
         case o =>
           log(s"FullDbInspector: UNSUPPORTED: $o")
           List.empty
@@ -104,7 +107,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
           val o = trees.flatMap(inspectTreeToFull)
           val selfRef = inspector.inspectSymbolTree(symbol)
-          val p = trees.flatMap(t => List((selfRef, inspector.inspectTypeTree(t))))
+          val p = trees.flatMap(t => List((selfRef, inspector.inspectTypeRepr(t.tpe))))
           (p ++ o).distinct
 
         case t: TypeDef =>
