@@ -23,16 +23,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     res
   }
 
-  private[dottyreflection] def fixReferenceName(reference: AbstractReference, typeRepr: TypeRepr): AbstractReference =
-    reference match {
-      // if boundaries are defined, this is a unique type, and the type name should be fixed to the (dealiased) declaration
-      case NameReference(_, boundaries: Boundaries.Defined, _) =>
-        val dealiased = typeRepr.dealias.typeSymbol
-        NameReference(SymName.SymTypeName(dealiased.name), boundaries, getPrefix(dealiased))
-      case _ =>
-        reference
-    }
-
   private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     log(s" -------- inspectTypeRepr $tpe ${tpe.getClass.getName} ${outerTypeRef.getOrElse("")} --------")
     val res = tpe match {
@@ -89,8 +79,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         if (hi == low) hi
         else {
           // if hi and low boundaries are defined and distinct, type is not reducible to one of them
-          val name = outerTypeRef.getOrElse(tb).typeSymbol.fullName
-          NameReference(SymName.SymTypeName(name), Boundaries.Defined(low, hi))
+          val typeSymbol = outerTypeRef.getOrElse(tb).typeSymbol
+          val name = typeSymbol.fullName
+          NameReference(SymName.SymTypeName(name), Boundaries.Defined(low, hi), getPrefix(typeSymbol))
         }
 
       case constant: ConstantType =>

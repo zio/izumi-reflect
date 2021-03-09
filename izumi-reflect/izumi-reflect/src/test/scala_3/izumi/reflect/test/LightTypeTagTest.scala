@@ -58,7 +58,7 @@ class LightTypeTagTest extends TagAssertions {
       val strUnpacker = LightTypeTagUnpacker(strLTT)
       val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
       val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
-      assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
+      assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::izumi.reflect.test.TestModel$.SubStrA|<scala.Nothing..java.lang.String>")
       val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
       val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
       assert(substrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
