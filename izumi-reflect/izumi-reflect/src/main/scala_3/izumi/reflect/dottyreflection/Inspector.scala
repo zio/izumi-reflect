@@ -81,7 +81,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
           // if hi and low boundaries are defined and distinct, type is not reducible to one of them
           val typeSymbol = outerTypeRef.getOrElse(tb).typeSymbol
           val name = typeSymbol.fullName
-          NameReference(SymName.SymTypeName(name), Boundaries.Defined(low, hi), getPrefix(typeSymbol))
+          NameReference(SymName.SymTypeName(name), Boundaries.Defined(low, hi), getPrefixFromDefinitionOwner(typeSymbol))
         }
 
       case constant: ConstantType =>
@@ -105,7 +105,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private[dottyreflection] def inspectSymbolTree(symbol: Symbol, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     symbol.tree match {
       case c: ClassDef =>
-        makeNameReferenceFromSymbol(symbol)
+        makeNameReferenceFromSymbol(symbol, None)
       case t: TypeDef =>
         // FIXME: does not work for parameterized type aliases or non-alias abstract types (wrong kindedness)
         log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
@@ -115,7 +115,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         next().inspectTypeRepr(d.returnTpt.tpe, outerTypeRef)
       case v: ValDef =>
         log(s"inspectSymbol: Found ValDef symbol ${v.show}")
-        NameReference(SymName.SymTermName(symbol.fullName), prefix = getPrefix(symbol.maybeOwner))
+        NameReference(SymName.SymTermName(symbol.fullName))
       case b: Bind =>
         log(s"inspectSymbol: Found Bind symbol ${b.show}")
         NameReference(SymName.SymTermName(symbol.fullName))
@@ -125,7 +125,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def getPrefix(symbol: Symbol): Option[AppliedReference] = {
+  private def getPrefixFromDefinitionOwner(symbol: Symbol): Option[AppliedReference] = {
     val maybeOwner = symbol.maybeOwner
     if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef) {
       None
@@ -196,17 +196,20 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private def makeNameReference(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
-        makeNameReferenceFromSymbol(ref.typeSymbol)
+        makeNameReferenceFromSymbol(ref.typeSymbol, Some(ref.qualifier))
       case term: TermRef =>
-        makeNameReferenceFromSymbol(term.termSymbol)
+        makeNameReferenceFromSymbol(term.termSymbol, Some(term.qualifier))
       case t: ParamRef =>
         NameReference(tpeName = t.binder.asInstanceOf[{ def paramNames: List[Object] }].paramNames(t.paramNum).toString)
     }
   }
 
-  private[dottyreflection] def makeNameReferenceFromSymbol(t: Symbol): NameReference = {
-    val symName = if (t.isTerm) SymName.SymTermName(t.fullName) else SymName.SymTypeName(t.fullName)
-    val prefix = getPrefix(t)
+  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol, maybePrefix: Option[TypeRepr]): NameReference = {
+    val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
+    val prefix = maybePrefix.fold(getPrefixFromDefinitionOwner(symbol))(inspectTypeRepr(_) match {
+      case reference: AppliedReference => Some(reference)
+      case _ => None
+    })
     NameReference(symName, Boundaries.Empty, prefix)
   }
 }

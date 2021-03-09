@@ -92,7 +92,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
           val trees = c.parents.collect { case tt: TypeTree => tt }
           val o = trees.flatMap(inspectTreeToName)
-          val selfRef = inspector.makeNameReferenceFromSymbol(symbol)
+          val selfRef = inspector.makeNameReferenceFromSymbol(symbol, None)
 
           val p = trees.flatMap {
             t =>
