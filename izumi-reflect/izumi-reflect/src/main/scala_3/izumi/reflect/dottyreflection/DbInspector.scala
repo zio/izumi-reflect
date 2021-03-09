@@ -42,12 +42,12 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
       val tpe2 = uns.tpe
 
       if (symbol.isNoSymbol)
-        inspectTTypeToNameBases(tpe2).distinct
+        inspectTypeReprToNameBases(tpe2).distinct
       else
         inspectSymbolToName(symbol).distinct
     }
 
-    private def inspectTTypeToNameBases(tpe2: TypeRepr): List[(NameReference, NameReference)] = {
+    private def inspectTypeReprToNameBases(tpe2: TypeRepr): List[(NameReference, NameReference)] = {
       tpe2 match {
         case a: AppliedType =>
           val main = a.baseClasses.flatMap(inspectSymbolToName) // (a.tycon)
@@ -59,13 +59,13 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
           (main ++ args).distinct
 
         case l: TypeLambda =>
-          inspectTTypeToNameBases(l.resType)
+          inspectTypeReprToNameBases(l.resType)
 
         case a: AndType =>
-          inspectTTypeToNameBases(a.left) ++ inspectTTypeToNameBases(a.right)
+          inspectTypeReprToNameBases(a.left) ++ inspectTypeReprToNameBases(a.right)
 
         case o: OrType =>
-          inspectTTypeToNameBases(o.left) ++ inspectTTypeToNameBases(o.right)
+          inspectTypeReprToNameBases(o.left) ++ inspectTypeReprToNameBases(o.right)
 
         case r: TypeRef =>
           inspectSymbolToName(r.typeSymbol)
@@ -75,6 +75,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
         case b: TypeBounds =>
           inspectToBToName(b)
+
+        case c: ConstantType =>
+          inspectTypeReprToNameBases(c.widen)
 
         case o =>
           log(s"DbInspector: UNSUPPORTED: $o")
@@ -89,11 +92,11 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
           val trees = c.parents.collect { case tt: TypeTree => tt }
           val o = trees.flatMap(inspectTreeToName)
-          val selfRef = inspector.asNameRefSym(symbol)
+          val selfRef = inspector.makeNameReferenceFromSymbol(symbol)
 
           val p = trees.flatMap {
             t =>
-              val tRef = inspector.inspectTypeTree(t)
+              val tRef = inspector.inspectTypeRepr(t.tpe)
 
               tRef match {
                 case n: NameReference =>
@@ -117,9 +120,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
     private def inspectToBToName(tpe: TypeRepr): List[(NameReference, NameReference)] = {
       tpe match {
         case t: TypeBounds =>
-          inspectTTypeToNameBases(t.hi) ++ inspectTTypeToNameBases(t.low)
+          inspectTypeReprToNameBases(t.hi) ++ inspectTypeReprToNameBases(t.low)
         case t: TypeRepr =>
-          inspectTTypeToNameBases(t)
+          inspectTypeReprToNameBases(t)
       }
     }
   }

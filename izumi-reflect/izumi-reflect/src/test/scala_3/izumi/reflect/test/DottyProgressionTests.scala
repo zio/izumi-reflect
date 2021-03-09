@@ -12,21 +12,13 @@ class DottyProgressionTests extends TagAssertions {
   "dotty version" should {
 
     "does not fail on unresolved type parameters" in {
-      assertCompiles(
-        """
-        def badTag[T]: Tag[T] = Tag[T]
-        """)
+      def badTag[T]: Tag[T] = Tag[T]
     }
 
     "does not fail on intersection/union of unresolved type parameters" in {
-      assertCompiles(
-        """
-        def badTag[T, U]: Tag[T & U] = Tag[T & U]
-        """)
-      assertCompiles(
-        """
-        def badTag[T, U]: Tag[T | U] = Tag[T | U]
-        """)
+      def badTag0[R, R0] = Tag[R with R0]
+      def badTag1[T, U]: Tag[T & U] = Tag[T & U]
+      def badTag2[T, U]: Tag[T | U] = Tag[T | U]
     }
 
     "fails to check subtyping when higher-kinds are involved" in {
