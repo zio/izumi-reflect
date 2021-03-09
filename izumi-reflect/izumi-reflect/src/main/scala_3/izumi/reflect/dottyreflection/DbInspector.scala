@@ -17,10 +17,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   // @formatter:on
 
   def buildNameDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
-    val tpe = implicitly[Type[T]]
-    val uns = TypeTree.of[T]
+    val tpeTree = TypeTree.of[T]
     new Run()
-      .inspectTreeToName(uns)
+      .inspectTreeToName(tpeTree)
       .toMultimap
       .map {
         case (t, parents) =>
@@ -37,9 +36,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   private class Run() {
     private val termination = mutable.HashSet[TypeRepr]()
 
-    def inspectTreeToName(uns: TypeTree): List[(NameReference, NameReference)] = {
-      val symbol = uns.symbol
-      val tpe2 = uns.tpe
+    def inspectTreeToName(typeTree: TypeTree): List[(NameReference, NameReference)] = {
+      val symbol = typeTree.symbol
+      val tpe2 = typeTree.tpe
 
       if (symbol.isNoSymbol)
         inspectTypeReprToNameBases(tpe2).distinct
@@ -92,7 +91,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
           val trees = c.parents.collect { case tt: TypeTree => tt }
           val o = trees.flatMap(inspectTreeToName)
-          val selfRef = inspector.makeNameReferenceFromSymbol(symbol, None)
+          val selfRef = inspector.makeNameReferenceFromSymbol(symbol)
 
           val p = trees.flatMap {
             t =>

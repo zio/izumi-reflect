@@ -3,6 +3,7 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef._
 
+import scala.annotation.tailrec
 import scala.quoted.Type
 import scala.reflect.Selectable.reflectiveSelectable
 
@@ -24,8 +25,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    log(s" -------- inspectTypeRepr $tpe ${tpe.getClass.getName} ${outerTypeRef.getOrElse("")} --------")
-    val res = tpe match {
+    tpe match {
       case a: AnnotatedType =>
         inspectTypeRepr(a.underlying)
 
@@ -48,8 +48,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         val paramNames = l.paramNames.map(LambdaParameter(_))
         LightTypeTagRef.Lambda(paramNames, resType)
 
-      case t: ParamRef =>
-        makeNameReference(t)
+      case p: ParamRef =>
+        makeNameReference(p)
 
       case a: AndType =>
         val elements = flattenInspectAnd(a)
@@ -80,8 +80,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         else {
           // if hi and low boundaries are defined and distinct, type is not reducible to one of them
           val typeSymbol = outerTypeRef.getOrElse(tb).typeSymbol
-          val name = typeSymbol.fullName
-          NameReference(SymName.SymTypeName(name), Boundaries.Defined(low, hi), getPrefixFromDefinitionOwner(typeSymbol))
+          makeNameReferenceFromSymbol(typeSymbol).copy(boundaries = Boundaries.Defined(low, hi))
         }
 
       case constant: ConstantType =>
@@ -98,21 +97,19 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       //{???}
 
     }
-    log(s" -------- done inspectTypeRepr $tpe --------")
-    res
   }
 
   private[dottyreflection] def inspectSymbolTree(symbol: Symbol, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     symbol.tree match {
       case c: ClassDef =>
-        makeNameReferenceFromSymbol(symbol, None)
+        makeNameReferenceFromSymbol(symbol)
       case t: TypeDef =>
         // FIXME: does not work for parameterized type aliases or non-alias abstract types (wrong kindedness)
         log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
         next().inspectTypeRepr(t.rhs.asInstanceOf[TypeTree].tpe, outerTypeRef)
       case d: DefDef =>
         log(s"inspectSymbol: Found DefDef symbol ${d.show}")
-        next().inspectTypeRepr(d.returnTpt.tpe, outerTypeRef)
+        next().inspectTypeRepr(d.returnTpt.tpe)
       case v: ValDef =>
         log(s"inspectSymbol: Found ValDef symbol ${v.show}")
         NameReference(SymName.SymTermName(symbol.fullName))
@@ -127,7 +124,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private def getPrefixFromDefinitionOwner(symbol: Symbol): Option[AppliedReference] = {
     val maybeOwner = symbol.maybeOwner
-    if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef) {
+    if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef || maybeOwner.isDefDef || maybeOwner.isTypeDef) {
       None
     } else {
       inspectSymbolTree(maybeOwner) match {
@@ -196,20 +193,35 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private def makeNameReference(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
-        makeNameReferenceFromSymbol(ref.typeSymbol, Some(ref.qualifier))
+        makeNameReferenceFromSymbol(ref.typeSymbol)
       case term: TermRef =>
-        makeNameReferenceFromSymbol(term.termSymbol, Some(term.qualifier))
+        makeNameReferenceFromSymbol(term.termSymbol)
       case t: ParamRef =>
         NameReference(tpeName = t.binder.asInstanceOf[{ def paramNames: List[Object] }].paramNames(t.paramNum).toString)
     }
   }
 
-  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol, maybePrefix: Option[TypeRepr]): NameReference = {
+  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
     val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
-    val prefix = maybePrefix.fold(getPrefixFromDefinitionOwner(symbol))(inspectTypeRepr(_) match {
+    val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
+    NameReference(symName, Boundaries.Empty, prefix)
+  }
+
+  private def getPrefixFromQualifier(t: TypeRepr) = {
+    @tailrec def unpack(tpe: TypeRepr): Option[TypeRepr] = tpe match {
+      case t: ThisType => unpack(t.tref)
+      case _: NoPrefix => None
+      case t =>
+        val typeSymbol = t.typeSymbol
+        if (!typeSymbol.exists || typeSymbol.isNoSymbol || typeSymbol.isPackageDef || typeSymbol.isDefDef) {
+          None
+        } else {
+          Some(t)
+        }
+    }
+    unpack(t).flatMap(inspectTypeRepr(_) match {
       case reference: AppliedReference => Some(reference)
       case _ => None
     })
-    NameReference(symName, Boundaries.Empty, prefix)
   }
 }

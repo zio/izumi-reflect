@@ -2,9 +2,9 @@ package izumi.reflect.dottyreflection
 
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, NameReference}
 
 import java.nio.charset.StandardCharsets
-
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 
@@ -17,6 +17,9 @@ object Inspect {
     val ref = TypeInspections.apply[T]
     val nameDb = TypeInspections.nameDb[T]
     val fullDb = TypeInspections.fullDb[T]
+//    val ref = NameReference("xa")
+//    val nameDb = Map.empty[NameReference, Set[NameReference]] // FIXME: slowness is in nameDb, fullDb is fine
+//    val fullDb = Map.empty[AbstractReference, Set[AbstractReference]]
     val dbs = SubtypeDBs(fullDb, nameDb)
 
     inline def serialize[A: Pickler](a: A): String = {
