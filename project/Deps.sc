@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.68`
+import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.70`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -28,22 +28,25 @@ object Izumi {
   final val scala213 = ScalaVersion("2.13.5")
   final val scala300 = ScalaVersion("3.0.0-RC1")
 
-  // launch with `./sbtgen.sc 213` to use 2.13 in IDEA or switch version order here
+  // launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA or switch version order here
   var targetScala = Seq(scala300, scala213, scala212, scala211)
 
   def entrypoint(args: Seq[String]) = {
     val newArgs = args diff Seq(
       args
         .collectFirst {
-          case s @ "213" => s -> scala213
-          case s @ "212" => s -> scala212
-          case s @ "211" => s -> scala211
+          case s @ "2.13" => s -> scala213
+          case s @ "2.12" => s -> scala212
+          case s @ "2.11" => s -> scala211
           case s @ "3" => s -> scala300
         }.map {
           case (s, target) =>
             targetScala = target :: targetScala.filterNot(_ == target).toList
             s
         }.orNull
+    )
+    if (args.contains("--help")) println(
+      "launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA"
     )
     Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ newArgs)
   }

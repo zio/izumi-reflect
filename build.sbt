@@ -19,13 +19,13 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     ) else Seq.empty }
   )
   .settings(
-    scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "3.0.0-RC1",
       "2.13.5",
       "2.12.13",
       "2.11.12"
     ),
+    scalaVersion := crossScalaVersions.value.head,
     organization := "dev.zio",
     unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
     unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
@@ -99,8 +99,9 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Wextra-implicit",
         "-Wnumeric-widen",
         "-Woctal-literal",
-        "-Wunused:_",
         "-Wvalue-discard",
+        "-Wunused:_",
+        "-Wmacros:after",
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
@@ -179,13 +180,13 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     ) else Seq.empty }
   )
   .settings(
-    scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(
       "3.0.0-RC1",
       "2.13.5",
       "2.12.13",
       "2.11.12"
     ),
+    scalaVersion := crossScalaVersions.value.head,
     organization := "dev.zio",
     unmanagedSourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/scala" ,
     unmanagedResourceDirectories in Compile += baseDirectory.value / ".jvm/src/main/resources" ,
@@ -259,8 +260,9 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Wextra-implicit",
         "-Wnumeric-widen",
         "-Woctal-literal",
-        "-Wunused:_",
         "-Wvalue-discard",
+        "-Wunused:_",
+        "-Wmacros:after",
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
