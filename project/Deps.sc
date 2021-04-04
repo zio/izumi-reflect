@@ -26,7 +26,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.13")
   final val scala213 = ScalaVersion("2.13.5")
-  final val scala300 = ScalaVersion("3.0.0-RC1")
+  final val scala300 = ScalaVersion("3.0.0-RC2")
 
   // launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA or switch version order here
   var targetScala = Seq(scala300, scala213, scala212, scala211)
