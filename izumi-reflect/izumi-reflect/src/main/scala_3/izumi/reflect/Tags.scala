@@ -71,6 +71,9 @@ trait AnyTag {
   *   * Further details at [[https://github.com/7mind/izumi/issues/374]]
   *
   * @see "Lightweight Scala Reflection and why Dotty needs TypeTags reimplemented" https://blog.7mind.io/lightweight-reflection.html
+
+  * @see [[izumi.reflect.macrortti.LTag]] - summoner for [[izumi.reflect.macrortti.LightTypeTag]] that does not resolve type parameters
+  * @see [[izumi.reflect.macrortti.LTag.Weak]] - summoner for [[izumi.reflect.macrortti.LightTypeTag]] that does not resolve type parameters and allows unresolved ("weak") type parameters to be part of a tag
   */
 @implicitNotFound("could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ...")
 trait Tag[T <: AnyKind] extends AnyTag {
