@@ -44,6 +44,13 @@ trait AnyTag {
       case i: InternalError if i.getMessage == "Malformed class name" => false
     }
   }
+
+  override final def equals(that: Any): Boolean = that match {
+    case that: AnyTag => this.tag == that.tag
+    case _ => false
+  }
+
+  override final def hashCode(): Int = tag.hashCode()
 }
 
 /**
@@ -244,4 +251,3 @@ trait WeakTagInstances1 {
 //    inline implicit final def weakTagFromWeakTypeTag[T](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
   inline implicit final def weakTagFromWeakTypeTag[T]: WeakTag[T] = scala.compiletime.error("not implemented")
 }
-

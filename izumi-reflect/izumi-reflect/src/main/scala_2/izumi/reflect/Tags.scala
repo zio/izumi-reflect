@@ -44,6 +44,13 @@ trait AnyTag {
       case i: InternalError if i.getMessage == "Malformed class name" => false
     }
   }
+
+  override final def equals(that: Any): Boolean = that match {
+    case that: AnyTag => this.tag == that.tag
+    case _ => false
+  }
+
+  override final def hashCode(): Int = tag.hashCode()
 }
 
 /**
