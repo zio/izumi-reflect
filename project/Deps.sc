@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt::sbtgen:0.0.70`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.70`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -145,6 +145,7 @@ object Izumi {
         "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*")""".raw,
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.Tag.refinedTag")""".raw,
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.refinedType")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")""".raw

@@ -16,13 +16,11 @@
  *
  */
 
-package izumi.reflect.thirdparty.internal.boopickle
+package izumi.reflect.test
 
-private[reflect] trait TuplePicklers extends PicklerHelper {
+import izumi.reflect.dottyreflection.Inspect
+import izumi.reflect.macrortti.LightTypeTag
 
-  implicit def Tuple2Pickler[T1: P, T2: P]: P[(T1, T2)] = new P[(T1, T2)] {
-    override def pickle(x: (T1, T2))(implicit state: PickleState): Unit = { write[T1](x._1); write[T2](x._2) }
-    override def unpickle(implicit state: UnpickleState): (T1, T2) = (read[T1], read[T2])
-  }
-
+object PlatformSpecific {
+  inline def fromRuntime[T]: LightTypeTag = Inspect.inspect[T]
 }

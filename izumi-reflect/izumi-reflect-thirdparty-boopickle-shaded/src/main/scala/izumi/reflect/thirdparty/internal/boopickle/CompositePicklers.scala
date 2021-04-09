@@ -81,7 +81,7 @@ private[reflect] class CompositePickler[A] extends Pickler[A] {
   }
 
   @noinline def addException[B <: A with Throwable](ctor: (String) => B)(implicit tag: ClassTag[B]): CompositePickler[A] = {
-    import Default.stringPickler
+    import NoMacro.stringPickler
     val pickler = new Pickler[B] {
       override def pickle(ex: B)(implicit state: PickleState): Unit = {
         state.pickle(ex.getMessage)

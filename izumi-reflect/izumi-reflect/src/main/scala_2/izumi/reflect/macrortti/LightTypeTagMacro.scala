@@ -18,12 +18,10 @@
 
 package izumi.reflect.macrortti
 
-import java.nio.charset.StandardCharsets
-
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
-import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}
 
 import scala.reflect.macros.blackbox
 
@@ -76,17 +74,12 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
 
     logger.log(s"LightTypeTagImpl: created LightTypeTag: $res")
 
-    @inline def serialize[A: Pickler](a: A): String = {
-      val buf = PickleImpl(a).toByteBuffer
-      new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
-    }
-
     val hashCodeRef = res.hashCode()
-    val strRef = serialize(res.ref)(LightTypeTag.lttRefSerializer)
-    val strDBs = serialize(SubtypeDBs(res.basesdb, res.idb))(LightTypeTag.subtypeDBsSerializer)
+    val strRef = PickleImpl.serializeIntoString(res.ref, LightTypeTag.lttRefSerializer)
+    val strDBs = PickleImpl.serializeIntoString(SubtypeDBs(res.basesdb, res.idb), LightTypeTag.subtypeDBsSerializer)
 
     c.Expr[LightTypeTag](
-      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, 1: _root_.scala.Int)"
+      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)"
     )
   }
 

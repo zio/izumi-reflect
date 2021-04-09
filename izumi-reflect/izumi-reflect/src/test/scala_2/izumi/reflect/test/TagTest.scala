@@ -20,40 +20,10 @@ package izumi.reflect.test
 
 import izumi.reflect._
 import izumi.reflect.macrortti._
-import org.scalatest.Assertions
-import org.scalatest.exceptions.TestFailedException
-import org.scalatest.wordspec.AnyWordSpec
-
-import scala.annotation.StaticAnnotation
-import scala.util.Try
-
-object ID {
-  type id[A] = A
-  type Identity[+A] = A
-}
 import izumi.reflect.test.ID._
+import org.scalatest.exceptions.TestFailedException
 
 case class OptionT[F[_], A](value: F[Option[A]])
-
-trait XY[Y] {
-  type Z = id[Y]
-
-  implicit def tagZ: Tag[Z]
-}
-
-trait ZY extends Assertions {
-  type T
-  type U = T
-  type V = List[T]
-  type A = List[Option[Int]]
-  val x: String = "5"
-  object y
-
-  val tagT = intercept[TestFailedException](assertCompiles("Tag[T]"))
-  val tagU = intercept[TestFailedException](assertCompiles("Tag[U]"))
-  val tagV = intercept[TestFailedException](assertCompiles("Tag[V]"))
-  val tagA = Try(assertCompiles("Tag[A]"))
-}
 
 // https://github.com/scala/bug/issues/11139
 final case class testTag[T: Tag]() {
@@ -70,15 +40,11 @@ final case class testTag3[F[_]: TagK]() {
   val res = Tag[X].tag
 }
 
-class TagTest extends AnyWordSpec with XY[String] {
+class TagTest extends SharedTagTest {
 
   import izumi.reflect.test.PlatformSpecific.fromRuntime
-  def fromLTag[T: LTag]: LightTypeTag = LTag[T].tag
 
   override final val tagZ = Tag[String]
-  final val str = "str"
-
-  final class With[T] extends StaticAnnotation
 
   trait H1
   trait T1[A, B, C, D, E, F[_]]
@@ -129,36 +95,9 @@ class TagTest extends AnyWordSpec with XY[String] {
 
   "Tag" should {
 
-    "Work for any concrete type" in {
-      assert(Tag[Int].tag == fromRuntime[Int])
-      assert(Tag[Set[String]].tag == fromRuntime[Set[String]])
-      assert(Tag[Map[Boolean, Double]].tag == fromRuntime[Map[Boolean, Double]])
-      assert(Tag[_ => Unit].tag == fromRuntime[_ => Unit])
-      assert(Tag[Unit => _].tag == fromRuntime[Unit => _])
-      assert(Tag[_ => _].tag == fromRuntime[_ => _])
-
-      assert(Tag[Any].tag == fromRuntime[Any])
-      assert(Tag[Nothing].tag == fromRuntime[Nothing])
-      assert(Tag[Any => Nothing].tag == fromRuntime[Any => Nothing])
-      assert(Tag[Nothing => Any].tag == fromRuntime[Nothing => Any])
-      assert(TagK[Identity].tag == TagK[Lambda[A => A]].tag)
-
-      assert(Tag[With[Any]].tag == fromRuntime[With[Any]])
-      assert(Tag[With[Nothing]].tag == fromRuntime[With[Nothing]])
-      assert(Tag[With[_]].tag == fromRuntime[With[_]])
-
-      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
-      assert(Tag[Int with String].tag == fromRuntime[Int with String])
-      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
-
-      assert(Tag[str.type].tag == fromRuntime[str.type])
+    "Work for any concrete type (dotty failures)" in {
       assert(Tag[this.Z].tag == fromRuntime[this.Z])
       assert(Tag[TagTest#Z].tag == fromRuntime[TagTest#Z])
-    }
-
-    "Work for structural concrete types" in {
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
     }
 
     "Work with term type prefixes" in {
@@ -178,6 +117,20 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(Tag[zy.y.type].tag <:< fromLTag[java.lang.Object])
       assert(Tag[zy.y.type].tag != fromLTag[zx.y.type])
       assert(Tag[zy.y.type].tag != fromLTag[zx.x.type])
+    }
+
+    "Support identity lambda type equality" in {
+      val idTpeLTT = TagK[Identity].tag
+      val idLambdaLTT = TagK[Lambda[A => A]].tag
+      assert(idTpeLTT == idLambdaLTT)
+    }
+
+    "Work for structural concrete types" in {
+      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
+      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
+
+      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
+      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
     }
 
     "Work for any abstract type with available Tag when obscured by empty refinement" in {
@@ -551,7 +504,7 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(zy.tagA.isSuccess)
     }
 
-    "consider class member's this-prefix to be the defining template, not the most specific prefix (deliberate omission for better ergonomics in cakes)" in {
+    "consider class member's this-prefix to be the defining template, not the most specific prefix from where the call is happening (deliberate omission of this for better ergonomics in cakes)" in {
       trait A {
         class X
         val xa = Tag[X]
@@ -599,8 +552,9 @@ class TagTest extends AnyWordSpec with XY[String] {
       def f[T]: UIO[T] = new ZIO(1)
       trait S[T] { val param: T }
 
-      def reproduce[T: Tag]: ZLayer[Any, Nothing, Has[S[T]]] =
+      def reproduce[T: Tag]: ZLayer[Any, Nothing, Has[S[T]]] = {
         f[T].map(p => new S[T] { override val param: T = p }).toLayer
+      }
 
       assert(reproduce[Unit].t.tag == Tag[Has[S[Unit]]].tag)
     }
@@ -645,14 +599,14 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/ )
     }
 
-    "progression test: cannot resolve type prefix or a type projection (this case is no longer possible in dotty at all. not worth it to support?)" in {
+    "progression test: cannot resolve type parameter as a prefix of a type projection (this case is no longer possible in dotty at all. not worth it to support?)" in {
       val res = intercept[IllegalArgumentException] {
         class Path {
           type Child
         }
         val path = new Path
 
-        def getTag[A <: Path] = Tag[A#Child]
+        def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
 
         assert(getTag[path.type].tag =:= Tag[path.type].tag)
         assert(getTag[path.type].tag <:< Tag[Path#Child].tag)

@@ -18,9 +18,9 @@
 
 package izumi.reflect.thirdparty.internal.boopickle
 
+import java.nio.charset.StandardCharsets
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID
-
 import scala.concurrent.duration.{Duration, FiniteDuration}
 //import scala.language.experimental.macros
 import scala.reflect.ClassTag
@@ -55,46 +55,20 @@ private[reflect] trait BasicImplicitPicklers extends PicklerHelper with XCompatI
   implicit def arrayPickler[T: P: ClassTag]: P[Array[T]] = BasicPicklers.ArrayPickler[T]
 }
 
-private[reflect] trait TransformPicklers {
-
-  /**
-    * Create a transforming pickler that takes an object of type `A` and transforms it into `B`, which is then pickled.
-    * Similarly a `B` is unpickled and then transformed back into `A`.
-    *
-    * This allows for easy creation of picklers for (relatively) simple classes. For example
-    * {{{
-    *   // transform Date into Long and back
-    *   implicit val datePickler = transformPickler((t: Long) => new java.util.Date(t))(_.getTime)
-    * }}}
-    *
-    * Note that parameters are in reversed order.
-    *
-    * @param transformFrom Function that takes `B` and transforms it into `A`
-    * @param transformTo   Function that takes `A` and transforms it into `B`
-    * @tparam A Type of the original object
-    * @tparam B Type for the object used for pickling
-    */
-  def transformPickler[A, B](transformFrom: (B) => A)(transformTo: (A) => B)(implicit p: Pickler[B]): Pickler[A] = {
-    p.xmap(transformFrom)(transformTo)
-  }
-}
-
-//private[reflect] trait MaterializePicklerFallback {
-//  implicit def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
-//}
-
 private[reflect] object PickleImpl {
-  def apply[A](value: A)(implicit state: PickleState, p: Pickler[A]): PickleState = {
+  @inline def apply[A](value: A)(implicit state: PickleState, p: Pickler[A]): PickleState = {
     p.pickle(value)(state)
     state
   }
 
-  def intoBytes[A](value: A)(implicit state: PickleState, p: Pickler[A]): ByteBuffer = {
+  @inline def intoBytes[A](value: A)(implicit state: PickleState, p: Pickler[A]): ByteBuffer = {
     apply(value).toByteBuffer
   }
 
-  def intoByteBuffers[A](value: A)(implicit state: PickleState, p: Pickler[A]): Iterable[ByteBuffer] = {
-    apply(value).toByteBuffers
+  @inline private[reflect] def serializeIntoString[A](a: A, pickler: Pickler[A]): String = {
+    val pickleState = PickleState.pickleStateSpeed
+    val buf = PickleImpl.intoBytes(a)(pickleState, pickler)
+    new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
   }
 }
 
@@ -132,36 +106,4 @@ private[reflect] trait Base {
   def exceptionPickler: CompositePickler[Throwable] = ExceptionPickler.base
 }
 
-private[reflect] object SpeedOriented {
-
-  /**
-    * Provides a default PickleState if none is available implicitly
-    *
-    * @return
-    */
-  implicit def pickleStateSpeed: PickleState = new PickleState(new EncoderSpeed, false, false)
-
-  /**
-    * Provides a default UnpickleState if none is available implicitly
-    *
-    * @return
-    */
-  implicit def unpickleStateSpeed: ByteBuffer => UnpickleState =
-    bytes => new UnpickleState(new DecoderSpeed(bytes), false, false)
-}
-
-/**
-  * Provides basic implicit picklers including macro support for case classes
-  */
-private[reflect] object Default extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers
-//    with MaterializePicklerFallback
-
-private[reflect] object NoMacro extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers
-
-/**
-  * Provides basic implicit picklers without macro support for case classes
-  */
-private[reflect] object DefaultBasic extends Base with BasicImplicitPicklers with TransformPicklers with TuplePicklers {
-//
-//  def generatePickler[T]: Pickler[T] = macro PicklerMaterializersImpl.materializePickler[T]
-}
+private[reflect] object NoMacro extends Base with BasicImplicitPicklers with TuplePicklers

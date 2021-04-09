@@ -411,6 +411,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     scalacOptions in ThisBuild += """-Xmacro-settings:scalatest-version=VExpr(V.scalatest)""",
     mimaBinaryIssueFilters in ThisBuild ++= Seq(
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.Tag.refinedTag"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.refinedType"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")

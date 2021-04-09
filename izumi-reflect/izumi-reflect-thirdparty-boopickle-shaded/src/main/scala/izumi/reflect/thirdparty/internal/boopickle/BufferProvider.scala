@@ -37,13 +37,6 @@ private[reflect] trait BufferProvider {
     * @return
     */
   def asByteBuffer: ByteBuffer
-
-  /**
-    * Completes the encoding and returns a sequence of ByteBuffers
-    *
-    * @return
-    */
-  def asByteBuffers: Iterable[ByteBuffer]
 }
 
 private[reflect] abstract class ByteBufferProvider extends BufferProvider {
@@ -81,11 +74,6 @@ private[reflect] abstract class ByteBufferProvider extends BufferProvider {
       comb
     }
   }
-
-  def asByteBuffers = {
-    (currentBuf: java.nio.Buffer).flip()
-    (currentBuf :: buffers).reverse.toVector
-  }
 }
 
 private[reflect] object ByteBufferProvider {
@@ -111,35 +99,8 @@ private[reflect] class HeapByteBufferProvider extends ByteBufferProvider {
       val comb    = allocate(bufList.map(_.limit()).sum)
       bufList.foreach { buf =>
         // use fast array copy
-        java.lang.System.arraycopy(buf.array, buf.arrayOffset, comb.array, comb.position(), buf.limit())
+        java.lang.System.arraycopy(buf.array(), buf.arrayOffset(), comb.array(), comb.position(), buf.limit())
         (comb: java.nio.Buffer).position(comb.position() + buf.limit())
-        // release to the pool
-        pool.release(buf)
-      }
-      (comb: java.nio.Buffer).flip()
-      comb
-    }
-  }
-}
-
-private[reflect] class DirectByteBufferProvider extends ByteBufferProvider {
-  override protected def allocate(size: Int) = {
-    if (pool.isDisabled)
-      ByteBuffer.allocateDirect(size).order(ByteOrder.LITTLE_ENDIAN)
-    else
-      pool.allocateDirect(size).getOrElse(ByteBuffer.allocateDirect(size).order(ByteOrder.LITTLE_ENDIAN))
-  }
-
-  override def asByteBuffer = {
-    (currentBuf: java.nio.Buffer).flip()
-    if (buffers.isEmpty)
-      currentBuf
-    else {
-      // create a new buffer and combine all buffers into it
-      val bufList = (currentBuf :: buffers).reverse
-      val comb    = allocate(bufList.map(_.limit()).sum)
-      bufList.foreach { buf =>
-        comb.put(buf)
         // release to the pool
         pool.release(buf)
       }
