@@ -138,7 +138,7 @@ object Tag {
     refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
-  inline implicit final def tagFromTagMacro[T]: Tag[T] = Tag(classOf[Any], Inspect.inspect[T])
+  inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = Tag(classOf[Any], Inspect.inspect[T])
 }
 
 /**
