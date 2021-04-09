@@ -111,7 +111,7 @@ private[reflect] class HeapByteBufferProvider extends ByteBufferProvider {
       val comb    = allocate(bufList.map(_.limit()).sum)
       bufList.foreach { buf =>
         // use fast array copy
-        java.lang.System.arraycopy(buf.array, buf.arrayOffset, comb.array, comb.position(), buf.limit())
+        java.lang.System.arraycopy(buf.array(), buf.arrayOffset(), comb.array(), comb.position(), buf.limit())
         (comb: java.nio.Buffer).position(comb.position() + buf.limit())
         // release to the pool
         pool.release(buf)
