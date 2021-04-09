@@ -18,13 +18,12 @@
 
 package izumi.reflect.macrortti
 
-import java.nio.charset.StandardCharsets
-
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, PickleState, Pickler}
 import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
-import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, Pickler}
 
+import java.nio.charset.StandardCharsets
 import scala.reflect.macros.blackbox
 
 final class LightTypeTagMacro(override val c: blackbox.Context)
@@ -76,8 +75,9 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
 
     logger.log(s"LightTypeTagImpl: created LightTypeTag: $res")
 
-    @inline def serialize[A: Pickler](a: A): String = {
-      val buf = PickleImpl(a).toByteBuffer
+    @inline def serialize[A](a: A)(implicit pickler: Pickler[A]): String = {
+      val pickleState = PickleState.pickleStateSpeed
+      val buf = PickleImpl.intoBytes(a)(pickleState, pickler)
       new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
     }
 

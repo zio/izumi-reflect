@@ -20,10 +20,12 @@ package izumi.reflect.test
 
 import izumi.reflect._
 import izumi.reflect.macrortti._
+import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, PickleState, Pickler}
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.nio.charset.StandardCharsets
 import scala.annotation.StaticAnnotation
 import scala.util.Try
 
@@ -184,6 +186,44 @@ class TagTest extends AnyWordSpec with XY[String] {
       def testTag[T: Tag] = Tag[T {}]
 
       assert(testTag[String].tag == fromRuntime[String])
+    }
+
+    "regression test for https://github.com/zio/izumi-reflect/issues/98" in {
+      object SomeService {
+        trait Service[T]
+
+        final case class Foo()
+
+        val tag1: Tag[Service[Foo]] = Tag[Service[Foo]]
+      }
+
+      object IzumiReflectTagEqualRegression {
+        import SomeService._
+
+        def main(args: Array[String]): Unit = {
+          val t = tag1
+          val tag2: Tag[Service[Foo]] = Tag[Service[Foo]]
+
+          @inline def serialize[A](a: A)(implicit pickler: Pickler[A]): String = {
+            val pickleState = PickleState.pickleStateSpeed
+            val buf = PickleImpl.intoBytes(a)(pickleState, pickler)
+            new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
+          }
+          val rtTag1 = serialize(t.tag.ref)(LightTypeTag.lttRefSerializer)
+          val rtTag2 = serialize(tag2.tag.ref)(LightTypeTag.lttRefSerializer)
+
+          assert(t.tag.ref == tag2.tag.ref)
+
+          assert(rtTag1 == t.tag.asInstanceOf[{val refString: String}].refString)
+          assert(rtTag2 == tag2.tag.asInstanceOf[{val refString: String}].refString)
+
+          assert(rtTag1 == rtTag2)
+
+          assert(t.tag == tag2.tag)
+        }
+      }
+
+      IzumiReflectTagEqualRegression.main(Array.empty)
     }
 
     "Work for any abstract type with available Tag while preserving additional refinement" in {
@@ -551,7 +591,7 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(zy.tagA.isSuccess)
     }
 
-    "consider class member's this-prefix to be the defining template, not the most specific prefix (deliberate omission for better ergonomics in cakes)" in {
+    "consider class member's this-prefix to be the defining template, not the most specific prefix from where the call is happening (deliberate omission of this for better ergonomics in cakes)" in {
       trait A {
         class X
         val xa = Tag[X]
@@ -599,8 +639,9 @@ class TagTest extends AnyWordSpec with XY[String] {
       def f[T]: UIO[T] = new ZIO(1)
       trait S[T] { val param: T }
 
-      def reproduce[T: Tag]: ZLayer[Any, Nothing, Has[S[T]]] =
+      def reproduce[T: Tag]: ZLayer[Any, Nothing, Has[S[T]]] = {
         f[T].map(p => new S[T] { override val param: T = p }).toLayer
+      }
 
       assert(reproduce[Unit].t.tag == Tag[Has[S[Unit]]].tag)
     }
@@ -645,14 +686,14 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/ )
     }
 
-    "progression test: cannot resolve type prefix or a type projection (this case is no longer possible in dotty at all. not worth it to support?)" in {
+    "progression test: cannot resolve type parameter as a prefix of a type projection (this case is no longer possible in dotty at all. not worth it to support?)" in {
       val res = intercept[IllegalArgumentException] {
         class Path {
           type Child
         }
         val path = new Path
 
-        def getTag[A <: Path] = Tag[A#Child]
+        def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
 
         assert(getTag[path.type].tag =:= Tag[path.type].tag)
         assert(getTag[path.type].tag <:< Tag[Path#Child].tag)
