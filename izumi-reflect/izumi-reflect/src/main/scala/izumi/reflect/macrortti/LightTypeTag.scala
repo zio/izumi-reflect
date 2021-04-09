@@ -302,7 +302,6 @@ object LightTypeTag {
       other match {
         case that: ParsedLightTypeTagM8 =>
           if (refString == that.refString) true
-          else if (optimisticEqualsEnabled) false
           else super.equals(other)
         case _ =>
           super.equals(other)
