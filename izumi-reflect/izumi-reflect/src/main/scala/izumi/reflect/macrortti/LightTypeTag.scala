@@ -313,10 +313,10 @@ object LightTypeTag {
     }
   }
 
-  /** `ParsedLightTypeTag` since 1.1.0 */
+  /** `ParsedLightTypeTag` since 1.1.0. */
   final class ParsedLightTypeTag110(
     override val hashCode: Int,
-    private val refString: String,
+    private[reflect] val refString: String,
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {

@@ -20,42 +20,10 @@ package izumi.reflect.test
 
 import izumi.reflect._
 import izumi.reflect.macrortti._
-import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, PickleState, Pickler}
-import org.scalatest.Assertions
-import org.scalatest.exceptions.TestFailedException
-import org.scalatest.wordspec.AnyWordSpec
-
-import java.nio.charset.StandardCharsets
-import scala.annotation.StaticAnnotation
-import scala.util.Try
-
-object ID {
-  type id[A] = A
-  type Identity[+A] = A
-}
 import izumi.reflect.test.ID._
+import org.scalatest.exceptions.TestFailedException
 
 case class OptionT[F[_], A](value: F[Option[A]])
-
-trait XY[Y] {
-  type Z = id[Y]
-
-  implicit def tagZ: Tag[Z]
-}
-
-trait ZY extends Assertions {
-  type T
-  type U = T
-  type V = List[T]
-  type A = List[Option[Int]]
-  val x: String = "5"
-  object y
-
-  val tagT = intercept[TestFailedException](assertCompiles("Tag[T]"))
-  val tagU = intercept[TestFailedException](assertCompiles("Tag[U]"))
-  val tagV = intercept[TestFailedException](assertCompiles("Tag[V]"))
-  val tagA = Try(assertCompiles("Tag[A]"))
-}
 
 // https://github.com/scala/bug/issues/11139
 final case class testTag[T: Tag]() {
@@ -72,15 +40,11 @@ final case class testTag3[F[_]: TagK]() {
   val res = Tag[X].tag
 }
 
-class TagTest extends AnyWordSpec with XY[String] {
+class TagTest extends SharedTagTest {
 
   import izumi.reflect.test.PlatformSpecific.fromRuntime
-  def fromLTag[T: LTag]: LightTypeTag = LTag[T].tag
 
   override final val tagZ = Tag[String]
-  final val str = "str"
-
-  final class With[T] extends StaticAnnotation
 
   trait H1
   trait T1[A, B, C, D, E, F[_]]
@@ -131,36 +95,9 @@ class TagTest extends AnyWordSpec with XY[String] {
 
   "Tag" should {
 
-    "Work for any concrete type" in {
-      assert(Tag[Int].tag == fromRuntime[Int])
-      assert(Tag[Set[String]].tag == fromRuntime[Set[String]])
-      assert(Tag[Map[Boolean, Double]].tag == fromRuntime[Map[Boolean, Double]])
-      assert(Tag[_ => Unit].tag == fromRuntime[_ => Unit])
-      assert(Tag[Unit => _].tag == fromRuntime[Unit => _])
-      assert(Tag[_ => _].tag == fromRuntime[_ => _])
-
-      assert(Tag[Any].tag == fromRuntime[Any])
-      assert(Tag[Nothing].tag == fromRuntime[Nothing])
-      assert(Tag[Any => Nothing].tag == fromRuntime[Any => Nothing])
-      assert(Tag[Nothing => Any].tag == fromRuntime[Nothing => Any])
-      assert(TagK[Identity].tag == TagK[Lambda[A => A]].tag)
-
-      assert(Tag[With[Any]].tag == fromRuntime[With[Any]])
-      assert(Tag[With[Nothing]].tag == fromRuntime[With[Nothing]])
-      assert(Tag[With[_]].tag == fromRuntime[With[_]])
-
-      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
-      assert(Tag[Int with String].tag == fromRuntime[Int with String])
-      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
-
-      assert(Tag[str.type].tag == fromRuntime[str.type])
+    "Work for any concrete type (dotty failures)" in {
       assert(Tag[this.Z].tag == fromRuntime[this.Z])
       assert(Tag[TagTest#Z].tag == fromRuntime[TagTest#Z])
-    }
-
-    "Work for structural concrete types" in {
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
     }
 
     "Work with term type prefixes" in {
@@ -182,48 +119,24 @@ class TagTest extends AnyWordSpec with XY[String] {
       assert(Tag[zy.y.type].tag != fromLTag[zx.x.type])
     }
 
+    "Support identity lambda type equality" in {
+      val idTpeLTT = TagK[Identity].tag
+      val idLambdaLTT = TagK[Lambda[A => A]].tag
+      assert(idTpeLTT == idLambdaLTT)
+    }
+
+    "Work for structural concrete types" in {
+      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
+      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
+
+      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
+      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
+    }
+
     "Work for any abstract type with available Tag when obscured by empty refinement" in {
       def testTag[T: Tag] = Tag[T {}]
 
       assert(testTag[String].tag == fromRuntime[String])
-    }
-
-    "regression test for https://github.com/zio/izumi-reflect/issues/98" in {
-      object SomeService {
-        trait Service[T]
-
-        final case class Foo()
-
-        val tag1: Tag[Service[Foo]] = Tag[Service[Foo]]
-      }
-
-      object IzumiReflectTagEqualRegression {
-        import SomeService._
-
-        def main(args: Array[String]): Unit = {
-          val t = tag1
-          val tag2: Tag[Service[Foo]] = Tag[Service[Foo]]
-
-          @inline def serialize[A](a: A)(implicit pickler: Pickler[A]): String = {
-            val pickleState = PickleState.pickleStateSpeed
-            val buf = PickleImpl.intoBytes(a)(pickleState, pickler)
-            new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
-          }
-          val rtTag1 = serialize(t.tag.ref)(LightTypeTag.lttRefSerializer)
-          val rtTag2 = serialize(tag2.tag.ref)(LightTypeTag.lttRefSerializer)
-
-          assert(t.tag.ref == tag2.tag.ref)
-
-          assert(rtTag1 == t.tag.asInstanceOf[{val refString: String}].refString)
-          assert(rtTag2 == tag2.tag.asInstanceOf[{val refString: String}].refString)
-
-          assert(rtTag1 == rtTag2)
-
-          assert(t.tag == tag2.tag)
-        }
-      }
-
-      IzumiReflectTagEqualRegression.main(Array.empty)
     }
 
     "Work for any abstract type with available Tag while preserving additional refinement" in {

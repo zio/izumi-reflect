@@ -18,9 +18,9 @@
 
 package izumi.reflect.thirdparty.internal.boopickle
 
+import java.nio.charset.StandardCharsets
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.UUID
-
 import scala.concurrent.duration.{Duration, FiniteDuration}
 //import scala.language.experimental.macros
 import scala.reflect.ClassTag
@@ -67,6 +67,12 @@ private[reflect] object PickleImpl {
 
   def intoByteBuffers[A](value: A)(implicit state: PickleState, p: Pickler[A]): Iterable[ByteBuffer] = {
     apply(value).toByteBuffers
+  }
+
+  @inline private[reflect] def serializeIntoString[A](a: A, pickler: Pickler[A]): String = {
+    val pickleState = PickleState.pickleStateSpeed
+    val buf = PickleImpl.intoBytes(a)(pickleState, pickler)
+    new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
   }
 }
 

@@ -22,12 +22,8 @@ object Inspect {
 //    val fullDb = Map.empty[AbstractReference, Set[AbstractReference]]
     val dbs = SubtypeDBs(fullDb, nameDb)
 
-    inline def serialize[A: Pickler](a: A): String = {
-      val buf = PickleImpl(a).toByteBuffer
-      new String(buf.array(), buf.arrayOffset(), buf.limit(), StandardCharsets.ISO_8859_1)
-    }
-    val strRef = serialize(ref)(LightTypeTag.lttRefSerializer)
-    val strDbs = serialize(dbs)(LightTypeTag.subtypeDBsSerializer)
+    val strRef = PickleImpl.serializeIntoString(ref, LightTypeTag.lttRefSerializer)
+    val strDbs = PickleImpl.serializeIntoString(dbs, LightTypeTag.subtypeDBsSerializer)
 
     def string2hex(str: String): String = {
         str.toList.map(_.toInt.toHexString).mkString
