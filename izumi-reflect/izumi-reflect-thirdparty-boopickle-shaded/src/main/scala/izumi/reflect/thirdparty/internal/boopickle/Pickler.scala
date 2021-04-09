@@ -378,33 +378,13 @@ private[reflect] object BasicPicklers extends PicklerHelper with XCompatPicklers
   * Manage state for a pickling "session".
   *
   * @param enc            Encoder instance to use
-  * @param deduplicate    Set to `false` if you want to disable deduplication
   * @param dedupImmutable Set to `false` if you want to disable deduplication of immutable values (like Strings)
   */
-private[reflect] final class PickleState(val enc: Encoder, deduplicate: Boolean = true, dedupImmutable: Boolean = true) {
+private[reflect] final class PickleState(val enc: Encoder, dedupImmutable: Boolean = true) {
 
-  /**
-    * Object reference for pickled objects (use identity for equality comparison)
-    *
-    * Index 0 is not used
-    * Index 1 = null
-    * Index 2-n, references to pickled objects
-    */
-  private[this] var identityRefs: IdentMap = EmptyIdentMap
+  @inline def identityRefFor(obj: AnyRef): Option[Int] = None
 
-  @inline def identityRefFor(obj: AnyRef): Option[Int] = {
-    if (obj == null)
-      Some(1)
-    else if (!deduplicate)
-      None
-    else
-      identityRefs(obj)
-  }
-
-  @inline def addIdentityRef(obj: AnyRef): Unit = {
-    if (deduplicate)
-      identityRefs = identityRefs.updated(obj)
-  }
+  @inline def addIdentityRef(obj: AnyRef): Unit = ()
 
   /**
     * Object reference for immutable pickled objects
@@ -438,8 +418,6 @@ private[reflect] final class PickleState(val enc: Encoder, deduplicate: Boolean 
   }
 
   def toByteBuffer: ByteBuffer = enc.asByteBuffer
-
-  def toByteBuffers: Iterable[ByteBuffer] = enc.asByteBuffers
 }
 
 private[reflect] object PickleState {
@@ -449,7 +427,7 @@ private[reflect] object PickleState {
     *
     * @return
     */
-  implicit def pickleStateSpeed: PickleState = new PickleState(new EncoderSize, false, true)
+  implicit def pickleStateSpeed: PickleState = new PickleState(new EncoderSize, dedupImmutable = true)
 }
 
 /**

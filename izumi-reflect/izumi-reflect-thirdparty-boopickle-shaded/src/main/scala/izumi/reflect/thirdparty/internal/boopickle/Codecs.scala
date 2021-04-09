@@ -230,9 +230,4 @@ private[reflect] trait Encoder {
     * Completes the encoding and returns the ByteBuffer
     */
   def asByteBuffer: ByteBuffer
-
-  /**
-    * Completes the encoding and returns a sequence of ByteBuffers
-    */
-  def asByteBuffers: Iterable[ByteBuffer]
 }

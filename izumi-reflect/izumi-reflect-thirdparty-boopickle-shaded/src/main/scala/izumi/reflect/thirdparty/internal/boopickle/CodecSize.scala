@@ -555,11 +555,4 @@ private[reflect] class EncoderSize(bufferProvider: BufferProvider = DefaultByteB
     * @return
     */
   def asByteBuffer: ByteBuffer = bufferProvider.asByteBuffer
-
-  /**
-    * Completes the encoding and returns a sequence of ByteBuffers
-    *
-    * @return
-    */
-  def asByteBuffers: Iterable[ByteBuffer] = bufferProvider.asByteBuffers
 }

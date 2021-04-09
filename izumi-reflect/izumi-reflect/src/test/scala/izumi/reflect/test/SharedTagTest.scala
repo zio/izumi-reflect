@@ -4,12 +4,11 @@ import izumi.reflect.Tag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag110
 import izumi.reflect.macrortti.{LTag, LightTypeTag}
 import izumi.reflect.test.ID.id
-import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, PickleState, Pickler}
+import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.nio.charset.StandardCharsets
 import scala.annotation.StaticAnnotation
 import scala.util.Try
 

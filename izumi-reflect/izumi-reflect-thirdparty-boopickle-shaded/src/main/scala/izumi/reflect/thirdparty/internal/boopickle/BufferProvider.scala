@@ -37,13 +37,6 @@ private[reflect] trait BufferProvider {
     * @return
     */
   def asByteBuffer: ByteBuffer
-
-  /**
-    * Completes the encoding and returns a sequence of ByteBuffers
-    *
-    * @return
-    */
-  def asByteBuffers: Iterable[ByteBuffer]
 }
 
 private[reflect] abstract class ByteBufferProvider extends BufferProvider {
@@ -80,11 +73,6 @@ private[reflect] abstract class ByteBufferProvider extends BufferProvider {
       (comb: java.nio.Buffer).flip()
       comb
     }
-  }
-
-  def asByteBuffers = {
-    (currentBuf: java.nio.Buffer).flip()
-    (currentBuf :: buffers).reverse.toVector
   }
 }
 

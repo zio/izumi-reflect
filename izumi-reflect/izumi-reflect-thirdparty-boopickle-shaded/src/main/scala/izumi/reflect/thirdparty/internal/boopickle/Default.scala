@@ -56,17 +56,13 @@ private[reflect] trait BasicImplicitPicklers extends PicklerHelper with XCompatI
 }
 
 private[reflect] object PickleImpl {
-  def apply[A](value: A)(implicit state: PickleState, p: Pickler[A]): PickleState = {
+  @inline def apply[A](value: A)(implicit state: PickleState, p: Pickler[A]): PickleState = {
     p.pickle(value)(state)
     state
   }
 
-  def intoBytes[A](value: A)(implicit state: PickleState, p: Pickler[A]): ByteBuffer = {
+  @inline def intoBytes[A](value: A)(implicit state: PickleState, p: Pickler[A]): ByteBuffer = {
     apply(value).toByteBuffer
-  }
-
-  def intoByteBuffers[A](value: A)(implicit state: PickleState, p: Pickler[A]): Iterable[ByteBuffer] = {
-    apply(value).toByteBuffers
   }
 
   @inline private[reflect] def serializeIntoString[A](a: A, pickler: Pickler[A]): String = {
