@@ -449,7 +449,7 @@ private[reflect] object PickleState {
     *
     * @return
     */
-  implicit def pickleStateSpeed: PickleState = new PickleState(new EncoderSize, true, true)
+  implicit def pickleStateSpeed: PickleState = new PickleState(new EncoderSize, false, true)
 }
 
 /**
