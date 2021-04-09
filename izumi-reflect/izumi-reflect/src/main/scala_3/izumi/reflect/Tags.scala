@@ -49,6 +49,8 @@ trait AnyTag {
     case that: AnyTag => this.tag == that.tag
     case _ => false
   }
+
+  override final def hashCode(): Int = tag.hashCode()
 }
 
 /**
