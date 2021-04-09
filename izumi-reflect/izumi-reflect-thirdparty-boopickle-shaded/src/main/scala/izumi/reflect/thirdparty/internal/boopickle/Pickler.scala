@@ -437,9 +437,9 @@ private[reflect] final class PickleState(val enc: Encoder, deduplicate: Boolean 
     this
   }
 
-  def toByteBuffer = enc.asByteBuffer
+  def toByteBuffer: ByteBuffer = enc.asByteBuffer
 
-  def toByteBuffers = enc.asByteBuffers
+  def toByteBuffers: Iterable[ByteBuffer] = enc.asByteBuffers
 }
 
 private[reflect] object PickleState {
