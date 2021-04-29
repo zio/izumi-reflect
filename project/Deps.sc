@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.70`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.73`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -157,9 +157,9 @@ object Izumi {
       final val sharedSettings = Defaults.SbtMetaOptions ++ Seq(
         "test" in Platform.Native := "{}".raw,
         "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
-        "sources" in SettingScope.Raw("(Compile, doc)") := Seq(
+        "sources" in SettingScope.Raw("Compile / doc") := Seq(
           SettingKey(Some(scala300), None) := Seq.empty[String],
-          SettingKey.Default := "(sources in (Compile, doc)).value".raw
+          SettingKey.Default := "(Compile / doc / sources).value".raw
         ),
         "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
         //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
@@ -221,7 +221,7 @@ object Izumi {
         depends = Seq.empty,
         settings = Defaults.CrossScalaSources ++ Seq(
           SettingDef.RawSettingDef(
-            """scalacOptions in Compile --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
+            """Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
             FullSettingScope(SettingScope.Compile, Platform.All)
           )
         )
