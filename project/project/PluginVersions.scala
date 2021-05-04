@@ -17,7 +17,7 @@
  */
 
 object PV {
-  val sbt_scoverage = "1.7.2"
+  val sbt_scoverage = "1.7.3"
   val sbt_pgp = "2.1.1"
 
   val scala_js_version = "1.5.0"
