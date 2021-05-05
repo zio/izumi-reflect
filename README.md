@@ -17,7 +17,7 @@
 
 ## Credits
 
-`izumi-reflect` has been created by [7mind](https://7mind.io) to power [Izumi Project](https://github.com/7mind/izumi),
+`izumi-reflect` has been created by [Septimal Mind](https://7mind.io) to power [Izumi Project](https://github.com/7mind/izumi),
 as a replacement for `TypeTag` in reaction to a lack of confirmed information about the future of `scala-reflect`/`TypeTag` in Scala 3 ([Motivation](https://blog.7mind.io/lightweight-reflection.html)),
 and donated to ZIO.
 This repository contains an independent and more conservative copy of the code comparing to Izumi one.
