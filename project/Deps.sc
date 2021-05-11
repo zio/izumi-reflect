@@ -28,17 +28,17 @@ object Izumi {
   final val scala213 = ScalaVersion("2.13.5")
   final val scala300 = ScalaVersion("3.0.0-RC3")
 
-  // launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA or switch version order here
+  // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
   var targetScala = Seq(scala300, scala213, scala212, scala211)
 
   def entrypoint(args: Seq[String]) = {
     val newArgs = args diff Seq(
       args
         .collectFirst {
-          case s @ "2.13" => s -> scala213
+          case s @ s"3${_}" => s -> scala300
           case s @ "2.12" => s -> scala212
           case s @ "2.11" => s -> scala211
-          case s @ "3" => s -> scala300
+          case s @ s"2${_}" => s -> scala213
         }.map {
           case (s, target) =>
             targetScala = target :: targetScala.filterNot(_ == target).toList
