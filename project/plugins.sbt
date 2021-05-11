@@ -3,7 +3,7 @@ addSbtPlugin("ch.epfl.lamp" % "sbt-dotty" % PV.sbt_dotty_version)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.73")
+addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.75")
 
 addSbtPlugin("com.jsuereth" % "sbt-pgp" % PV.sbt_pgp)
 
