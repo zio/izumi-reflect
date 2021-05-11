@@ -43,7 +43,7 @@ Known limitations are:
 
 ## Contributing
 
-When working on the Scala 3 version of the codebase in Intellij, we recommend importing using BSP instead of sbt-based import (see [Dotty#Importing the Project Using BSP](https://github.com/lampepfl/dotty/blob/b7d2a122555a6aa44cc7590852a80f12512c535e/docs/docs/usage/ide-support.md#importing-the-project-using-bsp)) 
+When working on the Scala 3 version of the codebase in Intellij, we recommend importing using BSP mode instead of sbt mode, see [Dotty#Importing the Project Using BSP.](https://github.com/lampepfl/dotty/blob/b7d2a122555a6aa44cc7590852a80f12512c535e/docs/docs/usage/ide-support.md#importing-the-project-using-bsp) 
 
 ## Build
 
