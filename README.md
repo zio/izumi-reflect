@@ -1,3 +1,4 @@
+[![Project stage][Stage]][Stage-Page]
 ![Build](https://github.com/zio/izumi-reflect/workflows/Build/badge.svg)
 
 # izumi-reflect
@@ -59,3 +60,6 @@ Once you finished tinkering with the code you may want to generate full project 
 ./sbtgen.sc --js --native
 sbt +test
 ```
+
+[Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
+[Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
