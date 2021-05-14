@@ -18,7 +18,8 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
   trait Invariantoid[V]
   trait SubInvariantoid[V] extends Invariantoid[V] with Traitoid
 
-  "super-basic test 1" in {
+  "super-basic test 1" in { test() }
+  def test() = {
     val intTag = LTT[Int]
 
     class Foo[+F[_]]()
