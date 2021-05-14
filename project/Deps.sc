@@ -25,7 +25,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.13")
   final val scala213 = ScalaVersion("2.13.5")
-  final val scala300 = ScalaVersion("3.0.0-RC3")
+  final val scala300 = ScalaVersion("3.0.0")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
   var targetScala = Seq(scala300, scala213, scala212, scala211)
@@ -165,7 +165,7 @@ object Izumi {
           SettingKey(Some(scala211), None) := Const.EmptySeq,
           SettingKey.Default := Seq(
             "-Ykind-projector",
-            "-noindent",
+            "-no-indent",
             "-language:implicitConversions"
           )
         ),
