@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.75`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.76`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -18,7 +18,6 @@ object Izumi {
     val scala_native_version = Version.VExpr("PV.scala_native_version")
     val crossproject_version = Version.VExpr("PV.crossproject_version")
     val scalajs_bundler_version = Version.VExpr("PV.scalajs_bundler_version")
-    val sbt_dotty_version = Version.VExpr("PV.sbt_dotty_version")
     val sbt_mima_version = Version.VExpr("PV.sbt_mima_version")
   }
 
@@ -58,19 +57,16 @@ object Izumi {
     scalaNativeVersion = PV.scala_native_version,
     crossProjectVersion = PV.crossproject_version,
     bundlerVersion = Some(PV.scalajs_bundler_version),
-    sbtDottyVersion = PV.sbt_dotty_version
   )
 
   object Deps {
     final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto)
-    // thanks, Sandinh!
-//    final val scalatest_dotty = Library("com.sandinh", "scalatest", V.scalatest, LibraryType.Auto)
-    final val scalatest_dotty = scalatest
 
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
+
     final val collection_compat = Library("org.scala-lang.modules", "scala-collection-compat", V.collection_compat, LibraryType.Auto)
   }
 
