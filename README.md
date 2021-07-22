@@ -61,5 +61,13 @@ Once you finished tinkering with the code you may want to generate full project 
 sbt +test
 ```
 
+To develop using Scala 2 invoke sbtgen with scala version argument:
+
+```bash
+./sbtgen.sc 2 // 2.13.X
+./sbtgen.sc 2.12 // 2.12.X
+```
+
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
+

@@ -13,16 +13,16 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     ) else Seq.empty },
     libraryDependencies ++= { if (Seq(
       "2.11.12",
-      "2.12.13"
+      "2.12.14"
     ) contains scalaVersion.value) Seq(
       "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
     ) else Seq.empty }
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.5",
+      "2.13.6",
       "3.0.1",
-      "2.12.13",
+      "2.12.14",
       "2.11.12"
     ),
     scalaVersion := crossScalaVersions.value.head,
@@ -46,13 +46,14 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     } },
     Test / testOptions += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.13") => Seq(
-        "-Xsource:2.13",
+      case (_, "2.12.14") => Seq(
+        "-Xsource:3",
+        "-P:kind-projector:underscore-placeholders",
+        "-Wconf:msg=package.object.inheritance:silent",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
-        "-Wconf:msg=kind-projector:silent",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Xlint:adapted-args",
@@ -87,12 +88,15 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.5") => Seq(
-        "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
+      case (_, "2.13.6") => Seq(
+        "-Xsource:3",
+        "-P:kind-projector:underscore-placeholders",
+        "-Wconf:msg=package.object.inheritance:silent",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
-        "-Wconf:msg=kind-projector:silent",
+        "-Vimplicits",
+        "-Vtype-diffs",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Wdead-code",
@@ -117,21 +121,21 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.13") => Seq(
+      case (_, "2.12.14") => Seq(
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.5") => Seq(
+      case (_, "2.13.6") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
     } },
     scalacOptions -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (false, "2.12.13") => Seq(
+      case (false, "2.12.14") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.5") => Seq(
+      case (false, "2.13.6") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -174,16 +178,16 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     ) else Seq.empty },
     libraryDependencies ++= { if (Seq(
       "2.11.12",
-      "2.12.13"
+      "2.12.14"
     ) contains scalaVersion.value) Seq(
       "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
     ) else Seq.empty }
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.5",
+      "2.13.6",
       "3.0.1",
-      "2.12.13",
+      "2.12.14",
       "2.11.12"
     ),
     scalaVersion := crossScalaVersions.value.head,
@@ -207,13 +211,14 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     } },
     Test / testOptions += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.13") => Seq(
-        "-Xsource:2.13",
+      case (_, "2.12.14") => Seq(
+        "-Xsource:3",
+        "-P:kind-projector:underscore-placeholders",
+        "-Wconf:msg=package.object.inheritance:silent",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
-        "-Wconf:msg=kind-projector:silent",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Xlint:adapted-args",
@@ -248,12 +253,15 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.5") => Seq(
-        "-Xlint:_,-eta-sam,-multiarg-infix,-byname-implicit",
+      case (_, "2.13.6") => Seq(
+        "-Xsource:3",
+        "-P:kind-projector:underscore-placeholders",
+        "-Wconf:msg=package.object.inheritance:silent",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
-        "-Wconf:msg=kind-projector:silent",
+        "-Vimplicits",
+        "-Vtype-diffs",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
         "-Wdead-code",
@@ -278,21 +286,21 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.13") => Seq(
+      case (_, "2.12.14") => Seq(
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.5") => Seq(
+      case (_, "2.13.6") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
     } },
     scalacOptions -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (false, "2.12.13") => Seq(
+      case (false, "2.12.14") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.5") => Seq(
+      case (false, "2.13.6") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -344,9 +352,9 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     publish / skip := true,
     crossScalaVersions := Seq(
-      "2.13.5",
+      "2.13.6",
       "3.0.1",
-      "2.12.13",
+      "2.12.14",
       "2.11.12"
     ),
     scalaVersion := crossScalaVersions.value.head
@@ -389,7 +397,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       s"-Xmacro-settings:git-head-commit=${com.typesafe.sbt.SbtGit.GitKeys.gitHeadCommit.value.getOrElse("")}"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "2.13.5",
+    scalaVersion := "2.13.6",
     ThisBuild / organization := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
