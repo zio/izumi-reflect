@@ -19,6 +19,7 @@ object Izumi {
     val crossproject_version = Version.VExpr("PV.crossproject_version")
     val scalajs_bundler_version = Version.VExpr("PV.scalajs_bundler_version")
     val sbt_mima_version = Version.VExpr("PV.sbt_mima_version")
+    val sbt_missinglink_version = Version.VExpr("PV.sbt_missinglink_version")
   }
 
   // DON'T REMOVE, these variables are read from CI build (build.sh)
@@ -264,7 +265,8 @@ object Izumi {
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
       SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
-      SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version)
+      SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
+      SbtPlugin("ch.epfl.scala", "sbt-missinglink", PV.sbt_missinglink_version),
     )
   )
 }
