@@ -19,11 +19,7 @@
 package izumi.reflect.thirdparty.internal.boopickle
 
 import java.nio.ByteBuffer
-import java.util.UUID
-
 import scala.collection.mutable
-import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.reflect.ClassTag
 
 private[reflect] trait Pickler[A] {
   def pickle(obj: A)(implicit state: PickleState): Unit
@@ -42,26 +38,14 @@ private[reflect] trait Pickler[A] {
   }
 }
 
-/**
-  * A Pickler that always returns a constant value.
-  *
-  * Stores nothing in the pickled output.
-  */
-private[reflect] final case class ConstPickler[A](a: A) extends Pickler[A] {
-  @inline override def pickle(x: A)(implicit s: PickleState) = ()
-  @inline override def unpickle(implicit s: UnpickleState) = a
-}
-
 private[reflect] trait PicklerHelper {
   protected type P[A] = Pickler[A]
 
-  /**
-    * Helper function to write pickled types
+  /** Helper function to write pickled types
     */
   protected def write[A](value: A)(implicit state: PickleState, p: P[A]): Unit = p.pickle(value)(state)
 
-  /**
-    * Helper function to unpickle a type
+  /** Helper function to unpickle a type
     */
   protected def read[A](implicit state: UnpickleState, u: P[A]): A = u.unpickle
 }
@@ -69,8 +53,6 @@ private[reflect] trait PicklerHelper {
 private[reflect] object BasicPicklers extends PicklerHelper with XCompatPicklers {
 
   import Constants._
-
-  val UnitPickler = ConstPickler(())
 
   object BooleanPickler extends P[Boolean] {
     @inline override def pickle(value: Boolean)(implicit state: PickleState): Unit = state.enc.writeByte(if (value) 1 else 0)
@@ -83,69 +65,9 @@ private[reflect] object BasicPicklers extends PicklerHelper with XCompatPicklers
     }
   }
 
-  object BytePickler extends P[Byte] {
-    @inline override def pickle(value: Byte)(implicit state: PickleState): Unit = state.enc.writeByte(value)
-    @inline override def unpickle(implicit state: UnpickleState): Byte = state.dec.readByte
-  }
-
-  object ShortPickler extends P[Short] {
-    @inline override def pickle(value: Short)(implicit state: PickleState): Unit = state.enc.writeShort(value)
-    @inline override def unpickle(implicit state: UnpickleState): Short = state.dec.readShort
-  }
-
-  object CharPickler extends P[Char] {
-    @inline override def pickle(value: Char)(implicit state: PickleState): Unit = state.enc.writeChar(value)
-    @inline override def unpickle(implicit state: UnpickleState): Char = state.dec.readChar
-  }
-
   object IntPickler extends P[Int] {
     @inline override def pickle(value: Int)(implicit state: PickleState): Unit = state.enc.writeInt(value)
     @inline override def unpickle(implicit state: UnpickleState): Int = state.dec.readInt
-  }
-
-  object LongPickler extends P[Long] {
-    @inline override def pickle(value: Long)(implicit state: PickleState): Unit = state.enc.writeLong(value)
-    @inline override def unpickle(implicit state: UnpickleState): Long = state.dec.readLong
-  }
-
-  object FloatPickler extends P[Float] {
-    @inline override def pickle(value: Float)(implicit state: PickleState): Unit = state.enc.writeFloat(value)
-    @inline override def unpickle(implicit state: UnpickleState): Float = state.dec.readFloat
-  }
-
-  object DoublePickler extends P[Double] {
-    @inline override def pickle(value: Double)(implicit state: PickleState): Unit = state.enc.writeDouble(value)
-    @inline override def unpickle(implicit state: UnpickleState): Double = state.dec.readDouble
-  }
-
-  object ByteBufferPickler extends P[ByteBuffer] {
-    @inline override def pickle(bb: ByteBuffer)(implicit state: PickleState): Unit = state.enc.writeByteBuffer(bb)
-    @inline override def unpickle(implicit state: UnpickleState): ByteBuffer = state.dec.readByteBuffer
-  }
-
-  object BigIntPickler extends P[BigInt] {
-    implicit def bp: BytePickler.type = BytePickler
-
-    @inline override def pickle(value: BigInt)(implicit state: PickleState): Unit = {
-      ArrayPickler.pickle(value.toByteArray)
-    }
-    @inline override def unpickle(implicit state: UnpickleState): BigInt = {
-      BigInt(ArrayPickler.unpickle)
-    }
-  }
-
-  object BigDecimalPickler extends P[BigDecimal] {
-    implicit def bp: BytePickler.type = BytePickler
-
-    @inline override def pickle(value: BigDecimal)(implicit state: PickleState): Unit = {
-      state.enc.writeInt(value.scale)
-      ArrayPickler.pickle(value.underlying().unscaledValue.toByteArray)
-    }
-    @inline override def unpickle(implicit state: UnpickleState): BigDecimal = {
-      val scale = state.dec.readInt
-      val arr = ArrayPickler.unpickle
-      BigDecimal(BigInt(arr), scale)
-    }
   }
 
   object StringPickler extends P[String] {
@@ -177,74 +99,6 @@ private[reflect] object BasicPicklers extends PicklerHelper with XCompatPicklers
     }
   }
 
-  object UUIDPickler extends P[UUID] {
-    override def pickle(s: UUID)(implicit state: PickleState): Unit = {
-      if (s == null) {
-        state.enc.writeRawLong(0)
-        state.enc.writeRawLong(0)
-        state.enc.writeByte(0)
-      } else {
-        val msb = s.getMostSignificantBits
-        val lsb = s.getLeastSignificantBits
-        state.enc.writeRawLong(msb)
-        state.enc.writeRawLong(lsb)
-        // special encoding for UUID zero, to differentiate from null
-        if (msb == 0 && lsb == 0)
-          state.enc.writeByte(1)
-      }
-    }
-
-    @inline override def unpickle(implicit state: UnpickleState): UUID = {
-      val msb = state.dec.readRawLong
-      val lsb = state.dec.readRawLong
-
-      if (msb == 0 && lsb == 0) {
-        val actualUuidByte = state.dec.readByte
-        if (actualUuidByte == 0) null else new UUID(0, 0)
-      } else
-        new UUID(msb, lsb)
-    }
-  }
-
-  object DurationPickler extends P[Duration] {
-    override def pickle(value: Duration)(implicit state: PickleState): Unit = {
-      // take care of special Durations
-      value match {
-        case null =>
-          state.enc.writeLongCode(Left(NullObject.toByte))
-        case Duration.Inf =>
-          state.enc.writeLongCode(Left(DurationInf))
-        case Duration.MinusInf =>
-          state.enc.writeLongCode(Left(DurationMinusInf))
-        case x if x eq Duration.Undefined =>
-          state.enc.writeLongCode(Left(DurationUndefined))
-        case x =>
-          state.enc.writeLongCode(Right(x.toNanos))
-      }
-    }
-
-    @inline override def unpickle(implicit state: UnpickleState): Duration = {
-      state.dec.readLongCode match {
-        case Left(NullObject) =>
-          null
-        case Left(DurationInf) =>
-          Duration.Inf
-        case Left(DurationMinusInf) =>
-          Duration.MinusInf
-        case Left(DurationUndefined) =>
-          Duration.Undefined
-        case Right(value) =>
-          Duration.fromNanos(value)
-        case Left(_) =>
-          null
-      }
-    }
-  }
-
-  def FiniteDurationPickler: P[FiniteDuration] = DurationPickler.asInstanceOf[P[FiniteDuration]]
-
-  def InfiniteDurationPickler: P[Duration.Infinite] = DurationPickler.asInstanceOf[P[Duration.Infinite]]
-
   def OptionPickler[T: P]: P[Option[T]] = new P[Option[T]] {
     override def pickle(obj: Option[T])(implicit state: PickleState): Unit = {
       obj match {
@@ -274,108 +128,9 @@ private[reflect] object BasicPicklers extends PicklerHelper with XCompatPicklers
     }
   }
 
-  def SomePickler[T: P]: P[Some[T]] = OptionPickler[T].asInstanceOf[P[Some[T]]]
-
-  def EitherPickler[T: P, S: P]: P[Either[T, S]] = new P[Either[T, S]] {
-    override def pickle(obj: Either[T, S])(implicit state: PickleState): Unit = {
-      obj match {
-        case null =>
-          state.enc.writeInt(NullObject)
-        case Left(l) =>
-          state.enc.writeInt(EitherLeft.toInt)
-          write[T](l)
-        case Right(r) =>
-          state.enc.writeInt(EitherRight.toInt)
-          write[S](r)
-      }
-    }
-
-    override def unpickle(implicit state: UnpickleState): Either[T, S] = {
-      state.dec.readInt match {
-        case NullObject =>
-          null
-        case EitherLeft =>
-          Left(read[T])
-        case EitherRight =>
-          Right(read[S])
-        case _ =>
-          throw new IllegalArgumentException("Invalid coding for Either type")
-      }
-    }
-  }
-
-  def LeftPickler[T: P, S: P]: P[Left[T, S]] = EitherPickler[T, S].asInstanceOf[P[Left[T, S]]]
-
-  def RightPickler[T: P, S: P]: P[Right[T, S]] = EitherPickler[T, S].asInstanceOf[P[Right[T, S]]]
-
-  /**
-    * Specific pickler for Arrays
-    *
-    * @tparam T Type of values
-    * @return
-    */
-  def ArrayPickler[T: P: ClassTag]: P[Array[T]] = new P[Array[T]] {
-    override def pickle(array: Array[T])(implicit state: PickleState): Unit = {
-      if (array == null)
-        state.enc.writeRawInt(NullRef)
-      else {
-        // check if this iterable has been pickled already
-        implicitly[ClassTag[T]] match {
-          // handle specialization
-          case ClassTag.Byte =>
-            state.enc.writeByteArray(array.asInstanceOf[Array[Byte]])
-          case ClassTag.Int =>
-            state.enc.writeIntArray(array.asInstanceOf[Array[Int]])
-          case ClassTag.Float =>
-            state.enc.writeFloatArray(array.asInstanceOf[Array[Float]])
-          case ClassTag.Double =>
-            state.enc.writeDoubleArray(array.asInstanceOf[Array[Double]])
-          case _ =>
-            // encode length
-            state.enc.writeRawInt(array.length)
-            // encode contents
-            array.foreach(a => write[T](a))
-        }
-      }
-    }
-
-    override def unpickle(implicit state: UnpickleState): Array[T] = {
-      state.dec.readRawInt match {
-        case NullRef =>
-          null
-        case 0 =>
-          // empty Array
-          Array.empty[T]
-        case len =>
-          val r = implicitly[ClassTag[T]] match {
-            // handle specialization
-            case ClassTag.Byte =>
-              state.dec.readByteArray(len).asInstanceOf[Array[T]]
-            case ClassTag.Int =>
-              state.dec.readIntArray(len).asInstanceOf[Array[T]]
-            case ClassTag.Float =>
-              state.dec.readFloatArray(len).asInstanceOf[Array[T]]
-            case ClassTag.Double =>
-              // remove padding
-              state.dec.readRawInt
-              state.dec.readDoubleArray(len).asInstanceOf[Array[T]]
-            case _ =>
-              val a = new Array[T](len)
-              var i = 0
-              while (i < len) {
-                a(i) = read[T]
-                i += 1
-              }
-              a
-          }
-          r
-      }
-    }
-  }
 }
 
-/**
-  * Manage state for a pickling "session".
+/** Manage state for a pickling "session".
   *
   * @param enc            Encoder instance to use
   * @param dedupImmutable Set to `false` if you want to disable deduplication of immutable values (like Strings)
@@ -386,8 +141,7 @@ private[reflect] final class PickleState(val enc: Encoder, dedupImmutable: Boole
 
   @inline def addIdentityRef(obj: AnyRef): Unit = ()
 
-  /**
-    * Object reference for immutable pickled objects
+  /** Object reference for immutable pickled objects
     */
   private[this] var immutableRefs: mutable.AnyRefMap[AnyRef, Int] = null
   private[this] var immutableIdx = 2
@@ -422,16 +176,14 @@ private[reflect] final class PickleState(val enc: Encoder, dedupImmutable: Boole
 
 private[reflect] object PickleState {
 
-  /**
-    * Provides a default PickleState if none is available implicitly
+  /** Provides a default PickleState if none is available implicitly
     *
     * @return
     */
   implicit def pickleStateSpeed: PickleState = new PickleState(new EncoderSize, dedupImmutable = true)
 }
 
-/**
-  * Manage state for an unpickling "session"
+/** Manage state for an unpickling "session"
   *
   * @param dec            Decoder instance to use
   * @param deduplicate    Set to `false` if you want to disable deduplication
@@ -439,8 +191,7 @@ private[reflect] object PickleState {
   */
 private[reflect] final class UnpickleState(val dec: Decoder, deduplicate: Boolean = true, dedupImmutable: Boolean = true) {
 
-  /**
-    * Object reference for pickled objects (use identity for equality comparison)
+  /** Object reference for pickled objects (use identity for equality comparison)
     *
     * Index 0 is not used
     * Index 1 = null
@@ -465,8 +216,7 @@ private[reflect] final class UnpickleState(val dec: Decoder, deduplicate: Boolea
     if (deduplicate)
       identityRefs = identityRefs.updated(obj)
 
-  /**
-    * Object reference for immutable pickled objects
+  /** Object reference for immutable pickled objects
     */
   private[this] var immutableRefs: IdentList = EmptyIdentList
 
@@ -488,15 +238,6 @@ private[reflect] final class UnpickleState(val dec: Decoder, deduplicate: Boolea
 }
 
 private[reflect] object UnpickleState {
-
-  /**
-    * Provides a default UnpickleState if none is available implicitly
-    *
-    * @return
-    */
-  implicit def unpickleStateSpeed: ByteBuffer => UnpickleState =
-    bytes => new UnpickleState(new DecoderSize(bytes), true, true)
-
   def apply(bytes: ByteBuffer) = new UnpickleState(new DecoderSize(bytes))
 
   def apply(decoder: Decoder, deduplicate: Boolean = false, dedupImmutable: Boolean = false) =
