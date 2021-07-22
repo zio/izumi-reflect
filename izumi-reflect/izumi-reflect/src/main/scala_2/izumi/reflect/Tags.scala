@@ -26,8 +26,7 @@ import scala.language.experimental.macros
 trait AnyTag {
   def tag: LightTypeTag
 
-  /**
-    * Closest class found for the type or for a LUB of all intersection
+  /** Closest class found for the type or for a LUB of all intersection
     * members in case of an intersection type.
     *
     * A Scala type may not have an associated JVM class, as such
@@ -36,7 +35,7 @@ trait AnyTag {
     * Only if `tag.hasPreciseClass` returns true
     * it may be safe to reflect on `closestClass`
     */
-  def closestClass: Class[_]
+  def closestClass: Class[?]
 
   final def hasPreciseClass: Boolean = {
     try tag.shortName == closestClass.getSimpleName
@@ -53,8 +52,7 @@ trait AnyTag {
   override final def hashCode(): Int = tag.hashCode()
 }
 
-/**
-  * Like [[scala.reflect.api.TypeTags.TypeTag]], but supports higher-kinded type tags via `TagK` type class.
+/** Like [[scala.reflect.api.TypeTags.TypeTag]], but supports higher-kinded type tags via `TagK` type class.
   *
   * In context of DI this lets you define modules parameterized by higher-kinded type parameters.
   * This is especially helpful for applying [[https://www.beyondthelines.net/programming/introduction-to-tagless-final/ `tagless final` style]]
@@ -87,15 +85,14 @@ trait AnyTag {
 )
 trait Tag[T] extends AnyTag {
   def tag: LightTypeTag
-  def closestClass: Class[_]
+  def closestClass: Class[?]
 
   override final def toString: String = s"Tag[$tag]"
 }
 
 object Tag {
 
-  /**
-    * Use `Tag.auto.T[TYPE_PARAM]` syntax to summon a `Tag` for a type parameter of any kind:
+  /** Use `Tag.auto.T[TYPE_PARAM]` syntax to summon a `Tag` for a type parameter of any kind:
     *
     * {{{
     *   def module1[F[_]: Tag.auto.T] = new ModuleDef {
@@ -119,15 +116,14 @@ object Tag {
 
   @inline def apply[T: Tag]: Tag[T] = implicitly
 
-  def apply[T](cls: Class[_], tag0: LightTypeTag): Tag[T] = {
+  def apply[T](cls: Class[?], tag0: LightTypeTag): Tag[T] = {
     new Tag[T] {
       override val tag: LightTypeTag = tag0
-      override val closestClass: Class[_] = cls
+      override val closestClass: Class[?] = cls
     }
   }
 
-  /**
-    * Create a Tag of a type formed by applying the type in `tag` to `args`.
+  /** Create a Tag of a type formed by applying the type in `tag` to `args`.
     *
     * Example:
     * {{{
@@ -135,32 +131,30 @@ object Tag {
     *     Tag.appliedTag(TagK3[T].tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
     * }}}
     */
-  def appliedTag[R](tag: HKTag[_], args: List[LightTypeTag]): Tag[R] = {
-    Tag(tag.closestClass, tag.tag.combine(args: _*))
+  def appliedTag[R](tag: HKTag[?], args: List[LightTypeTag]): Tag[R] = {
+    Tag(tag.closestClass, tag.tag.combine(args *))
   }
 
-  /**
-    * Create a Tag of a type formed from an `intersection` of types (A with B) with a structural refinement taken from `structType`
+  /** Create a Tag of a type formed from an `intersection` of types (A with B) with a structural refinement taken from `structType`
     *
     * `structType` is assumed to be a weak type of the entire type, e.g.
     * {{{
     *   Tag[A with B {def abc: Unit}] == refinedTag(classOf[Any], List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag, Map.empty)
     * }}}
     */
-  def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag, additionalTypeMembers: Map[String, LightTypeTag]): Tag[R] = {
+  def refinedTag[R](lubClass: Class[?], intersection: List[LightTypeTag], structType: LightTypeTag, additionalTypeMembers: Map[String, LightTypeTag]): Tag[R] = {
     Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
   }
 
   @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
-  private[Tag] def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
+  private[Tag] def refinedTag[R](lubClass: Class[?], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
     refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
   implicit final def tagFromTagMacro[T]: Tag[T] = macro TagMacro.makeTag[T]
 }
 
-/**
-  * Internal unsafe API representing a poly-kinded, higher-kinded type tag.
+/** Internal unsafe API representing a poly-kinded, higher-kinded type tag.
   *
   * To create a Tag* implicit for an arbitrary kind use the following syntax:
   *
@@ -183,30 +177,29 @@ object Tag {
 trait HKTag[T] extends AnyTag {
   /** Internal `LightTypeTag` holding the `typeConstructor` of type `T` */
   def tag: LightTypeTag
-  def closestClass: Class[_]
+  def closestClass: Class[?]
 
   override final def toString: String = s"HKTag[$tag]"
 }
 
 object HKTag {
-  def apply[T](cls: Class[_], lightTypeTag: LightTypeTag): HKTag[T] = new HKTag[T] {
+  def apply[T](cls: Class[?], lightTypeTag: LightTypeTag): HKTag[T] = new HKTag[T] {
     override val tag: LightTypeTag = lightTypeTag
-    override val closestClass: Class[_] = cls
+    override val closestClass: Class[?] = cls
   }
 
-  def appliedTagNonPos[R](tag: HKTag[_], args: List[Option[LightTypeTag]]): HKTag[R] = {
-    HKTag(tag.closestClass, tag.tag.combineNonPos(args: _*))
+  def appliedTagNonPos[R](tag: HKTag[?], args: List[Option[LightTypeTag]]): HKTag[R] = {
+    HKTag(tag.closestClass, tag.tag.combineNonPos(args *))
   }
 
-  def appliedTagNonPosAux[R](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): HKTag[R] = {
-    HKTag(cls, ctor.combineNonPos(args: _*))
+  def appliedTagNonPosAux[R](cls: Class[?], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): HKTag[R] = {
+    HKTag(cls, ctor.combineNonPos(args *))
   }
 
   @inline implicit final def hktagFromTagMacro[T](implicit materializer: HKTagMaterializer[T]): HKTag[T] = materializer.value
 }
 
-/**
-  * Force eager expansion for all recursive implicit searches inside TagMacro
+/** Force eager expansion for all recursive implicit searches inside TagMacro
   * by introducing a proxy implicit to display better error messages
   *
   * @see test ResourceEffectBindingsTest."Display tag macro stack trace when ResourceTag is not found"
@@ -223,7 +216,7 @@ object HKTagMaterializer {
 // So we resort to weak type parameters and pointer equality
 trait WeakTag[T] extends AnyTag {
   def tag: LightTypeTag
-  def closestClass: Class[_]
+  def closestClass: Class[?]
 
   override final def toString: String = s"WeakTag[$tag]"
 }
@@ -231,10 +224,10 @@ trait WeakTag[T] extends AnyTag {
 object WeakTag extends WeakTagInstances1 {
   def apply[T: WeakTag]: WeakTag[T] = implicitly
 
-  def apply[T](cls: Class[_], l: LightTypeTag): WeakTag[T] = {
+  def apply[T](cls: Class[?], l: LightTypeTag): WeakTag[T] = {
     new WeakTag[T] {
       override val tag: LightTypeTag = l
-      override val closestClass: Class[_] = cls
+      override val closestClass: Class[?] = cls
     }
   }
 

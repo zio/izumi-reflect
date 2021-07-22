@@ -9,7 +9,7 @@ private[reflect] object OrderingCompat {
   @inline private[reflect] def sortedSetOrdering[A](ordering: Ordering[A]): Ordering[scala.collection.immutable.SortedSet[A]] = {
     Ordering.Implicits.sortedSetOrdering(ordering)
   }
-  @inline private[reflect] def setToSortedSet[A](ord: Ordering[_ >: A])(set: Set[_ <: A]): SortedSet[A] = {
+  @inline private[reflect] def setToSortedSet[A](ord: Ordering[? >: A])(set: Set[? <: A]): SortedSet[A] = {
     SortedSet.from[A](set)(ord.asInstanceOf[Ordering[A]])
   }
 }

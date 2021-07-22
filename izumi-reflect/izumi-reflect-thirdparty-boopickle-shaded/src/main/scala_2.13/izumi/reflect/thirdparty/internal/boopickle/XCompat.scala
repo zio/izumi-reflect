@@ -6,23 +6,23 @@ import scala.collection.Factory
 private[reflect] trait XCompatImplicitPicklers {
   this: PicklerHelper =>
 
-  implicit def mapPickler[T: P, S: P, V[_, _] <: scala.collection.Map[_, _]](
-      implicit cbf: Factory[(T, S), V[T, S]]): P[V[T, S]] = BasicPicklers.MapPickler[T, S, V]
-  implicit def iterablePickler[T: P, V[_] <: Iterable[_]](implicit cbf: Factory[T, V[T]]): P[V[T]] =
+  implicit def mapPickler[T: P, S: P, V[_, _] <: scala.collection.Map[?, ?]](
+    implicit cbf: Factory[(T, S), V[T, S]]
+  ): P[V[T, S]] = BasicPicklers.MapPickler[T, S, V]
+  implicit def iterablePickler[T: P, V[_] <: Iterable[?]](implicit cbf: Factory[T, V[T]]): P[V[T]] =
     BasicPicklers.IterablePickler[T, V]
 }
 
 private[reflect] trait XCompatPicklers {
   this: PicklerHelper =>
 
-  /**
-    * This pickler works on all collections that derive from Iterable[T] (Vector, Set, List, etc)
+  /** This pickler works on all collections that derive from Iterable[T] (Vector, Set, List, etc)
     *
     * @tparam T type of the values
     * @tparam V type of the collection
     * @return
     */
-  def IterablePickler[T: P, V[_] <: Iterable[_]](implicit cbf: Factory[T, V[T]]): P[V[T]] = new P[V[T]] {
+  def IterablePickler[T: P, V[_] <: Iterable[?]](implicit cbf: Factory[T, V[T]]): P[V[T]] = new P[V[T]] {
     override def pickle(iterable: V[T])(implicit state: PickleState): Unit = {
       if (iterable == null) {
         state.enc.writeInt(NullRef)
@@ -56,14 +56,13 @@ private[reflect] trait XCompatPicklers {
     }
   }
 
-  /**
-    * Maps require a specific pickler as they have two type parameters.
+  /** Maps require a specific pickler as they have two type parameters.
     *
     * @tparam T Type of keys
     * @tparam S Type of values
     * @return
     */
-  def MapPickler[T: P, S: P, V[_, _] <: scala.collection.Map[_, _]](implicit cbf: Factory[(T, S), V[T, S]]): P[V[T, S]] =
+  def MapPickler[T: P, S: P, V[_, _] <: scala.collection.Map[?, ?]](implicit cbf: Factory[(T, S), V[T, S]]): P[V[T, S]] =
     new P[V[T, S]] {
       override def pickle(map: V[T, S])(implicit state: PickleState): Unit = {
         if (map == null) {
@@ -74,9 +73,10 @@ private[reflect] trait XCompatPicklers {
           // encode contents as a sequence
           val kPickler = implicitly[P[T]]
           val vPickler = implicitly[P[S]]
-          map.asInstanceOf[scala.collection.Map[T, S]].foreach { kv =>
-            kPickler.pickle(kv._1)(state)
-            vPickler.pickle(kv._2)(state)
+          map.asInstanceOf[scala.collection.Map[T, S]].foreach {
+            kv =>
+              kPickler.pickle(kv._1)(state)
+              vPickler.pickle(kv._2)(state)
           }
         }
       }
@@ -96,7 +96,7 @@ private[reflect] trait XCompatPicklers {
             b.sizeHint(len)
             val kPickler = implicitly[P[T]]
             val vPickler = implicitly[P[S]]
-            var i        = 0
+            var i = 0
             while (i < len) {
               b += kPickler.unpickle(state) -> vPickler.unpickle(state)
               i += 1

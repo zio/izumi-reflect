@@ -53,7 +53,7 @@ class LightTypeTagProgressionTest extends TagAssertions {
 
     "progression test: wildcards are not supported" in {
       intercept[TestFailedException] {
-        assertChild(LTT[Set[Int]], LTT[Set[_]])
+        assertChild(LTT[Set[Int]], LTT[Set[?]])
       }
     }
 

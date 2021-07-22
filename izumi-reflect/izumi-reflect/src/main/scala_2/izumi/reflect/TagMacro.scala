@@ -89,7 +89,7 @@ class TagMacro(val c: blackbox.Context) {
         .map(_.typeSymbol) == outerLambda.typeParams
     }
 
-    val constructorTag: c.Expr[HKTag[_]] = {
+    val constructorTag: c.Expr[HKTag[?]] = {
       val ctor = lambdaResult.typeConstructor
       getCtorKindIfCtorIsTypeParameter(ctor) match {
         // type constructor of this type is not a type parameter
@@ -261,7 +261,7 @@ class TagMacro(val c: blackbox.Context) {
         symbol.name.decodedName.toString -> summonLightTypeTagOfAppropriateKind(symbol.info)
     }.toMap
 
-    val strongDeclsTpe = internal.refinedType(intersection, originalRefinement.typeSymbol.owner, internal.newScopeWith(strongDecls.toSeq: _*))
+    val strongDeclsTpe = internal.refinedType(intersection, originalRefinement.typeSymbol.owner, internal.newScopeWith(strongDecls.toSeq *))
     val resolvedTagsExpr = c.Expr[Map[String, LightTypeTag]](Liftable.liftMap[String, Expr[LightTypeTag]].apply(resolvedTags))
 
     (ltagMacro.makeParsedLightTypeTagImpl(strongDeclsTpe), resolvedTagsExpr)
@@ -270,7 +270,7 @@ class TagMacro(val c: blackbox.Context) {
   // we need to handle three cases – type args, refined types and type bounds (we don't handle type bounds currently)
   @inline
   protected[this] def mkTagWithTypeParameters[T: c.WeakTypeTag](tpe: Type): c.Expr[Tag[T]] = {
-    val constructorTag: c.Expr[HKTag[_]] = {
+    val constructorTag: c.Expr[HKTag[?]] = {
       val ctor = tpe.typeConstructor
       getCtorKindIfCtorIsTypeParameter(ctor) match {
         // type constructor of this type is not a type parameter
@@ -307,13 +307,13 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   @inline
-  private[this] final def closestClass(properTypeStrongCtor: Type): c.Expr[Class[_]] = {
+  private[this] final def closestClass(properTypeStrongCtor: Type): c.Expr[Class[?]] = {
     // unfortunately .erasure returns trash for intersection types
     val tpeLub = properTypeStrongCtor match {
       case r: RefinedTypeApi => lub(r.parents)
       case _ => properTypeStrongCtor
     }
-    c.Expr[Class[_]](q"_root_.scala.Predef.classOf[${tpeLub.erasure}]")
+    c.Expr[Class[?]](q"_root_.scala.Predef.classOf[${tpeLub.erasure}]")
   }
 
   @inline
@@ -374,8 +374,8 @@ class TagMacro(val c: blackbox.Context) {
     lttFromTag(summonTagForKind(tpe, kindOf(tpe)))
   }
 
-  private[this] def summonHKTag(tpe: Type, kind: Kind): c.Expr[HKTag[_]] = {
-    c.Expr[HKTag[_]](summonTagForKind(tpe, kind))
+  private[this] def summonHKTag(tpe: Type, kind: Kind): c.Expr[HKTag[?]] = {
+    c.Expr[HKTag[?]](summonTagForKind(tpe, kind))
   }
 
   @inline

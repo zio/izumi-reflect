@@ -29,7 +29,7 @@ private[reflect] class CompositePickler[A] extends Pickler[A] {
   import Constants._
 
   private var picklerClasses = IdentMap.empty
-  private val picklers = mutable.ArrayBuffer.empty[(Class[_], Pickler[_])]
+  private val picklers = mutable.ArrayBuffer.empty[(Class[?], Pickler[?])]
 
   override def pickle(obj: A)(implicit state: PickleState): Unit = {
     if (obj == null) {

@@ -25,10 +25,10 @@ import scala.collection.generic.CanBuildFrom
 private[reflect] trait XCompatImplicitPicklers {
   this: PicklerHelper =>
 
-  implicit def mapPickler[T: P, S: P, V[_, _] <: scala.collection.Map[_, _]](
+  implicit def mapPickler[T: P, S: P, V[?, ?] <: scala.collection.Map[?, ?]](
       implicit cbf: CanBuildFrom[Nothing, (T, S), V[T, S]]): P[V[T, S]] =
     BasicPicklers.MapPickler[T, S, V]
-  implicit def iterablePickler[T: P, V[_] <: Iterable[_]](implicit cbf: CanBuildFrom[Nothing, T, V[T]]): P[V[T]] =
+  implicit def iterablePickler[T: P, V[?] <: Iterable[?]](implicit cbf: CanBuildFrom[Nothing, T, V[T]]): P[V[T]] =
     BasicPicklers.IterablePickler[T, V]
 }
 
@@ -42,7 +42,7 @@ private[reflect] trait XCompatPicklers {
     * @tparam V type of the collection
     * @return
     */
-  def IterablePickler[T: P, V[_] <: Iterable[_]](implicit cbf: CanBuildFrom[Nothing, T, V[T]]): P[V[T]] = new P[V[T]] {
+  def IterablePickler[T: P, V[?] <: Iterable[?]](implicit cbf: CanBuildFrom[Nothing, T, V[T]]): P[V[T]] = new P[V[T]] {
     override def pickle(iterable: V[T])(implicit state: PickleState): Unit = {
       if (iterable == null) {
         state.enc.writeInt(NullRef)
@@ -83,7 +83,7 @@ private[reflect] trait XCompatPicklers {
     * @tparam S Type of values
     * @return
     */
-  def MapPickler[T: P, S: P, V[_, _] <: scala.collection.Map[_, _]](
+  def MapPickler[T: P, S: P, V[?, ?] <: scala.collection.Map[?, ?]](
       implicit cbf: CanBuildFrom[Nothing, (T, S), V[T, S]]): P[V[T, S]] =
     new P[V[T, S]] {
       override def pickle(map: V[T, S])(implicit state: PickleState): Unit = {

@@ -129,8 +129,8 @@ class TagTest extends SharedTagTest {
       assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
       assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
 
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
+      assert(Tag[With[str.type] & ({ type T = str.type & Int })].tag == fromRuntime[With[str.type] & ({ type T = str.type & Int })])
+      assert(Tag[With[str.type] & ({ type T = str.type & Int })].tag != fromRuntime[With[str.type] & ({ type T = str.type & Long })])
     }
 
     "Work for any abstract type with available Tag when obscured by empty refinement" in {
@@ -213,7 +213,7 @@ class TagTest extends SharedTagTest {
     "Work for an abstract type with available TagKK" in {
       def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
 
-      assert(t1[ZOBA[Int, ?, ?], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
+      assert(t1[ZOBA[Int, _, _], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
     }
 
     "Handle Tags outside of a predefined set" in {
@@ -239,8 +239,8 @@ class TagTest extends SharedTagTest {
       type ZOB[A, B, C] = Either[B, C]
 
       assert(
-        t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, ?]].tag
-        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, ?]]]
+        t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, _]].tag
+        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, _]]]
       )
 
       def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
@@ -331,16 +331,16 @@ class TagTest extends SharedTagTest {
     }
 
     "return expected class tag" in {
-      assert(Tag[List[_] with Set[_]].closestClass eq classOf[scala.collection.immutable.Iterable[_]])
-      assert(!Tag[List[_] with Set[_]].hasPreciseClass)
+      assert(Tag[List[?] & Set[?]].closestClass eq classOf[scala.collection.immutable.Iterable[?]])
+      assert(!Tag[List[?] & Set[?]].hasPreciseClass)
 
       assert(Tag[AnyVal].closestClass eq classOf[AnyVal])
       assert(!Tag[AnyVal].hasPreciseClass)
 
-      assert(Tag[String with Int].closestClass eq classOf[AnyVal])
-      assert(!Tag[String with Int].hasPreciseClass)
+      assert(Tag[String & Int].closestClass eq classOf[AnyVal])
+      assert(!Tag[String & Int].hasPreciseClass)
 
-      assert(Tag[List[Int]].closestClass eq classOf[List[_]])
+      assert(Tag[List[Int]].closestClass eq classOf[List[?]])
       assert(Tag[List[Int]].hasPreciseClass)
       assert(Tag[H1].hasPreciseClass)
 
@@ -359,57 +359,57 @@ class TagTest extends SharedTagTest {
     }
 
     "resolve TagK from TagKK" in {
-      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, ?]]
+      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, _]]
       val tagEitherThrowable = getTag[Either].tag
-      val tag = TagK[Either[Throwable, ?]].tag
+      val tag = TagK[Either[Throwable, _]].tag
 
       assert(tagEitherThrowable =:= tag)
       assert(tagEitherThrowable <:< tag)
-      assert(tagEitherThrowable <:< TagK[Either[Any, ?]].tag)
-      assert(TagK[Either[Nothing, ?]].tag <:< tagEitherThrowable)
+      assert(tagEitherThrowable <:< TagK[Either[Any, _]].tag)
+      assert(TagK[Either[Nothing, _]].tag <:< tagEitherThrowable)
     }
 
     "can materialize TagK for type lambdas that close on a generic parameter with available Tag" in {
-      def partialEitherTagK[A: Tag] = TagK[Either[A, ?]]
+      def partialEitherTagK[A: Tag] = TagK[Either[A, _]]
 
       val tag = partialEitherTagK[Int].tag
-      val expectedTag = TagK[Either[Int, ?]].tag
+      val expectedTag = TagK[Either[Int, _]].tag
 
       assert(tag =:= expectedTag)
     }
 
     "can materialize TagK for type lambdas that close on a generic parameter with available Tag when the constructor is a type parameter" in {
-      def partialFTagK[F[_, _]: TagKK, A: Tag] = TagK[F[A, ?]]
+      def partialFTagK[F[_, _]: TagKK, A: Tag] = TagK[F[A, _]]
 
       val tag = partialFTagK[Either, Int].tag
-      val expectedTag = TagK[Either[Int, ?]].tag
+      val expectedTag = TagK[Either[Int, _]].tag
 
       assert(tag =:= expectedTag)
     }
 
     "type parameter covariance works after combine" in {
-      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, ?]]
+      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, _]]
       val tagEitherThrowable = getTag[Either].tag
-      val tagEitherSerializable = TagK[Either[java.io.Serializable, ?]]
+      val tagEitherSerializable = TagK[Either[java.io.Serializable, _]]
       assert(tagEitherThrowable <:< tagEitherSerializable.tag)
     }
 
     "combine Const Lambda to TagK" in {
-      def get[F[_, _]: TagKK] = TagK[F[Int, ?]]
+      def get[F[_, _]: TagKK] = TagK[F[Int, _]]
       val tag = get[Const]
 
-      assert(tag.tag =:= TagK[Const[Int, ?]].tag)
-      assert(tag.tag <:< TagK[Const[AnyVal, ?]].tag)
-      assert(tag.tag.hashCode() == TagK[Const[Int, ?]].tag.hashCode())
+      assert(tag.tag =:= TagK[Const[Int, _]].tag)
+      assert(tag.tag <:< TagK[Const[AnyVal, _]].tag)
+      assert(tag.tag.hashCode() == TagK[Const[Int, _]].tag.hashCode())
     }
 
     "combined TagK 3 & 2 parameter coherence" in {
-      def get[F[+_, +_]: TagKK] = TagK[F[Throwable, ?]]
+      def get[F[+_, +_]: TagKK] = TagK[F[Throwable, _]]
       val tag = get[IO]
 
-      assert(tag.tag =:= TagK[IO[Throwable, ?]].tag)
-      assert(tag.tag <:< TagK[IO[Throwable, ?]].tag)
-      assert(tag.tag <:< TagK[IO[Any, ?]].tag)
+      assert(tag.tag =:= TagK[IO[Throwable, _]].tag)
+      assert(tag.tag <:< TagK[IO[Throwable, _]].tag)
+      assert(tag.tag <:< TagK[IO[Any, _]].tag)
     }
 
     "resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters (low-level)" in {
@@ -430,24 +430,24 @@ class TagTest extends SharedTagTest {
             None
           )
         ).tag
-      val expectedTag = TagKK[Lt[EitherRSwap, Throwable, ?, ?]].tag
+      val expectedTag = TagKK[Lt[EitherRSwap, Throwable, _, _]].tag
       assert(combinedTag =:= expectedTag)
     }
 
     "resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters" in {
-      def getTag[F[-_, +_, +_]: TagK3] = TagKK[F[?, ?, Throwable]]
+      def getTag[F[-_, +_, +_]: TagK3] = TagKK[F[_, _, Throwable]]
       val tagEitherSwap = getTag[EitherRSwap].tag
       val tagEitherThrowable = getTag[EitherR].tag
 
-      val expectedTagSwap = TagKK[EitherRSwap[?, ?, Throwable]].tag
-      val expectedTagEitherThrowable = TagKK[EitherR[?, ?, Throwable]].tag
+      val expectedTagSwap = TagKK[EitherRSwap[_, _, Throwable]].tag
+      val expectedTagEitherThrowable = TagKK[EitherR[_, _, Throwable]].tag
 
       assert(!(tagEitherSwap =:= expectedTagEitherThrowable))
       assert(tagEitherSwap =:= expectedTagSwap)
       assert(tagEitherThrowable =:= expectedTagEitherThrowable)
       assert(tagEitherSwap <:< expectedTagSwap)
-      assert(tagEitherSwap <:< TagKK[EitherRSwap[?, ?, Any]].tag)
-      assert(TagKK[EitherRSwap[?, ?, Nothing]].tag <:< tagEitherSwap)
+      assert(tagEitherSwap <:< TagKK[EitherRSwap[_, _, Any]].tag)
+      assert(TagKK[EitherRSwap[_, _, Nothing]].tag <:< tagEitherSwap)
     }
 
     "combine higher-kinded types without losing ignored type arguments" in {
@@ -458,7 +458,7 @@ class TagTest extends SharedTagTest {
     }
 
     "resolve a higher-kinded type inside a named type lambda with ignored type arguments" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, ?, ?, ?]]]
+      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, _, _, _]]]
       val tag = mk[IO]
 
       assert(tag.tag == Tag[BlockingIO[IO]].tag)
@@ -472,10 +472,10 @@ class TagTest extends SharedTagTest {
     }
 
     "correctly resolve a higher-kinded nested type inside a named swap type lambda" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BIOService[SwapF2[F, ?, ?]]]
+      def mk[F[+_, +_]: TagKK] = Tag[BIOService[SwapF2[F, _, _]]]
       val tag = mk[Either]
 
-      assert(tag.tag == Tag[BIOService[SwapF2[Either, ?, ?]]].tag)
+      assert(tag.tag == Tag[BIOService[SwapF2[Either, _, _]]].tag)
       assert(tag.tag == Tag[BIOService[Swap]].tag)
       assert(tag.tag == Tag[BIOService[Lambda[(E, A) => Either[A, E]]]].tag)
     }
@@ -484,7 +484,7 @@ class TagTest extends SharedTagTest {
       def mk[F[+_, +_]: TagKK] = Tag[BIOService[Lambda[(E, A) => F[A, E]]]]
       val tag = mk[Either]
 
-      assert(tag.tag == Tag[BIOService[SwapF2[Either, ?, ?]]].tag)
+      assert(tag.tag == Tag[BIOService[SwapF2[Either, _, _]]].tag)
       assert(tag.tag == Tag[BIOService[Swap]].tag)
       assert(tag.tag == Tag[BIOService[Lambda[(E, A) => Either[A, E]]]].tag)
     }
@@ -545,7 +545,7 @@ class TagTest extends SharedTagTest {
         def map[B](f: A => B): ZIO[R, E, B] = new ZIO(f)
         def toLayer[A1 >: A: Tag]: ZLayer[R, E, Has[A1]] = new ZLayer(Tag[Has[A1]])
       }
-      class ZLayer[-R, +E, +A](val t: Tag[_ <: A])
+      class ZLayer[-R, +E, +A](val t: Tag[? <: A])
       final class Has[X]
 
       type UIO[T] = ZIO[Any, Nothing, T]

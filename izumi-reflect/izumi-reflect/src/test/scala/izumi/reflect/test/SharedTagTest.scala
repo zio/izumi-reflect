@@ -53,9 +53,9 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] {
       assert(Tag[Int].tag == fromRuntime[Int])
       assert(Tag[Set[String]].tag == fromRuntime[Set[String]])
       assert(Tag[Map[Boolean, Double]].tag == fromRuntime[Map[Boolean, Double]])
-      assert(Tag[_ => Unit].tag == fromRuntime[_ => Unit])
-      assert(Tag[Unit => _].tag == fromRuntime[Unit => _])
-      assert(Tag[_ => _].tag == fromRuntime[_ => _])
+      assert(Tag[? => Unit].tag == fromRuntime[? => Unit])
+      assert(Tag[Unit => ?].tag == fromRuntime[Unit => ?])
+      assert(Tag[? => ?].tag == fromRuntime[? => ?])
 
       assert(Tag[Any].tag == fromRuntime[Any])
       assert(Tag[Nothing].tag == fromRuntime[Nothing])
@@ -64,7 +64,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] {
 
       assert(Tag[With[Any]].tag == fromRuntime[With[Any]])
       assert(Tag[With[Nothing]].tag == fromRuntime[With[Nothing]])
-      assert(Tag[With[_]].tag == fromRuntime[With[_]])
+      assert(Tag[With[?]].tag == fromRuntime[With[?]])
 
       assert(Tag[Int with String].tag == fromRuntime[Int with String])
 
@@ -103,7 +103,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] {
 
       IzumiReflectTagEqualRegression.test()
     }
-
 
   }
 

@@ -34,7 +34,7 @@ class LightTypeTagTest extends TagAssertions {
         LTT[Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[Unit, A] }],
         "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})"
       )
-      assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
+      assertRepr(LTT[I1 & (I1 & (I1 & W1))], "{TestModel::I1 & TestModel::W1}")
       assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
       assertRepr(`LTT[_]`[Nothing], "Nothing")
       assertRepr(LTT[Int], "Int")
@@ -42,8 +42,8 @@ class LightTypeTagTest extends TagAssertions {
       assertRepr(LTT[Id[Int]], "Int")
       assertRepr(LTT[FP[Int]], "List[+Int]")
       assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
-      assertRepr(`LTT[_]`[Either[Unit, ?]], "λ %0 → Either[+Unit,+0]")
-      assertRepr(`LTT[_]`[S[Unit, ?]], "λ %0 → Either[+0,+Unit]")
+      assertRepr(`LTT[_]`[Either[Unit, _]], "λ %0 → Either[+Unit,+0]")
+      assertRepr(`LTT[_]`[S[Unit, _]], "λ %0 → Either[+0,+Unit]")
     }
 
     "support distinction between subtypes" in {
@@ -63,10 +63,14 @@ class LightTypeTagTest extends TagAssertions {
       val subStrTR = subStrALTT.ref.asInstanceOf[AppliedNamedReference]
       val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedNamedReference]
       assert(strUnpacker.bases.keySet == Set(strTR))
-      assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR) ; case p => p })
-      assert(substrUnpacker.inheritance == strUnpacker.inheritance.map { case (s, v) if s.toString == "String" => subStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName) ; case p => p })
-      assert(subsubstrUnpacker.bases == strUnpacker.bases.map { case (strTR, v) => subSubStrTR -> (v + strTR) ; case p => p })
-      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance.map { case (s, v) if s.toString == "String" => subSubStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName) ; case p => p })
+      assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR); case p => p })
+      assert(substrUnpacker.inheritance == strUnpacker.inheritance.map {
+        case (s, v) if s.toString == "String" => subStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName); case p => p
+      })
+      assert(subsubstrUnpacker.bases == strUnpacker.bases.map { case (strTR, v) => subSubStrTR -> (v + strTR); case p => p })
+      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance.map {
+        case (s, v) if s.toString == "String" => subSubStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName); case p => p
+      })
 
       assertDifferent(subStrALTT, strLTT)
       assertChild(subStrALTT, strLTT)
@@ -91,30 +95,30 @@ class LightTypeTagTest extends TagAssertions {
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[FP], LTT[T1[FP]])
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[FI], LTT[T1[FI]])
 
-      assertCombine(`LTT[_[_]]`[T0[Id, ?[_]]], `LTT[_]`[FP], LTT[T0[Id, FP]])
+      assertCombine(`LTT[_[_]]`[T0[Id, _[_]]], `LTT[_]`[FP], LTT[T0[Id, FP]])
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[List], LTT[T1[List]])
       assertCombine(`LTT[_]`[List], LTT[Int], LTT[List[Int]])
-      assertCombine(`LTT[_,_]`[Either], LTT[Unit], `LTT[_]`[Either[Unit, ?]])
+      assertCombine(`LTT[_,_]`[Either], LTT[Unit], `LTT[_]`[Either[Unit, _]])
 
       assertCombine(`LTT[_[_[_],_[_]]]`[T2], `LTT[_[_],_[_]]`[T0], LTT[T2[T0]])
 
-      type ComplexRef[T] = W1 with T { def a(p: T): T; type M = T }
-      assertCombine(`LTT[_]`[ComplexRef], LTT[Int], LTT[W1 with Int { def a(p: Int): Int; type M = Int }])
+      type ComplexRef[T] = W1 & T { def a(p: T): T; type M = T }
+      assertCombine(`LTT[_]`[ComplexRef], LTT[Int], LTT[W1 & Int { def a(p: Int): Int; type M = Int }])
     }
 
     "support non-positional typetag combination" in {
-      assertCombineNonPos(`LTT[_,_]`[Either], Seq(None, Some(LTT[Unit])), `LTT[_]`[Either[?, Unit]])
+      assertCombineNonPos(`LTT[_,_]`[Either], Seq(None, Some(LTT[Unit])), `LTT[_]`[Either[_, Unit]])
     }
 
     "eradicate tautologies" in {
-      assertSame(LTT[Object with Option[String]], LTT[Option[String]])
-      assertSame(LTT[Any with Option[String]], LTT[Option[String]])
-      assertSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
+      assertSame(LTT[Object & Option[String]], LTT[Option[String]])
+      assertSame(LTT[Any & Option[String]], LTT[Option[String]])
+      assertSame(LTT[AnyRef & Option[String]], LTT[Option[String]])
 
     }
 
     "support self-intersection (X with X)" in {
-      assertSame(`LTT`[String with String], `LTT`[String])
+      assertSame(`LTT`[String & String], `LTT`[String])
     }
 
     "support subtype checks" in {
@@ -144,14 +148,14 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
       assertChild(LTT[None.type], LTT[Option[Int]])
 
-      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
-      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
+      assertChild(LTT[Option[W2]], LTT[Option[? <: W1]])
+      assertNotChild(LTT[Option[W2]], LTT[Option[? <: I1]])
 
-      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
-      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
+      assertChild(LTT[Option[H3]], LTT[Option[? >: H4 <: H2]])
+      assertNotChild(LTT[Option[H1]], LTT[Option[? >: H4 <: H2]])
 
       // bottom boundary is weird!
-      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+      assertChild(LTT[Option[H5]], LTT[Option[? >: H4 <: H2]])
 
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Option[A]
@@ -173,9 +177,9 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[J[Option]], LTT[J1[Option]])
       assertChild(LTT[J[Option]], LTT[J3])
       assertChild(LTT[J[Option]], LTT[J2])
-      assertChild(LTT[J[Option]], LTT[J1[Option] with J2])
-      assertChild(LTT[J[Option]], LTT[J2 with J3])
-      assertChild(LTT[J[Option]], LTT[J1[Option] with J2 with J3])
+      assertChild(LTT[J[Option]], LTT[J1[Option] & J2])
+      assertChild(LTT[J[Option]], LTT[J2 & J3])
+      assertChild(LTT[J[Option]], LTT[J1[Option] & J2 & J3])
     }
 
     "support swapped parents" in {
@@ -196,8 +200,8 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[KK2[H2, I2]], LTT[KK1[I1, H1, Unit]])
       assertNotChild(LTT[KK2[H2, I2]], LTT[KK1[H1, I1, Unit]])
 
-      assertChild(`LTT[_]`[KK2[H2, ?]], `LTT[_]`[KK1[?, H1, Unit]])
-      assertNotChild(`LTT[_]`[KK2[H2, ?]], `LTT[_]`[KK1[H1, ?, Unit]])
+      assertChild(`LTT[_]`[KK2[H2, _]], `LTT[_]`[KK1[_, H1, Unit]])
+      assertNotChild(`LTT[_]`[KK2[H2, _]], `LTT[_]`[KK1[H1, _, Unit]])
     }
 
     "support PDTs" in {
@@ -221,14 +225,14 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "support subtyping of parents parameterized with type lambdas" in {
-      assertChild(LTT[RoleChild[Either]], LTT[RoleParent[Either[Throwable, ?]]])
+      assertChild(LTT[RoleChild[Either]], LTT[RoleParent[Either[Throwable, _]]])
     }
 
     "support subtyping of parents parameterized with type lambdas in combined tags" in {
       val childBase = `LTT[_[_,_]]`[RoleChild]
       val childArg = `LTT[_,_]`[Either]
       val combinedTag = childBase.combine(childArg)
-      val expectedTag = LTT[RoleParent[Either[Throwable, ?]]]
+      val expectedTag = LTT[RoleParent[Either[Throwable, _]]]
 
       assertSame(combinedTag, LTT[RoleChild[Either]])
       assertChild(combinedTag, expectedTag)
@@ -237,8 +241,8 @@ class LightTypeTagTest extends TagAssertions {
     "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
       val childBase = `LTT[_[+_,+_],_,_]`[RoleChild2]
       val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
-      val combinedTag = childBase.combine(childArgs: _*)
-      val expectedTag = LTT[RoleParent[Either[Throwable, ?]]]
+      val combinedTag = childBase.combine(childArgs*)
+      val expectedTag = LTT[RoleParent[Either[Throwable, _]]]
       val noncombinedTag = LTT[RoleChild2[Either, Int, String]]
 
       assertSame(combinedTag, noncombinedTag)
@@ -247,9 +251,9 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "support complex type lambdas" in {
-      assertSame(`LTT[_,_]`[NestedTL[Const, ?, ?]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
-      assertSame(`LTT[_[_]]`[NestedTL2[W1, W2, ?[_]]], `LTT[_[_]]`[Lambda[G[_] => FM2[G[S[W2, W1]]]]])
-      assertChild(`LTT[_,_]`[NestedTL[Const, ?, ?]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
+      assertSame(`LTT[_,_]`[NestedTL[Const, _, _]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
+      assertSame(`LTT[_[_]]`[NestedTL2[W1, W2, _[_]]], `LTT[_[_]]`[Lambda[G[_] => FM2[G[S[W2, W1]]]]])
+      assertChild(`LTT[_,_]`[NestedTL[Const, _, _]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
     }
 
     "support TagK* family summoners" in {
@@ -260,19 +264,19 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "support intersection type equality" in {
-      type T1[A] = W3[A] with W1
-      type T2[A] = W4[A] with W2
+      type T1[A] = W3[A] & W1
+      type T2[A] = W4[A] & W2
 
       assertSame(`LTT[_]`[T1], `LTT[_]`[T1])
       assertDifferent(`LTT[_]`[T1], `LTT[_]`[T2])
     }
 
     "support intersection type subtype checks" in {
-      type F1 = W3[Int] with W1
-      type F2 = W4[Int] with W2
+      type F1 = W3[Int] & W1
+      type F2 = W4[Int] & W2
 
-      type T1[A] = W3[A] with W1
-      type T2[A] = W4[A] with W2
+      type T1[A] = W3[A] & W1
+      type T2[A] = W4[A] & W2
 
       assertChild(LTT[F1], LTT[W3[Int]])
       assertChild(LTT[F1], LTT[W1])
@@ -285,11 +289,11 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "intersections are associative" in {
-      type F1 = (W3[Int] with W1) with I1
-      type F2 = W3[Int] with (W1 with I1)
+      type F1 = (W3[Int] & W1) & I1
+      type F2 = W3[Int] & (W1 & I1)
 
-      type T1[A] = (W3[A] with W1) with I1
-      type T2[A] = W3[A] with (W1 with I1)
+      type T1[A] = (W3[A] & W1) & I1
+      type T2[A] = W3[A] & (W1 & I1)
 
       assertSame(LTT[F1], LTT[F2])
       assertChildSame(LTT[F1], LTT[F2])
@@ -299,12 +303,12 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "runtime-combined intersections are associative" in {
-      type F1 = W3[Int] with W1
-      type F11 = (W3[Int] with W1) with I1
-      type F12 = W3[Int] with (W1 with I1)
+      type F1 = W3[Int] & W1
+      type F11 = (W3[Int] & W1) & I1
+      type F12 = W3[Int] & (W1 & I1)
 
-      type T1[A] = W3[Int] with (W1 with A)
-      type T2[A] = (W3[Int] with W1) with A
+      type T1[A] = W3[Int] & (W1 & A)
+      type T2[A] = (W3[Int] & W1) & A
 
       assertIntersection(List(LTT[F1], LTT[I1]), LTT[F11])
       assertIntersection(List(LTT[F1], LTT[I1]), LTT[F12])
@@ -317,7 +321,7 @@ class LightTypeTagTest extends TagAssertions {
     }
 
     "support structural & refinement type equality" in {
-      assertDifferent(LTT[W4[str.type] with ({ type T = str.type with Int })], LTT[W4[str.type] with ({ type T = str.type with Long })])
+      assertDifferent(LTT[W4[str.type] & ({ type T = str.type & Int })], LTT[W4[str.type] & ({ type T = str.type & Long })])
 
       type C1 = C
       assertSame(LTT[{ def a: Int }], LTT[{ def a: Int }])
@@ -425,8 +429,8 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[Set[Int]].typeArgs.head, LTT[collection.Set[AnyVal]].typeArgs.head)
 
       assert(`LTT[_,_]`[Either].typeArgs.isEmpty)
-      assert(`LTT[_]`[Either[String, ?]].typeArgs == List(LTT[String]))
-      assert(`LTT[_[_]]`[T0[List, ?[_]]].typeArgs == List(`LTT[_]`[List]))
+      assert(`LTT[_]`[Either[String, _]].typeArgs == List(LTT[String]))
+      assert(`LTT[_[_]]`[T0[List, _[_]]].typeArgs == List(`LTT[_]`[List]))
     }
 
     "support subtyping of a simple combined type" in {
