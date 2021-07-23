@@ -46,9 +46,9 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     } },
     Test / testOptions += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "2.11.12") => Seq.empty
       case (_, "2.12.14") => Seq(
         "-Xsource:3",
-        "-P:kind-projector:underscore-placeholders",
         "-Wconf:msg=package.object.inheritance:silent",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
@@ -90,12 +90,10 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       )
       case (_, "2.13.6") => Seq(
         "-Xsource:3",
-        "-P:kind-projector:underscore-placeholders",
         "-Wconf:msg=package.object.inheritance:silent",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
-        "-Vimplicits",
         "-Vtype-diffs",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
@@ -109,7 +107,6 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.11.12") => Seq.empty
       case (_, _) => Seq(
         "-Ykind-projector",
         "-no-indent",
@@ -211,9 +208,9 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     } },
     Test / testOptions += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "2.11.12") => Seq.empty
       case (_, "2.12.14") => Seq(
         "-Xsource:3",
-        "-P:kind-projector:underscore-placeholders",
         "-Wconf:msg=package.object.inheritance:silent",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
@@ -255,12 +252,10 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       )
       case (_, "2.13.6") => Seq(
         "-Xsource:3",
-        "-P:kind-projector:underscore-placeholders",
         "-Wconf:msg=package.object.inheritance:silent",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
-        "-Vimplicits",
         "-Vtype-diffs",
         "-Ybackend-parallelism",
         math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
@@ -274,7 +269,6 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.11.12") => Seq.empty
       case (_, _) => Seq(
         "-Ykind-projector",
         "-no-indent",

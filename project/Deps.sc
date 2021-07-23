@@ -45,9 +45,10 @@ object Izumi {
             s
         }.orNull
     )
-    if (args.contains("--help")) println(
-      "launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA"
-    )
+    if (args.contains("--help"))
+      println(
+        "launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA"
+      )
     Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ newArgs)
   }
 
@@ -57,7 +58,7 @@ object Izumi {
     scalaJsVersion = PV.scala_js_version,
     scalaNativeVersion = PV.scala_native_version,
     crossProjectVersion = PV.crossproject_version,
-    bundlerVersion = Some(PV.scalajs_bundler_version),
+    bundlerVersion = Some(PV.scalajs_bundler_version)
   )
 
   object Deps {
@@ -161,9 +162,9 @@ object Izumi {
         "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
         //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
         "scalacOptions" ++= Seq(
-          SettingKey(Some(scala212), None) := Defaults.Scala212Options,
-          SettingKey(Some(scala213), None) := Defaults.Scala213Options,
           SettingKey(Some(scala211), None) := Const.EmptySeq,
+          SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
+          SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
           SettingKey.Default := Seq(
             "-Ykind-projector",
             "-no-indent",
@@ -266,7 +267,7 @@ object Izumi {
       SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
       SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
-      SbtPlugin("ch.epfl.scala", "sbt-missinglink", PV.sbt_missinglink_version),
+      SbtPlugin("ch.epfl.scala", "sbt-missinglink", PV.sbt_missinglink_version)
     )
   )
 }
