@@ -26,5 +26,4 @@ object PV {
   val scalajs_bundler_version = "0.18.0"
   val sbt_dotty_version = "0.5.5"
   val sbt_mima_version = "0.9.2"
-  val sbt_missinglink_version = "0.3.2"
 }
