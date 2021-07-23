@@ -20,11 +20,10 @@ object PV {
   val sbt_scoverage = "1.8.2"
   val sbt_pgp = "2.1.1"
 
-  val scala_js_version = "1.5.0"
+  val scala_js_version = "1.6.0"
   val scala_native_version = "0.4.0"
   val crossproject_version = "1.0.0"
   val scalajs_bundler_version = "0.18.0"
   val sbt_dotty_version = "0.5.5"
   val sbt_mima_version = "0.9.2"
-  val sbt_missinglink_version = "0.3.2"
 }

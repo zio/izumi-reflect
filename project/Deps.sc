@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.76`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.77`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -19,13 +19,12 @@ object Izumi {
     val crossproject_version = Version.VExpr("PV.crossproject_version")
     val scalajs_bundler_version = Version.VExpr("PV.scalajs_bundler_version")
     val sbt_mima_version = Version.VExpr("PV.sbt_mima_version")
-    val sbt_missinglink_version = Version.VExpr("PV.sbt_missinglink_version")
   }
 
   // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
-  final val scala212 = ScalaVersion("2.12.13")
-  final val scala213 = ScalaVersion("2.13.5")
+  final val scala212 = ScalaVersion("2.12.14")
+  final val scala213 = ScalaVersion("2.13.6")
   final val scala300 = ScalaVersion("3.0.1")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
@@ -45,9 +44,10 @@ object Izumi {
             s
         }.orNull
     )
-    if (args.contains("--help")) println(
-      "launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA"
-    )
+    if (args.contains("--help"))
+      println(
+        "launch with `./sbtgen.sc 2.13` to use 2.13 in IDEA"
+      )
     Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ newArgs)
   }
 
@@ -57,7 +57,7 @@ object Izumi {
     scalaJsVersion = PV.scala_js_version,
     scalaNativeVersion = PV.scala_native_version,
     crossProjectVersion = PV.crossproject_version,
-    bundlerVersion = Some(PV.scalajs_bundler_version),
+    bundlerVersion = Some(PV.scalajs_bundler_version)
   )
 
   object Deps {
@@ -161,9 +161,9 @@ object Izumi {
         "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
         //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
         "scalacOptions" ++= Seq(
-          SettingKey(Some(scala212), None) := Defaults.Scala212Options,
-          SettingKey(Some(scala213), None) := Defaults.Scala213Options,
           SettingKey(Some(scala211), None) := Const.EmptySeq,
+          SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
+          SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
           SettingKey.Default := Seq(
             "-Ykind-projector",
             "-no-indent",
@@ -266,7 +266,6 @@ object Izumi {
       SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
       SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
-      SbtPlugin("ch.epfl.scala", "sbt-missinglink", PV.sbt_missinglink_version),
     )
   )
 }
