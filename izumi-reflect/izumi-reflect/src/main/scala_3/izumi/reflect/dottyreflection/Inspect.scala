@@ -33,6 +33,6 @@ object Inspect {
       println(s"$dbs => ${strDbs.size} bytes, ${string2hex(strDbs)}")
       println(strDbs)
     }
-    '{ LightTypeTag.parse(${Expr(ref.hashCode())}, ${Expr(strRef)}, ${Expr(strDbs)}, ${Expr(LightTypeTag.currentBinaryFormatVersion)}) }
+    '{ LightTypeTag.parse(${Expr(ref.hashCode() * 31)}, ${Expr(strRef)}, ${Expr(strDbs)}, ${Expr(LightTypeTag.currentBinaryFormatVersion)}) }
   }
 }
