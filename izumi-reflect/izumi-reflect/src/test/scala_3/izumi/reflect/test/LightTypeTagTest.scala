@@ -503,5 +503,13 @@ class LightTypeTagTest extends TagAssertions {
 //        assertSame(tag, tag1)
 //      }
 //    }
+//
+    "calculate identical hashCode in parsed and constructed instances" in {
+      val tag1 = LTT[String]
+      val tag2 = tag1.withoutArgs
+      assertSameRef(tag1, tag2)
+      assertSame(tag1, tag2)
+      assert(tag1.hashCode() == tag2.hashCode())
+    }
   }
 }

@@ -52,8 +52,8 @@ abstract class LightTypeTag(
 
   def ref: LightTypeTagRef
 
-  private[macrortti] lazy val basesdb: Map[AbstractReference, Set[AbstractReference]] = bases()
-  private[macrortti] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
+  private[reflect] lazy val basesdb: Map[AbstractReference, Set[AbstractReference]] = bases()
+  private[reflect] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
 
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
     new LightTypeTagInheritance(this, maybeParent).isChild()
