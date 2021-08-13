@@ -53,7 +53,7 @@ object Izumi {
 
   val settings = GlobalSettings(
     groupId = "dev.zio",
-    sbtVersion = None,
+    sbtVersion = None
   )
 
   object Deps {
@@ -135,7 +135,7 @@ object Izumi {
           Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
         )""".raw,
         "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
-        "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=${V.scalatest}${"\"" * 3}""".raw,
+        "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=$${V.scalatest}${"\"" * 3}""".raw,
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*")""".raw,
@@ -261,7 +261,7 @@ object Izumi {
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
       SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
-      SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
+      SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version)
     )
   )
 }

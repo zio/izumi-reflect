@@ -82,6 +82,9 @@ class LightTypeTagTest extends TagAssertions {
       assertNotChild(subStrALTT, subStrBLTT)
       assertSame(subStrALTT, subStrDLTT)
       assertSame(foo, bar)
+
+      // see https://github.com/7mind/izumi/pull/1528
+      assertSame(strLTT.combine(), strLTT)
     }
 
 

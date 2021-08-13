@@ -41,6 +41,9 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
     val listTag = `LTT[_]`[Listoid]
     val listIntTag = LTT[Listoid[Int]]
 
+    // see https://github.com/7mind/izumi/pull/1528
+    assertSame(bazTag.combine(), bazTag2)
+
     assertChild(listTag.combine(intTag), listIntTag)
 
     val listTag0 = `LTT[_]`[List]

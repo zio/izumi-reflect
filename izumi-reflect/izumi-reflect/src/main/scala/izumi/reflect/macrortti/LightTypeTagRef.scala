@@ -28,7 +28,17 @@ import scala.collection.immutable.SortedSet
 
 sealed trait LightTypeTagRef {
   final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {
-    applySeq(args.map { case v: AbstractReference => v })
+    if (args.nonEmpty) {
+      applySeq(args.map { case v: AbstractReference => v })
+    } else {
+      // while user is not expected to combine an arbitrary tag with an empty args list
+      // it's a sound operation which should just return the tag itself
+      // see also: https://github.com/7mind/izumi/pull/1528
+      this match {
+        case ref: AbstractReference =>
+          ref
+      }
+    }
   }
 
   final def combineNonPos(args: Seq[Option[LightTypeTagRef]]): AbstractReference = {

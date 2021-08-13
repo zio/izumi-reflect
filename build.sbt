@@ -20,8 +20,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.6",
       "3.0.1",
+      "2.13.6",
       "2.12.14",
       "2.11.12"
     ),
@@ -182,8 +182,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.6",
       "3.0.1",
+      "2.13.6",
       "2.12.14",
       "2.11.12"
     ),
@@ -346,8 +346,8 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     publish / skip := true,
     crossScalaVersions := Seq(
-      "2.13.6",
       "3.0.1",
+      "2.13.6",
       "2.12.14",
       "2.11.12"
     ),
@@ -391,7 +391,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       s"-Xmacro-settings:git-head-commit=${com.typesafe.sbt.SbtGit.GitKeys.gitHeadCommit.value.getOrElse("")}"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "2.13.6",
+    scalaVersion := "3.0.1",
     ThisBuild / organization := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
@@ -410,7 +410,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
               Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
             ),
     ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git")),
-    ThisBuild / scalacOptions += """-Xmacro-settings:scalatest-version=VExpr(V.scalatest)""",
+    ThisBuild / scalacOptions += """-Xmacro-settings:scalatest-version=${V.scalatest}""",
     ThisBuild / mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*"),

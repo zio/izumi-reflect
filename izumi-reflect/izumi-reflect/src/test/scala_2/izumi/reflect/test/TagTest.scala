@@ -599,20 +599,26 @@ class TagTest extends SharedTagTest {
       assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/ )
     }
 
-    "progression test: cannot resolve type parameter as a prefix of a type projection (this case is no longer possible in dotty at all. not worth it to support?)" in {
-      val res = intercept[IllegalArgumentException] {
-        class Path {
-          type Child
-        }
-        val path = new Path
-
-        def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
-
-        assert(getTag[path.type].tag =:= Tag[path.type].tag)
-        assert(getTag[path.type].tag <:< Tag[Path#Child].tag)
-        assert(!(Tag[Path#Child].tag <:< getTag[path.type].tag))
+    "progression test: we may accidentally materialize tags for transient type vals (no longer possible in dotty)" in {
+      class Path {
+        type Child
       }
-      assert(res.getMessage.contains("is not a type lambda, it cannot be parameterized"))
+      val path = new Path
+
+      def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
+
+      val directChildTag = Tag[Path#Child].tag // Path::Child
+      val indirectChildTag = getTag[path.type].tag // A|<Nothing..Path>::Child
+
+      assert(!(indirectChildTag =:= directChildTag))
+      assert(!(directChildTag <:< indirectChildTag))
+      assert(!(indirectChildTag <:< directChildTag))
+
+
+      // A has no tag and such call to getTag should not compile. That's a bug
+      intercept[TestFailedException] {
+        assert(indirectChildTag.toString != "A|<Nothing..Path>::Child")
+      }
     }
 
     "progression test: type tags with bounds are not currently requested by the macro" in {
