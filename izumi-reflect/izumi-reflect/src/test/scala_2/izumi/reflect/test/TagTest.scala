@@ -507,17 +507,36 @@ class TagTest extends SharedTagTest {
     "consider class member's this-prefix to be the defining template, not the most specific prefix from where the call is happening (deliberate omission of this for better ergonomics in cakes)" in {
       trait A {
         class X
+        val singleton = "bar"
+        type S1 = singleton.type
+//        type S2 = "bar"
+
         val xa = Tag[X]
+        val sa = Tag[singleton.type]
+        val s1a = Tag[S1]
       }
 
       trait B extends A {
         val xb = Tag[X]
+        val sb = Tag[singleton.type]
+
+        val s1b = Tag[S1]
       }
 
       object B extends B
 
       assert(B.xa.tag == B.xb.tag)
+      assert(B.sa.tag == B.sb.tag)
+      assert(B.s1a.tag == B.s1b.tag)
       assert(Tag[A#X].tag == B.xa.tag)
+
+      // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
+      intercept[TestFailedException] {
+        assert(Tag[A#S1].tag == B.s1b.tag)
+        assert(Tag[A#S1].tag == B.s1a.tag)
+        assert(Tag[A#S1].tag == B.sa.tag)
+        assert(Tag[A#S1].tag == B.sb.tag)
+      }
     }
 
     "can handle parameters in structural types" in {
@@ -633,7 +652,7 @@ class TagTest extends SharedTagTest {
       assert(t.message.get contains "could not find implicit value")
     }
 
-    "progression test: equal path-dependant tags for primitive types are expected to be equal" in {
+    "equal path-dependant tags for singleton types are expected to be equal" in {
       // see https://github.com/zio/izumi-reflect/issues/192
       object Foo {
         val bar = "bar"
@@ -641,16 +660,11 @@ class TagTest extends SharedTagTest {
         val t1 = Tag[bar.type]
         val t2 = Tag[Foo.bar.type]
         val t3 = Tag[Foo.this.bar.type]
-//        println(t1.tag.repr)
-//        println(t2.tag.repr)
-//        println(t3.tag.repr)
       }
 
       import Foo._
       assert(t1.tag =:= t3.tag)
-      intercept[TestFailedException] {
-        assert(t2.tag =:= t3.tag)
-      }
+      assert(t2.tag =:= t3.tag)
     }
   }
 

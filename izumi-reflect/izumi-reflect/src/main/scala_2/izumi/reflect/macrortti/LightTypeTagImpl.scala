@@ -525,17 +525,26 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             case UniRefinement(_, _) =>
               None
             case _ =>
-              fromRef(tpef.typeSymbol.owner.asType.toType)
+              if (tpef.termSymbol != NoSymbol) {
+                fromRef(tpef.termSymbol.owner.asType.toType)
+              } else {
+                fromRef(tpef.typeSymbol.owner.asType.toType)
+              }
+
           }
         case k if k.termSymbol != NoSymbol =>
           val finalSymbol = dealiasSingletons(k.termSymbol)
-          Some(NameReference(symName(finalSymbol), Boundaries.Empty, getPrefix(finalSymbol.typeSignature.finalResultType)))
+          val name = symName(finalSymbol)
+          val prePrefix = getPrefix(finalSymbol.typeSignature.finalResultType)
+          Some(NameReference(name, Boundaries.Empty, prePrefix))
         case o =>
           fromRef(o)
       }
     }
 
-    getPre(tpef).flatMap(unpackPrefix)
+    val prefix = getPre(tpef)
+    val unpacked = prefix.flatMap(unpackPrefix)
+    unpacked
   }
 
   private def getPre(tpe: Type): Option[Type] = {
