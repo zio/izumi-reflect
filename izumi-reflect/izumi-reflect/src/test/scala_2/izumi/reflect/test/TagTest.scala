@@ -507,37 +507,60 @@ class TagTest extends SharedTagTest {
     "consider class member's this-prefix to be the defining template, not the most specific prefix from where the call is happening (deliberate omission of this for better ergonomics in cakes)" in {
       trait A {
         class X
-        val singleton = "bar"
-        type S1 = singleton.type
-//        type S2 = "bar"
+
+        final val singleton1 = "bar"
+        type S1 = singleton1.type
+
+        val singleton2 = "bar"
+        type S2 = singleton1.type
 
         val xa = Tag[X]
-        val sa = Tag[singleton.type]
+
         val s1a = Tag[S1]
+        val s1a1 = Tag[singleton1.type]
+
+        val s2a = Tag[S2]
+        val s2a1 = Tag[singleton2.type]
       }
 
       trait B extends A {
         val xb = Tag[X]
-        val sb = Tag[singleton.type]
 
         val s1b = Tag[S1]
+        val s1b1 = Tag[singleton1.type]
+
+        val s2b = Tag[S2]
+        val s2b1 = Tag[singleton2.type]
       }
 
       object B extends B
 
       assert(B.xa.tag == B.xb.tag)
-      assert(B.sa.tag == B.sb.tag)
-
       assert(B.s1a.tag == B.s1b.tag)
+      assert(B.s1a1.tag == B.s1b1.tag)
+      assert(B.s2a.tag == B.s2b.tag)
+      assert(B.s2a1.tag == B.s2b1.tag)
+
       assert(Tag[A#X].tag == B.xa.tag)
 
       assert(B.s1b.tag == B.s1a.tag)
-      assert(B.sa.tag == B.s1a.tag)
-      assert(B.sb.tag == B.s1a.tag)
+      assert(B.s1a.tag == B.s1a1.tag)
+      assert(B.s1b.tag == B.s1b1.tag)
+
+      assert(Tag[A#S1].tag == B.s1a.tag)
+      assert(Tag[A#S1].tag == B.s1a1.tag)
+      assert(Tag[A#S1].tag == B.s1b.tag)
+      assert(Tag[A#S1].tag == B.s1b1.tag)
+
+      assert(Tag[A#S2].tag == B.s2a.tag)
+      assert(Tag[A#S2].tag == B.s2b.tag)
 
       // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
       intercept[TestFailedException] {
-        assert(Tag[A#S1].tag == B.s1a.tag)
+        assert(Tag[A#S2].tag == B.s2a1.tag)
+      }
+      intercept[TestFailedException] {
+        assert(Tag[A#S2].tag == B.s2b1.tag)
       }
     }
 
