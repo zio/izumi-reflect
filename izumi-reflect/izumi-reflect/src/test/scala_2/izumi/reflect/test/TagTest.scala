@@ -614,7 +614,6 @@ class TagTest extends SharedTagTest {
       assert(!(directChildTag <:< indirectChildTag))
       assert(!(indirectChildTag <:< directChildTag))
 
-
       // A has no tag and such call to getTag should not compile. That's a bug
       intercept[TestFailedException] {
         assert(indirectChildTag.toString != "A|<Nothing..Path>::Child")
@@ -634,6 +633,25 @@ class TagTest extends SharedTagTest {
       assert(t.message.get contains "could not find implicit value")
     }
 
+    "progression test: equal path-dependant tags for primitive types are expected to be equal" in {
+      // see https://github.com/zio/izumi-reflect/issues/192
+      object Foo {
+        val bar = "bar"
+
+        val t1 = Tag[bar.type]
+        val t2 = Tag[Foo.bar.type]
+        val t3 = Tag[Foo.this.bar.type]
+//        println(t1.tag.repr)
+//        println(t2.tag.repr)
+//        println(t3.tag.repr)
+      }
+
+      import Foo._
+      assert(t1.tag =:= t3.tag)
+      intercept[TestFailedException] {
+        assert(t2.tag =:= t3.tag)
+      }
+    }
   }
 
 }
