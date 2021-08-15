@@ -527,15 +527,17 @@ class TagTest extends SharedTagTest {
 
       assert(B.xa.tag == B.xb.tag)
       assert(B.sa.tag == B.sb.tag)
+
       assert(B.s1a.tag == B.s1b.tag)
       assert(Tag[A#X].tag == B.xa.tag)
 
+      assert(B.s1b.tag == B.s1a.tag)
+      assert(B.sa.tag == B.s1a.tag)
+      assert(B.sb.tag == B.s1a.tag)
+
       // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
       intercept[TestFailedException] {
-        assert(Tag[A#S1].tag == B.s1b.tag)
         assert(Tag[A#S1].tag == B.s1a.tag)
-        assert(Tag[A#S1].tag == B.sa.tag)
-        assert(Tag[A#S1].tag == B.sb.tag)
       }
     }
 
