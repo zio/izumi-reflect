@@ -504,6 +504,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private def getPrefix(tpef: Type): Option[AppliedReference] = {
+
     def fromRef(o: Type): Option[AppliedReference] = {
       makeRef(o) match {
         case a: AppliedReference =>
@@ -547,10 +548,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     unpacked
   }
 
-  private def getPre(tpe: Type): Option[Type] = {
+  @tailrec private def getPre(tpe: Type): Option[Type] = {
     tpe match {
       case t: TypeRefApi => Some(t.pre).filterNot(_ == NoPrefix)
       case t: SingleTypeApi => Some(t.pre).filterNot(_ == NoPrefix)
+      case t: ExistentialTypeApi => getPre(t.underlying)
       case _ => None
     }
   }

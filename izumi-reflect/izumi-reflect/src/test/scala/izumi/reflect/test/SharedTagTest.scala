@@ -64,7 +64,9 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] {
 
       assert(Tag[With[Any]].tag == fromRuntime[With[Any]])
       assert(Tag[With[Nothing]].tag == fromRuntime[With[Nothing]])
+      assert(Tag[With[Nothing]].tag.debug().contains("SharedTagTest::"))
       assert(Tag[With[_]].tag == fromRuntime[With[_]])
+      assert(Tag[With[_]].tag.debug().contains("SharedTagTest::"))
 
       assert(Tag[Int with String].tag == fromRuntime[Int with String])
 
@@ -103,7 +105,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] {
 
       IzumiReflectTagEqualRegression.test()
     }
-
 
   }
 
