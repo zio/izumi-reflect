@@ -23,8 +23,8 @@ private[boopickle] object Constants {
   final val NullObject = 0
 
   // codes for Option
-  final val OptionNone: Byte = 1
-  final val OptionSome: Byte = 2
+  final val OptionNone: Int = 1
+  final val OptionSome: Int = 2
 
   // common strings that can be used as references
   val immutableInitData = Seq("null", "true", "false", "0", "1", "-1", "2", "3", "4", "5", "6", "7", "8", "9")
