@@ -35,6 +35,8 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
 
   private class Run() {
     private val termination = mutable.HashSet[TypeRepr]()
+    private val oMap = mutable.HashMap[Symbol, List[(NameReference, NameReference)]]()
+    private val pMap = mutable.HashMap[Symbol, List[(NameReference, NameReference)]]()
 
     def inspectTreeToName(typeTree: TypeTree): List[(NameReference, NameReference)] = {
       val symbol = typeTree.symbol
@@ -90,21 +92,39 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
           //val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
 
           val trees = c.parents.collect { case tt: TypeTree => tt }
-          val o = trees.flatMap(inspectTreeToName)
+          val o =  {
+              oMap.get(symbol) match {
+                case None =>
+                  val res = trees.flatMap(inspectTreeToName)
+                  oMap.put(symbol, res)
+                  res
+                case Some(res) =>
+                  res
+              }
+          }
           val selfRef = inspector.makeNameReferenceFromSymbol(symbol)
 
-          val p = trees.flatMap {
-            t =>
-              val tRef = inspector.inspectTypeRepr(t.tpe)
+          val p = {
+            pMap.get(symbol) match {
+              case None =>
+                val res = trees.flatMap {
+                  t =>
+                    val tRef = inspector.inspectTypeRepr(t.tpe)
 
-              tRef match {
-                case n: NameReference =>
-                  List((selfRef, n))
-                case n: FullReference =>
-                  List((selfRef, n.asName))
-                case _ =>
-                  List.empty
-              }
+                    tRef match {
+                      case n: NameReference =>
+                        List((selfRef, n))
+                      case n: FullReference =>
+                        List((selfRef, n.asName))
+                      case _ =>
+                        List.empty
+                    }
+                }
+                pMap.put(symbol, res)
+                res
+              case Some(res) =>
+                res
+            }
           }
 
           (p ++ o).distinct
