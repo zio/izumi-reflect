@@ -59,12 +59,19 @@ class LightTypeTagTest extends TagAssertions {
       val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
       val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
       assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::izumi.reflect.test.TestModel$.SubStrA|<scala.Nothing..java.lang.String>")
+      val strTR = strLTT.ref.asInstanceOf[AppliedNamedReference]
+      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedNamedReference]
+      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedNamedReference]
       val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
       val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
       assert(substrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
-      assert(substrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+      assert(substrUnpacker.inheritance == strUnpacker.inheritance.map {
+        case (s, v) if s.toString == "String" => subStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName); case p => p
+      })
       assert(subsubstrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
-      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance + (nothingRef.asName -> Set(anyRef)))
+      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance.map {
+        case (s, v) if s.toString == "String" => subSubStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName); case p => p
+      })
 
       assertDifferent(subStrALTT, strLTT)
       assertChild(subStrALTT, strLTT)

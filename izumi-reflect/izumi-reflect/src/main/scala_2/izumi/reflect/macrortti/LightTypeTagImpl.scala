@@ -109,13 +109,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   private def makeUnappliedInheritanceDb(allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
-        val allbases = tpeBases(i).filterNot(_.takesTypeArgs)
-        allbases.map(b => (i, makeRef(b)))
-    }
-
-    val unparameterizedInheritanceData = baseclassReferences
-      .flatMap {
-        case (i, ref) =>
+        val (srcname, targetRef) = {
           val tpef = norm(i.dealias.resultType)
           val prefix = getPrefix(tpef)
           val targetRef = makeNameReference(i, tpef.typeSymbol, Boundaries.Empty, prefix)
@@ -132,8 +126,14 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               Seq.empty
           }
 
-          srcname ++ Seq((targetRef, ref))
-      }
+          (srcname, targetRef)
+        }
+
+        val allbases = tpeBases(i).filterNot(_.takesTypeArgs)
+        srcname ++ allbases.map(b => (targetRef, makeRef(b)))
+    }
+
+    val unparameterizedInheritanceData = baseclassReferences
       .toMultimap
       .map {
         case (t, parents) =>
@@ -263,17 +263,19 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   private def tpeBases(tpe: Type): Seq[Type] = {
     val tpef = tpe.dealias.resultType
     val higherBases = tpef.baseClasses
-    val parameterizedBases = higherBases
-      .filterNot {
-        s =>
-          !s.isType || {
-            val btype = s.asType.toType
-            ignored.exists(_ =:= btype) || btype =:= tpef
-          }
-      }
-      .map(s => tpef.baseType(s))
+    val onlyParameterizedBases = {
+      higherBases
+        .filterNot {
+          s =>
+            !s.isType || {
+              val btype = s.asType.toType
+              ignored.exists(_ =:= btype) || btype =:= tpef
+            }
+        }
+        .map(s => tpef.baseType(s))
+    }
 
-    val allbases = parameterizedBases.filterNot(_ =:= tpef)
+    val allbases = onlyParameterizedBases.filterNot(_ =:= tpef)
     allbases
   }
 

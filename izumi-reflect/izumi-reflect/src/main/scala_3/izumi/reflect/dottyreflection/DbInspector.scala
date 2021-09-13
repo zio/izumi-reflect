@@ -16,112 +16,102 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   private lazy val inspector = new Inspector(0) { val qctx: DbInspector.this.qctx.type = DbInspector.this.qctx }
   // @formatter:on
 
-  def buildNameDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
-    val tpeTree = TypeTree.of[T]
-    new Run()
-      .inspectTreeToName(tpeTree)
+  def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
+    val tpe = TypeRepr.of[T]
+
+    val allReferenceComponents = {
+      allTypeReferences(tpe)
+        .flatMap(breakRefinement)
+    }
+
+    val baseclassReferences = allReferenceComponents.flatMap {
+      i =>
+        val allbases = tpeBases(i).filter(!_._takesTypeArgs)
+        val targetRef = {
+          val tpef = i.dealias.simplified._resultType
+          inspector.makeNameReferenceFromSymbol(tpef.typeSymbol)
+        }
+        allbases.map(b => (targetRef, inspector.makeNameReferenceFromSymbol(b.typeSymbol)))
+    }
+
+    baseclassReferences
       .toMultimap
       .map {
         case (t, parents) =>
-          t -> parents
-            .collect {
-              case r: AppliedNamedReference =>
-                r.asName
-            }
-            .filterNot(_ == t)
+          t -> parents.filterNot(_ == t)
       }
       .filterNot(_._2.isEmpty)
   }
 
-  private class Run() {
-    private val termination = mutable.HashSet[TypeRepr]()
+  private def allTypeReferences(tpe0: TypeRepr): collection.Set[TypeRepr] = {
+    val inh = mutable.HashSet.empty[TypeRepr]
 
-    def inspectTreeToName(typeTree: TypeTree): List[(NameReference, NameReference)] = {
-      val symbol = typeTree.symbol
-      val tpe2 = typeTree.tpe
+    def extract(t: TypeRepr): Unit = {
+      val resType = t.dealias.simplified._resultType
+      inh += resType
 
-      if (symbol.isNoSymbol)
-        inspectTypeReprToNameBases(tpe2).distinct
-      else
-        inspectSymbolToName(symbol).distinct
+      val next = t._typeArgs.iterator ++ resType._typeArgs.iterator
+      next.foreach(extract)
     }
 
-    private def inspectTypeReprToNameBases(tpe2: TypeRepr): List[(NameReference, NameReference)] = {
-      tpe2 match {
-        case a: AppliedType =>
-          val main = a.baseClasses.flatMap(inspectSymbolToName) // (a.tycon)
-          val args = a.args.filterNot(termination.contains).flatMap {
-            x =>
-              termination.add(x)
-              inspectToBToName(x)
-          }
-          (main ++ args).distinct
+    inh += tpe0
+    extract(tpe0)
+    inh
+  }
 
-        case l: TypeLambda =>
-          inspectTypeReprToNameBases(l.resType)
+  private def breakRefinement(tpe0: TypeRepr): collection.Set[TypeRepr] = {
+    val tpes = mutable.HashSet.empty[TypeRepr]
 
-        case a: AndType =>
-          inspectTypeReprToNameBases(a.left) ++ inspectTypeReprToNameBases(a.right)
+    def go(t: TypeRepr): Unit = t match {
+      case tpe: AndOrType =>
+        go(tpe.left)
+        go(tpe.right)
+      case _ =>
+        tpes += t
+    }
 
-        case o: OrType =>
-          inspectTypeReprToNameBases(o.left) ++ inspectTypeReprToNameBases(o.right)
+    go(tpe0)
+    tpes
+  }
 
-        case r: TypeRef =>
-          inspectSymbolToName(r.typeSymbol)
+  private def tpeBases(tpe0: TypeRepr): List[TypeRepr] = {
+    val tpef = tpe0.dealias.simplified._resultType
+    val higherBases = tpef.baseClasses
+    val onlyParameterizedBases = {
+      higherBases
+        .filterNot {
+          s =>
+          !s.isType || (s.tree match {
+            case tt: TypeTree => tt.tpe =:= tpef
+            case _ => false
+          })
+        }
+        .map(s => tpef.baseType(s))
+    }
 
-        case r: ParamRef =>
-          inspectSymbolToName(r.typeSymbol)
+    val allbases = onlyParameterizedBases.filterNot(_ =:= tpef)
+    allbases
+  }
 
-        case b: TypeBounds =>
-          inspectToBToName(b)
-
-        case c: ConstantType =>
-          inspectTypeReprToNameBases(c.widen)
-
-        case o =>
-          log(s"DbInspector: UNSUPPORTED: $o")
-          List.empty
+  extension (t: TypeRepr) {
+    private def _resultType: TypeRepr = {
+      t match {
+        case l: LambdaType => l.resType
+        case _ => t
       }
     }
 
-    private def inspectSymbolToName(symbol: Symbol): List[(NameReference, NameReference)] = {
-      symbol.tree match {
-        case c: ClassDef =>
-          //val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
-
-          val trees = c.parents.collect { case tt: TypeTree => tt }
-          val o = trees.flatMap(inspectTreeToName)
-          val selfRef = inspector.makeNameReferenceFromSymbol(symbol)
-
-          val p = trees.flatMap {
-            t =>
-              val tRef = inspector.inspectTypeRepr(t.tpe)
-
-              tRef match {
-                case n: NameReference =>
-                  List((selfRef, n))
-                case n: FullReference =>
-                  List((selfRef, n.asName))
-                case _ =>
-                  List.empty
-              }
-          }
-
-          (p ++ o).distinct
-
-        case t: TypeDef =>
-          inspectTreeToName(t.rhs.asInstanceOf[TypeTree])
-        case o =>
-          List.empty
+    private def _typeArgs: List[TypeRepr] = {
+      t match {
+        case a: AppliedType => a.args
+        case _ => Nil
       }
     }
 
-    private def inspectToBToName(tpe: TypeRepr): List[(NameReference, NameReference)] = {
-      tpe match {
-        case t: TypeBounds =>
-          inspectTypeReprToNameBases(t.hi) ++ inspectTypeReprToNameBases(t.low)
-        case t: TypeRepr =>
-          inspectTypeReprToNameBases(t)
+    private def _takesTypeArgs: Boolean = {
+      t match {
+        case l: LambdaType => true
+        case _ => false
       }
     }
   }
