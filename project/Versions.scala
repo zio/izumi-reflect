@@ -17,7 +17,7 @@
  */
 
 object V {
-  val kind_projector = "0.13.0"
+  val kind_projector = "0.13.2"
   val collection_compat = "2.5.0"
   val scalatest = "3.2.9"
 }
