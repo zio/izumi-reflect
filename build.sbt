@@ -21,7 +21,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
   .settings(
     crossScalaVersions := Seq(
       "2.13.6",
-      "3.0.1",
+      "3.1.0-RC1",
       "2.12.14",
       "2.11.12"
     ),
@@ -39,7 +39,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
     ),
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.0.1") => Seq(
+      case (_, "3.1.0-RC1") => Seq(
       
       )
       case (_, _) => (Compile / doc / sources).value
@@ -114,7 +114,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       )
     } },
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.0.1") => Set.empty
+      case (_, "3.1.0-RC1") => Set.empty
       case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
@@ -183,7 +183,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   .settings(
     crossScalaVersions := Seq(
       "2.13.6",
-      "3.0.1",
+      "3.1.0-RC1",
       "2.12.14",
       "2.11.12"
     ),
@@ -201,7 +201,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
     ),
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.0.1") => Seq(
+      case (_, "3.1.0-RC1") => Seq(
       
       )
       case (_, _) => (Compile / doc / sources).value
@@ -276,7 +276,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       )
     } },
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.0.1") => Set.empty
+      case (_, "3.1.0-RC1") => Set.empty
       case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
@@ -347,7 +347,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
     publish / skip := true,
     crossScalaVersions := Seq(
       "2.13.6",
-      "3.0.1",
+      "3.1.0-RC1",
       "2.12.14",
       "2.11.12"
     ),
