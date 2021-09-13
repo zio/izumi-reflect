@@ -10,8 +10,8 @@ object TypeInspections {
     new Inspector(0) { val qctx = qctx0 }.buildTypeRef[T]
   }
 
-  def nameDb[T <: AnyKind : Type](using qctx0: Quotes): Map[NameReference, Set[NameReference]] = {
-    new DbInspector(0) { val qctx = qctx0 }.buildNameDb[T]
+  def unappliedDb[T <: AnyKind : Type](using qctx0: Quotes): Map[NameReference, Set[NameReference]] = {
+    new DbInspector(0) { val qctx = qctx0 }.makeUnappliedInheritanceDb[T]
   }
 
   def fullDb[T <: AnyKind : Type](using qctx0: Quotes): Map[AbstractReference, Set[AbstractReference]] = {

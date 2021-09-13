@@ -32,14 +32,14 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case a: AppliedType =>
         a.args match {
           case Nil =>
-            makeNameReference(a.tycon)
+            makeNameReferenceFromType(a.tycon)
           case o =>
             // https://github.com/lampepfl/dotty/issues/8520
             val params = a.tycon.typeSymbol.memberTypes
             val zargs = a.args.zip(params)
 
             val args = zargs.map(next().inspectTypeParam)
-            val nameref = makeNameReference(a.tycon)
+            val nameref = makeNameReferenceFromType(a.tycon)
             FullReference(nameref.ref.name, args, prefix = nameref.prefix)
         }
 
@@ -49,7 +49,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case p: ParamRef =>
-        makeNameReference(p)
+        makeNameReferenceFromType(p)
 
       case a: AndType =>
         val elements = flattenInspectAnd(a)
@@ -68,7 +68,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         }
 
       case term: TermRef =>
-        makeNameReference(term)
+        makeNameReferenceFromType(term)
 
       case r: TypeRef =>
         next().inspectSymbolTree(r.typeSymbol, Some(r))
@@ -190,7 +190,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     orTypeTags ++ otherTypeTags
   }
 
-  private def makeNameReference(t: TypeRepr): NameReference = {
+  private def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
         makeNameReferenceFromSymbol(ref.typeSymbol)

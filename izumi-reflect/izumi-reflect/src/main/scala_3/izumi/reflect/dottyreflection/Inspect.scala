@@ -17,7 +17,7 @@ object Inspect {
     val res = {
       val ref = TypeInspections.apply[T]
       val fullDb = TypeInspections.fullDb[T]
-      val nameDb = TypeInspections.nameDb[T]
+      val nameDb = TypeInspections.unappliedDb[T]
       // val ref = NameReference("xa")
       // val nameDb = Map.empty[NameReference, Set[NameReference]] // FIXME: slowness is in nameDb, fullDb is fine
       // val fullDb = Map.empty[AbstractReference, Set[AbstractReference]]
