@@ -48,7 +48,8 @@ class LightTypeTagTestJvm extends AnyWordSpec {
   }
 
   "allPartsStrong for anonymous application typelambda" in {
-    val tpe = scala.reflect.runtime.universe.weakTypeOf[{ type l[F[_], A] = F[A] }]
+    val tpe = scala
+      .reflect.runtime.universe.weakTypeOf[{ type l[F[_], A] = F[A] }]
       .asInstanceOf[scala.reflect.runtime.universe.RefinedTypeApi].decl(scala.reflect.runtime.universe.TypeName("l"))
       .asType.typeSignature
       .typeConstructor
@@ -58,7 +59,7 @@ class LightTypeTagTestJvm extends AnyWordSpec {
   }
 
   "allPartsStrong for x.F[x.Id] typelambda" in {
-    val res1 = ReflectionUtil.allPartsStrong({ object x { type F[_[_]]; type Id[A] = A }; scala.reflect.runtime.universe.weakTypeOf[x.F[x.Id]] })
+    val res1 = ReflectionUtil.allPartsStrong { object x { type F[_[_]]; type Id[A] = A }; scala.reflect.runtime.universe.weakTypeOf[x.F[x.Id]] }
     assert(res1)
   }
 

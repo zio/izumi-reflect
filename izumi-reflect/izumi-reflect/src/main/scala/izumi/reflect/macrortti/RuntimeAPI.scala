@@ -51,12 +51,15 @@ object RuntimeAPI {
           case UnionReference(refs) =>
             refs.flatMap(unpack)
           case Refinement(reference, decls) =>
-            unpack(reference) ++ decls.flatMap(d => d match {
-              case RefinementDecl.Signature(_, input, output) =>
-                unpack(output) ++ input.flatMap(unpack)
-              case RefinementDecl.TypeMember(_, ref) =>
-                unpack(ref)
-            })
+            unpack(reference) ++ decls.flatMap(
+              d =>
+                d match {
+                  case RefinementDecl.Signature(_, input, output) =>
+                    unpack(output) ++ input.flatMap(unpack)
+                  case RefinementDecl.TypeMember(_, ref) =>
+                    unpack(ref)
+                }
+            )
         }
     }
   }
@@ -66,10 +69,9 @@ object RuntimeAPI {
 
     val replaced = parameters.foldLeft(lambda.output) {
       case (acc, p) =>
-      val rewriter = new Rewriter(Seq(p).toMap)
-       rewriter.replaceRefs(acc)
+        val rewriter = new Rewriter(Seq(p).toMap)
+        rewriter.replaceRefs(acc)
     }
-
 
     val newParams = lambda.input.filterNot(pmap contains _.name)
     if (newParams.isEmpty) {
@@ -122,7 +124,6 @@ object RuntimeAPI {
           val replaced = refs.map(replaceApplied).map(r => ensureApplied(reference, r))
           maybeUnion(replaced)
         case Refinement(base, decls) =>
-
           val rdecls = decls.map {
             case RefinementDecl.Signature(name, input, output) =>
               RefinementDecl.Signature(name, input.map(p => ensureApplied(reference, replaceRefs(p))), ensureApplied(reference, replaceRefs(output)))
@@ -146,7 +147,7 @@ object RuntimeAPI {
       }
 
       reference match {
-        case n@NameReference(ref, boundaries, prefix) =>
+        case n @ NameReference(ref, boundaries, prefix) =>
           rules.get(ref.name) match {
             case Some(value) =>
               complete(n, value)
@@ -154,7 +155,7 @@ object RuntimeAPI {
               NameReference(ref, replaceBoundaries(boundaries), replacePrefix(prefix))
           }
 
-        case f@FullReference(ref, parameters, prefix) =>
+        case f @ FullReference(ref, parameters, prefix) =>
           rules.get(ref) match {
             case Some(value) =>
               complete(f, value) match {

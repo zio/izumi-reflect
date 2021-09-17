@@ -65,7 +65,7 @@ private[reflect] object StringCodec extends StringCodecBase {
   *
   * ByteBufferProvider is only used for encoding. JVM encoder is incompatible with `DirectByteBufferProvider`,
   * so use `HeapByteBufferProvider`
-  * */
+  */
 private[reflect] object DefaultByteBufferProvider extends DefaultByteBufferProviderFuncs {
 //  override def provider = new DirectByteBufferProvider
   override def provider = new HeapByteBufferProvider
@@ -115,15 +115,13 @@ private[boopickle] object JSStringCodec extends StringCodecBase {
   private lazy val utf8decoder: (Int8Array) => String = {
     val td = new TextDecoder
     // use native TextDecoder
-    (data: Int8Array) =>
-      td.decode(data)
+    (data: Int8Array) => td.decode(data)
   }
 
   private lazy val utf8encoder: (String) => Int8Array = {
     val te = new TextEncoder
     // use native TextEncoder
-    (str: String) =>
-      new Int8Array(te.encode(str))
+    (str: String) => new Int8Array(te.encode(str))
   }
 
   private lazy val utf16decoder: (Uint16Array) => String = {
@@ -152,7 +150,7 @@ private[boopickle] object JSStringCodec extends StringCodecBase {
     (str: String) =>
       {
         val ta = new Uint16Array(str.length)
-        var i  = 0
+        var i = 0
         while (i < str.length) {
           ta(i) = str.charAt(i).toInt
           i += 1
@@ -165,7 +163,7 @@ private[boopickle] object JSStringCodec extends StringCodecBase {
     if (buf.isDirect && !js.isUndefined(js.Dynamic.global.TextDecoder)) {
       // get the underlying Int8Array
       val ta = buf.typedArray()
-      val s  = utf8decoder(ta.subarray(buf.position(), buf.position() + len))
+      val s = utf8decoder(ta.subarray(buf.position(), buf.position() + len))
       (buf: java.nio.Buffer).position(buf.position() + len)
       s
     } else {
@@ -215,10 +213,10 @@ private[boopickle] object JSStringCodec extends StringCodecBase {
   }
 
   protected def encodeFastTypedArray(s: String, bb: ByteBuffer): Unit = {
-    val len     = s.length()
-    val buf     = bb.typedArray()
-    var dst     = bb.position()
-    var src     = 0
+    val len = s.length()
+    val buf = bb.typedArray()
+    var dst = bb.position()
+    var src = 0
     var c: Char = ' '
     // start by encoding ASCII only
     while ((src < len) && { c = s.charAt(src); c < 0x80 }) {
@@ -256,10 +254,10 @@ private[boopickle] object JSStringCodec extends StringCodecBase {
   }
 
   protected def decodeFastTypedArray(len: Int, buf: ByteBuffer): String = {
-    val cp     = new js.Array[Int](len)
-    val src    = buf.typedArray()
+    val cp = new js.Array[Int](len)
+    val src = buf.typedArray()
     var offset = buf.position()
-    var dst    = 0
+    var dst = 0
     while (dst < len) {
       val b = src(offset) & 0xFF
       offset += 1

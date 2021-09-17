@@ -25,7 +25,8 @@ private[reflect] object ReflectionUtil {
 
   /** Mini `normalize`. `normalize` is deprecated and we don't want to do scary things such as evaluate type-lambdas anyway.
     * And AFAIK the only case that can make us confuse a type-parameter for a non-parameter is an empty refinement `T {}`.
-    * So we just strip it when we get it. */
+    * So we just strip it when we get it.
+    */
   @tailrec
   final def norm(u: Universe)(x: u.Type): u.Type = {
     import u._
