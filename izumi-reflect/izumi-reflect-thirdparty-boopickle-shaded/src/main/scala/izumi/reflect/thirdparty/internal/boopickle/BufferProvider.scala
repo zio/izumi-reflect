@@ -41,9 +41,9 @@ private[reflect] trait BufferProvider {
 
 private[reflect] abstract class ByteBufferProvider extends BufferProvider {
   import ByteBufferProvider._
-  protected val pool                      = BufferPool
+  protected val pool = BufferPool
   protected var buffers: List[ByteBuffer] = Nil
-  protected var currentBuf: ByteBuffer    = allocate(initSize)
+  protected var currentBuf: ByteBuffer = allocate(initSize)
 
   protected def allocate(size: Int): ByteBuffer
 
@@ -77,7 +77,7 @@ private[reflect] abstract class ByteBufferProvider extends BufferProvider {
 }
 
 private[reflect] object ByteBufferProvider {
-  final val initSize   = 512
+  final val initSize = 512
   final val expandSize = initSize * 8
 }
 
@@ -96,13 +96,14 @@ private[reflect] class HeapByteBufferProvider extends ByteBufferProvider {
     else {
       // create a new buffer and combine all buffers into it
       val bufList = (currentBuf :: buffers).reverse
-      val comb    = allocate(bufList.map(_.limit()).sum)
-      bufList.foreach { buf =>
-        // use fast array copy
-        java.lang.System.arraycopy(buf.array(), buf.arrayOffset(), comb.array(), comb.position(), buf.limit())
-        (comb: java.nio.Buffer).position(comb.position() + buf.limit())
-        // release to the pool
-        pool.release(buf)
+      val comb = allocate(bufList.map(_.limit()).sum)
+      bufList.foreach {
+        buf =>
+          // use fast array copy
+          java.lang.System.arraycopy(buf.array(), buf.arrayOffset(), comb.array(), comb.position(), buf.limit())
+          (comb: java.nio.Buffer).position(comb.position() + buf.limit())
+          // release to the pool
+          pool.release(buf)
       }
       (comb: java.nio.Buffer).flip()
       comb
