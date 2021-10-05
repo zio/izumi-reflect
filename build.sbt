@@ -21,7 +21,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
   .settings(
     crossScalaVersions := Seq(
       "2.13.6",
-      "3.1.0-RC1",
+      "3.1.0-RC3",
       "2.12.14",
       "2.11.12"
     ),
