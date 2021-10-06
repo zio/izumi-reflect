@@ -20,5 +20,5 @@ object PV {
   val sbt_scoverage = "1.9.0"
   val sbt_pgp = "2.1.1"
 
-  val sbt_mima_version = "1.0.0"
+  val sbt_mima_version = "1.0.1"
 }
