@@ -64,9 +64,9 @@ private[reflect] final class TrivialLoggerImpl(config: Config, id: String, logMe
 
 private[reflect] object TrivialLogger {
   private[reflect] final case class Config(
-                           sink: AbstractStringTrivialSink = AbstractStringTrivialSink.Console,
-                           forceLog: Boolean = false
-                         )
+    sink: AbstractStringTrivialSink = AbstractStringTrivialSink.Console,
+    forceLog: Boolean = false
+  )
 
   def make[T: ClassTag](config: Config = Config()): TrivialLogger = {
     val logMessages: Boolean = checkLog(config)

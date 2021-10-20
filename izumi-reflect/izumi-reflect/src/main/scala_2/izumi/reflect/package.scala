@@ -33,11 +33,11 @@ package object reflect {
     */
   type TagK[K[_]] = HKTag[{ type Arg[A] = K[A] }]
   type TagKK[K[_, _]] = HKTag[{ type Arg[A, B] = K[A, B] }]
-  type TagK3[K[_, _, _]] = HKTag[{ type Arg[A, B, C] = K[A, B, C]}]
+  type TagK3[K[_, _, _]] = HKTag[{ type Arg[A, B, C] = K[A, B, C] }]
 
-  type TagT[K[_[_]]] = HKTag[{ type Arg[A[_]] = K[A]}]
+  type TagT[K[_[_]]] = HKTag[{ type Arg[A[_]] = K[A] }]
   type TagTK[K[_[_], _]] = HKTag[{ type Arg[A[_], B] = K[A, B] }]
-  type TagTKK[K[_[_], _, _]] = HKTag[{ type  Arg[A[_], B, C] = K[A, B, C] }]
+  type TagTKK[K[_[_], _, _]] = HKTag[{ type Arg[A[_], B, C] = K[A, B, C] }]
   type TagTK3[K[_[_], _, _, _]] = HKTag[{ type Arg[A[_], B, C, D] = K[A, B, C, D] }]
 
   object TagK {
@@ -48,7 +48,7 @@ package object reflect {
       * {{{
       *     TagK[Option]
       * }}}
-      **/
+      */
     @inline def apply[K[_]: TagK]: TagK[K] = implicitly
   }
 
@@ -76,25 +76,53 @@ package object reflect {
     @inline def apply[K[_[_], _, _, _]: TagTK3]: TagTK3[K] = implicitly
   }
 
-  type TagK4[K[_, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3] = K[A0, A1, A2, A3] } ]
-  type TagK5[K[_, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4] = K[A0, A1, A2, A3, A4] } ]
-  type TagK6[K[_, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5] = K[A0, A1, A2, A3, A4, A5] } ]
-  type TagK7[K[_, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6] = K[A0, A1, A2, A3, A4, A5, A6] } ]
-  type TagK8[K[_, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7] = K[A0, A1, A2, A3, A4, A5, A6, A7] } ]
-  type TagK9[K[_, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8] } ]
-  type TagK10[K[_, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9] } ]
-  type TagK11[K[_, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10] } ]
-  type TagK12[K[_, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11] } ]
-  type TagK13[K[_, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12] } ]
-  type TagK14[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13] } ]
-  type TagK15[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14] } ]
-  type TagK16[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15] } ]
-  type TagK17[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16] } ]
-  type TagK18[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17] } ]
-  type TagK19[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18] } ]
-  type TagK20[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19] } ]
-  type TagK21[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20] } ]
-  type TagK22[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21] } ]
+  type TagK4[K[_, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3] = K[A0, A1, A2, A3] }]
+  type TagK5[K[_, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4] = K[A0, A1, A2, A3, A4] }]
+  type TagK6[K[_, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5] = K[A0, A1, A2, A3, A4, A5] }]
+  type TagK7[K[_, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6] = K[A0, A1, A2, A3, A4, A5, A6] }]
+  type TagK8[K[_, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7] = K[A0, A1, A2, A3, A4, A5, A6, A7] }]
+  type TagK9[K[_, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8] }]
+  type TagK10[K[_, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9] }]
+  type TagK11[K[_, _, _, _, _, _, _, _, _, _, _]] = HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10] }]
+  type TagK12[K[_, _, _, _, _, _, _, _, _, _, _, _]] =
+    HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11] }]
+  type TagK13[K[_, _, _, _, _, _, _, _, _, _, _, _, _]] =
+    HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12] }]
+  type TagK14[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _]] =
+    HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13] }]
+  type TagK15[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] =
+    HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14] }]
+  type TagK16[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] =
+    HKTag[{ type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15] }]
+  type TagK17[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{
+      type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16] = K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16]
+    }
+  ]
+  type TagK18[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{
+      type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17] =
+        K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17]
+    }
+  ]
+  type TagK19[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{
+      type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18] =
+        K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18]
+    }
+  ]
+  type TagK20[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{
+      type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19] =
+        K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19]
+    }
+  ]
+  type TagK21[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{
+      type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20] =
+        K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20]
+    }
+  ]
+  type TagK22[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = HKTag[{
+      type Arg[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21] =
+        K[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21]
+    }
+  ]
 
 // TODO
 //  type TagKUBound[U, K[_ <: U]] = HKTag[{ type Arg[A <: U] = K[A] }]
