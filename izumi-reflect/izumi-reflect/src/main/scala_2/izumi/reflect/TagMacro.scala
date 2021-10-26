@@ -157,18 +157,18 @@ class TagMacro(val c: blackbox.Context) {
             )
             val res = c.internal.polyType(ctorTyParam :: (nonParamArgs.map(_._2) ++ lambdaParams), appliedLambdaRes)
             logger.log(s"""HK non-trivial lambda construction
-              |ctorTyParam: ${showRaw(ctorTyParam.typeSignature)}
-              |ctorTyParam.typeParams: ${showRaw(ctorTyParam.typeSignature.typeParams)}
-              |origOrderingArgs: ${showRaw(origOrderingArgs)}
-              |origOrderingArgs typeSignatures: ${showRaw(origOrderingArgs.map(_._2.typeSignature))}
-              |paramArgs0: ${showRaw(paramArgs0)}
-              |nonParamArgs: ${showRaw(nonParamArgs)}
-              |lambdaParams: ${showRaw(lambdaParams)}
-              |appliedLambdaRes args symbols: ${showRaw(appliedLambdaRes.typeArgs.map(_.typeSymbol))}
-              |appliedLambdaRes args: ${showRaw(appliedLambdaRes.typeArgs)}
-              |appliedLambdaRes: ${showRaw(appliedLambdaRes)}
-              |res: ${showRaw(res)}
-              |""".stripMargin)
+                          |ctorTyParam: ${showRaw(ctorTyParam.typeSignature)}
+                          |ctorTyParam.typeParams: ${showRaw(ctorTyParam.typeSignature.typeParams)}
+                          |origOrderingArgs: ${showRaw(origOrderingArgs)}
+                          |origOrderingArgs typeSignatures: ${showRaw(origOrderingArgs.map(_._2.typeSignature))}
+                          |paramArgs0: ${showRaw(paramArgs0)}
+                          |nonParamArgs: ${showRaw(nonParamArgs)}
+                          |lambdaParams: ${showRaw(lambdaParams)}
+                          |appliedLambdaRes args symbols: ${showRaw(appliedLambdaRes.typeArgs.map(_.typeSymbol))}
+                          |appliedLambdaRes args: ${showRaw(appliedLambdaRes.typeArgs)}
+                          |appliedLambdaRes: ${showRaw(appliedLambdaRes)}
+                          |res: ${showRaw(res)}
+                          |""".stripMargin)
             val argTagsExceptCtor = {
               val args = nonParamArgs.map { case (t, _) => ReflectionUtil.norm(c.universe: c.universe.type)(t.dealias) }
               logger.log(s"HK COMPLEX Now summoning tags for args=$args")
@@ -448,12 +448,12 @@ class TagMacro(val c: blackbox.Context) {
               k.format(name) -> name
           }.unzip
         s"""
-          |$tpe is of a kind $kind, which doesn't have a tag name. Please create a tag synonym as follows:
-          |
-          |  type TagXYZ[${kind.format(typeName = "K")}] = HKTag[ { type Arg[${typaramsWithKinds.mkString(", ")}] = K[${appliedParams.mkString(", ")}] } ]
-          |
-          |And use it in your context bound, as in def x[$tpe: TagXYZ] = ...
-          |OR use Tag.auto.T macro, as in def x[$tpe: Tag.auto.T] = ...""".stripMargin
+           |$tpe is of a kind $kind, which doesn't have a tag name. Please create a tag synonym as follows:
+           |
+           |  type TagXYZ[${kind.format(typeName = "K")}] = HKTag[ { type Arg[${typaramsWithKinds.mkString(", ")}] = K[${appliedParams.mkString(", ")}] } ]
+           |
+           |And use it in your context bound, as in def x[$tpe: TagXYZ] = ...
+           |OR use Tag.auto.T macro, as in def x[$tpe: Tag.auto.T] = ...""".stripMargin
     }
   }
 
