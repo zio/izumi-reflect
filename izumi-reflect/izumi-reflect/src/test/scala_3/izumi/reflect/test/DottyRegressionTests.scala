@@ -16,7 +16,7 @@ class DottyRegressionTests extends TagAssertions {
 }
 
 object DottyRegressionTests {
-  //https://github.com/zio/izumi-reflect/issues/135#issue-801046733
+  // https://github.com/zio/izumi-reflect/issues/135#issue-801046733
   import zio._
 
   trait DgraphClient

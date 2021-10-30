@@ -766,7 +766,7 @@ object LightTypeTag {
     }
 
     // false positive unused warnings
-    //lazy val _ = (symTypeName, symTermName, symName, appliedRefSerializer, nameRefSerializer, abstractRefSerializer)
+    // lazy val _ = (symTypeName, symTermName, symName, appliedRefSerializer, nameRefSerializer, abstractRefSerializer)
 
     (tagref, dbsSerializer)
   }

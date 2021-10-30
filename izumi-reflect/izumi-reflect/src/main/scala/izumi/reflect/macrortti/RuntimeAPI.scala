@@ -78,7 +78,7 @@ object RuntimeAPI {
       replaced
     } else {
       val out = Lambda(newParams, replaced)
-      //assert(out.allArgumentsReferenced, s"bad lambda: $out, ${out.paramRefs}, ${out.referenced}")
+      // assert(out.allArgumentsReferenced, s"bad lambda: $out, ${out.paramRefs}, ${out.referenced}")
       // such lambdas are legal: see "regression test: combine Const Lambda to TagK"
       out
     }
