@@ -155,7 +155,7 @@ object Izumi {
           SettingKey.Default := "(Compile / doc / sources).value".raw
         ),
         "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
-        //"testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
+        // "testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
         "scalacOptions" ++= Seq(
           SettingKey(Some(scala211), None) := Const.EmptySeq,
           SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),

@@ -186,7 +186,7 @@ private[boopickle] object JSStringCodec extends StringCodecBase {
       val ta = new Uint16Array(buf.typedArray().buffer, buf.position() + buf.typedArray().byteOffset, len / 2)
       (buf: java.nio.Buffer).position(buf.position() + len)
       utf16decoder(ta)
-      //new String(ta.toArray) // alt implementation
+      // new String(ta.toArray) // alt implementation
     } else {
       val a = new Array[Byte](len)
       buf.get(a)
