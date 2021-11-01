@@ -387,7 +387,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       s"-Xmacro-settings:git-head-commit=${com.typesafe.sbt.SbtGit.GitKeys.gitHeadCommit.value.getOrElse("")}"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "2.13.6",
+    scalaVersion := "2.13.7",
     ThisBuild / organization := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
