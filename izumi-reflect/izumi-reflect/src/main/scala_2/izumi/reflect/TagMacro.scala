@@ -313,7 +313,14 @@ class TagMacro(val c: blackbox.Context) {
       case r: RefinedTypeApi => lub(r.parents)
       case _ => properTypeStrongCtor
     }
-    c.Expr[Class[_]](q"_root_.scala.Predef.classOf[${tpeLub.erasure}]")
+    val tpeErased = tpeLub.erasure
+    // and for Scala varargs (Scala by names and Java varargs are fine)
+    val tpeFixed = if (tpeErased.typeSymbol eq definitions.RepeatedParamClass) {
+      typeOf[scala.Seq[Any]].dealias
+    } else {
+      tpeErased
+    }
+    c.Expr[Class[_]](q"_root_.scala.Predef.classOf[$tpeFixed]")
   }
 
   @inline

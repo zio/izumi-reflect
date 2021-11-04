@@ -21,6 +21,7 @@ package izumi.reflect.test
 import izumi.reflect._
 import izumi.reflect.macrortti._
 import izumi.reflect.test.ID._
+import izumi.reflect.test.TestModel.VarArgsAnyVal
 import org.scalatest.exceptions.TestFailedException
 
 case class OptionT[F[_], A](value: F[Option[A]])
@@ -608,6 +609,10 @@ class TagTest extends SharedTagTest {
       }
 
       assert(reproduce[Unit].t.tag == Tag[Has[S[Unit]]].tag)
+    }
+
+    "regression test: resolve correct closestClass for Scala vararg AnyVal (https://github.com/zio/izumi-reflect/issues/224)" in {
+      assert(Tag[VarArgsAnyVal].closestClass == classOf[scala.Seq[Any]])
     }
 
     "progression test: can't handle parameters in defs/vals in structural types" in {
