@@ -145,4 +145,6 @@ object TestModel extends TestModelKindProjector {
   type SubStrC = String
   type SubStrD = SubStrA
   type SubSubStr <: SubStrA
+
+  final case class VarArgsAnyVal(args: String*) extends AnyVal
 }
