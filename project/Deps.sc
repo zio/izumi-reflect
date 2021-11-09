@@ -8,6 +8,7 @@ object Izumi {
     val collection_compat = Version.VExpr("V.collection_compat")
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
+    val sbtgen = Version.VExpr("V.sbtgen")
   }
 
   object PV {
@@ -144,7 +145,12 @@ object Izumi {
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")""".raw
         ),
         "mimaFailOnProblem" in SettingScope.Build := true,
-        "mimaFailOnNoPrevious" in SettingScope.Build := false
+        "mimaFailOnNoPrevious" in SettingScope.Build := false,
+
+        // scala-steward workaround
+        // add sbtgen version to sbt build to allow scala-steward to find it and update it in .sc files
+        // https://github.com/scala-steward-org/scala-steward/issues/696#issuecomment-545800968
+        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % ${V.sbtgen.value} % Provided""".raw
       )
 
       final val sharedSettings = Defaults.SbtMetaOptions ++ Seq(
