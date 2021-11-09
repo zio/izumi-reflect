@@ -49,7 +49,6 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       case (_, "2.11.12") => Seq.empty
       case (_, "2.12.15") => Seq(
         "-Xsource:3",
-        "-Wconf:msg=package.object.inheritance:silent",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -90,7 +89,6 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       )
       case (_, "2.13.6") => Seq(
         "-Xsource:3",
-        "-Wconf:msg=package.object.inheritance:silent",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
@@ -211,7 +209,6 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       case (_, "2.11.12") => Seq.empty
       case (_, "2.12.15") => Seq(
         "-Xsource:3",
-        "-Wconf:msg=package.object.inheritance:silent",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -252,7 +249,6 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       )
       case (_, "2.13.6") => Seq(
         "-Xsource:3",
-        "-Wconf:msg=package.object.inheritance:silent",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
@@ -420,7 +416,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % V.sbtgen % Provided
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.83" % Provided
   )
   .aggregate(
     `izumi-reflect-aggregate`

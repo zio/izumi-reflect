@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.79`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.83`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -150,7 +150,7 @@ object Izumi {
         // scala-steward workaround
         // add sbtgen version to sbt build to allow scala-steward to find it and update it in .sc files
         // https://github.com/scala-steward-org/scala-steward/issues/696#issuecomment-545800968
-        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % ${V.sbtgen.value} % Provided""".raw
+        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw
       )
 
       final val sharedSettings = Defaults.SbtMetaOptions ++ Seq(

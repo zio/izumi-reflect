@@ -20,5 +20,4 @@ object V {
   val kind_projector = "0.13.2"
   val collection_compat = "2.6.0"
   val scalatest = "3.2.10"
-  val sbtgen = "0.0.79"
 }
