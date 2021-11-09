@@ -419,7 +419,8 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")
     ),
     ThisBuild / mimaFailOnProblem := true,
-    ThisBuild / mimaFailOnNoPrevious := false
+    ThisBuild / mimaFailOnNoPrevious := false,
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % V.sbtgen % Provided
   )
   .aggregate(
     `izumi-reflect-aggregate`
