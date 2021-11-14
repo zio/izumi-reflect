@@ -43,7 +43,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     private def inspectTypeReprToFullBases(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       val selfRef = inspector.inspectTypeRepr(tpe)
 
-      tpe match {
+      tpe.dealias match {
         case a: AppliedType =>
           val baseTypes = a.baseClasses.map(b => a.baseType(b)).filterNot(termination.contains)
           log(s"For `$tpe` found base types $baseTypes")
@@ -121,7 +121,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
 
     private def inspectToBToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
-      tpe match {
+      tpe.dealias match {
         case t: TypeBounds =>
           inspectTypeReprToFullBases(t.hi) ++ inspectTypeReprToFullBases(t.low)
         case t: TypeRepr =>
