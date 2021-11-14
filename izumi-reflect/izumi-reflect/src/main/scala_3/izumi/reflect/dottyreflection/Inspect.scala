@@ -42,7 +42,7 @@ object Inspect {
         ${Expr(strRef)}, 
         ${Expr(strDbs)}, 
         ${Expr(LightTypeTag.currentBinaryFormatVersion)},
-        ref
+        Some(ref)
       ) 
     }
   }

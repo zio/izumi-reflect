@@ -52,8 +52,6 @@ abstract class LightTypeTag(
 
   def ref: LightTypeTagRef
 
-  def ==(that: LightTypeTag): Boolean = this.hashCode() == that.hashCode()
-
   private[reflect] lazy val basesdb: Map[AbstractReference, Set[AbstractReference]] = bases()
   private[reflect] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
 
@@ -62,7 +60,7 @@ abstract class LightTypeTag(
   }
 
   @inline final def =:=(other: LightTypeTag): Boolean = {
-    this.hashCode == other.hashCode()
+    this == other
   }
 
   final def decompose: Set[LightTypeTag] = {
@@ -191,7 +189,7 @@ abstract class LightTypeTag(
   override def equals(other: Any): Boolean = {
     other match {
       case that: LightTypeTag =>
-        hashCode == that.hashCode
+        ref == that.ref
       case _ => false
     }
   }
@@ -250,15 +248,15 @@ object LightTypeTag {
     refinedType(intersection, structure, Map.empty)
   }
 
-  def parse[T](hashCode: Int, refString: String, basesString: String, version: Int, ref0: AbstractReference): LightTypeTag = {
+  def parse[T](hashCode: Int, refString: String, basesString: String, version: Int, ref0: Option[AbstractReference] = None): LightTypeTag = {
     lazy val shared = {
       subtypeDBsSerializer.unpickle(UnpickleState(ByteBuffer.wrap(basesString.getBytes(StandardCharsets.ISO_8859_1))))
     }
 
     if (version == 0) {
-      new ParsedLightTypeTag(hashCode, refString, () => shared.bases, () => shared.idb, ref0)
+      new ParsedLightTypeTag(hashCode, refString, () => shared.bases, () => shared.idb)
     } else if (version >= 1 && version <= 10) {
-      new ParsedLightTypeTagM8(hashCode, refString, () => shared.bases, () => shared.idb, ref0)
+      new ParsedLightTypeTagM8(hashCode, refString, () => shared.bases, () => shared.idb)
     } else if (version >= 11 && version <= 20) {
       new ParsedLightTypeTag110(hashCode, refString, () => shared.bases, () => shared.idb, ref0)
     } else {
@@ -274,18 +272,20 @@ object LightTypeTag {
     override val hashCode: Int,
     private val refString: String,
     bases: () => Map[AbstractReference, Set[AbstractReference]],
-    db: () => Map[NameReference, Set[NameReference]],
-    override val ref: AbstractReference
+    db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
+    override lazy val ref: LightTypeTagRef = {
+      lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
+    }
 
-    // override def equals(other: Any): Boolean = {
-    //   other match {
-    //     case that: ParsedLightTypeTag if refString == that.refString =>
-    //       true
-    //     case _ =>
-    //       super.equals(other)
-    //   }
-    // }
+    override def equals(other: Any): Boolean = {
+      other match {
+        case that: ParsedLightTypeTag if refString == that.refString =>
+          true
+        case _ =>
+          super.equals(other)
+      }
+    }
   }
   object ParsedLightTypeTag {
     final case class SubtypeDBs(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]])
@@ -296,19 +296,21 @@ object LightTypeTag {
     override val hashCode: Int,
     private val refString: String,
     bases: () => Map[AbstractReference, Set[AbstractReference]],
-    db: () => Map[NameReference, Set[NameReference]],
-    override val ref: AbstractReference
+    db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
+    override lazy val ref: LightTypeTagRef = {
+      lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
+    }
 
-    // override def equals(other: Any): Boolean = {
-    //   other match {
-    //     case that: ParsedLightTypeTagM8 =>
-    //       if (refString == that.refString) true
-    //       else super.equals(other)
-    //     case _ =>
-    //       super.equals(other)
-    //   }
-    // }
+    override def equals(other: Any): Boolean = {
+      other match {
+        case that: ParsedLightTypeTagM8 =>
+          if (refString == that.refString) true
+          else super.equals(other)
+        case _ =>
+          super.equals(other)
+      }
+    }
   }
 
   /** `ParsedLightTypeTag` since 1.1.0. */
@@ -317,19 +319,27 @@ object LightTypeTag {
     private[reflect] val refString: String,
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]],
-    override val ref: AbstractReference
+    val ref0: Option[AbstractReference]
   ) extends LightTypeTag(bases, db) {
+    override lazy val ref: LightTypeTagRef = {
+      ref0.getOrElse(
+        lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
+      )
+    }
 
-    // override def equals(other: Any): Boolean = {
-    //   other match {
-    //     case that: ParsedLightTypeTag110 =>
-    //       if (refString == that.refString) true
-    //       else if (optimisticEqualsEnabled) false
-    //       else super.equals(other)
-    //     case _ =>
-    //       super.equals(other)
-    //   }
-    // }
+    override def hashCode(): Int = ref0.map(_.hashCode()).getOrElse(hashCode0)
+
+    override def equals(other: Any): Boolean = {
+      other match {
+        case that: ParsedLightTypeTag110 =>
+          if (ref0.isDefined && that.ref0.isDefined) ref0.get == that.ref0.get
+          else if (refString == that.refString) true
+          else if (optimisticEqualsEnabled) false
+          else super.equals(other)
+        case _ =>
+          super.equals(other)
+      }
+    }
   }
 
   private[this] final val optimisticEqualsEnabled = {
