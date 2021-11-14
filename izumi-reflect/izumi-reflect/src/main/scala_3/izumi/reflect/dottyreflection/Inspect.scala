@@ -34,6 +34,16 @@ object Inspect {
       println(s"${SubtypeDBs(res.basesdb, res.idb)} => ${strDbs.size} bytes, ${string2hex(strDbs)}")
       println(strDbs)
     }
-    '{ LightTypeTag.parse(${Expr(hashCodeRef)}, ${Expr(strRef)}, ${Expr(strDbs)}, ${Expr(LightTypeTag.currentBinaryFormatVersion)}) }
+    val refExpr = TypeInspections.expr[T]
+    '{ 
+      val ref = $refExpr
+      LightTypeTag.parse(
+        ref.hashCode(), 
+        ${Expr(strRef)}, 
+        ${Expr(strDbs)}, 
+        ${Expr(LightTypeTag.currentBinaryFormatVersion)},
+        ref
+      ) 
+    }
   }
 }

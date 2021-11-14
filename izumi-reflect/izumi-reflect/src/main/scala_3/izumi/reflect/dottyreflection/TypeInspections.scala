@@ -3,11 +3,15 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef._
 
-import scala.quoted.{Quotes, Type}
+import scala.quoted.{Quotes, Type, Expr}
 
 object TypeInspections {
   def apply[T <: AnyKind : Type](using qctx0: Quotes): AbstractReference = {
     new Inspector(0) { val qctx = qctx0 }.buildTypeRef[T]
+  }
+
+  def expr[T <: AnyKind : Type](using qctx0: Quotes): Expr[AbstractReference] = {
+    new ExprInspector(0) { val qctx = qctx0 }.buildTypeRef[T]
   }
 
   def unappliedDb[T <: AnyKind : Type](using qctx0: Quotes): Map[NameReference, Set[NameReference]] = {
