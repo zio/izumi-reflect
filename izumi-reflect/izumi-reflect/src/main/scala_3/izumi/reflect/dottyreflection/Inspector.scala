@@ -25,7 +25,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    tpe match {
+    tpe.dealias match {
       case a: AnnotatedType =>
         inspectTypeRepr(a.underlying)
 

@@ -17,7 +17,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   // @formatter:on
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
-    val tpe = TypeRepr.of[T]
+    val tpe = TypeRepr.of[T].dealias
 
     val allReferenceComponents = {
       allTypeReferences(tpe)
