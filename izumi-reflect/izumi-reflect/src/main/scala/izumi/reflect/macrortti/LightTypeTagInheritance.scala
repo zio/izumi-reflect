@@ -131,9 +131,9 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // unions
       case (s: UnionReference, t: UnionReference) =>
         // yeah, this shit is quadratic
-        s.refs.exists {
+        s.refs.forall {
           c =>
-            t.refs.forall {
+            t.refs.exists {
               p =>
                 ctx.isChild(c, p)
             }

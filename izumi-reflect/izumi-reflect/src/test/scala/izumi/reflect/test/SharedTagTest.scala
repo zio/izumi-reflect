@@ -1,7 +1,10 @@
 package izumi.reflect.test
 
-import izumi.reflect.Tag
+import izumi.reflect.macrortti._
+import izumi.reflect.test.ID._
+import izumi.reflect._
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag110
+import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.macrortti.{LTag, LightTypeTag}
 import izumi.reflect.test.ID.id
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
@@ -37,7 +40,27 @@ trait XY[Y] {
   implicit def tagZ: Tag[Z]
 }
 
+case class OptionT[F[_], A](value: F[Option[A]])
+
+final case class testTag[T: Tag]() {
+  type X[A] = Either[Int, A]
+  type Y = T
+  val res = Tag[X[Y {}]]
+}
+
+final case class testTag2[T: Tag]() {
+  type X = List[T]
+  val res = Tag[X]
+}
+
+trait T2[A, B, C[_[_], _], D[_], E]
+
 abstract class SharedTagTest extends AnyWordSpec with XY[String] {
+
+  type Swap[A, B] = Either[B, A]
+  type SwapF2[F[_, _], A, B] = F[B, A]
+  type Id[A] = A
+  type Id1[F[_], A] = F[A]
 
   import izumi.reflect.test.PlatformSpecific.fromRuntime
 
@@ -104,6 +127,75 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] {
       }
 
       IzumiReflectTagEqualRegression.test()
+    }
+
+    "Work for any concrete type (dotty failures)" in {
+      assert(Tag[this.Z].tag == fromRuntime[this.Z])
+      assert(Tag[TagTest#Z].tag == fromRuntime[TagTest#Z])
+    }
+
+    "Work for any abstract type with available Tag when obscured by empty refinement" in {
+      def testTag[T: Tag] = Tag[T {}]
+
+      assert(testTag[String].tag == fromRuntime[String])
+    }
+
+    "handle function local type aliases" in {
+      def testTag[T: Tag] = {
+        type X[A] = Either[Int, A]
+
+        Tag[X[T {}]]
+      }
+
+      assert(testTag[String].tag == fromRuntime[Either[Int, String]])
+
+      def testTag2[T: Tag] = {
+        type X = List[T]
+
+        Tag[X]
+      }
+
+      assert(testTag2[String].tag == fromRuntime[List[String]])
+    }
+
+    "Can dealias transparent type members with class type parameters inside them when a tag is summoned _inside_ the class, because LightTypeTags are not affected by https://github.com/scala/bug/issues/11139" in {
+      assert(testTag[String]().res.tag == fromRuntime[Either[Int, String]])
+      assert(testTag2[String]().res.tag == fromRuntime[List[String]])
+    }
+
+    "Tag.auto.T kind inference macro works for known cases" in {
+      def x[T[_]: Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[T]]
+
+      def x2[T[_, _]: Tag.auto.T]: TagKK[T] = implicitly[Tag.auto.T[T]]
+
+      def x3[T[_, _, _[_[_], _], _[_], _]](implicit x: Tag.auto.T[T]): Tag.auto.T[T] = x
+
+      val b1 = x[Option].tag =:= TagK[Option].tag
+      val b2 = x2[Either].tag =:= TagKK[Either].tag
+      val b3 = implicitly[Tag.auto.T[OptionT]].tag =:= TagTK[OptionT].tag
+      val b4 = x3[T2].tag.withoutArgs =:= LTag[T2[Nothing, Nothing, Nothing, Nothing, Nothing]].tag.withoutArgs
+
+      assert(b1)
+      assert(b2)
+      assert(b3)
+      assert(b4)
+    }
+
+    "Shouldn't work for any abstract type without available TypeTag or Tag or TagK" in {
+      assertTypeError("""
+      def testTag[T] = Tag[T]
+      def testTagK[F[_], T] = Tag[F[T]]
+         """)
+    }
+
+    "handle Id type lambda" in {
+      assert(TagK[Id].tag == TagK[Id].tag)
+      assert(TagK[Id].tag != TagTK[Id1].tag)
+    }
+
+    "handle Id1 type lambda" in {
+      assert(TagTK[Id1].tag == TagTK[Id1].tag)
+      assert(TagTK[Id1].tag != TagK[Id].tag)
     }
 
   }

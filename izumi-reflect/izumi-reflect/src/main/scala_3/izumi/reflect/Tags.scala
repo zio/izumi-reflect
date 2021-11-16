@@ -121,6 +121,10 @@ object Tag {
     Tag(tag.closestClass, tag.tag.combine(args: _*))
   }
 
+  def unionTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = {
+    Tag(tag.closestClass, tag.tag.asUnion(args: _*))
+  }
+
   /**
     * Create a Tag of a type formed from an `intersection` of types (A with B) with a structural refinement taken from `structType`
     *
@@ -138,7 +142,7 @@ object Tag {
     refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
-  inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = Tag(classOf[Any], Inspect.inspect[T])
+  inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = TagMacro.tag[T]
 }
 
 /**
