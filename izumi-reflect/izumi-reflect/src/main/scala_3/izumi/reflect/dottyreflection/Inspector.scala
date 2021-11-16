@@ -35,7 +35,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
             makeNameReferenceFromType(a.tycon)
           case o =>
             // https://github.com/lampepfl/dotty/issues/8520
-            val params = a.tycon.typeSymbol.memberTypes
+            val params = a.tycon.typeSymbol.typeMembers
             val zargs = a.args.zip(params)
 
             val args = zargs.map(next().inspectTypeParam)

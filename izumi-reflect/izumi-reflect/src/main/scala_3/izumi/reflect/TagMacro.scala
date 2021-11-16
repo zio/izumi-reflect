@@ -18,59 +18,60 @@ class TagMacro(using val ctx: Quotes) {
 
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val typeRepr = TypeRepr.of[A].dealias
-    println(s"CREATE TAG EXPR: $typeRepr")
-    println(s"CREATE TAG EXPR: ${allPartsStrong(typeRepr)}")
     if (allPartsStrong(typeRepr))
       '{ Tag(classOf[Any], Inspect.inspect[A]) }
     else {
       val result = mkTag(typeRepr)
-      println(s"RESULT ${result.show}")
       result.asInstanceOf[Expr[Tag[A]]]
     }
   }
-  
-  private def mkTag(typeRepr: TypeRepr): Expr[Tag[?]] = {
-      println(s"mkTag $typeRepr")
-      typeRepr.dealias match {
 
-        case x if x.typeSymbol.isTypeParam => summonTag(x)
-
-        case AppliedType(tpe, args) =>
-          val argsTags = Expr.ofList[LightTypeTag](args.map(arg => lttFromTag(mkTag(arg))))
-
-          val tag = tpe.asType match {
-            case '[a] => '{ Tag(classOf[Any], Inspect.inspect[a]) }
-          }
-
-          '{ Tag.appliedTag($tag, $argsTags) }
-
-        case andType: AndType => 
-          val ltts0: List[Expr[LightTypeTag]] = flattenAnd(andType).map(tt => lttFromTag(mkTag(tt)))
-          val ltts: Expr[List[LightTypeTag]] = Expr.ofList(ltts0)
-          val struct =
-            andType.asType match {
-              case '[a] => '{ Inspect.inspect[a] }
-            }
-
-          '{ Tag.refinedTag(classOf[Any], $ltts, $struct, Map.empty)}    
-
-        // TODO: This will not work
-        case orType: OrType => 
-          val ltts0: List[Expr[LightTypeTag]] = flattenOr(orType).map(tt => lttFromTag(mkTag(tt)))
-          val ltts: Expr[List[LightTypeTag]] = Expr.ofList(ltts0)
-          val struct =
-            orType.asType match {
-              case '[a] => '{ Inspect.inspect[a] }
-            }
-          '{ Tag.refinedTag(classOf[Any], $ltts, $struct, Map.empty)}
-
-        case _ => 
-            throw new Exception(s"Unsupported type: $typeRepr")
+  private def mkLtt(typeRepr: TypeRepr): Expr[LightTypeTag] = 
+    if (allPartsStrong(typeRepr))
+      typeRepr.asType match {
+        case '[a] => '{ Inspect.inspect[a] }
       }
+    else {
+      val result = mkTag(typeRepr)
+      '{ $result.tag }
     }
+  
+  private def mkTag(typeRepr: TypeRepr): Expr[Tag[?]] = 
+    typeRepr.dealias match {
 
-  private def lttFromTag(tagExpr: Expr[Tag[?]]): Expr[LightTypeTag] =
-    '{ $tagExpr.tag }
+      case x if x.typeSymbol.isTypeParam => summonTag(x)
+
+      case AppliedType(tpe, args) =>
+        val argsTags = Expr.ofList[LightTypeTag](args.map(arg => mkLtt(arg)))
+
+        tpe.asType match {
+          case '[a] => 
+            val tag = '{ Tag(classOf[Any], Inspect.inspect[a]) }
+            '{ Tag.appliedTag($tag, $argsTags) }
+        }
+
+      case andType: AndType => 
+        val ltts0: List[Expr[LightTypeTag]] = flattenAnd(andType).map(tt => mkLtt(tt))
+        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(ltts0)
+        andType.asType match {
+          case '[a] => 
+            val struct = '{ Inspect.inspect[a] }
+            '{ Tag.refinedTag(classOf[Any], $ltts, $struct, Map.empty)}    
+        }
+
+      // TODO: This ain't right
+      case orType: OrType => 
+        val ltts0: List[Expr[LightTypeTag]] = flattenOr(orType).map(tt => mkLtt(tt))
+        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(ltts0)
+        orType.asType match {
+          case '[a] => 
+            val struct = '{ Inspect.inspect[a] }
+            '{ Tag.refinedTag(classOf[Any], $ltts, $struct, Map.empty)}
+        }
+
+      case _ => 
+          throw new Exception(s"Unsupported type: $typeRepr")
+    }
 
   private def flattenAnd(tpe: TypeRepr): List[TypeRepr] =   
     tpe match {
