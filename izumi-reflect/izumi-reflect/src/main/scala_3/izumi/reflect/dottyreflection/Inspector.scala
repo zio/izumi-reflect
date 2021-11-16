@@ -94,7 +94,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case o =>
         log(s"TYPEREPR UNSUPPORTED: $o")
         throw new RuntimeException(s"TYPEREPR, UNSUPPORTED: ${o.getClass} - $o")
-      // {???}
 
     }
   }

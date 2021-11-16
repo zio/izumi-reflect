@@ -73,32 +73,31 @@ class TagMacro(using val ctx: Quotes) {
     }
 
   private def flattenAnd(tpe: TypeRepr): List[TypeRepr] =   
-    tpe match {
+    tpe.dealias match {
       case AndType(lhs, rhs) => flattenAnd(lhs) ++ flattenAnd(rhs)
       case _ => List(tpe)
     }
 
   private def flattenOr(tpe: TypeRepr): List[TypeRepr] =   
-    tpe match {
+    tpe.dealias match {
       case OrType(lhs, rhs) => flattenOr(lhs) ++ flattenOr(rhs)
       case _ => List(tpe)
     }
 
 
-  private def summonTag(typeRepr: TypeRepr): Expr[Tag[?]] = {
+  private def summonTag(typeRepr: TypeRepr): Expr[Tag[?]] = 
     typeRepr.asType match {
       case '[a] => 
         val message = s"Cannot find implicit Tag[${Type.show[a]}]"
         Expr.summon[Tag[a]].getOrElse(report.errorAndAbort(message))
     }
-  }
 
   /**
    * Returns true if the given type contains no type parameters 
    * (this means the type is not "weak" https://stackoverflow.com/questions/29435985/weaktypetag-v-typetag)
    */ 
   private def allPartsStrong(typeRepr: TypeRepr): Boolean = 
-      typeRepr match {
+      typeRepr.dealias match {
         case x if x.typeSymbol.isTypeParam => false
         case AppliedType(tpe, args) => allPartsStrong(tpe) && args.forall(allPartsStrong)
         case AndType(lhs, rhs) => allPartsStrong(lhs) && allPartsStrong(rhs)

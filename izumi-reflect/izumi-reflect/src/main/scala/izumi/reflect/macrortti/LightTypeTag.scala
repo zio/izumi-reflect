@@ -115,7 +115,8 @@ abstract class LightTypeTag(
           .map(_.ref match {
             case reference: AbstractReference =>
               reference match {
-                case Lambda(input, output) => ???
+                case lambda: Lambda =>
+                  throw new IllegalArgumentException(s"Type Lambdas ($lambda) are not supported as arguments to a UnionReference")
                 case reference: AppliedReference =>
                   reference
               }

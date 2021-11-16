@@ -24,18 +24,8 @@ import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel.VarArgsAnyVal
 import org.scalatest.exceptions.TestFailedException
 
-case class OptionT[F[_], A](value: F[Option[A]])
 
 // https://github.com/scala/bug/issues/11139
-final case class testTag[T: Tag]() {
-  type X[A] = Either[Int, A]
-  type Y = T
-  val res = Tag[X[Y {}]]
-}
-final case class testTag2[T: Tag]() {
-  type X = List[T]
-  val res = Tag[X]
-}
 final case class testTag3[F[_]: TagK]() {
   type X = OptionT[F, Int]
   val res = Tag[X].tag
@@ -54,10 +44,6 @@ class TagTest extends SharedTagTest {
   trait YX[V] extends XY[V]
   case class ZOBA[A, B, C](value: Either[B, C])
   trait BIOService[F[_, _]]
-  type Swap[A, B] = Either[B, A]
-  type SwapF2[F[_, _], A, B] = F[B, A]
-  type Id[A] = A
-  type Id1[F[_], A] = F[A]
   type Const[A, B] = A
   trait ZIO[-R, +E, +A]
   type IO[+E, +A] = ZIO[Any, E, A]
@@ -96,11 +82,6 @@ class TagTest extends SharedTagTest {
 
   "Tag" should {
 
-    "Work for any concrete type (dotty failures)" in {
-      assert(Tag[this.Z].tag == fromRuntime[this.Z])
-      assert(Tag[TagTest#Z].tag == fromRuntime[TagTest#Z])
-    }
-
     "Work with term type prefixes" in {
       val zy = new ZY {}
       val zx = new ZY {}
@@ -134,12 +115,6 @@ class TagTest extends SharedTagTest {
       assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
     }
 
-    "Work for any abstract type with available Tag when obscured by empty refinement" in {
-      def testTag[T: Tag] = Tag[T {}]
-
-      assert(testTag[String].tag == fromRuntime[String])
-    }
-
     "Work for any abstract type with available Tag while preserving additional refinement" in {
       def testTag[T: Tag] = Tag[T { def x: Int }]
 
@@ -147,22 +122,6 @@ class TagTest extends SharedTagTest {
     }
 
     "handle function local type aliases" in {
-      def testTag[T: Tag] = {
-        type X[A] = Either[Int, A]
-
-        Tag[X[T {}]]
-      }
-
-      assert(testTag[String].tag == fromRuntime[Either[Int, String]])
-
-      def testTag2[T: Tag] = {
-        type X = List[T]
-
-        Tag[X]
-      }
-
-      assert(testTag2[String].tag == fromRuntime[List[String]])
-
       def testTag3[F[_]: TagK] = {
         type X = OptionT[F, Int]
 
@@ -173,8 +132,6 @@ class TagTest extends SharedTagTest {
     }
 
     "Can dealias transparent type members with class type parameters inside them when a tag is summoned _inside_ the class, because LightTypeTags are not affected by https://github.com/scala/bug/issues/11139" in {
-      assert(testTag[String]().res.tag == fromRuntime[Either[Int, String]])
-      assert(testTag2[String]().res.tag == fromRuntime[List[String]])
       assert(testTag3[List]().res == fromRuntime[OptionT[List, Int]])
     }
 
@@ -193,24 +150,6 @@ class TagTest extends SharedTagTest {
       assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
     }
 
-    "Tag.auto.T kind inference macro works for known cases" in {
-      def x[T[_]: Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[T]]
-
-      def x2[T[_, _]: Tag.auto.T]: TagKK[T] = implicitly[Tag.auto.T[T]]
-
-      def x3[T[_, _, _[_[_], _], _[_], _]](implicit x: Tag.auto.T[T]): Tag.auto.T[T] = x
-
-      val b1 = x[Option].tag =:= TagK[Option].tag
-      val b2 = x2[Either].tag =:= TagKK[Either].tag
-      val b3 = implicitly[Tag.auto.T[OptionT]].tag =:= TagTK[OptionT].tag
-      val b4 = x3[T2].tag.withoutArgs =:= LTag[T2[Nothing, Nothing, Nothing, Nothing, Nothing]].tag.withoutArgs
-
-      assert(b1)
-      assert(b2)
-      assert(b3)
-      assert(b4)
-    }
-
     "Work for an abstract type with available TagKK" in {
       def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
 
@@ -224,13 +163,6 @@ class TagTest extends SharedTagTest {
 
       val value = testTagX[T2, Int, String, OptionT, List, Boolean]
       assert(value.tag == fromRuntime[T2[Int, String, OptionT, List, Boolean]])
-    }
-
-    "Shouldn't work for any abstract type without available TypeTag or Tag or TagK" in {
-      assertTypeError("""
-      def testTag[T] = Tag[T]
-      def testTagK[F[_], T] = Tag[F[T]]
-         """)
     }
 
     "Work for any configuration of parameters" in {
@@ -265,16 +197,6 @@ class TagTest extends SharedTagTest {
       def t1[F[_, _]: TagKK, A: Tag, B: Tag] = Tag[F[A, B]]
 
       assert(t1[Swap, Int, String].tag == fromRuntime[Either[String, Int]])
-    }
-
-    "handle Id type lambda" in {
-      assert(TagK[Id].tag == TagK[Id].tag)
-      assert(TagK[Id].tag != TagTK[Id1].tag)
-    }
-
-    "handle Id1 type lambda" in {
-      assert(TagTK[Id1].tag == TagTK[Id1].tag)
-      assert(TagTK[Id1].tag != TagK[Id].tag)
     }
 
     "Assemble from higher than TagKK tags" in {

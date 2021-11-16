@@ -3,7 +3,7 @@ package izumi.reflect.test
 import izumi.reflect.{Tag, TagK}
 import izumi.reflect.test.ID._
 
-class TagTest extends SharedTagTest {
+class TagTest extends SharedTagTest with TagAssertions {
 
   override final val tagZ = Tag[String]
 
@@ -15,6 +15,13 @@ class TagTest extends SharedTagTest {
       assert(idTpeLTT == idLambdaLTT)
     }
 
+    "Support union subtyping" in {
+      trait Animal
+      trait Dog extends Animal
+      assertChild(Tag[Dog].tag, Tag[Animal].tag)
+      assertChild(Tag[Dog | String].tag, Tag[Animal | String].tag)
+      assertNotChild(Tag[Animal | String].tag ,Tag[Dog | String].tag)
+    }
   }
 
 }
