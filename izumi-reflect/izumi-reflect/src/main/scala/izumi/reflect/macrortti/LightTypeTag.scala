@@ -104,6 +104,28 @@ abstract class LightTypeTag(
     LightTypeTag(ref.combine(argRefs), mergedBasesDB, mergedInheritanceDb)
   }
 
+  def asUnion(args: LightTypeTag*): LightTypeTag = {
+    def mergedBasesDB = LightTypeTag.mergeIDBs(basesdb, args.iterator.map(_.basesdb))
+
+    def mergedInheritanceDb = LightTypeTag.mergeIDBs(idb, args.iterator.map(_.idb))
+
+    LightTypeTag(
+      LightTypeTagRef.UnionReference(
+        args
+          .map(_.ref match {
+            case reference: AbstractReference =>
+              reference match {
+                case Lambda(input, output) => ???
+                case reference: AppliedReference =>
+                  reference
+              }
+          }).toSet
+      ),
+      mergedBasesDB,
+      mergedInheritanceDb
+    )
+  }
+
   /**
     * Parameterize this type tag with `args` if it describes an unapplied type lambda
     *

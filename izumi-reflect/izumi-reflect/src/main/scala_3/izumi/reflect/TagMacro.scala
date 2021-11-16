@@ -59,14 +59,13 @@ class TagMacro(using val ctx: Quotes) {
             '{ Tag.refinedTag(classOf[Any], $ltts, $struct, Map.empty)}    
         }
 
-      // TODO: This ain't right
       case orType: OrType => 
         val ltts0: List[Expr[LightTypeTag]] = flattenOr(orType).map(tt => mkLtt(tt))
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(ltts0)
         orType.asType match {
           case '[a] => 
-            val struct = '{ Inspect.inspect[a] }
-            '{ Tag.refinedTag(classOf[Any], $ltts, $struct, Map.empty)}
+            val tag = '{ Tag(classOf[Any], Inspect.inspect[a]) }
+            '{ Tag.unionTag($tag, $ltts) }
         }
 
       case _ => 
