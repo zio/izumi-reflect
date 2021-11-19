@@ -35,13 +35,13 @@ package object macrortti {
 
   object LTagK {
     /**
-    * Construct a type tag for a higher-kinded type `K[_]`
-    *
-    * Example:
-    * {{{
-    *     LTagK[Option]
-    * }}}
-    **/
+      * Construct a type tag for a higher-kinded type `K[_]`
+      *
+      * Example:
+      * {{{
+      *     LTagK[Option]
+      * }}}
+      */
     def apply[K[_]: LTagK]: LTagK[K] = implicitly
   }
 
@@ -72,7 +72,7 @@ package object macrortti {
 //   simple materializers
   inline def LTT[T]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_]`[T[_]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
-  inline def `LTT[+_]`[T[+ _]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
+  inline def `LTT[+_]`[T[+_]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[A,B,_>:B<:A]`[A, B <: A, T[_ >: B <: A]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_]]`[T[_[_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[+_]]`[T[_[+_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]

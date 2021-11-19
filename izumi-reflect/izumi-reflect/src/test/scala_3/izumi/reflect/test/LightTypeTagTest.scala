@@ -94,7 +94,6 @@ class LightTypeTagTest extends TagAssertions {
       assertSame(strLTT.combine(), strLTT)
     }
 
-
     "support typetag combination" in {
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[Id], LTT[T1[Id]])
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[FP], LTT[T1[FP]])
@@ -151,7 +150,7 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[FM2[I2]], LTT[FM1[I1, Unit]])
       assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
       assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
-      //assertChild(LTT[None.type], LTT[Option[Int]])
+      // assertChild(LTT[None.type], LTT[Option[Int]])
 
       assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
       assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
@@ -164,9 +163,9 @@ class LightTypeTagTest extends TagAssertions {
 
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Option[A]
-      //assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      // assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
       // allTypeReferences: we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
-      //assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      // assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
 
       assertChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X2, X1]])
       assertNotChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X1, X2]])
@@ -194,7 +193,6 @@ class LightTypeTagTest extends TagAssertions {
       //      trait KK1[+A, +B, +U]
       //      trait KK2[+A, +B] extends KK1[B, A, Unit]
 
-
       assertChild(LTT[KT2[H1, I1]], LTT[KT1[I1, H1]])
       assertNotChild(LTT[KT2[H1, I1]], LTT[KT1[H1, I1]])
 
@@ -206,7 +204,7 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[KK2[H2, I2]], LTT[KK1[I1, H1, Unit]])
       assertNotChild(LTT[KK2[H2, I2]], LTT[KK1[H1, I1, Unit]])
 
-      //assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
+      // assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
       assertNotChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[H1, *, Unit]])
     }
 
@@ -241,7 +239,7 @@ class LightTypeTagTest extends TagAssertions {
       val expectedTag = LTT[RoleParent[Either[Throwable, *]]]
 
       assertSame(combinedTag, LTT[RoleChild[Either]])
-      //assertChild(combinedTag, expectedTag)
+      // assertChild(combinedTag, expectedTag)
     }
 
     "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
@@ -253,7 +251,7 @@ class LightTypeTagTest extends TagAssertions {
 
       assertSame(combinedTag, noncombinedTag)
       assertChild(noncombinedTag, expectedTag)
-      //assertChild(combinedTag, expectedTag)
+      // assertChild(combinedTag, expectedTag)
     }
 
 //    "support complex type lambdas" in {
@@ -288,10 +286,10 @@ class LightTypeTagTest extends TagAssertions {
       assertChild(LTT[F1], LTT[W1])
       assertChild(LTT[F2], LTT[F1])
 
-      //assertChild(`LTT[_]`[W4], `LTT[_]`[W3])
+      // assertChild(`LTT[_]`[W4], `LTT[_]`[W3])
       assertChild(`LTT[_]`[T1], `LTT[_]`[W3])
       assertChild(`LTT[_]`[T1], LTT[W1])
-      //assertChild(`LTT[_]`[T2], `LTT[_]`[T1])
+      // assertChild(`LTT[_]`[T2], `LTT[_]`[T1])
     }
 
     "intersections are associative" in {

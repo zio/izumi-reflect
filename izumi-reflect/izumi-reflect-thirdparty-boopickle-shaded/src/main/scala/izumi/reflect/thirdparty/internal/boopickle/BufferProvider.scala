@@ -63,8 +63,7 @@ private[reflect] abstract class ByteBufferProvider extends BufferProvider {
 
   def asByteBuffer = {
     (currentBuf: java.nio.Buffer).flip()
-    if (buffers.isEmpty)
-      currentBuf
+    if (buffers.isEmpty) currentBuf
     else {
       val bufList = (currentBuf :: buffers).reverse
       // create a new buffer and combine all buffers into it
@@ -91,8 +90,7 @@ private[reflect] class HeapByteBufferProvider extends ByteBufferProvider {
 
   override def asByteBuffer = {
     (currentBuf: java.nio.Buffer).flip()
-    if (buffers.isEmpty)
-      currentBuf
+    if (buffers.isEmpty) currentBuf
     else {
       // create a new buffer and combine all buffers into it
       val bufList = (currentBuf :: buffers).reverse

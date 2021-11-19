@@ -40,7 +40,8 @@ trait AnyTag {
   def closestClass: Class[_]
 
   final def hasPreciseClass: Boolean = {
-    try tag.shortName == closestClass.getSimpleName catch {
+    try tag.shortName == closestClass.getSimpleName
+    catch {
       case i: InternalError if i.getMessage == "Malformed class name" => false
     }
   }
@@ -78,11 +79,13 @@ trait AnyTag {
   *   * Further details at [[https://github.com/7mind/izumi/issues/374]]
   *
   * @see "Lightweight Scala Reflection and why Dotty needs TypeTags reimplemented" https://blog.7mind.io/lightweight-reflection.html
-
+  *
   * @see [[izumi.reflect.macrortti.LTag]] - summoner for [[izumi.reflect.macrortti.LightTypeTag]] that does not resolve type parameters
   * @see [[izumi.reflect.macrortti.LTag.Weak]] - summoner for [[izumi.reflect.macrortti.LightTypeTag]] that does not resolve type parameters and allows unresolved ("weak") type parameters to be part of a tag
   */
-@implicitNotFound("could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ...")
+@implicitNotFound(
+  "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
+)
 trait Tag[T <: AnyKind] extends AnyTag {
   def tag: LightTypeTag
   def closestClass: Class[_]
@@ -96,7 +99,7 @@ object Tag {
     * Use `Tag.auto.T[TYPE_PARAM]` syntax to summon a `Tag` for a type parameter of any kind:
     *
     * NOTE: On Scala 3+ it's the same as `Tag[T]`
-    **/
+    */
   object auto { type T[T <: AnyKind] = Tag[T] }
 
   @inline def apply[T <: AnyKind: Tag]: Tag[T] = implicitly
@@ -116,7 +119,7 @@ object Tag {
     *   implicit def tagFromTagTAKA[T[_, _[_], _]: TagK3, K[_]: TagK, A0: Tag, A1: Tag]: Tag[T[A0, K, A1]] =
     *     Tag.appliedTag(TagK3[T].tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
     * }}}
-    **/
+    */
   def appliedTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = {
     Tag(tag.closestClass, tag.tag.combine(args: _*))
   }
@@ -132,8 +135,13 @@ object Tag {
     * {{{
     *   Tag[A with B {def abc: Unit}] == refinedTag(classOf[Any], List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag, Map.empty)
     * }}}
-    **/
-  def refinedTag[R <: AnyKind](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag, additionalTypeMembers: Map[String, LightTypeTag]): Tag[R] = {
+    */
+  def refinedTag[R <: AnyKind](
+    lubClass: Class[_],
+    intersection: List[LightTypeTag],
+    structType: LightTypeTag,
+    additionalTypeMembers: Map[String, LightTypeTag]
+  ): Tag[R] = {
     Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
   }
 
@@ -174,7 +182,7 @@ object TagK {
     * {{{
     *     TagK[Option]
     * }}}
-    **/
+    */
   @inline def apply[K[_]: TagK]: TagK[K] = implicitly
 }
 

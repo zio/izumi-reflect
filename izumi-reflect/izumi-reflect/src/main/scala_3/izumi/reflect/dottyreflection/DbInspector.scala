@@ -81,10 +81,10 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
       higherBases
         .filterNot {
           s =>
-          !s.isType || (s.tree match {
-            case tt: TypeTree => tt.tpe =:= tpef
-            case _ => false
-          })
+            !s.isType || (s.tree match {
+              case tt: TypeTree => tt.tpe =:= tpef
+              case _ => false
+            })
         }
         .map(s => tpef.baseType(s))
     }

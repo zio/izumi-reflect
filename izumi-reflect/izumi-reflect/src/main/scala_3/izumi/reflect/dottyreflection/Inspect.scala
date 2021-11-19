@@ -34,7 +34,7 @@ object Inspect {
       println(s"${SubtypeDBs(res.basesdb, res.idb)} => ${strDbs.size} bytes, ${string2hex(strDbs)}")
       println(strDbs)
     }
-    
-    '{ LightTypeTag.parse(${Expr(hashCodeRef)}, ${Expr(strRef)}, ${Expr(strDbs)}, ${Expr(LightTypeTag.currentBinaryFormatVersion)}) }
+
+    '{ LightTypeTag.parse(${ Expr(hashCodeRef) }, ${ Expr(strRef) }, ${ Expr(strDbs) }, ${ Expr(LightTypeTag.currentBinaryFormatVersion) }) }
   }
 }

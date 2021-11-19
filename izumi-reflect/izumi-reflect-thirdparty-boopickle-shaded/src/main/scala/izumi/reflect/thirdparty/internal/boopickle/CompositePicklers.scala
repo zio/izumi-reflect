@@ -49,8 +49,7 @@ private[reflect] class CompositePickler[A] extends Pickler[A] {
 
   override def unpickle(implicit state: UnpickleState): A = {
     val idx = state.dec.readInt
-    if (idx == NullObject)
-      null.asInstanceOf[A]
+    if (idx == NullObject) null.asInstanceOf[A]
     else {
       if (idx < 0 || idx > picklers.size)
         throw new IllegalStateException(s"Index $idx is not defined in this CompositePickler")

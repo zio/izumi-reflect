@@ -24,7 +24,6 @@ import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel.VarArgsAnyVal
 import org.scalatest.exceptions.TestFailedException
 
-
 // https://github.com/scala/bug/issues/11139
 final case class testTag3[F[_]: TagK]() {
   type X = OptionT[F, Int]

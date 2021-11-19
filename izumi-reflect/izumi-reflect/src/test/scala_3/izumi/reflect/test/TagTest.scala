@@ -20,7 +20,7 @@ class TagTest extends SharedTagTest with TagAssertions {
       trait Dog extends Animal
       assertChild(Tag[Dog].tag, Tag[Animal].tag)
       assertChild(Tag[Dog | String].tag, Tag[Animal | String].tag)
-      assertNotChild(Tag[Animal | String].tag ,Tag[Dog | String].tag)
+      assertNotChild(Tag[Animal | String].tag, Tag[Dog | String].tag)
     }
   }
 

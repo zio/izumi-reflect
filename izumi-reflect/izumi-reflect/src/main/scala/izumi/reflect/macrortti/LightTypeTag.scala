@@ -436,8 +436,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.NameReference)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.SymName](value.ref)
@@ -493,8 +492,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.FullReference)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[String](value.ref)
@@ -526,8 +524,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.TypeParam)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.AbstractReference](value.ref)
@@ -554,8 +551,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.UnionReference)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet[LightTypeTagRef.AppliedReference](OrderingAbstractReferenceInstance)(value.refs))
@@ -581,8 +577,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.IntersectionReference)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet(OrderingAbstractReferenceInstance[LightTypeTagRef.AppliedReference])(value.refs))
@@ -608,8 +603,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.Lambda)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[List[LightTypeTagRef.LambdaParameter]](value.input)
@@ -636,8 +630,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.LambdaParameter)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[String](value.name)
@@ -663,8 +656,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.Refinement)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.AppliedReference](value.reference)
@@ -696,8 +688,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.RefinementDecl.TypeMember)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[String](value.name)
@@ -724,8 +715,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTagRef.RefinementDecl.Signature)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
-          if (ref.isDefined)
-            state.enc.writeInt(-ref.get)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
             state.pickle[String](value.name)
@@ -759,8 +749,7 @@ object LightTypeTag {
       override def pickle(value: LightTypeTag.ParsedLightTypeTag.SubtypeDBs)(implicit state: boopickle.PickleState): Unit = {
 
         val ref = state.identityRefFor(value)
-        if (ref.isDefined)
-          state.enc.writeInt(-ref.get)
+        if (ref.isDefined) state.enc.writeInt(-ref.get)
         else {
           state.enc.writeInt(0)
           state.pickle[Map[LightTypeTagRef.AbstractReference, Set[LightTypeTagRef.AbstractReference]]](value.bases)
