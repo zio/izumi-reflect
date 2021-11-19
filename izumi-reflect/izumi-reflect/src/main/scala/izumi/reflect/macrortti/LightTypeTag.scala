@@ -41,7 +41,6 @@ import scala.collection.immutable.SortedSet
   */
 case class LightTypeTagUnpacker(tag: LightTypeTag) {
   def bases: Map[AbstractReference, Set[AbstractReference]] = tag.basesdb
-
   def inheritance: Map[NameReference, Set[NameReference]] = tag.idb
 }
 
