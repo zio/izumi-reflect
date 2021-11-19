@@ -260,17 +260,17 @@ object LightTypeTagRef {
   sealed trait AppliedReference extends AbstractReference
 
   final case class IntersectionReference(refs: Set[AppliedReference]) extends AppliedReference {
-    override lazy val hashCode: Int = super.hashCode()
+    override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
     override def toString: String = this.render()
   }
 
   final case class UnionReference(refs: Set[AppliedReference]) extends AppliedReference {
-    override lazy val hashCode: Int = super.hashCode()
+    override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
     override def toString: String = this.render()
   }
 
   final case class Refinement(reference: AppliedReference, decls: Set[RefinementDecl]) extends AppliedReference {
-    override lazy val hashCode: Int = super.hashCode()
+    override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
     override def toString: String = this.render()
   }
 
@@ -309,7 +309,7 @@ object LightTypeTagRef {
   }
 
   final case class NameReference(ref: SymName, boundaries: Boundaries = Boundaries.Empty, prefix: Option[AppliedReference] = None) extends AppliedNamedReference {
-    override lazy val hashCode: Int = super.hashCode()
+    override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = this
 
@@ -320,7 +320,7 @@ object LightTypeTagRef {
   }
 
   final case class FullReference(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference] = None) extends AppliedNamedReference {
-    override lazy val hashCode: Int = super.hashCode()
+    override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = NameReference(SymTypeName(ref), prefix = prefix)
 
