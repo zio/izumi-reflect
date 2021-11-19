@@ -20,6 +20,9 @@ object ID {
   type Identity[+A] = A
 }
 
+trait Clock
+object ClockLive extends Clock
+
 trait ZY extends Assertions {
   type T
   type U = T
@@ -55,7 +58,7 @@ final case class testTag2[T: Tag]() {
 
 trait T2[A, B, C[_[_], _], D[_], E]
 
-abstract class SharedTagTest extends AnyWordSpec with XY[String] {
+abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions {
 
   type Swap[A, B] = Either[B, A]
   type SwapF2[F[_, _], A, B] = F[B, A]
@@ -196,6 +199,10 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] {
     "handle Id1 type lambda" in {
       assert(TagTK[Id1].tag == TagTK[Id1].tag)
       assert(TagTK[Id1].tag != TagK[Id].tag)
+    }
+
+    "handle singleton types" in {
+      assertChild(Tag[ClockLive.type].tag, Tag[Clock].tag)
     }
 
   }
