@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+cs launch scalafmt -- $@
