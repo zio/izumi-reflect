@@ -189,7 +189,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     orTypeTags ++ otherTypeTags
   }
 
-  private def makeNameReferenceFromType(t: TypeRepr): NameReference = {
+  private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
         makeNameReferenceFromSymbol(ref.typeSymbol)
@@ -197,6 +197,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         makeNameReferenceFromSymbol(term.termSymbol)
       case t: ParamRef =>
         NameReference(tpeName = t.binder.asInstanceOf[{ def paramNames: List[Object] }].paramNames(t.paramNum).toString)
+      case ref =>
+        makeNameReferenceFromSymbol(ref.typeSymbol)
     }
   }
 

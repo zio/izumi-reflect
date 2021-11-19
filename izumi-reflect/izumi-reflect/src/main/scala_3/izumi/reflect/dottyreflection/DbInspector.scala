@@ -29,9 +29,9 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
         val allbases = tpeBases(i).filter(!_._takesTypeArgs)
         val targetRef = {
           val tpef = i.dealias.simplified._resultType
-          inspector.makeNameReferenceFromSymbol(tpef.typeSymbol)
+          inspector.makeNameReferenceFromType(tpef)
         }
-        allbases.map(b => (targetRef, inspector.makeNameReferenceFromSymbol(b.typeSymbol)))
+        allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
     }
 
     baseclassReferences
