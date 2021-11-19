@@ -20,7 +20,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.6",
+      "2.13.7",
       "3.1.0",
       "2.12.15",
       "2.11.12"
@@ -87,7 +87,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.6") => Seq(
+      case (_, "2.13.7") => Seq(
         "-Xsource:3",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -119,7 +119,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       case (_, "2.12.15") => Seq(
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.6") => Seq(
+      case (_, "2.13.7") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
@@ -130,7 +130,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.6") => Seq(
+      case (false, "2.13.7") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -180,7 +180,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.6",
+      "2.13.7",
       "3.1.0",
       "2.12.15",
       "2.11.12"
@@ -247,7 +247,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ycache-plugin-class-loader:always",
         "-Ycache-macro-class-loader:last-modified"
       )
-      case (_, "2.13.6") => Seq(
+      case (_, "2.13.7") => Seq(
         "-Xsource:3",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -279,7 +279,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       case (_, "2.12.15") => Seq(
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.6") => Seq(
+      case (_, "2.13.7") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
@@ -290,7 +290,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.6") => Seq(
+      case (false, "2.13.7") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -342,7 +342,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     publish / skip := true,
     crossScalaVersions := Seq(
-      "2.13.6",
+      "2.13.7",
       "3.1.0",
       "2.12.15",
       "2.11.12"
