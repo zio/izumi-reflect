@@ -204,7 +204,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     "handle singleton types" in {
       assertChild(Tag[ClockLive.type].tag, Tag[Clock].tag)
     }
-
   }
 
 }
