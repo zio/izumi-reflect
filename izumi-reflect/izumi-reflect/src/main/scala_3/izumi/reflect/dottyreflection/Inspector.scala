@@ -92,7 +92,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         NameReference("???")
 
       // Matches CachedRefinedType for this ZIO issue https://github.com/zio/zio/issues/6071
-      case ref: Refined { def parent: TypeRepr } =>
+      case ref: Refinement =>
         next().inspectTypeRepr(ref.parent)
 
       case o =>
