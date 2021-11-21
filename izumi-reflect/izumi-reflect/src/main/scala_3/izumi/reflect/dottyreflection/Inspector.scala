@@ -25,7 +25,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    tpe.dealias match {
+    tpe.dealias.simplified match {
       case a: AnnotatedType =>
         inspectTypeRepr(a.underlying)
 
@@ -90,6 +90,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
         NameReference("???")
+
+      // Matches CachedRefinedType for this ZIO issue https://github.com/zio/zio/issues/6071
+      case ref: Refinement =>
+        next().inspectTypeRepr(ref.parent)
 
       case o =>
         log(s"TYPEREPR UNSUPPORTED: $o")

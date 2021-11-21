@@ -25,3 +25,34 @@ class TagTest extends SharedTagTest with TagAssertions {
   }
 
 }
+
+trait Layer[A] {
+  def tag: Tag[A]
+}
+
+object Layer {
+  def succeed[A: Tag](value: => A): Layer[A] =
+    new Layer[A] {
+      override def tag: Tag[A] = implicitly
+    }
+}
+
+// This should not fail to compile
+// Example from here: https://github.com/zio/zio/issues/6071
+object CachedRefinedTypeExample {
+
+  trait Animal
+  trait Dog extends Animal
+
+  trait Service {
+    def animal: Animal
+  }
+
+  val layer =
+    Layer.succeed {
+      new Service {
+        def animal: Dog = new Dog {}
+      }
+    }
+
+}
