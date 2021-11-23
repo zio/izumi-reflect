@@ -159,39 +159,27 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def flattenInspectAnd(and: AndType): Set[AppliedReference] = {
-    val (andTypes, otherTypes) =
-      and match {
-        case AndType(l @ AndType(_, _), r @ AndType(_, _)) =>
-          (Set(l, r), Set.empty[TypeRepr])
-        case AndType(l @ AndType(_, _), r) =>
-          (Set(l), Set(r))
-        case AndType(l, r @ AndType(_, _)) =>
-          (Set(r), Set(l))
-        case AndType(l, r) =>
-          (Set.empty[AndType], Set(l, r))
-      }
-    val andTypeTags = andTypes.flatMap(flattenInspectAnd)
-    val otherTypeTags = otherTypes.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
-    andTypeTags ++ otherTypeTags
-  }
+  private def flattenAnd(typeRepr: TypeRepr): Set[TypeRepr] =
+    typeRepr.dealias match {
+      case AndType(l, r) =>
+        flattenAnd(l) ++ flattenAnd(r)
+      case other =>
+        Set(other)
+    }
 
-  private def flattenInspectOr(or: OrType): Set[AppliedReference] = {
-    val (orTypes, otherTypes) =
-      or match {
-        case OrType(l @ OrType(_, _), r @ OrType(_, _)) =>
-          (Set(l, r), Set.empty[TypeRepr])
-        case OrType(l @ OrType(_, _), r) =>
-          (Set(l), Set(r))
-        case OrType(l, r @ OrType(_, _)) =>
-          (Set(r), Set(l))
-        case OrType(l, r) =>
-          (Set.empty[OrType], Set(l, r))
-      }
-    val orTypeTags = orTypes flatMap flattenInspectOr
-    val otherTypeTags = otherTypes.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
-    orTypeTags ++ otherTypeTags
-  }
+  private def flattenOr(typeRepr: TypeRepr): Set[TypeRepr] =
+    typeRepr.dealias match {
+      case OrType(l, r) =>
+        flattenAnd(l) ++ flattenAnd(r)
+      case other =>
+        Set(other)
+    }
+
+  private def flattenInspectAnd(and: AndType): Set[AppliedReference] =
+    flattenAnd(and).map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
+
+  private def flattenInspectOr(or: OrType): Set[AppliedReference] =
+    flattenOr(or).map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
 
   private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {
