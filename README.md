@@ -61,13 +61,20 @@ Once you finished tinkering with the code you may want to generate full project 
 sbt +test
 ```
 
-To develop using Scala 2 invoke sbtgen with scala version argument:
+To develop using Scala 2 invoke sbtgen with a scala version argument:
 
 ```bash
-./sbtgen.sc 2 // 2.13.X
-./sbtgen.sc 2.12 // 2.12.X
+./sbtgen.sc 2 // 2.13
+./sbtgen.sc 2.12 // 2.12
 ```
+
+Likewise with Scala 3:
+
+```bash
+./sbtgen.sc 3
+```
+
+You may also set Scala version from inside Intellij using `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
 
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
-

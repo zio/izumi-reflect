@@ -29,7 +29,7 @@ object Izumi {
   final val scala300 = ScalaVersion("3.1.0")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
-  var targetScala = Seq(scala213, scala300, scala212, scala211)
+  var targetScala = Seq(scala300, scala213, scala212, scala211)
 
   def entrypoint(args: Seq[String]) = {
     val newArgs = args diff Seq(
@@ -47,7 +47,7 @@ object Izumi {
     )
     if (args.contains("--help"))
       println(
-        "launch with `./sbtgen.sc 3.0` to use 3.0 in IDEA"
+        "launch with `./sbtgen.sc 3` to use Scala 3 in IDEA, launch with `./sbtgen.sc 2` to use Scala 2"
       )
     Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ newArgs)
   }
