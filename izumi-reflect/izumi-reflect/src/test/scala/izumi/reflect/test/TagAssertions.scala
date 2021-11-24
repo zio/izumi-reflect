@@ -19,6 +19,7 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
+import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
 trait TagAssertions extends AnyWordSpec {
@@ -96,8 +97,25 @@ trait TagAssertions extends AnyWordSpec {
     val intersected = LightTypeTag.refinedType(intersection, LTT[Any], Map.empty)
     val clue = s"(${intersection.mkString(" & ")}) => $intersected =?= $expected"
     info(clue)
-    assert(intersected =:= expected, clue); ()
+    assert(intersected =:= expected, clue)
+//    assertDebugSame(intersected, expected)
+    ()
   }
 
   def literalLtt(s: String)(implicit l: LTag[s.type]): LightTypeTag = l.tag
+
+  def doesntWorkYetOnDotty(f: => Unit): Unit = {
+    if (IsDotty) doesntWorkYet(f) else f
+  }
+
+  def doesntWorkYetOnScala2(f: => Unit): Unit = {
+    if (!IsDotty) doesntWorkYet(f) else f
+  }
+
+  def observableIncorrectBehaviorOnDottyButNotOnScala2(f: => Unit): Unit = doesntWorkYetOnScala2(f)
+
+  def doesntWorkYet(f: => Unit): Unit = {
+    intercept[TestFailedException](f); ()
+  }
+
 }

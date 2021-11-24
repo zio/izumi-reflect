@@ -36,7 +36,8 @@ class TagTest extends SharedTagTest {
 
   override final val tagZ = Tag[String]
 
-  trait H1
+  trait H0
+  trait H1 extends H0
   trait T1[A, B, C, D, E, F[_]]
   trait T2[A, B, C[_[_], _], D[_], E]
   trait Test[A, dafg, adfg, LS, L[_], SD, GG[A] <: L[A], ZZZ[_, _], S, SDD, TG]
@@ -268,16 +269,6 @@ class TagTest extends SharedTagTest {
 
       assert(Tag[ZY#T].closestClass eq classOf[Any])
       assert(!Tag[ZY#T].hasPreciseClass)
-    }
-
-    "simple combined Tag" in {
-      def get[F[_]: TagK] = Tag[ApplePaymentProvider[F]]
-      val tag = get[Identity]
-
-      val left = tag.tag
-      val right = Tag[H1].tag
-
-      assert(left <:< right)
     }
 
     "resolve TagK from TagKK" in {

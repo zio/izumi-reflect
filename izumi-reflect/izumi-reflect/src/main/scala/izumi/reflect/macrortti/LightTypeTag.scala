@@ -103,29 +103,6 @@ abstract class LightTypeTag(
     LightTypeTag(ref.combine(argRefs), mergedBasesDB, mergedInheritanceDb)
   }
 
-  def asUnion(args: LightTypeTag*): LightTypeTag = {
-    def mergedBasesDB = LightTypeTag.mergeIDBs(basesdb, args.iterator.map(_.basesdb))
-
-    def mergedInheritanceDb = LightTypeTag.mergeIDBs(idb, args.iterator.map(_.idb))
-
-    LightTypeTag(
-      LightTypeTagRef.UnionReference(
-        args
-          .map(_.ref match {
-            case reference: AbstractReference =>
-              reference match {
-                case lambda: Lambda =>
-                  throw new IllegalArgumentException(s"Type Lambdas ($lambda) are not supported as arguments to a UnionReference")
-                case reference: AppliedReference =>
-                  reference
-              }
-          }).toSet
-      ),
-      mergedBasesDB,
-      mergedInheritanceDb
-    )
-  }
-
   /**
     * Parameterize this type tag with `args` if it describes an unapplied type lambda
     *
@@ -268,6 +245,19 @@ object LightTypeTag {
   @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
   private[reflect] def refinedType(intersection: List[LightTypeTag], structure: LightTypeTag): LightTypeTag = {
     refinedType(intersection, structure, Map.empty)
+  }
+
+  def union(union: List[LightTypeTag]): LightTypeTag = {
+    val parts = union.iterator.flatMap(_.ref.decomposeUnion).toSet
+    val ref = LightTypeTagRef.maybeUnion(parts)
+
+    def mergedBasesDB: Map[AbstractReference, Set[AbstractReference]] =
+      LightTypeTag.mergeIDBs(Map.empty[AbstractReference, Set[AbstractReference]], union.iterator.map(_.basesdb))
+
+    def mergedInheritanceDb: Map[NameReference, Set[NameReference]] =
+      LightTypeTag.mergeIDBs(Map.empty[NameReference, Set[NameReference]], union.iterator.map(_.idb))
+
+    LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
 
   def parse[T](hashCode: Int, refString: String, basesString: String, version: Int): LightTypeTag = {

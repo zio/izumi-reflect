@@ -12,7 +12,7 @@ class TagTest extends SharedTagTest with TagAssertions {
     "Support identity lambda type equality" in {
       val idTpeLTT = TagK[Identity].tag
       val idLambdaLTT = TagK[[A] =>> A].tag
-      assert(idTpeLTT == idLambdaLTT)
+      assertSame(idTpeLTT, idLambdaLTT)
     }
 
     "Support union subtyping" in {
@@ -22,6 +22,7 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertChild(Tag[Dog | String].tag, Tag[Animal | String].tag)
       assertNotChild(Tag[Animal | String].tag, Tag[Dog | String].tag)
     }
+
   }
 
 }
@@ -37,7 +38,7 @@ object Layer {
     }
 }
 
-// This should not fail to compile
+// should compile
 // Example from here: https://github.com/zio/zio/issues/6071
 object CachedRefinedTypeExample {
 

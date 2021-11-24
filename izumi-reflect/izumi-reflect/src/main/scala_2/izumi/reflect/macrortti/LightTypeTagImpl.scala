@@ -85,10 +85,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val tpe = norm(tpe0.dealias).dealias
     val lttRef = makeRef(tpe)
 
-    val allReferenceComponents: Set[Type] = Set(tpe) ++ {
-      allTypeReferences(tpe)
-        .flatMap(UniRefinement.breakRefinement(_).toSet)
+    val allReferenceComponents: Set[Type] = {
+      UniRefinement.breakRefinement(tpe, destroyTypeLambdas = false).toSet ++
+      allTypeReferences(tpe).flatMap(UniRefinement.breakRefinement(_, destroyTypeLambdas = true).toSet)
     }
+
+    logger.log(s"Got baseComponents=${allReferenceComponents.map(t => t -> t.getClass)}")
 
     val stableBases = makeStableBases(tpe, allReferenceComponents)
     val basesAsLambdas = allReferenceComponents.flatMap(makeBaseClasses)
@@ -207,7 +209,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       lambdas
     }
 
-    val unref = UniRefinement.breakRefinement(tpe)
+    val unref = UniRefinement.breakRefinement(tpe, destroyTypeLambdas = true)
 
     val out = unref
       .toSet
@@ -252,7 +254,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         )
 
       val next = (tpe.typeArgs ++ tpe.dealias.resultType.typeArgs ++ more).filterNot(inh.contains)
-      next.foreach(a => extract(a, inh))
+      next.foreach(extract(_, inh))
     }
 
     val inh = mutable.HashSet[Type]()
@@ -372,7 +374,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def unpackRefined(t: Type, rules: Map[String, LambdaParameter]): AppliedReference = {
-      UniRefinement.breakRefinement(t) match {
+      UniRefinement.breakRefinement(t, destroyTypeLambdas = true) match {
         case Broken.Compound(tpes, decls) =>
           val parts = tpes.map(p => unpack(p, rules): AppliedReference)
 
@@ -387,7 +389,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         case Broken.Single(t1) =>
           t match {
             case p if p.takesTypeArgs =>
-              // we intentionally ignore breakRefinement result here, it breaks lambdas
+              // we intentionally ignore breakRefinement result here, it breaks lambdas (with destroyTypeLambdas=true)
               unpack(p, rules)
             case _ =>
               unpack(t1, rules)
@@ -482,27 +484,44 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def breakRefinement(t: Type): Broken[Type, SymbolApi] = {
-      breakRefinement0(t) match {
+    def breakRefinement(t0: Type, destroyTypeLambdas: Boolean): Broken[Type, SymbolApi] = {
+      breakRefinement0(destroyTypeLambdas)(t0) match {
         case (t, d) if d.isEmpty && t.size == 1 =>
           Broken.Single(t.head)
         case (t, d) =>
+          logger.log(s"Found compound type parents=$t decls=$d")
           Broken.Compound(t, d)
       }
     }
 
-    private def breakRefinement0(t: Type): (Set[Type], Set[SymbolApi]) = {
-      fullDealias(t) match {
+    private def breakRefinement0(destroyTypeLambdas: Boolean)(t0: Type): (Set[Type], Set[SymbolApi]) = {
+      fullDealias(t0, destroyTypeLambdas) match {
         case UniRefinement(parents, decls) =>
-          val parts = parents.map(breakRefinement0)
+          val parts = parents.map(breakRefinement0(destroyTypeLambdas))
           val types = parts.flatMap(_._1)
-          val d = parts.flatMap(_._2)
-          (types.toSet, (decls ++ d).toSet)
+          val partsDecls = parts.flatMap(_._2)
+          (types.toSet, (decls ++ partsDecls).toSet)
         case t =>
           (Set(t), Set.empty)
-
       }
     }
+
+    def fullDealias(t0: Type, destroyTypeLambdas: Boolean): Type = {
+      val t1 = norm(t0.dealias)
+      val t = if (destroyTypeLambdas && t1.takesTypeArgs) {
+        t1.etaExpand
+      } else {
+        t1
+      }
+      var prev = t
+      var cur = prev.dealias.resultType
+      while (cur ne prev) {
+        prev = cur
+        cur = prev.dealias.resultType
+      }
+      norm(cur)
+    }
+
   }
 
   private def getPrefix(tpef: Type): Option[AppliedReference] = {
@@ -602,14 +621,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     sym.isTerm || sym.isModuleClass || (sym.typeSignature.isInstanceOf[SingletonTypeApi] && !sym.typeSignature.isInstanceOf[ThisTypeApi])
   }
 
-  private def fullDealias(t: Type): Type = {
-    if (t.takesTypeArgs) {
-      t.etaExpand.dealias.resultType.dealias.resultType
-    } else {
-      t.dealias.resultType
-    }
-  }
-
   /** Mini `normalize`. We don't wanna do scary things such as beta-reduce. And AFAIK the only case that can make us
     * confuse a type-parameter for a non-parameter is an empty refinement `T {}`. So we just strip it when we get it.
     */
@@ -620,7 +631,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       case RefinedType(t :: Nil, m) if m.isEmpty =>
         logger.log(s"Stripped empty refinement of type $t. member scope $m")
         norm(t)
-      case AnnotatedType(_, t) => norm(t)
+      case AnnotatedType(_, t) =>
+        norm(t)
       case _ => x
     }
   }

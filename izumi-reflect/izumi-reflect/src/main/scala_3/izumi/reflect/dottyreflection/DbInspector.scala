@@ -62,11 +62,11 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   private def breakRefinement(tpe0: TypeRepr): collection.Set[TypeRepr] = {
     val tpes = mutable.HashSet.empty[TypeRepr]
 
-    def go(t: TypeRepr): Unit = t match {
+    def go(t0: TypeRepr): Unit = t0.dealias match {
       case tpe: AndOrType =>
         go(tpe.left)
         go(tpe.right)
-      case _ =>
+      case t =>
         tpes += t
     }
 

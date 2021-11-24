@@ -9,6 +9,7 @@ trait InspectorBase {
 
   protected def shift: Int
 
+  // FIXME reimplement TrivialMacroLogger on Scala 3
   inline val debug = false
   type debug = debug.type
 

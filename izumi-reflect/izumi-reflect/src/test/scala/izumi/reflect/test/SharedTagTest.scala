@@ -1,12 +1,10 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti._
-import izumi.reflect.test.ID._
 import izumi.reflect._
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag110
-import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.macrortti.{LTag, LightTypeTag}
-import izumi.reflect.test.ID.id
+import izumi.reflect.test.ID._
+import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
@@ -210,7 +208,52 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       type Outer = Boolean with Inner
       assertChild(Tag[Outer].tag, Tag[Boolean with Int with String].tag)
       assertChild(Tag[Boolean with Int with String].tag, Tag[Outer].tag)
+      assertSame(Tag[Outer].tag, Tag[Boolean with Int with String].tag)
+
+      assertNotChild(Tag[Outer].tag, Tag[Boolean with Int with String with Unit].tag)
+      assertNotChild(Tag[Boolean with Int with String].tag, Tag[Outer with Unit].tag)
+
+      assertChild(Tag[Boolean with Int with String].tag, Tag[CharSequence].tag)
+      assertChild(Tag[Outer].tag, Tag[CharSequence].tag)
+
+      // there should be no refinements or intersections in bases
+      assert(!Tag[Outer].tag.debug().contains("<refinement>"))
+      assert(!Tag[Outer].tag.debug().contains("<none>"))
+      assert(!Tag[Outer].tag.debug().contains("- {"))
     }
+
+    "handle nested refined intersection aliases" in {
+      type Inner = ((Int with (String {})) {}) @IdAnnotation("y")
+      type Outer = Boolean with (((Inner {}) @IdAnnotation("x")) {})
+      assertChild(Tag[Outer].tag, Tag[Boolean with Int with String].tag)
+      assertChild(Tag[Boolean with Int with String].tag, Tag[Outer].tag)
+      assertSame(Tag[Outer].tag, Tag[Boolean with Int with String].tag)
+
+      assertNotChild(Tag[Outer].tag, Tag[Boolean with Int with String with Unit].tag)
+      assertNotChild(Tag[Boolean with Int with String].tag, Tag[Outer with Unit].tag)
+
+      assertChild(Tag[Outer].tag, Tag[CharSequence].tag)
+
+      // there should be no refinements or intersections in bases
+      assert(!Tag[Outer].tag.debug().contains("<refinement>"))
+      assert(!Tag[Outer].tag.debug().contains("<none>"))
+      assert(!Tag[Outer].tag.debug().contains("- {"))
+    }
+
+    "simple combined Tag" in {
+      def get[F[_]: TagK] = Tag[ApplePaymentProvider[F]]
+      val tag = get[Identity]
+
+      val left = tag.tag
+      val right = Tag[H1].tag
+
+      println(TagT[ApplePaymentProvider].tag.debug())
+      println(left.debug())
+      println(right.debug())
+
+      assertChild(left, right)
+    }
+
   }
 
 }

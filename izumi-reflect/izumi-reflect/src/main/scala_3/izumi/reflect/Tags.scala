@@ -124,8 +124,8 @@ object Tag {
     Tag(tag.closestClass, tag.tag.combine(args: _*))
   }
 
-  def unionTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = {
-    Tag(tag.closestClass, tag.tag.asUnion(args: _*))
+  def unionTag[R <: AnyKind](lubClass: Class[_], union: List[LightTypeTag]): Tag[R] = {
+    Tag(lubClass, LightTypeTag.union(union))
   }
 
   /**
@@ -150,7 +150,7 @@ object Tag {
     refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
-  inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = TagMacro.tag[T]
+  inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = ${ TagMacro.createTagExpr[T] }
 }
 
 /**

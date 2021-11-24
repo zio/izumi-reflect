@@ -116,10 +116,10 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>
         // yeah, this shit is quadratic
-        s.refs.forall {
-          c =>
-            t.refs.exists {
-              p =>
+        t.refs.forall {
+          p =>
+            s.refs.exists {
+              c =>
                 ctx.isChild(c, p)
             }
         }
