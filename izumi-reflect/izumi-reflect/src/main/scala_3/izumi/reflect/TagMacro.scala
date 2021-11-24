@@ -53,7 +53,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         val ltts0: List[Expr[LightTypeTag]] = flattenAnd(andType).map(mkLtt)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(ltts0)
         andType.asType match {
-          case '[a] =>
+          case given Type[a] =>
 //            val structLtt = Inspect.inspectAny[a]
             val structLtt = '{ Inspect.inspect[a] }
             '{ Tag.refinedTag[T](classOf[Any], $ltts, $structLtt, Map.empty) }
