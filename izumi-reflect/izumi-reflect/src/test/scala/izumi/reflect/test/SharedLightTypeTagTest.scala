@@ -108,12 +108,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[Option[String]], LTT[Object with Option[String]])
       assertChild(LTT[Option[String]], LTT[Any with Option[String]])
       assertChild(LTT[Option[String]], LTT[AnyRef with Option[String]])
-
-      doesntWorkYet {
-        assertDebugSame(LTT[Object with Option[String]], LTT[Option[String]])
-        assertDebugSame(LTT[Any with Option[String]], LTT[Option[String]])
-        assertDebugSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
-      }
     }
 
     "support self-intersection (X with X)" in {

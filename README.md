@@ -70,4 +70,3 @@ To develop using Scala 2 invoke sbtgen with scala version argument:
 
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
-

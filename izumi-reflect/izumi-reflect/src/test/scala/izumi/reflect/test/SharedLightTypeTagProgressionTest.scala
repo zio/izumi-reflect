@@ -78,6 +78,14 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions {
       }
     }
 
+    "progression test: tautological intersections with Any/Object are still preserved in internal structure despite being useless" in {
+      doesntWorkYet {
+        assertDebugSame(LTT[Object with Option[String]], LTT[Option[String]])
+        assertDebugSame(LTT[Any with Option[String]], LTT[Option[String]])
+        assertDebugSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
+      }
+    }
+
     "progression test: can't support subtyping of type prefixes" in {
       val a = new C {}
 
