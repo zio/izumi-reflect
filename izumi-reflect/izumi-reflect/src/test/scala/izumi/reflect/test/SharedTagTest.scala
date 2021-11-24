@@ -204,6 +204,13 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     "handle singleton types" in {
       assertChild(Tag[ClockLive.type].tag, Tag[Clock].tag)
     }
+
+    "handle nested intersection aliases" in {
+      type Inner = Int with String
+      type Outer = Boolean with Inner
+      assertChild(Tag[Outer].tag, Tag[Boolean with Int with String].tag)
+      assertChild(Tag[Boolean with Int with String].tag, Tag[Outer].tag)
+    }
   }
 
 }
