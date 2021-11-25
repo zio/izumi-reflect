@@ -65,7 +65,7 @@ abstract class LightTypeTag(
   final def decompose: Set[LightTypeTag] = {
     ref match {
       case LightTypeTagRef.IntersectionReference(refs) =>
-        refs.map(r => LightTypeTag(r, basesdb, idb))
+        refs.iterator.map(LightTypeTag(_, basesdb, idb)).toSet
       case _ =>
         Set(this)
     }
@@ -220,7 +220,7 @@ object LightTypeTag {
     val ref = {
       val decls = structure.ref match {
         case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty => decls
-        case _ => Set.empty
+        case _ => SortedSet.empty[RefinementDecl]
       }
       if (decls.nonEmpty || additionalTypeMembers.nonEmpty) {
         val newDecls = decls.filterNot(additionalTypeMembers contains _.name) ++ additionalTypeMembers.iterator.map {
@@ -649,7 +649,7 @@ object LightTypeTag {
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.AppliedReference](value.reference)
-            state.pickle[SortedSet[LightTypeTagRef.RefinementDecl]](setToSortedSet(OrderingRefinementDecl)(value.decls))
+            state.pickle[SortedSet[LightTypeTagRef.RefinementDecl]](setToSortedSet(RefinementDecl.OrderingRefinementDecl)(value.decls))
             state.addIdentityRef(value)
           }
         }

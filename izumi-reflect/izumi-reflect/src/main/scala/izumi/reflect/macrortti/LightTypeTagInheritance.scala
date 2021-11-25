@@ -34,12 +34,13 @@ object LightTypeTagInheritance {
   private[macrortti] final val tpeAnyRef = NameReference("scala.AnyRef")
   private[macrortti] final val tpeObject = NameReference(classOf[Object].getName)
 
-  final case class Ctx(params: List[LambdaParameter], logger: TrivialLogger) {
-    def next(): Ctx = Ctx(params, logger.sub())
-
-    def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, logger.sub())
+  private final case class Ctx(params: List[LambdaParameter], logger: TrivialLogger, self: LightTypeTagInheritance) {
+    def next(): Ctx = Ctx(params, logger.sub(), self)
+    def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, logger.sub(), self)
   }
-
+  private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
+    def isChild(selfT0: LightTypeTagRef, thatT0: LightTypeTagRef): Boolean = ctx.self.isChild(ctx.next())(selfT0, thatT0)
+  }
 }
 
 final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
@@ -56,11 +57,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
                   |⚡️bases: ${bdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
                   |⚡️inheritance: ${ib.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}""".stripMargin)
 
-    isChild(Ctx(List.empty, logger))(st, ot)
-  }
-
-  implicit class CtxExt(val ctx: Ctx) {
-    def isChild(selfT0: LightTypeTagRef, thatT0: LightTypeTagRef): Boolean = LightTypeTagInheritance.this.isChild(ctx.next())(selfT0, thatT0)
+    isChild(Ctx(List.empty, logger, this))(st, ot)
   }
 
   private def isChild(ctx: Ctx)(selfT: LightTypeTagRef, thatT: LightTypeTagRef): Boolean = {
@@ -145,7 +142,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
       // refinements
       case (s: Refinement, t: Refinement) =>
-        ctx.isChild(s.reference, t.reference) && t.decls.diff(s.decls).isEmpty
+        ctx.isChild(s.reference, t.reference) &&
+        compareDecls(ctx)(s.decls, t.decls)
       case (s: Refinement, t: LightTypeTagRef) =>
         ctx.isChild(s.reference, t)
       case (s: AbstractReference, t: Refinement) =>
@@ -153,6 +151,29 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     }
     logger.log(s"${if (result) "✅" else "⛔️"} $selfT <:< $thatT == $result")
     result
+  }
+
+  private def compareDecls(ctx: Ctx)(sDecls: Set[RefinementDecl], tDecls: Set[RefinementDecl]): Boolean = {
+    val s = sDecls.groupBy(_.name)
+    // for every decl on the right there's a <: decl on the left
+    tDecls.forall {
+      r =>
+        val ls = s.get(r.name).toSet.flatten
+        ls.exists(compareDecl(ctx)(_, r))
+    }
+  }
+
+  private def compareDecl(ctx: Ctx)(s: RefinementDecl, t: RefinementDecl): Boolean = {
+    (s, t) match {
+      case (RefinementDecl.TypeMember(ln, lref), RefinementDecl.TypeMember(rn, rref)) =>
+        ln == rn && ctx.isChild(lref, rref)
+      case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
+        ln == rn &&
+        lins.iterator.zip(rins).forall { case (l, r) => ctx.isChild(r, l) } // contravariant
+        ctx.isChild(lout, rout) // covariant
+      case _ =>
+        false
+    }
   }
 
   private def compareParameterizedRefs(ctx: Ctx)(self: FullReference, that: FullReference): Boolean = {

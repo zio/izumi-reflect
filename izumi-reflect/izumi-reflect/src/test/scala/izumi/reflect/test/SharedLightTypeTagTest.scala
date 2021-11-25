@@ -10,7 +10,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
   import TestModel._
 
-  "lightweight type tags (including Dotty)" should {
+  "lightweight type tags (all)" should {
 
     "support distinction between subtypes" in {
       val strLTT = LTT[String]
@@ -56,40 +56,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       // see https://github.com/7mind/izumi/pull/1528
       assertSame(strLTT.combine(), strLTT)
-    }
-
-    "support intersection type subtype checks" in {
-      type F1 = W3[Int] with W1
-      type F2 = W4[Int] with W2
-
-      type T1[A] = W3[A] with W1
-      type T2[A] = W4[A] with W2
-
-      val f1 = LTT[F1]
-      val f2 = LTT[F2]
-
-      assertChild(f1, LTT[W3[Int]])
-      assertChild(f1, LTT[W1])
-      assertChild(f2, f1)
-
-      val t1 = `LTT[_]`[T1]
-      val t2 = `LTT[_]`[T2]
-      val w3 = `LTT[_]`[W3]
-      val w4 = `LTT[_]`[W4]
-
-      println(t1.debug("T1[_]"))
-      println(t2.debug("T2[_]"))
-      println(w3.debug("W3[_]"))
-      println(w4.debug("W4[_]"))
-
-      assertChild(t1, w3)
-      assertChild(t1, LTT[W1])
-      doesntWorkYetOnDotty {
-        assertChild(w4, w3)
-      }
-      doesntWorkYetOnDotty {
-        assertChild(t2, t1)
-      }
     }
 
     "eradicate tautologies with Any/Object" in {
@@ -249,6 +215,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     "support type alias and refinement subtype checks" in {
       assertChild(LTT[XS], LTT[WithX])
       assertChild(LTT[XS], LTT[{ type X }])
+      assertNotChild(LTT[WithX], LTT[XS])
+      assertNotChild(LTT[{ type X }], LTT[XS])
     }
 
     "support literal types" in {
@@ -311,6 +279,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDebugSame(predefString, javaLangString)
       assertDebugSame(predefString, weirdPredefString)
       assertDebugSame(javaLangString, weirdPredefString)
+
+      val javaLangOpt = LTT[Option[java.lang.String]]
+      val predefOpt = LTT[Option[scala.Predef.String]]
+      val weirdPredefOpt = LTT[Option[(scala.Predef.String {}) @IdAnnotation("x")]]
+
+      assertDebugSame(javaLangOpt, predefOpt)
+      assertDebugSame(javaLangOpt, weirdPredefOpt)
     }
 
     "calculate identical hashCode in parsed and constructed instances" in {
@@ -319,6 +294,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertSameRef(tag1, tag2)
       assertSame(tag1, tag2)
       assert(tag1.hashCode() == tag2.hashCode())
+      assert(tag1.hashCode() != 0)
+      assert(tag1.ref.hashCode() != 0)
     }
 
     "support non-positional typetag combination" in {
@@ -341,12 +318,36 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertSame(tag1, `LTT[_,_]`[Either])
     }
 
-    "support intersection type equality" in {
+    "support higher-kinded intersection type equality" in {
       type T1[A] = W3[A] with W1
       type T2[A] = W4[A] with W2
 
       assertSame(`LTT[_]`[T1], `LTT[_]`[T1])
       assertDifferent(`LTT[_]`[T1], `LTT[_]`[T2])
+    }
+
+    "support higher-kinded intersection type combination" in {
+      type T[A, B] = W3[A] with W4[B] with W1
+
+      val combined = `LTT[_,_]`[T].combine(LTT[Int], LTT[Boolean])
+      val alias = LTT[T[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W3[Int]]
+
+      println(combined.ref.longName)
+      println(alias.ref.longName)
+
+      assertChild(alias, direct)
+      assertChild(combined, alias)
+      assertChild(combined, direct)
+
+      assertSame(alias, direct)
+      assertSame(combined, alias)
+      assertSame(combined, direct)
+      assertDifferent(combined, LTT[Either[Int, Boolean]])
+      assertDifferent(combined, LTT[T[Boolean, Int]])
+
+      assertNotChild(combined, LTT[Either[Int, Boolean]])
+      assertNotChild(combined, LTT[T[Boolean, Int]])
     }
 
     "support typetag combination" in {

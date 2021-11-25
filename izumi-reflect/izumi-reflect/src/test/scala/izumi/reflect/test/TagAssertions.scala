@@ -23,6 +23,7 @@ import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
 trait TagAssertions extends AnyWordSpec {
+
   def println(o: Any): Unit = info(o.toString)
   def println(o: LightTypeTag): Unit = info(o.ref.toString)
 
@@ -103,19 +104,5 @@ trait TagAssertions extends AnyWordSpec {
   }
 
   def literalLtt(s: String)(implicit l: LTag[s.type]): LightTypeTag = l.tag
-
-  def doesntWorkYetOnDotty(f: => Unit): Unit = {
-    if (IsDotty) doesntWorkYet(f) else f
-  }
-
-  def doesntWorkYetOnScala2(f: => Unit): Unit = {
-    if (!IsDotty) doesntWorkYet(f) else f
-  }
-
-  def observableIncorrectBehaviorOnDottyButNotOnScala2(f: => Unit): Unit = doesntWorkYetOnScala2(f)
-
-  def doesntWorkYet(f: => Unit): Unit = {
-    intercept[TestFailedException](f); ()
-  }
 
 }

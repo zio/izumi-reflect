@@ -80,7 +80,7 @@ class TagTest extends SharedTagTest {
     def dep: T
   }
 
-  "Tag" should {
+  "Tag (Scala 2)" should {
 
     "Work with term type prefixes" in {
       val zy = new ZY {}

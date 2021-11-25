@@ -2,7 +2,7 @@ package izumi.reflect.dottyreflection
 
 import scala.quoted.Quotes
 
-trait InspectorBase {
+trait InspectorBase extends ReflectionUtil {
 
   val qctx: Quotes
   import qctx.reflect._
@@ -30,4 +30,5 @@ trait InspectorBase {
       )
     }
   }
+
 }

@@ -7,7 +7,7 @@ class TagTest extends SharedTagTest with TagAssertions {
 
   override final val tagZ = Tag[String]
 
-  "Tag" should {
+  "Tag (Dotty)" should {
 
     "Support identity lambda type equality" in {
       val idTpeLTT = TagK[Identity].tag

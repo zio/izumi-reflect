@@ -3,11 +3,45 @@ package izumi.reflect.test
 import izumi.reflect.macrortti._
 import izumi.reflect.macrortti.LightTypeTagRef.AppliedNamedReference
 
-abstract class SharedLightTypeTagProgressionTest extends TagAssertions {
+abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagProgressions {
 
-  "lightweight type tags (including Dotty)" should {
+  "[progression] lightweight type tags (all)" should {
 
     import TestModel._
+
+    "progression test: `support intersection type subtype checks` isn't fully supported on Dotty" in {
+      type F1 = W3[Int] with W1
+      type F2 = W4[Int] with W2
+
+      type T1[A] = W3[A] with W1
+      type T2[A] = W4[A] with W2
+
+      val f1 = LTT[F1]
+      val f2 = LTT[F2]
+
+      assertChild(f1, LTT[W3[Int]])
+      assertChild(f1, LTT[W1])
+      assertChild(f2, f1)
+
+      val t1 = `LTT[_]`[T1]
+      val t2 = `LTT[_]`[T2]
+      val w3 = `LTT[_]`[W3]
+      val w4 = `LTT[_]`[W4]
+
+      println(t1.debug("T1[_]"))
+      println(t2.debug("T2[_]"))
+      println(w3.debug("W3[_]"))
+      println(w4.debug("W4[_]"))
+
+      assertChild(t1, w3)
+      assertChild(t1, LTT[W1])
+      doesntWorkYetOnDotty {
+        assertChild(w4, w3)
+      }
+      doesntWorkYetOnDotty {
+        assertChild(t2, t1)
+      }
+    }
 
     "progression test: `support distinction between subtypes` doesn't work properly on Dotty" in {
       val strLTT = LTT[String]
@@ -79,11 +113,16 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions {
     }
 
     "progression test: tautological intersections with Any/Object are still preserved in internal structure despite being useless" in {
-      doesntWorkYet {
-        assertDebugSame(LTT[Object with Option[String]], LTT[Option[String]])
-        assertDebugSame(LTT[Any with Option[String]], LTT[Option[String]])
-        assertDebugSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
-      }
+      assertDebugSame(LTT[Object with Option[String]], LTT[Option[String]])
+      assertDebugSame(LTT[Any with Option[String]], LTT[Option[String]])
+      assertDebugSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
+    }
+
+    "progression test: what about non-empty refinements with intersections" in {
+      val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
+      println(ltt.debug())
+      assert(!ltt.debug().contains("<refinement>"))
+      assert(!ltt.debug().contains("* String"))
     }
 
     "progression test: can't support subtyping of type prefixes" in {
@@ -171,10 +210,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions {
       doesntWorkYetOnDotty {
         assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
       }
-      // allTypeReferences: we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
-      doesntWorkYetOnScala2 {
-        assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
-      }
+//      // allTypeReferences: we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
+//      doesntWorkYetOnScala2 {
+      assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+//      }
     }
 
     "progression test: a portion of `support swapped parents` fails on Dotty" in {
@@ -221,16 +260,38 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions {
     "progression test: `support structural & refinement type subtype checks` doesn't work on Dotty" in {
       doesntWorkYetOnDotty {
         type C1 = C
-        assertChild(LTT[{ def a: Int }], LTT[{ def a: Int }])
+        assertChild(LTT[{ val a: Int }], LTT[{ def a: Int }])
+        assertSame(LTT[{ def a: Int }], LTT[{ val a: Int }])
         assertChild(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
 
         assertChild(LTT[C { def a: Int }], LTT[C])
+        assertChild(LTT[C { type A = Int }], LTT[C])
+        assertChild(LTT[C { type A <: Int }], LTT[C])
+        assertNotChild(LTT[C], LTT[C { type A = Int }])
+        assertNotChild(LTT[C], LTT[C { type A <: Int }])
         assertNotChild(LTT[C], LTT[C { def a: Int }])
 
         assertChild(LTT[C { def a: Int; def b: Int }], LTT[C { def a: Int }])
         assertNotChild(LTT[C { def a: Int }], LTT[C { def a: Int; def b: Int }])
 
         assertChild(LTT[C { def a: Int }], LTT[{ def a: Int }])
+      }
+    }
+
+    "progression test: `support structural subtype checks` doesn't work on Dotty" in {
+      doesntWorkYetOnDotty {
+        assertChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+        assertChild(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
+        assertChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+
+        assertNotChild(LTT[{ def T: Int }], LTT[{ type T }])
+        assertDifferent(LTT[{ def T: Int }], LTT[{ type T }])
+      }
+    }
+
+    "progression test: indirect structural checks do not work" in {
+      doesntWorkYet {
+        assertChild(LTT[C], LTT[{ type A }])
       }
     }
 

@@ -18,16 +18,17 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.internal.fundamentals.collections.IzCollections._
+import izumi.reflect.internal.fundamentals.collections.IzCollections.*
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+import izumi.reflect.internal.fundamentals.platform.strings.IzString.*
 import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
 import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef.*
 import izumi.reflect.DebugProperties
 
 import scala.annotation.tailrec
+import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
@@ -53,18 +54,18 @@ object LightTypeTagImpl {
   private[this] object ReflectionLock
 
   private[reflect] sealed trait Broken[T, S] {
-    def toSet: Set[T]
+    def intersectionComponents: Set[T]
+    def decls: Set[S]
   }
 
   private[reflect] object Broken {
 
     final case class Single[T, S](t: T) extends Broken[T, S] {
-      override def toSet: Set[T] = Set(t)
+      override def intersectionComponents: Set[T] = Set(t)
+      override def decls: Set[S] = Set.empty
     }
 
-    final case class Compound[T, S](tpes: Set[T], decls: Set[S]) extends Broken[T, S] {
-      override def toSet: Set[T] = tpes
-    }
+    final case class Compound[T, S](intersectionComponents: Set[T], decls: Set[S]) extends Broken[T, S]
 
   }
 
@@ -82,12 +83,23 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val it = u.asInstanceOf[scala.reflect.internal.Types]
 
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
-    val tpe = norm(tpe0.dealias).dealias
+    val tpe = fullNormDealias(tpe0)
     val lttRef = makeRef(tpe)
 
     val allReferenceComponents: Set[Type] = {
-      UniRefinement.breakRefinement(tpe, destroyTypeLambdas = false).toSet ++
-      allTypeReferences(tpe).flatMap(UniRefinement.breakRefinement(_, destroyTypeLambdas = true).toSet)
+//      UniRefinement.breakRefinement(tpe, destroyTypeLambdas = false).toSet ++
+
+      allTypeReferences(tpe)
+//      UniRefinement
+//        .breakRefinement(tpe, destroyTypeLambdas = false).intersectionComponents.flatMap(
+//          tpe01 => {
+//            val value = allTypeReferences(tpe01)
+//            value ++ value.flatMap(UniRefinement.breakRefinement(_, destroyTypeLambdas = true).intersectionComponents)
+//          }
+//        ) // ++ Set(tpe)
+
+//      Set(tpe) ++
+//      allTypeReferences(tpe).flatMap(UniRefinement.breakRefinement(_, destroyTypeLambdas = true).toSet)
     }
 
     logger.log(s"Got baseComponents=${allReferenceComponents.map(t => t -> t.getClass)}")
@@ -106,6 +118,56 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val unappliedDb = makeUnappliedInheritanceDb(allReferenceComponents)
 
     LightTypeTag(lttRef, fullDb, unappliedDb)
+  }
+
+  private def allTypeReferences(tpe0: Type): Set[Type] = {
+
+    def extractTypeArgs(tpe0: Type, inh: mutable.HashSet[Type], destroyTypeLambdas: Boolean): Unit = {
+      val tpeRaw = fullNormDealias(tpe0) // Either
+
+      val tpeRefinement = UniRefinement.breakRefinement(tpeRaw, destroyTypeLambdas = true)
+      val etaExpandedIntersections = tpeRefinement.intersectionComponents
+      val refinementDeclMembers = tpeRefinement.decls.iterator.flatMap {
+        sym =>
+          if (sym.isMethod) {
+            val m = sym.asMethod
+            m.returnType :: m.paramLists.iterator.flatten.map(UniRefinement.typeOfParam).toList
+          } else if (sym.isType) {
+            List(UniRefinement.typeOfTypeMember(sym))
+          } else Nil
+      }
+
+      val tpeLambda = fullNormDealiasResultType(tpeRaw, destroyTypeLambdas = false) // [L,R]Either[L,R]
+      val current = Seq(tpeRaw, tpeLambda)
+      inh ++= current
+
+      logger.log(s"Type args tpe=$tpeRaw class=${tpeRaw.getClass} args=${tpeRaw.typeArgs}")
+      logger.log(s"Type args normedTpe=$tpeLambda class=${tpeLambda.getClass} args=${tpeLambda.typeArgs}")
+
+      // we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
+      // tpe.etaExpand.resultType.dealias.typeArgs.flatMap(_.dealias.resultType.typeSymbol.typeSignature match {
+      val tparamTypeBounds = tpeLambda.typeArgs.flatMap {
+        t0 =>
+          norm(fullNormDealiasResultType(t0, destroyTypeLambdas = false).typeSymbol.typeSignature) match {
+            case t: TypeBoundsApi =>
+              Seq(t.hi, t.lo)
+            case _ =>
+              Seq.empty
+          }
+      }
+      val nextTypeArgs = tpeRaw.typeArgs ++ tpeLambda.typeArgs ++ tparamTypeBounds
+      (nextTypeArgs.iterator ++ etaExpandedIntersections.iterator ++ refinementDeclMembers)
+        .to(mutable.HashSet)
+        .diff(inh)
+        .foreach(extractTypeArgs(_, inh, destroyTypeLambdas = true)) // only first iteration should preserve lambdas
+    }
+
+    val inh = mutable.HashSet[Type]()
+    extractTypeArgs(tpe0, inh, destroyTypeLambdas = false)
+
+    logger.log(s"Extracted type references: $inh")
+
+    inh.toSet
   }
 
   private def makeUnappliedInheritanceDb(allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
@@ -152,14 +214,14 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private def makeStableBases(tpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
-    val baseclassReferences = allReferenceComponents.flatMap {
-      i =>
-        val appliedBases = tpeBases(i).filterNot(_.takesTypeArgs)
+    allReferenceComponents.flatMap {
+      component =>
+        val appliedBases = tpeBases(component).filterNot(_.takesTypeArgs)
 
         appliedBases.map {
-          b =>
-            val targs = makeLambdaParams(None, tpe.etaExpand.typeParams).toMap
-            val out = makeRef(b, targs, forceLam = targs.nonEmpty) match {
+          base =>
+            val args = makeLambdaParams(None, tpe.etaExpand.typeParams).toMap
+            val outRef = makeRef(base, args, forceLam = args.nonEmpty) match {
               case l: Lambda =>
                 if (l.allArgumentsReferenced) {
                   l
@@ -169,15 +231,10 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               case reference: AppliedReference =>
                 reference
             }
-            (i, out)
+            val componentRef = makeRef(component)
+            (componentRef, outRef)
         }
     }
-
-    val stableBases = baseclassReferences.map {
-      case (b, p) =>
-        makeRef(b) -> p
-    }
-    stableBases
   }
 
   private def makeBaseClasses(tpe: Type): Seq[(AbstractReference, AbstractReference)] = {
@@ -212,7 +269,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val unref = UniRefinement.breakRefinement(tpe, destroyTypeLambdas = true)
 
     val out = unref
-      .toSet
+      .intersectionComponents
       .flatMap {
         base =>
           val baseAsLambda = if (base.takesTypeArgs) {
@@ -234,34 +291,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     out
   }
 
-  private def allTypeReferences(tpe0: Type): Set[Type] = {
-
-    def extract(tpe: Type, inh: mutable.HashSet[Type]): Unit = {
-      val current = Seq(tpe, tpe.dealias.resultType)
-      inh ++= current
-
-      // we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
-      // tpe.etaExpand.resultType.dealias.typeArgs.flatMap(_.dealias.resultType.typeSymbol.typeSignature match {
-      val more = tpe
-        .dealias.resultType.typeArgs.flatMap(
-          t =>
-            norm(t.dealias.resultType.typeSymbol.typeSignature) match {
-              case t: TypeBoundsApi =>
-                Seq(t.hi, t.lo)
-              case _ =>
-                Seq.empty
-            }
-        )
-
-      val next = (tpe.typeArgs ++ tpe.dealias.resultType.typeArgs ++ more).filterNot(inh.contains)
-      next.foreach(extract(_, inh))
-    }
-
-    val inh = mutable.HashSet[Type]()
-    extract(tpe0, inh)
-    inh.toSet
-  }
-
   private def tpeBases(tpe: Type): Seq[Type] = {
     val tpef = tpe.dealias.resultType
     val higherBases = tpef.baseClasses
@@ -276,7 +305,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         }
         .map(s => tpef.baseType(s))
     }
-
     val allbases = onlyParameterizedBases.filterNot(_ =:= tpef)
     allbases
   }
@@ -381,7 +409,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           val intersection = LightTypeTagRef.maybeIntersection(parts)
 
           if (decls.nonEmpty) {
-            Refinement(intersection, UniRefinement.convertDecls(decls.toList, rules).toSet)
+            Refinement(intersection, UniRefinement.convertDecls(decls.toList, rules).to(SortedSet))
           } else {
             intersection
           }
@@ -455,7 +483,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               paramlist =>
                 paramlist.map {
                   p =>
-                    val pt = p.typeSignature
+                    val pt = typeOfParam(p)
                     makeRef(pt, terminalNames).asInstanceOf[AppliedReference]
                 }
             }
@@ -471,16 +499,24 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
                 RefinementDecl.Signature(m.name.decodedName.toString, pl.toList, makeRef(ret, terminalNames).asInstanceOf[AppliedReference])
             }
           } else if (decl.isType) {
-            val tpe = if (decl.isAbstract) {
-              decl.asType.toType
-            } else {
-              decl.typeSignature
-            }
+            val tpe = typeOfTypeMember(decl)
             val ref = makeRef(tpe, terminalNames)
             Seq(TypeMember(decl.name.decodedName.toString, ref))
           } else {
             None
           }
+      }
+    }
+
+    def typeOfParam(p: u.Symbol): Type = {
+      p.typeSignature
+    }
+
+    def typeOfTypeMember(decl: u.SymbolApi): Type = {
+      if (decl.isAbstract) {
+        decl.asType.toType
+      } else {
+        decl.typeSignature
       }
     }
 
@@ -495,7 +531,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     private def breakRefinement0(destroyTypeLambdas: Boolean)(t0: Type): (Set[Type], Set[SymbolApi]) = {
-      fullDealias(t0, destroyTypeLambdas) match {
+      fullNormDealiasResultType(t0, destroyTypeLambdas) match {
         case UniRefinement(parents, decls) =>
           val parts = parents.map(breakRefinement0(destroyTypeLambdas))
           val types = parts.flatMap(_._1)
@@ -506,22 +542,34 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def fullDealias(t0: Type, destroyTypeLambdas: Boolean): Type = {
-      val t1 = norm(t0.dealias)
-      val t = if (destroyTypeLambdas && t1.takesTypeArgs) {
-        t1.etaExpand
-      } else {
-        t1
-      }
-      var prev = t
-      var cur = prev.dealias.resultType
-      while (cur ne prev) {
-        prev = cur
-        cur = prev.dealias.resultType
-      }
-      norm(cur)
-    }
+  }
 
+  private def fullNormDealiasResultType(t0: Type, destroyTypeLambdas: Boolean): Type = {
+    val t1 = norm(t0.dealias)
+    val t = if (destroyTypeLambdas && t1.takesTypeArgs) {
+      val expanded = t1.etaExpand
+      logger.log(s"Eta-expanded $t1 to $expanded")
+      expanded
+    } else {
+      t1
+    }
+    var prev = null: Type
+    var cur = t
+    while (cur ne prev) {
+      prev = cur
+      cur = prev.dealias.resultType
+    }
+    norm(cur)
+  }
+
+  private def fullNormDealias(t0: Type): Type = {
+    var prev = null: Type
+    var cur = t0
+    while (cur ne prev) {
+      prev = cur
+      cur = norm(prev.dealias).dealias
+    }
+    cur
   }
 
   private def getPrefix(tpef: Type): Option[AppliedReference] = {
@@ -626,7 +674,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     */
   @tailrec
   // ReflectionUtil.norm but with added logging
-  protected[this] final def norm(x: Type): Type = {
+  protected[this] def norm(x: Type): Type = {
     x match {
       case RefinedType(t :: Nil, m) if m.isEmpty =>
         logger.log(s"Stripped empty refinement of type $t. member scope $m")

@@ -28,7 +28,7 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
 
   import TestModel._
 
-  "lightweight type tags" should {
+  "lightweight type tags (Dotty)" should {
 
     "support string constant types (Scala 2.13+ syntax)" in {
       assertDifferent(LTT["abc"], LTT[String])

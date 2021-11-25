@@ -149,7 +149,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def extractVariance(t: Symbol) = {
+  private def extractVariance(t: Symbol): Variance = {
     if (t.flags.is(Flags.Covariant)) {
       Variance.Covariant
     } else if (t.flags.is(Flags.Contravariant)) {
@@ -159,27 +159,11 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def flattenAnd(typeRepr: TypeRepr): Set[TypeRepr] =
-    typeRepr.dealias match {
-      case AndType(l, r) =>
-        flattenAnd(l) ++ flattenAnd(r)
-      case other =>
-        Set(other)
-    }
-
-  private def flattenOr(typeRepr: TypeRepr): Set[TypeRepr] =
-    typeRepr.dealias match {
-      case OrType(l, r) =>
-        flattenAnd(l) ++ flattenAnd(r)
-      case other =>
-        Set(other)
-    }
-
   private def flattenInspectAnd(and: AndType): Set[AppliedReference] =
-    flattenAnd(and).map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
+    flattenAnd(and).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
 
   private def flattenInspectOr(or: OrType): Set[AppliedReference] =
-    flattenOr(or).map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
+    flattenOr(or).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
 
   private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {

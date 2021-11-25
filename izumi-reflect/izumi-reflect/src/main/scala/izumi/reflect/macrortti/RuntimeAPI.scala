@@ -124,14 +124,14 @@ object RuntimeAPI {
           val replaced = refs.map(replaceApplied).map(r => ensureApplied(reference, r))
           maybeUnion(replaced)
         case Refinement(base, decls) =>
-          val rdecls = decls.map {
+          val rdecls = decls.map[RefinementDecl] {
             case RefinementDecl.Signature(name, input, output) =>
               RefinementDecl.Signature(name, input.map(p => ensureApplied(reference, replaceRefs(p))), ensureApplied(reference, replaceRefs(output)))
             case RefinementDecl.TypeMember(name, ref) =>
               RefinementDecl.TypeMember(name, replaceRefs(ref))
           }
 
-          Refinement(ensureApplied(base, replaceApplied(base)), rdecls.toSet)
+          Refinement(ensureApplied(base, replaceApplied(base)), rdecls)
         case n: AppliedNamedReference =>
           replaceNamed(n)
       }

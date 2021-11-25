@@ -6,7 +6,7 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
   import TestModel._
 
-  "lightweight type tag (including Dotty)" should {
+  "[progression] lightweight type tag (Dotty)" should {
 
     "progression test: fails to support complex type lambdas (Dotty syntax)" in {
       doesntWorkYetOnDotty {
@@ -26,5 +26,10 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
       }
     }
 
+    "progression test: tautological intersections with Matchable are still preserved in internal structure despite being useless" in {
+      doesntWorkYet {
+        assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])
+      }
+    }
+
   }
-}
