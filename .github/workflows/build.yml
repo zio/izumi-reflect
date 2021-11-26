@@ -29,7 +29,7 @@ jobs:
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
         run: |
           env
-          sudo curl -Lo /usr/local/bin/coursier  https://git.io/coursier-cli-linux && sudo chmod +x /usr/local/bin/coursier
+          sudo curl -Lo /usr/local/bin/cs  https://git.io/coursier-cli-linux && sudo chmod +x /usr/local/bin/cs
           bash sbtgen.sc --js --native
           COMMAND="sbt +clean +test +mimaReportBinaryIssues"
           BRANCH_TAG="$(git describe --contains | grep v | grep -v '~' | head -n 1 || true)"
@@ -44,4 +44,3 @@ jobs:
           fi
           echo $COMMAND
           eval $COMMAND
-

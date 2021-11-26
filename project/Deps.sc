@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.84`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.85`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -153,51 +153,55 @@ object Izumi {
         "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw
       )
 
-      final val sharedSettings = Defaults.SbtMetaOptions ++ Seq(
-        "test" in Platform.Native := "{}".raw,
-        "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
-        "sources" in SettingScope.Raw("Compile / doc") := Seq(
-          SettingKey(Some(scala300), None) := Seq.empty[String],
-          SettingKey.Default := "(Compile / doc / sources).value".raw
-        ),
-        "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
-        // "testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
-        "scalacOptions" ++= Seq(
-          SettingKey(Some(scala211), None) := Const.EmptySeq,
-          SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
-          SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
-          SettingKey.Default := Seq(
-            "-Ykind-projector",
-            "-no-indent",
-            "-language:implicitConversions"
+      final val sharedSettings =
+        Defaults.SbtMetaOptions ++
+        Defaults.CrossScalaPlusSources ++
+        Defaults.CrossScalaRangeSources ++
+        Seq(
+          "test" in Platform.Native := "{}".raw,
+          "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
+          "sources" in SettingScope.Raw("Compile / doc") := Seq(
+            SettingKey(Some(scala300), None) := Seq.empty[String],
+            SettingKey.Default := "(Compile / doc / sources).value".raw
+          ),
+          "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
+          // "testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
+          "scalacOptions" ++= Seq(
+            SettingKey(Some(scala211), None) := Const.EmptySeq,
+            SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
+            SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
+            SettingKey.Default := Seq(
+              "-Ykind-projector",
+              "-no-indent",
+              "-language:implicitConversions"
+            )
+          ),
+          "mimaPreviousArtifacts" := Seq(
+            SettingKey(Some(scala300), None) := "Set.empty".raw,
+            SettingKey.Default := """Set(organization.value %% name.value % "1.0.0-M2")""".raw
+          ),
+          "scalacOptions" ++= Seq(
+            SettingKey(Some(scala212), None) := Seq(
+              "-Wconf:msg=nowarn:silent"
+            ),
+            SettingKey(Some(scala213), None) := Seq(
+              "-Xlint:-implicit-recursion"
+            ),
+            SettingKey.Default := Const.EmptySeq
+          ),
+          "scalacOptions" -= "-Wconf:any:error",
+          "scalacOptions" ++= Seq(
+            SettingKey(Some(scala212), Some(true)) := Seq(
+              "-opt:l:inline",
+              "-opt-inline-from:izumi.reflect.**"
+            ),
+            SettingKey(Some(scala213), Some(true)) := Seq(
+              "-opt:l:inline",
+              "-opt-inline-from:izumi.reflect.**"
+            ),
+            SettingKey.Default := Const.EmptySeq
           )
-        ),
-        "mimaPreviousArtifacts" := Seq(
-          SettingKey(Some(scala300), None) := "Set.empty".raw,
-          SettingKey.Default := """Set(organization.value %% name.value % "1.0.0-M2")""".raw
-        ),
-        "scalacOptions" ++= Seq(
-          SettingKey(Some(scala212), None) := Seq(
-            "-Wconf:msg=nowarn:silent"
-          ),
-          SettingKey(Some(scala213), None) := Seq(
-            "-Xlint:-implicit-recursion"
-          ),
-          SettingKey.Default := Const.EmptySeq
-        ),
-        "scalacOptions" -= "-Wconf:any:error",
-        "scalacOptions" ++= Seq(
-          SettingKey(Some(scala212), Some(true)) := Seq(
-            "-opt:l:inline",
-            "-opt-inline-from:izumi.reflect.**"
-          ),
-          SettingKey(Some(scala213), Some(true)) := Seq(
-            "-opt:l:inline",
-            "-opt-inline-from:izumi.reflect.**"
-          ),
-          SettingKey.Default := Const.EmptySeq
         )
-      )
 
     }
 
@@ -218,7 +222,7 @@ object Izumi {
         name = Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         libs = Seq.empty,
         depends = Seq.empty,
-        settings = Defaults.CrossScalaSources ++ Seq(
+        settings = Seq(
           SettingDef.RawSettingDef(
             """Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
             FullSettingScope(SettingScope.Compile, Platform.All)
@@ -228,7 +232,6 @@ object Izumi {
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
         libs = Seq.empty,
-        settings = Defaults.CrossScalaSources,
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
         )
