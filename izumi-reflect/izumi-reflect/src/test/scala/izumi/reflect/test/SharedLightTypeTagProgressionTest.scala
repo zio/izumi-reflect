@@ -5,7 +5,7 @@ import izumi.reflect.macrortti.LightTypeTagRef.AppliedNamedReference
 
 abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagProgressions {
 
-  "[progression] lightweight type tags (all)" should {
+  "[progression] lightweight type tags (all versions)" should {
 
     import TestModel._
 
@@ -229,11 +229,15 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val childBase = `LTT[_[_,_]]`[RoleChild]
       val childArg = `LTT[_,_]`[Either]
       val combinedTag = childBase.combine(childArg)
-      val expectedTag = LTT[RoleParent[Either[Throwable, *]]]
+      val parentTag = LTT[RoleParent[Either[Throwable, *]]]
+      val childTag = LTT[RoleChild[Either]]
 
-      assertSame(combinedTag, LTT[RoleChild[Either]])
+      assertChild(combinedTag, childTag)
+      assertSame(combinedTag, childTag)
+
       doesntWorkYetOnDotty {
-        assertChild(combinedTag, expectedTag)
+        assertChild(combinedTag, parentTag)
+        assertNotChild(parentTag, combinedTag)
       }
     }
 
@@ -280,9 +284,21 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     "progression test: `support structural subtype checks` doesn't work on Dotty" in {
       doesntWorkYetOnDotty {
+        assertChild(LTT[{ type T = List[Int] }], LTT[{ type T <: List[Any] }])
         assertChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+        assertChild(LTT[{ type T = Int }], LTT[{ type T <: Any }])
+        assertChild(LTT[{ type T = String }], LTT[{ type T <: CharSequence }])
         assertChild(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
         assertChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+
+        assertNotChild(LTT[{ type T = Int }], LTT[{ type T <: CharSequence }])
+
+        assertNotChild(LTT[{ type T <: List[Any] }], LTT[{ type T = List[Int] }])
+        assertNotChild(LTT[{ type T <: AnyVal }], LTT[{ type T = Int }])
+        assertNotChild(LTT[{ type T <: Any }], LTT[{ type T = Int }])
+        assertNotChild(LTT[{ type T <: CharSequence }], LTT[{ type T = String }])
+        assertNotChild(LTT[{ def T: AnyVal }], LTT[{ def T: Int }])
+        assertNotChild(LTT[{ type T <: AnyVal }], LTT[{ type T = Int }])
 
         assertNotChild(LTT[{ def T: Int }], LTT[{ type T }])
         assertDifferent(LTT[{ def T: Int }], LTT[{ type T }])

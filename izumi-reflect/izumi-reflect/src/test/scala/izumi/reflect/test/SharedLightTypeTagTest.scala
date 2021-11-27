@@ -10,7 +10,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
   import TestModel._
 
-  "lightweight type tags (all)" should {
+  "lightweight type tags (all versions)" should {
 
     "support distinction between subtypes" in {
       val strLTT = LTT[String]
@@ -326,30 +326,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDifferent(`LTT[_]`[T1], `LTT[_]`[T2])
     }
 
-    "support higher-kinded intersection type combination" in {
-      type T[A, B] = W3[A] with W4[B] with W1
-
-      val combined = `LTT[_,_]`[T].combine(LTT[Int], LTT[Boolean])
-      val alias = LTT[T[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W3[Int]]
-
-      println(combined.ref.longName)
-      println(alias.ref.longName)
-
-      assertChild(alias, direct)
-      assertChild(combined, alias)
-      assertChild(combined, direct)
-
-      assertSame(alias, direct)
-      assertSame(combined, alias)
-      assertSame(combined, direct)
-      assertDifferent(combined, LTT[Either[Int, Boolean]])
-      assertDifferent(combined, LTT[T[Boolean, Int]])
-
-      assertNotChild(combined, LTT[Either[Int, Boolean]])
-      assertNotChild(combined, LTT[T[Boolean, Int]])
-    }
-
     "support typetag combination" in {
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[Id], LTT[T1[Id]])
       assertCombine(`LTT[_[_]]`[T1], `LTT[_]`[FP], LTT[T1[FP]])
@@ -363,6 +339,62 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       type ComplexRef[T] = W1 with T { def a(p: T): T; type M = T }
       assertCombine(`LTT[_]`[ComplexRef], LTT[Int], LTT[W1 with Int { def a(p: Int): Int; type M = Int }])
+    }
+
+    "support higher-kinded intersection type combination" in {
+      type T[A, B] = W3[A] with W4[B] with W1
+
+      val tCtor = `LTT[_,_]`[T]
+
+      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
+      val alias = LTT[T[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W3[Int]]
+
+      println(tCtor.debug("ctor"))
+      println(combined.debug("combined"))
+      println(alias.debug("alias"))
+
+      assertChild(alias, direct)
+      assertChild(combined, alias)
+      assertChild(combined, direct)
+
+      assertSame(alias, direct)
+      assertSame(alias, combined)
+
+      assertDebugSame(alias, direct)
+      assertDebugSame(combined, alias)
+      assertDebugSame(combined, direct)
+
+      assertDifferent(combined, LTT[Either[Int, Boolean]])
+      assertDifferent(combined, LTT[T[Boolean, Int]])
+
+      assertNotChild(combined, LTT[Either[Int, Boolean]])
+      assertNotChild(combined, LTT[T[Boolean, Int]])
+    }
+
+    "basic tags should not contain junk bases" in {
+      val debug = LTT[Either[RoleChild[IO], Product]].debug()
+
+      assert(!debug.contains("package::Either"))
+    }
+
+    "lambda tags should not contain junk bases" in {
+      val debug = `LTT[_,_]`[Either].debug()
+
+      assert(!debug.contains("package::Either"))
+    }
+
+    "intersection lambda tags should not contain junk bases" in {
+      type T[A, B] = W3[A] with W4[B] with W1
+
+      val tCtor = `LTT[_,_]`[T]
+      val debug = tCtor.debug()
+
+      assert(!debug.contains("<refinement>"))
+      assert(!debug.contains("<none>"))
+      assert(!debug.contains("- T"))
+      assert(!debug.contains("W4[=B]"))
+      assert(!debug.contains("W3[=A]"))
     }
 
   }

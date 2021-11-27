@@ -19,7 +19,6 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
-import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
 trait TagAssertions extends AnyWordSpec {
@@ -32,7 +31,9 @@ trait TagAssertions extends AnyWordSpec {
   }
 
   def assertDebugSame(t: LightTypeTag, expected: LightTypeTag): Unit = {
-    assert(t.debug("assert") == expected.debug("assert")); ()
+    val t0 = t.debug("assert")
+    val expected0 = expected.debug("assert")
+    assert(t0 == expected0); ()
   }
 
   def assertSame(t: LightTypeTag, expected: LightTypeTag): Unit = {
@@ -99,7 +100,7 @@ trait TagAssertions extends AnyWordSpec {
     val clue = s"(${intersection.mkString(" & ")}) => $intersected =?= $expected"
     info(clue)
     assert(intersected =:= expected, clue)
-//    assertDebugSame(intersected, expected)
+    assertDebugSame(intersected, expected)
     ()
   }
 

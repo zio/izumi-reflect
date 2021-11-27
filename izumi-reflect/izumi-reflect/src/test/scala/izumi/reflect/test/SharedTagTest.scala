@@ -71,7 +71,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
   final class With[T] extends StaticAnnotation
 
-  "Tag (all)" should {
+  "Tag (all versions)" should {
 
     "Work for any concrete type" in {
       assert(Tag[Int].tag == fromRuntime[Int])

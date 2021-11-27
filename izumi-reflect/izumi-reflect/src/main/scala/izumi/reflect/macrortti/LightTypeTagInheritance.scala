@@ -20,11 +20,12 @@ package izumi.reflect.macrortti
 
 import scala.annotation.nowarn
 import izumi.reflect.internal.fundamentals.collections.ImmutableMultiMap
-import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean._
+import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean.*
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.internal.fundamentals.platform.strings.IzString._
-import izumi.reflect.macrortti.LightTypeTagInheritance._
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
+import izumi.reflect.internal.fundamentals.platform.strings.IzString.*
+import izumi.reflect.macrortti.LightTypeTagInheritance.*
+import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.collection.mutable
 
@@ -34,9 +35,17 @@ object LightTypeTagInheritance {
   private[macrortti] final val tpeAnyRef = NameReference("scala.AnyRef")
   private[macrortti] final val tpeObject = NameReference(classOf[Object].getName)
 
-  private final case class Ctx(params: List[LambdaParameter], logger: TrivialLogger, self: LightTypeTagInheritance) {
-    def next(): Ctx = Ctx(params, logger.sub(), self)
-    def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, logger.sub(), self)
+  private final case class Ctx(
+    params: List[LambdaParameter],
+    paramNames: Set[String],
+    decls: Set[RefinementDecl],
+    declNames: Set[String],
+    logger: TrivialLogger,
+    self: LightTypeTagInheritance
+  ) {
+    def next(): Ctx = Ctx(params, paramNames, decls, declNames, logger.sub(), self)
+    def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, newparams.iterator.map(_.name).toSet, decls, declNames, logger.sub(), self)
+    def next(newdecls: Set[RefinementDecl]): Ctx = Ctx(params, paramNames, newdecls, newdecls.map(_.name), logger.sub(), self)
   }
   private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
     def isChild(selfT0: LightTypeTagRef, thatT0: LightTypeTagRef): Boolean = ctx.self.isChild(ctx.next())(selfT0, thatT0)
@@ -51,13 +60,13 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   def isChild(): Boolean = {
     val st = self.ref
     val ot = other.ref
-    val logger = TrivialLogger.make[this.type]()
+    val logger = TrivialLogger.make[this.type](config = Config.console)
 
     logger.log(s"""⚙️ Inheritance check: $self vs $other
                   |⚡️bases: ${bdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
                   |⚡️inheritance: ${ib.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}""".stripMargin)
 
-    isChild(Ctx(List.empty, logger, this))(st, ot)
+    isChild(Ctx(List.empty, Set.empty, Set.empty, Set.empty, logger, this))(st, ot)
   }
 
   private def isChild(ctx: Ctx)(selfT: LightTypeTagRef, thatT: LightTypeTagRef): Boolean = {
@@ -72,43 +81,50 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (_, t) if t == tpeAny || t == tpeAnyRef || t == tpeObject =>
         // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)
         true
+
+      // parameterized type
       case (s: FullReference, t: FullReference) =>
-        if (parentsOf(s.asName).contains(t)) {
-          true
-        } else {
-          oneOfKnownParentsIsInheritedFrom(ctx)(s, t) || compareParameterizedRefs(ctx)(s, t)
-        }
+        oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t) ||
+        compareParameterizedRefs(ctx)(s, t)
+
       case (s: FullReference, t: NameReference) =>
-        oneOfKnownParentsIsInheritedFrom(ctx)(s, t)
-      case (s: NameReference, t: FullReference) =>
-        oneOfKnownParentsIsInheritedFrom(ctx)(s, t)
-      case (s: NameReference, t: NameReference) =>
-        val boundIsOk = t.boundaries match {
-          case Boundaries.Defined(bottom, top) =>
-            ctx.isChild(s, top) && ctx.isChild(bottom, s)
-          case Boundaries.Empty =>
-            true
+        oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t) || {
+          val boundIsOk = compareBounds(ctx)(s, t)
+
+          boundIsOk && (
+            params.map(_.name).contains(t.ref.name) || // lambda parameter may accept anything within bounds
+            decls.map(_.name).contains(t.ref.name) // refinement decl may accept anything within bounds
+          )
         }
 
+      case (s: NameReference, t: FullReference) =>
+        oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
+
+      // unparameterized type
+      case (s: NameReference, t: NameReference) =>
+        val boundIsOk = compareBounds(ctx)(s, t)
+
         any(
-          all(boundIsOk, safeParentsOf(s).exists(p => ctx.isChild(p, thatT))),
-          all(boundIsOk, parentsOf(s).exists(p => ctx.isChild(p, thatT))),
-          all(boundIsOk, params.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything
+          all(boundIsOk, parameterizedParentsOf(s).exists(ctx.isChild(_, t))),
+          all(boundIsOk, unparameterizedParentsOf(s).exists(ctx.isChild(_, t))),
+          all(boundIsOk, params.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything within bounds
+          all(boundIsOk, decls.map(_.name).contains(t.ref.name)), // refinement decl may accept anything within bounds
           s.boundaries match {
-            case Boundaries.Defined(_, top) =>
-              ctx.isChild(top, t)
+            case Boundaries.Defined(_, sUp) =>
+              ctx.isChild(sUp, t)
             case Boundaries.Empty =>
               false
           }
         )
 
       // lambdas
-      case (_: AppliedNamedReference, t: Lambda) =>
-        isChild(ctx.next(t.input))(selfT, t.output)
+      case (s: AppliedNamedReference, t: Lambda) =>
+        isChild(ctx.next(t.input))(s, t.output)
       case (s: Lambda, t: AppliedNamedReference) =>
         isChild(ctx.next(s.input))(s.output, t)
       case (s: Lambda, o: Lambda) =>
-        s.input.size == o.input.size && isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.name))))(s.normalizedOutput, o.normalizedOutput)
+        s.input.size == o.input.size &&
+        isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.name))))(s.normalizedOutput, o.normalizedOutput)
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>
@@ -143,14 +159,24 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // refinements
       case (s: Refinement, t: Refinement) =>
         ctx.isChild(s.reference, t.reference) &&
-        compareDecls(ctx)(s.decls, t.decls)
+        compareDecls(ctx.next(t.decls))(s.decls, t.decls)
       case (s: Refinement, t: LightTypeTagRef) =>
         ctx.isChild(s.reference, t)
       case (s: AbstractReference, t: Refinement) =>
-        oneOfKnownParentsIsInheritedFrom(ctx)(s, t)
+        oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
     }
     logger.log(s"${if (result) "✅" else "⛔️"} $selfT <:< $thatT == $result")
     result
+  }
+
+  private def compareBounds(ctx: Ctx)(s: AppliedNamedReference, t: NameReference): Boolean = {
+    t.boundaries match {
+      case Boundaries.Defined(tLow, tUp) =>
+        ctx.isChild(s, tUp) &&
+        ctx.isChild(tLow, s)
+      case Boundaries.Empty =>
+        true
+    }
   }
 
   private def compareDecls(ctx: Ctx)(sDecls: Set[RefinementDecl], tDecls: Set[RefinementDecl]): Boolean = {
@@ -163,17 +189,15 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     }
   }
 
-  private def compareDecl(ctx: Ctx)(s: RefinementDecl, t: RefinementDecl): Boolean = {
-    (s, t) match {
-      case (RefinementDecl.TypeMember(ln, lref), RefinementDecl.TypeMember(rn, rref)) =>
-        ln == rn && ctx.isChild(lref, rref)
-      case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
-        ln == rn &&
-        lins.iterator.zip(rins).forall { case (l, r) => ctx.isChild(r, l) } // contravariant
-        ctx.isChild(lout, rout) // covariant
-      case _ =>
-        false
-    }
+  private def compareDecl(ctx: Ctx)(s: RefinementDecl, t: RefinementDecl): Boolean = (s, t) match {
+    case (RefinementDecl.TypeMember(ln, lref), RefinementDecl.TypeMember(rn, rref)) =>
+      ln == rn && ctx.isChild(lref, rref)
+    case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
+      ln == rn &&
+      lins.iterator.zip(rins).forall { case (l, r) => ctx.isChild(r, l) } // contravariant
+      ctx.isChild(lout, rout) // covariant
+    case _ =>
+      false
   }
 
   private def compareParameterizedRefs(ctx: Ctx)(self: FullReference, that: FullReference): Boolean = {
@@ -200,7 +224,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     if (self.asName == that.asName) {
       sameArity && parameterShapeCompatible
     } else if (ctx.isChild(self.asName, that.asName)) {
-      val allParents = safeParentsOf(self)
+      val allParents = parameterizedParentsOf(self)
       val moreParents = bdb.collect {
         case (l: Lambda, b) if isSame(l.output, self.asName) =>
           b.collect {
@@ -208,7 +232,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
           }.map(l => l.combine(self.parameters.map(_.ref)))
       }.flatten
       ctx.logger.log(s"ℹ️ all parents of $self: $allParents ==> $moreParents")
-      (allParents ++ moreParents)
+      (allParents.iterator ++ moreParents)
         .exists {
           l =>
             val maybeParent = l
@@ -228,11 +252,19 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     }
   }
 
-  private def parentsOf(t: NameReference): Set[AppliedNamedReference] = {
+  private def parameterizedParentsOf(t: AbstractReference): Set[AbstractReference] = {
+    bdb.getOrElse(t, Set.empty)
+  }
+
+  private def oneOfParameterizedParentsIsInheritedFrom(ctx: Ctx)(child: AbstractReference, parent: AbstractReference): Boolean = {
+    parameterizedParentsOf(child).exists(ctx.isChild(_, parent))
+  }
+
+  private def unparameterizedParentsOf(t: NameReference): mutable.HashSet[NameReference] = {
     val out = mutable.HashSet[NameReference]()
     val tested = mutable.HashSet[NameReference]()
     parentsOf(t, out, tested)
-    out.toSet
+    out
   }
 
   private def parentsOf(t: NameReference, out: mutable.HashSet[NameReference], tested: mutable.HashSet[NameReference]): Unit = {
@@ -247,15 +279,6 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         b =>
           parentsOf(b.asName, out, tested)
       }
-
-  }
-
-  private def safeParentsOf(t: AbstractReference): Seq[AbstractReference] = {
-    bdb.get(t).toSeq.flatten
-  }
-
-  private def oneOfKnownParentsIsInheritedFrom(ctx: Ctx)(child: AbstractReference, parent: AbstractReference): Boolean = {
-    safeParentsOf(child).exists(p => ctx.isChild(p, parent))
   }
 
 }

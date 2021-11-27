@@ -147,4 +147,6 @@ object TestModel extends TestModelKindProjector {
   type SubSubStr <: SubStrA
 
   final case class VarArgsAnyVal(args: String*) extends AnyVal
+
+  trait BIO3[F[-_, +_, +_]]
 }

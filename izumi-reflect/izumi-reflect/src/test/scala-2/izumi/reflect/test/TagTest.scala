@@ -623,6 +623,7 @@ class TagTest extends SharedTagTest {
       assert(T1.tag =:= T3.tag)
       assert(T2.tag =:= T3.tag)
     }
+
   }
 
 }
