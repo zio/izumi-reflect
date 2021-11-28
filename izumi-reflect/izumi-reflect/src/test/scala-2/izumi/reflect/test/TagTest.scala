@@ -22,7 +22,6 @@ import izumi.reflect._
 import izumi.reflect.macrortti._
 import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel.VarArgsAnyVal
-import org.scalatest.exceptions.TestFailedException
 
 // https://github.com/scala/bug/issues/11139
 final case class testTag3[F[_]: TagK]() {
@@ -43,7 +42,6 @@ class TagTest extends SharedTagTest {
   trait Test[A, dafg, adfg, LS, L[_], SD, GG[A] <: L[A], ZZZ[_, _], S, SDD, TG]
   trait YX[V] extends XY[V]
   case class ZOBA[A, B, C](value: Either[B, C])
-  trait BIOService[F[_, _]]
   type Const[A, B] = A
   trait ZIO[-R, +E, +A]
   type IO[+E, +A] = ZIO[Any, E, A]
@@ -58,8 +56,6 @@ class TagTest extends SharedTagTest {
   trait BlockingIO3T[F[_, _[_], _]]
   type BlockingIOT[F[_[_], _]] = BlockingIO3T[Lambda[(R, `E[_]`, A) => F[E, A]]]
 
-  type BIOServiceL[F[+_, +_], E, A] = BIOService[Lambda[(X, Y) => F[A, E]]]
-
   class ApplePaymentProvider[F0[_]] extends H1
 
   trait DockerContainer[T]
@@ -72,7 +68,6 @@ class TagTest extends SharedTagTest {
     }
   }
 
-  class Dep
   trait Trait1 {
     def dep: Dep
   }
@@ -86,19 +81,19 @@ class TagTest extends SharedTagTest {
       val zy = new ZY {}
       val zx = new ZY {}
 
-      assert(Tag[zy.T].tag == fromLTag[zy.T])
-      assert(Tag[zy.T].tag <:< fromLTag[zy.T])
-      assert(Tag[zy.T].tag != fromLTag[zx.T])
-      assert(Tag[zy.x.type].tag == fromLTag[zy.x.type])
-      assert(Tag[zy.x.type].tag <:< fromLTag[zy.x.type])
-      assert(Tag[zy.x.type].tag <:< fromLTag[String])
-      assert(Tag[zy.x.type].tag <:< fromLTag[java.io.Serializable])
-      assert(Tag[zy.x.type].tag != fromLTag[zx.x.type])
-      assert(Tag[zy.y.type].tag == fromLTag[zy.y.type])
-      assert(Tag[zy.y.type].tag <:< fromLTag[zy.y.type])
-      assert(Tag[zy.y.type].tag <:< fromLTag[java.lang.Object])
-      assert(Tag[zy.y.type].tag != fromLTag[zx.y.type])
-      assert(Tag[zy.y.type].tag != fromLTag[zx.x.type])
+      assertSame(Tag[zy.T].tag, fromLTag[zy.T])
+      assertChild(Tag[zy.T].tag, fromLTag[zy.T])
+      assertDifferent(Tag[zy.T].tag, fromLTag[zx.T])
+      assertSame(Tag[zy.x.type].tag, fromLTag[zy.x.type])
+      assertChild(Tag[zy.x.type].tag, fromLTag[zy.x.type])
+      assertChild(Tag[zy.x.type].tag, fromLTag[String])
+      assertChild(Tag[zy.x.type].tag, fromLTag[java.io.Serializable])
+      assertDifferent(Tag[zy.x.type].tag, fromLTag[zx.x.type])
+      assertSame(Tag[zy.y.type].tag, fromLTag[zy.y.type])
+      assertChild(Tag[zy.y.type].tag, fromLTag[zy.y.type])
+      assertChild(Tag[zy.y.type].tag, fromLTag[java.lang.Object])
+      assertDifferent(Tag[zy.y.type].tag, fromLTag[zx.y.type])
+      assertDifferent(Tag[zy.y.type].tag, fromLTag[zx.x.type])
     }
 
     "Support identity lambda type equality" in {
@@ -417,77 +412,10 @@ class TagTest extends SharedTagTest {
       assert(zy.tagA.isSuccess)
     }
 
-    "consider class member's this-prefix to be the defining template, not the most specific prefix from where the call is happening (deliberate omission of this for better ergonomics in cakes)" in {
-      trait A {
-        class X
+    "can resolve parameters in structural types" in {
+      def t[X: Tag]: Tag[{ type T = X }] = Tag[{ type T = X }]
 
-        final val singleton1 = "bar"
-        type S1 = singleton1.type
-
-        val singleton2 = "bar"
-        type S2 = singleton2.type
-
-        val xa = Tag[X].tag
-
-//        val s1a = Tag[S1] // class type required but String("bar") found error on 2.11
-        val s1a = LTT[S1]
-        val s1a1 = Tag[singleton1.type].tag
-
-//        val s2a = Tag[S2]
-        val s2a = LTT[S2]
-        val s2a1 = Tag[singleton2.type].tag
-      }
-
-      trait B extends A {
-        val xb = Tag[X].tag
-
-//        val s1b = Tag[S1].tag
-        val s1b = LTT[S1]
-        val s1b1 = Tag[singleton1.type].tag
-
-        val s2b = LTT[S2]
-        val s2b1 = Tag[singleton2.type].tag
-      }
-
-      object B extends B
-
-      assert(B.xa == B.xb)
-      assert(B.s1a == B.s1b)
-      assert(B.s1a1 == B.s1b1)
-      assert(B.s2a == B.s2b)
-      assert(B.s2a1 == B.s2b1)
-
-      assert(Tag[A#X].tag == B.xa)
-
-      assert(B.s1b == B.s1a)
-      assert(B.s1a == B.s1a1)
-      assert(B.s1b == B.s1b1)
-
-      assert(Tag[A#S1].tag == B.s1a)
-      assert(Tag[A#S1].tag == B.s1a1)
-      assert(Tag[A#S1].tag == B.s1b)
-      assert(Tag[A#S1].tag == B.s1b1)
-
-      // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
-      //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2a)
-      }
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2b)
-      }
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2a1)
-      }
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2b1)
-      }
-    }
-
-    "can handle parameters in structural types" in {
-      def t[T: Tag]: Tag[{ type X = T }] = Tag[{ type X = T }]
-
-      assert(t[Int].tag == Tag[{ type X = Int }].tag)
+      assertSame(t[Int].tag, Tag[{ type T = Int }].tag)
     }
 
     "can resolve TagK's themselves correctly" in {
@@ -525,80 +453,6 @@ class TagTest extends SharedTagTest {
 
     "regression test: resolve correct closestClass for Scala vararg AnyVal (https://github.com/zio/izumi-reflect/issues/224)" in {
       assert(Tag[VarArgsAnyVal].closestClass == classOf[scala.Seq[Any]])
-    }
-
-    "progression test: can't handle parameters in defs/vals in structural types" in {
-      def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
-      def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
-
-      intercept[TestFailedException] {
-        assert(t1[Int].tag == Tag[{ def x: Int }].tag)
-      }
-      intercept[TestFailedException] {
-        assert(t2[Int].tag == Tag[{ val x: Int }].tag)
-      }
-    }
-
-    "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda" in {
-      val t = intercept[TestFailedException] {
-        assertCompiles(
-          """
-      def mk[F[+_, +_]: TagKK] = TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
-      val tag = mk[Either]
-
-      assert(tag.tag == LTagKK[Lambda[(E, A) => BIOService[Lambda[(X, Y) => Either[A, E]]]]].tag)
-      """
-        )
-      }
-      assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/ )
-    }
-
-    "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in an anonymous deeply-nested type lambda" in {
-      val t = intercept[TestFailedException] {
-        assertCompiles(
-          """
-      def mk[F[+_, +_]: TagKK] = TagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = F[A, E] })#l ] })#l ]
-      val tag = mk[Either]
-
-      assert(tag.tag == LTagKK[Lambda[(E, A) => BIOService[Lambda[(X, Y) => Either[A, E]]]]].tag)
-      """
-        )
-      }
-      assert((t.message.get contains "could not find implicit value") || (t.message.get contains "diverging implicit") /*2.11*/ )
-    }
-
-    "progression test: we may accidentally materialize tags for transient type vals (no longer possible in dotty)" in {
-      class Path {
-        type Child
-      }
-      val path = new Path
-
-      def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
-
-      val directChildTag = Tag[Path#Child].tag // Path::Child
-      val indirectChildTag = getTag[path.type].tag // A|<Nothing..Path>::Child
-
-      assert(!(indirectChildTag =:= directChildTag))
-      assert(!(directChildTag <:< indirectChildTag))
-      assert(!(indirectChildTag <:< directChildTag))
-
-      // A has no tag and such call to getTag should not compile. That's a bug
-      intercept[TestFailedException] {
-        assert(indirectChildTag.toString != "A|<Nothing..Path>::Child")
-      }
-    }
-
-    "progression test: type tags with bounds are not currently requested by the macro" in {
-      val t = intercept[TestFailedException] {
-        assertCompiles("""
-        type `TagK<:Dep`[K[_ <: Dep]] = HKTag[ { type Arg[A <: Dep] = K[A] } ]
-
-        def t[T[_ <: Dep]: `TagK<:Dep`, A: Tag] = Tag[T[A]]
-
-        assert(t[Trait3, Dep].tag == safe[Trait3[Dep]].tag)
-        """)
-      }
-      assert(t.message.get contains "could not find implicit value")
     }
 
     "equal path-dependant tags for singleton types are expected to be equal" in {

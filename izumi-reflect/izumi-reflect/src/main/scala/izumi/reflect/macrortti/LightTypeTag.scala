@@ -51,7 +51,9 @@ abstract class LightTypeTag(
 
   def ref: LightTypeTagRef
 
+  // inheritance db with lambdas, parameters and variance, e.g. List[+A] <: SeqOps[A, List, List[A]], λ %0 → List[+%0] <: λ %0,%1,%2 → SeqOps[+%0, +%1, +%2]
   private[reflect] lazy val basesdb: Map[AbstractReference, Set[AbstractReference]] = bases()
+  // inheritance db without lambdas and without parameters, e.g. List <: SeqOps, Iterable
   private[reflect] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
 
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
@@ -176,12 +178,11 @@ abstract class LightTypeTag(
   }
 
   /** Print internal structures state */
-  @nowarn("msg=view.mapValues")
   def debug(name: String = ""): String = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString._
-    s"""⚙️ $name: ${this.toString}
-       |⚡️bases: ${basesdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
-       |⚡️inheritance: ${idb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
+    s"""⚙️ begin $name: ${this.repr}
+       |⚡️bases: ${basesdb.map { case (k, v) => k.repr + " -> " + v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2) }.niceList()}
+       |⚡️inheritance: ${idb.map { case (k, v) => k.repr -> v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2) }.niceList()}
        |⚙️ end $name""".stripMargin
   }
 
@@ -649,7 +650,7 @@ object LightTypeTag {
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.AppliedReference](value.reference)
-            state.pickle[SortedSet[LightTypeTagRef.RefinementDecl]](setToSortedSet(RefinementDecl.OrderingRefinementDecl)(value.decls))
+            state.pickle[SortedSet[LightTypeTagRef.RefinementDecl]](setToSortedSet(RefinementDecl.OrderingRefinementDecl0)(value.decls))
             state.addIdentityRef(value)
           }
         }

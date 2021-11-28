@@ -361,10 +361,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertSame(alias, direct)
       assertSame(alias, combined)
 
-      assertDebugSame(alias, direct)
-      assertDebugSame(combined, alias)
-      assertDebugSame(combined, direct)
-
       assertDifferent(combined, LTT[Either[Int, Boolean]])
       assertDifferent(combined, LTT[T[Boolean, Int]])
 
@@ -373,15 +369,33 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "basic tags should not contain junk bases" in {
-      val debug = LTT[Either[RoleChild[IO], Product]].debug()
+      val debug1 = LTT[List[_]].debug()
 
-      assert(!debug.contains("package::Either"))
+      assert(!debug1.contains("scala.List"))
+      assert(!debug1.contains("package::List"))
+      assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
+
+      val debug2 = LTT[Either[RoleChild[IO], Product]].debug()
+//      val debug2 = PlatformSpecific.fromRuntime[Either[RoleChild[IO], Product]].debug()
+
+      assert(!debug2.contains("package::Either"))
+      assert(!debug2.contains("TestModel.E"))
+      assert(!debug2.contains("TestModel.A"))
+      assert(debug2.contains("* λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
     }
 
     "lambda tags should not contain junk bases" in {
-      val debug = `LTT[_,_]`[Either].debug()
+      val debug1 = `LTT[_,_]`[Either].debug()
 
-      assert(!debug.contains("package::Either"))
+      assert(!debug1.contains("package::Either"))
+      assert(!debug1.contains("scala.package.A"))
+      assert(!debug1.contains("scala.package.B"))
+
+      val debug2 = `LTT[_,_]`[Either].combine(LTT[Int], LTT[Int]).debug()
+
+      assert(!debug2.contains("package::Either"))
+      assert(!debug2.contains("scala.package.A"))
+      assert(!debug2.contains("scala.package.B"))
     }
 
     "intersection lambda tags should not contain junk bases" in {
@@ -392,9 +406,18 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assert(!debug.contains("<refinement>"))
       assert(!debug.contains("<none>"))
+
       assert(!debug.contains("- T"))
       assert(!debug.contains("W4[=B]"))
       assert(!debug.contains("W3[=A]"))
+
+      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
+      val alias = LTT[T[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W3[Int]]
+
+      assertDebugSame(alias, direct)
+      assertDebugSame(combined, alias)
+      assertDebugSame(combined, direct)
     }
 
   }

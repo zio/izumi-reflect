@@ -18,9 +18,20 @@
 
 package izumi.reflect.test
 
+import izumi.reflect.DebugProperties
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagImpl}
 import scala.reflect.runtime.{universe => ru}
 
 object PlatformSpecific {
-  def fromRuntime[T: ru.TypeTag]: LightTypeTag = LightTypeTagImpl.makeLightTypeTag(ru)(ru.typeOf[T])
+  /** Use for stepping through in debugger */
+  def fromRuntime[T: ru.TypeTag]: LightTypeTag = {
+    synchronized {
+      val used = System.getProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`) ne null
+      if (!used) System.setProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`, "true")
+      try LightTypeTagImpl.makeLightTypeTag(ru)(ru.typeOf[T])
+      finally {
+        System.clearProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`); ()
+      }
+    }
+  }
 }

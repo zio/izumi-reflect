@@ -120,7 +120,7 @@ class TagMacro(val c: blackbox.Context) {
         // FIXME: unused in complex type lambda ???
         val argTags = {
           // FIXME: fast-path optimize if typeArg is Strong
-          val args = embeddedMaybeNonParamTypeArgs.map(_.map(t => ReflectionUtil.norm(c.universe: c.universe.type)(t.dealias)))
+          val args = embeddedMaybeNonParamTypeArgs.map(_.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)))
           logger.log(s"HK Now summoning tags for args=$args")
           c.Expr[List[Option[LightTypeTag]]](q"${args.map(_.map(summonLightTypeTagOfAppropriateKind))}")
         }
@@ -170,7 +170,7 @@ class TagMacro(val c: blackbox.Context) {
                           |res: ${showRaw(res)}
                           |""".stripMargin)
             val argTagsExceptCtor = {
-              val args = nonParamArgs.map { case (t, _) => ReflectionUtil.norm(c.universe: c.universe.type)(t.dealias) }
+              val args = nonParamArgs.map { case (t, _) => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias) }
               logger.log(s"HK COMPLEX Now summoning tags for args=$args")
 
               c.Expr[List[Option[LightTypeTag]]] {
@@ -210,7 +210,7 @@ class TagMacro(val c: blackbox.Context) {
       addImplicitError("\n\n<trace>: ")
     }
 
-    val tgt = ReflectionUtil.norm(c.universe: c.universe.type)(weakTypeOf[T].dealias)
+    val tgt = ReflectionUtil.norm(c.universe: c.universe.type, logger)(weakTypeOf[T].dealias)
 
     addImplicitError(s"  deriving Tag for ${weakTypeOf[T]}, dealiased: $tgt:")
 
@@ -232,7 +232,7 @@ class TagMacro(val c: blackbox.Context) {
   protected[this] def mkRefined[T: c.WeakTypeTag](intersection: List[Type], originalRefinement: Type): c.Expr[Tag[T]] = {
     val summonedIntersectionTags = intersection.map {
       t0 =>
-        val t = ReflectionUtil.norm(c.universe: c.universe.type)(t0.dealias)
+        val t = ReflectionUtil.norm(c.universe: c.universe.type, logger)(t0.dealias)
         summonLightTypeTagOfAppropriateKind(t)
     }
     val intersectionTags = c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(summonedIntersectionTags))
@@ -296,7 +296,7 @@ class TagMacro(val c: blackbox.Context) {
       }
     }
     val argTags = {
-      val args = tpe.typeArgs.map(t => ReflectionUtil.norm(c.universe: c.universe.type)(t.dealias))
+      val args = tpe.typeArgs.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
       logger.log(s"Now summoning tags for args=$args")
       c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(args.map(summonLightTypeTagOfAppropriateKind)))
     }
@@ -444,7 +444,7 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   @inline
-  private[this] final def hktagSummonHelpfulErrorMessage(tpe: Type, kind: Kind) = {
+  private[this] final def hktagSummonHelpfulErrorMessage(tpe: Type, kind: Kind): String = {
     tagFormatMap.get(kind) match {
       case Some(_) => ""
       case None =>

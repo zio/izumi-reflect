@@ -28,6 +28,7 @@ import scala.collection.immutable.SortedSet
 import scala.util.Sorting
 
 sealed trait LightTypeTagRef {
+
   final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {
     if (args.nonEmpty) {
       applySeq(args.map { case v: AbstractReference => v })
@@ -90,25 +91,26 @@ sealed trait LightTypeTagRef {
     go(this)
   }
 
+  /** Render to string, omitting package names */
+  override final def toString: String = {
+    import izumi.reflect.macrortti.LTTRenderables.Short._
+    (this: LightTypeTagRef).render()
+  }
+
+  /** Fully-qualified rendering of a type, including packages and prefix types.
+    * Use [[toString]] for a rendering that omits package names
+    */
+  final def repr: String = {
+    import izumi.reflect.macrortti.LTTRenderables.Long._
+    (this: LightTypeTagRef).render()
+  }
+
   final def shortName: String = {
     getName(LTTRenderables.Short.r_SymName(_, hasPrefix = false), this)
   }
 
   final def longName: String = {
     getName(LTTRenderables.Long.r_SymName(_, hasPrefix = false), this)
-  }
-
-  @tailrec
-  @inline
-  private[this] final def getName(render: SymName => String, self: LightTypeTagRef): String = {
-    self match {
-      case Lambda(_, output) => getName(render, output)
-      case NameReference(ref, _, _) => render(ref)
-      case FullReference(ref, _, _) => render(SymTypeName(ref))
-      case IntersectionReference(refs) => refs.map(_.shortName).mkString(" & ")
-      case UnionReference(refs) => refs.map(_.shortName).mkString(" | ")
-      case Refinement(reference, _) => getName(render, reference)
-    }
   }
 
   final def getPrefix: Option[LightTypeTagRef] = {
@@ -184,7 +186,7 @@ sealed trait LightTypeTagRef {
     }
   }
 
-  private[macrortti] def applySeq(refs: Seq[AbstractReference]): AbstractReference = {
+  private[macrortti] final def applySeq(refs: Seq[AbstractReference]): AbstractReference = {
     applyParameters {
       l =>
         l.input.zip(refs).map {
@@ -193,7 +195,8 @@ sealed trait LightTypeTagRef {
         }
     }
   }
-  private[macrortti] def applyParameters(p: Lambda => Seq[(String, AbstractReference)]): AbstractReference = {
+
+  private[macrortti] final def applyParameters(p: Lambda => Seq[(String, AbstractReference)]): AbstractReference = {
     this match {
       case l: Lambda =>
         val parameters = p(l)
@@ -211,6 +214,20 @@ sealed trait LightTypeTagRef {
         throw new IllegalArgumentException(s"$this is not a type lambda, it cannot be parameterized")
     }
   }
+
+  @tailrec
+  @inline
+  private[this] final def getName(render: SymName => String, self: LightTypeTagRef): String = {
+    self match {
+      case Lambda(_, output) => getName(render, output)
+      case NameReference(ref, _, _) => render(ref)
+      case FullReference(ref, _, _) => render(SymTypeName(ref))
+      case IntersectionReference(refs) => refs.map(_.shortName).mkString(" & ")
+      case UnionReference(refs) => refs.map(_.shortName).mkString(" | ")
+      case Refinement(reference, _) => getName(render, reference)
+    }
+  }
+
 }
 
 object LightTypeTagRef {
@@ -224,8 +241,8 @@ object LightTypeTagRef {
       normalizedOutput.hashCode()
     }
 
-    def referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def paramRefs: Set[NameReference] = input.map(n => NameReference(n.name)).toSet
+    def referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
 
     lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
@@ -245,8 +262,6 @@ object LightTypeTagRef {
       }
     }
 
-    override def toString: String = this.render()
-
     private[this] def makeFakeParams: List[(String, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
@@ -263,16 +278,13 @@ object LightTypeTagRef {
 
   final case class IntersectionReference(refs: SortedSet[AppliedReference]) extends AppliedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
-    override def toString: String = this.render()
 
 //    private[LightTypeTagRef] def refs: Set[AppliedReference] = refs
     private[LightTypeTagRef] def this(refs: Set[AppliedReference]) = this(setToSortedSet(LightTypeTagRef.OrderingAbstractReferenceInstance[AppliedReference])(refs))
-
   }
 
   final case class UnionReference(refs: SortedSet[AppliedReference]) extends AppliedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
-    override def toString: String = this.render()
 
 //    private[LightTypeTagRef] def refs: Set[AppliedReference] = refs
     private[LightTypeTagRef] def this(refs: Set[AppliedReference]) = this(setToSortedSet(LightTypeTagRef.OrderingAbstractReferenceInstance[AppliedReference])(refs))
@@ -280,20 +292,19 @@ object LightTypeTagRef {
 
   final case class Refinement(reference: AppliedReference, decls: SortedSet[RefinementDecl]) extends AppliedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
-    override def toString: String = this.render()
 
     private[LightTypeTagRef] def this(reference: AppliedReference, decls: Set[RefinementDecl]) =
-      this(reference, setToSortedSet(RefinementDecl.OrderingRefinementDecl)(decls))
+      this(reference, setToSortedSet(RefinementDecl.OrderingRefinementDecl0)(decls))
   }
 
-  private[this] val eradicate = Set[AppliedReference](
+  private[this] val ignored = Set[AppliedReference](
     LightTypeTagInheritance.tpeAny,
     LightTypeTagInheritance.tpeAnyRef,
     LightTypeTagInheritance.tpeObject
   )
 
   def maybeIntersection(refs: Set[AppliedReference]): AppliedReference = {
-    val normalized = refs.diff(eradicate)
+    val normalized = refs.diff(ignored)
     normalized.toList match {
       case Nil =>
         LightTypeTagInheritance.tpeAny
@@ -305,7 +316,7 @@ object LightTypeTagRef {
   }
 
   def maybeUnion(refs: Set[AppliedReference]): AppliedReference = {
-    val normalized = refs.diff(eradicate)
+    val normalized = refs.diff(ignored)
     normalized.toList match {
       case Nil =>
         LightTypeTagInheritance.tpeAny
@@ -324,8 +335,6 @@ object LightTypeTagRef {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = this
-
-    override def toString: String = this.render()
   }
   object NameReference {
     def apply(tpeName: String): NameReference = NameReference(SymTypeName(tpeName))
@@ -335,8 +344,6 @@ object LightTypeTagRef {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = NameReference(SymTypeName(ref), prefix = prefix)
-
-    override def toString: String = this.render()
   }
 
   final case class TypeParam(ref: AbstractReference, variance: Variance) {
@@ -350,21 +357,7 @@ object LightTypeTagRef {
     final case class Signature(name: String, input: List[AppliedReference], output: AppliedReference) extends RefinementDecl
     final case class TypeMember(name: String, ref: AbstractReference) extends RefinementDecl
 
-    private[reflect] implicit val OrderingRefinementDecl: Ordering[RefinementDecl] = Ordering.fromLessThan {
-      case (RefinementDecl.Signature(namex, inputx, outputx), RefinementDecl.Signature(namey, inputy, outputy)) =>
-        Ordering.String.lt(namex, namey) ||
-        OrderingListAbstractReference.lt(inputx, inputy) ||
-        OrderingAbstractReference.lt(outputx, outputy)
-      case (RefinementDecl.TypeMember(namex, refx), RefinementDecl.TypeMember(namey, refy)) =>
-        Ordering.String.lt(namex, namey) ||
-        OrderingAbstractReference.lt(refx, refy)
-      case (x, y) =>
-        def idx(refinementDecl: RefinementDecl): Int = refinementDecl match {
-          case _: RefinementDecl.Signature => 0
-          case _: RefinementDecl.TypeMember => 1
-        }
-        idx(x) < idx(y)
-    }
+    private[reflect] implicit def OrderingRefinementDecl0: Ordering[RefinementDecl] = OrderingRefinementDecl
   }
 
   sealed trait Variance {
@@ -404,14 +397,97 @@ object LightTypeTagRef {
 
   private[reflect] implicit def OrderingAbstractReferenceInstance[A <: LightTypeTagRef]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
 
-  private[this] val OrderingVariance: Ordering[Variance] = Ordering.by {
-    case Variance.Invariant => 0
-    case Variance.Contravariant => 1
-    case Variance.Covariant => 2
+  private[this] val OrderingAbstractReference: Ordering[AbstractReference] = new Ordering[AbstractReference] {
+    override def equiv(x: AbstractReference, y: AbstractReference): Boolean = x == y
+
+    override def compare(x: AbstractReference, y: AbstractReference): Int = (x, y) match {
+      case (Lambda(inputx, outputx), Lambda(inputy, outputy)) =>
+        val compare1 = OrderingListLambdaParameter.compare(inputx, inputy)
+        if (compare1 != 0) return compare1
+        this.compare(outputx, outputy)
+
+      case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
+        OrderingArrayAbstractReference.compare(sortedRefs(refsx), sortedRefs(refsy))
+
+      case (UnionReference(refsx), UnionReference(refsy)) =>
+        OrderingArrayAbstractReference.compare(sortedRefs(refsx), sortedRefs(refsy))
+
+      case (Refinement(referencex, declsx), Refinement(referencey, declsy)) =>
+        val compare1 = compare(referencex, referencey)
+        if (compare1 != 0) return compare1
+        OrderingArrayRefinementDecl.compare(sortedDecls(declsx), sortedDecls(declsy))
+
+      case (NameReference(symx, boundariesx, prefixx), NameReference(symy, boundariesy, prefixy)) =>
+        val compare1 = OrderingSymName.compare(symx, symy)
+        if (compare1 != 0) return compare1
+        val compare2 = OrderingBoundaries.compare(boundariesx, boundariesy)
+        if (compare2 != 0) return compare2
+        OrderingOptionAbstractReference.compare(prefixx, prefixy)
+
+      case (FullReference(refx, parametersx, prefixx), FullReference(refy, parametersy, prefixy)) =>
+        val compare1 = Ordering.String.compare(refx, refy)
+        if (compare1 != 0) return compare1
+        val compare2 = OrderingListTypeParam.compare(parametersx, parametersy)
+        if (compare2 != 0) return compare2
+        OrderingOptionAbstractReference.compare(prefixx, prefixy)
+
+      case (x, y) =>
+        def idx(abstractReference: LightTypeTagRef): Int = abstractReference match {
+          case _: Lambda => 0
+          case _: IntersectionReference => 1
+          case _: UnionReference => 2
+          case _: Refinement => 3
+          case _: NameReference => 4
+          case _: FullReference => 5
+        }
+        Ordering.Int.compare(idx(x), idx(y))
+    }
   }
-  private[this] val OrderingLambdaParameter: Ordering[LambdaParameter] = Ordering.by((_: LambdaParameter).name)
-  private[this] val OrderingListLambdaParameter: Ordering[List[LambdaParameter]] = OrderingCompat.listOrdering(OrderingLambdaParameter)
+
+  private[this] def sortedRefs(set: Set[_ <: AbstractReference]): Array[AbstractReference] = {
+    val array: Array[AbstractReference] = Array.from(set)
+    Sorting.stableSort(array)(OrderingAbstractReference)
+    array
+  }
+
+  private[this] def sortedDecls(set: Set[RefinementDecl]): Array[RefinementDecl] = {
+    val array: Array[RefinementDecl] = Array.from(set)
+    Sorting.stableSort(array)(OrderingRefinementDecl)
+    array
+  }
+
+  private[this] val OrderingRefinementDecl: Ordering[RefinementDecl] = new Ordering[RefinementDecl] {
+    override def equiv(x: RefinementDecl, y: RefinementDecl): Boolean = x == y
+
+    override def compare(x: RefinementDecl, y: RefinementDecl): Int = (x, y) match {
+      case (RefinementDecl.Signature(namex, inputx, outputx), RefinementDecl.Signature(namey, inputy, outputy)) =>
+        val compare1 = Ordering.String.compare(namex, namey)
+        if (compare1 != 0) return compare1
+        val compare2 = OrderingListAbstractReference.compare(inputx, inputy)
+        if (compare2 != 0) return compare2
+        OrderingAbstractReference.compare(outputx, outputy)
+
+      case (RefinementDecl.TypeMember(namex, refx), RefinementDecl.TypeMember(namey, refy)) =>
+        val compare1 = Ordering.String.compare(namex, namey)
+        if (compare1 != 0) return compare1
+        OrderingAbstractReference.compare(refx, refy)
+
+      case (x, y) =>
+        def idx(refinementDecl: RefinementDecl): Int = refinementDecl match {
+          case _: RefinementDecl.Signature => 0
+          case _: RefinementDecl.TypeMember => 1
+        }
+        Ordering.Int.compare(idx(x), idx(y))
+    }
+  }
+
+  private[this] val OrderingLambdaParameter: Ordering[LambdaParameter] = {
+    Ordering.by((_: LambdaParameter).name)
+  }
+
   private[this] val OrderingSymName: Ordering[SymName] = new Ordering[SymName] {
+    override def equiv(x: SymName, y: SymName): Boolean = x == y
+
     override def compare(x: SymName, y: SymName): Int = {
       def idx(symName: SymName): Int = symName match {
         case SymTermName(_) => 0
@@ -422,86 +498,50 @@ object LightTypeTagRef {
       if (compare1 != 0) return compare1
       Ordering.String.compare(x.name, y.name)
     }
-    override def equiv(x: SymName, y: SymName): Boolean = {
-      x == y
-    }
   }
-  private[this] def sortedRefs(set: Set[_ <: AbstractReference]): Array[LightTypeTagRef] = {
-    val array: Array[LightTypeTagRef] = Array.from(set)
-    Sorting.stableSort(array)(OrderingAbstractReference)
-    array
-  }
-  private[this] val OrderingAbstractReference: Ordering[LightTypeTagRef] = new Ordering[LightTypeTagRef] {
-    override def compare(x: LightTypeTagRef, y: LightTypeTagRef): Int = {
-      case (Lambda(inputx, outputx), Lambda(inputy, outputy)) =>
-        val compare1 = OrderingListLambdaParameter.compare(inputx, inputy)
-        if (compare1 != 0) return compare1
-        OrderingAbstractReference.compare(outputx, outputy)
-      case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
-        OrderingSortedSetAbstractReference.compare(
-          setToSortedSet[AbstractReference](OrderingAbstractReference)(refsx),
-          setToSortedSet[AbstractReference](OrderingAbstractReference)(refsy)
-        )
-      case (UnionReference(refsx), UnionReference(refsy)) =>
-        OrderingCompat.listOrdering(sortedRefs(refsx), sortedRefs(refsy))
-//        Array().sortInPlace()
-//        Ordering.
-        OrderingSortedSetAbstractReference.compare(
-          setToSortedSet[AbstractReference](OrderingAbstractReference)(refsx),
-          setToSortedSet[AbstractReference](OrderingAbstractReference)(refsy)
-        )
-      case (Refinement(referencex, declsx), Refinement(referencey, declsy)) =>
-        OrderingAbstractReference.lt(referencex, referencey) ||
-        OrderingSortedSetRefinementDecl.lt(
-          /*setToSortedSet(RefinementDecl.OrderingRefinementDecl)*/ declsx,
-          /*setToSortedSet(RefinementDecl.OrderingRefinementDecl)*/ declsy
-        )
-      case (NameReference(refx, boundariesx, prefixx), NameReference(refy, boundariesy, prefixy)) =>
-        OrderingSymName.lt(refx, refy) ||
-        OrderingBoundaries.lt(boundariesx, boundariesy) ||
-        OrderingOptionAbstractReference.lt(prefixx, prefixy)
-      case (FullReference(refx, parametersx, prefixx), FullReference(refy, parametersy, prefixy)) =>
-        val bool = Ordering.String.lt(refx, refy)
-        val bool1 = OrderingListTypeParam.lt(parametersx, parametersy)
-        val bool2 = OrderingOptionAbstractReference.lt(prefixx, prefixy)
-        val res = bool ||
-          bool1 ||
-          bool2
 
-        res
+  private[this] val OrderingBoundaries: Ordering[Boundaries] = new Ordering[Boundaries] {
+    override def equiv(x: Boundaries, y: Boundaries): Boolean = x == y
+
+    override def compare(x: Boundaries, y: Boundaries): Int = (x, y) match {
+      case (Boundaries.Defined(rebx, retx), Boundaries.Defined(reby, rety)) =>
+        val compare1 = OrderingAbstractReference.compare(rebx, reby)
+        if (compare1 != 0) return compare1
+        OrderingAbstractReference.compare(retx, rety)
+
       case (x, y) =>
-        def idx(abstractReference: LightTypeTagRef): Int = abstractReference match {
-          case _: Lambda => 0
-          case _: IntersectionReference => 1
-          case _: UnionReference => 2
-          case _: Refinement => 3
-          case _: NameReference => 4
-          case _: FullReference => 5
+        def idx(boundaries: Boundaries): Int = boundaries match {
+          case _: Boundaries.Empty.type => 0
+          case _: Boundaries.Defined => 1
         }
-        idx(x) < idx(y)
+        Ordering.Int.compare(idx(x), idx(y))
     }
-    override def equiv(x: LightTypeTagRef, y: LightTypeTagRef): Boolean = x == y
   }
-  private[this] val OrderingListAbstractReference: Ordering[List[AbstractReference]] = OrderingCompat.listOrdering(OrderingAbstractReferenceInstance)
-  private[this] val OrderingArrayAbstractReference: Ordering[List[AbstractReference]] = OrderingCompat.arrayOrdering(OrderingAbstractReferenceInstance)
-//  private[this] val OrderingSortedSetAbstractReference: Ordering[SortedSet[AbstractReference]] = OrderingCompat.sortedSetOrdering(OrderingAbstractReferenceInstance)
-  private[this] val OrderingOptionAbstractReference: Ordering[Option[AbstractReference]] = Ordering.Option(OrderingAbstractReferenceInstance)
-  private[this] val OrderingSortedSetRefinementDecl: Ordering[SortedSet[RefinementDecl]] = OrderingCompat.sortedSetOrdering(RefinementDecl.OrderingRefinementDecl)
-  private[this] val OrderingBoundaries: Ordering[Boundaries] = Ordering.fromLessThan {
-    case (Boundaries.Defined(rebx, retx), Boundaries.Defined(reby, rety)) =>
-      OrderingAbstractReference.lt(rebx, reby) ||
-      OrderingAbstractReference.lt(retx, rety)
-    case (x, y) =>
-      def idx(boundaries: Boundaries) = boundaries match {
-        case _: Boundaries.Empty.type => 0
-        case _: Boundaries.Defined => 1
-      }
-      idx(x) < idx(y)
+
+  private[this] val OrderingTypeParam: Ordering[TypeParam] = new Ordering[TypeParam] {
+    override def equiv(x: TypeParam, y: TypeParam): Boolean = x == y
+
+    override def compare(x: TypeParam, y: TypeParam): Int = (x, y) match {
+      case (TypeParam(namex, varx), TypeParam(namey, vary)) =>
+        val compare1 = OrderingAbstractReference.compare(namex, namey)
+        if (compare1 != 0) return compare1
+        OrderingVariance.compare(varx, vary)
+    }
   }
-  private[this] val OrderingTypeParam: Ordering[TypeParam] = Ordering.fromLessThan {
-    case (TypeParam(namex, varx), TypeParam(namey, vary)) =>
-      OrderingAbstractReference.lt(namex, namey) ||
-      OrderingVariance.lt(varx, vary)
+
+  private[this] val OrderingVariance: Ordering[Variance] = Ordering.by {
+    case Variance.Invariant => 0
+    case Variance.Contravariant => 1
+    case Variance.Covariant => 2
   }
+
+  private[this] val OrderingListAbstractReference: Ordering[List[AbstractReference]] = OrderingCompat.listOrdering(OrderingAbstractReference)
+  private[this] val OrderingArrayAbstractReference: Ordering[Array[AbstractReference]] = OrderingCompat.arrayOrdering(OrderingAbstractReference)
+  private[this] val OrderingOptionAbstractReference: Ordering[Option[AbstractReference]] = Ordering.Option(OrderingAbstractReference)
+
+  private[this] val OrderingArrayRefinementDecl: Ordering[Array[RefinementDecl]] = OrderingCompat.arrayOrdering(OrderingRefinementDecl)
+
+  private[this] val OrderingListLambdaParameter: Ordering[List[LambdaParameter]] = OrderingCompat.listOrdering(OrderingLambdaParameter)
+
   private[this] val OrderingListTypeParam: Ordering[List[TypeParam]] = OrderingCompat.listOrdering(OrderingTypeParam)
 }

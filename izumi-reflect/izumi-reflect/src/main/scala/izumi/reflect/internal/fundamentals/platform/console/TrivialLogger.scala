@@ -57,18 +57,21 @@ private[reflect] final class TrivialLoggerImpl(config: Config, id: String, logMe
 
   @inline private[this] def flush(s: => String): Unit = {
     if (logMessages) {
-      config.sink.flush(s.shift(loggerLevel * 2))
+      config.sink.flush(s.shift(loggerLevel, "> "))
     }
   }
 }
 
 private[reflect] object TrivialLogger {
   private[reflect] final case class Config(
-    sink: AbstractStringTrivialSink = AbstractStringTrivialSink.Console,
-    forceLog: Boolean = false
+    sink: AbstractStringTrivialSink,
+    forceLog: Boolean
   )
+  private[reflect] object Config {
+    private[reflect] lazy val console: Config = Config(sink = AbstractStringTrivialSink.Console, forceLog = false)
+  }
 
-  def make[T: ClassTag](config: Config = Config()): TrivialLogger = {
+  def make[T: ClassTag](config: Config): TrivialLogger = {
     val logMessages: Boolean = checkLog(config)
     new TrivialLoggerImpl(config, classTag[T].runtimeClass.getSimpleName, logMessages, loggerLevel = 0)
   }

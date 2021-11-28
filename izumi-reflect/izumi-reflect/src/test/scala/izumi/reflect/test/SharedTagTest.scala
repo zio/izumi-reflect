@@ -1,9 +1,9 @@
 package izumi.reflect.test
 
-import izumi.reflect._
+import izumi.reflect.*
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag110
-import izumi.reflect.macrortti.{LTag, LightTypeTag}
-import izumi.reflect.test.ID._
+import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
+import izumi.reflect.test.ID.*
 import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
@@ -56,7 +56,7 @@ final case class testTag2[T: Tag]() {
 
 trait T2[A, B, C[_[_], _], D[_], E]
 
-abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions {
+abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions with InheritedModelKindProjector {
 
   type Swap[A, B] = Either[B, A]
   type SwapF2[F[_, _], A, B] = F[B, A]
@@ -124,6 +124,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
           assert(rtTag1 == rtTag2)
 
           assert(tag1.tag == tag2.tag)
+          ()
         }
       }
 
@@ -252,6 +253,73 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       println(right.debug())
 
       assertChild(left, right)
+    }
+
+    "consider class member's this-prefix to be the defining template, not the most specific prefix from where the call is happening (deliberate omission of this for better ergonomics in cakes)" in {
+      trait A {
+        class X
+
+        final val singleton1 = "bar"
+        type S1 = singleton1.type
+
+        val singleton2 = "bar"
+        type S2 = singleton2.type
+
+        val xa = Tag[X].tag
+
+//        val s1a = Tag[S1] // class type required but String("bar") found error on 2.11
+        val s1a = LTT[S1]
+        val s1a1 = Tag[singleton1.type].tag
+
+//        val s2a = Tag[S2]
+        val s2a = LTT[S2]
+        val s2a1 = Tag[singleton2.type].tag
+      }
+
+      trait B extends A {
+        val xb = Tag[X].tag
+
+//        val s1b = Tag[S1].tag
+        val s1b = LTT[S1]
+        val s1b1 = Tag[singleton1.type].tag
+
+        val s2b = LTT[S2]
+        val s2b1 = Tag[singleton2.type].tag
+      }
+
+      object B extends B
+
+      assert(B.xa == B.xb)
+      assert(B.s1a == B.s1b)
+      assert(B.s1a1 == B.s1b1)
+      assert(B.s2a == B.s2b)
+      assert(B.s2a1 == B.s2b1)
+
+      assert(Tag[A#X].tag == B.xa)
+
+      assert(B.s1b == B.s1a)
+      assert(B.s1a == B.s1a1)
+      assert(B.s1b == B.s1b1)
+
+      assert(Tag[A#S1].tag == B.s1a)
+      assert(Tag[A#S1].tag == B.s1a1)
+      assert(Tag[A#S1].tag == B.s1b)
+      assert(Tag[A#S1].tag == B.s1b1)
+
+      // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
+      //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled
+      intercept[TestFailedException] {
+        assert(Tag[A#S2].tag == B.s2a)
+      }
+      intercept[TestFailedException] {
+        assert(Tag[A#S2].tag == B.s2b)
+      }
+      intercept[TestFailedException] {
+        assert(Tag[A#S2].tag == B.s2a1)
+      }
+      intercept[TestFailedException] {
+        assert(Tag[A#S2].tag == B.s2b1)
+      }
     }
 
   }

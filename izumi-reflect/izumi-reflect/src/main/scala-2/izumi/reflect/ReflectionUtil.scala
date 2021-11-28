@@ -18,6 +18,8 @@
 
 package izumi.reflect
 
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
+
 import scala.annotation.tailrec
 import scala.reflect.api.Universe
 
@@ -27,13 +29,18 @@ private[reflect] object ReflectionUtil {
     * And AFAIK the only case that can make us confuse a type-parameter for a non-parameter is an empty refinement `T {}`.
     * So we just strip it when we get it.
     */
-  @tailrec
-  final def norm(u: Universe)(x: u.Type): u.Type = {
+  // ReflectionUtil.norm but with added logging
+  @tailrec @inline
+  def norm(u: Universe, logger: TrivialLogger)(x: u.Type): u.Type = {
     import u._
     x match {
-      case RefinedType(t :: Nil, m) if m.isEmpty => norm(u)(t)
-      case AnnotatedType(_, t) => norm(u)(t)
-      case _ => x
+      case RefinedType(t :: Nil, m) if m.isEmpty =>
+        logger.log(s"Stripped empty refinement of type $t. member scope $m")
+        norm(u, logger)(t)
+      case AnnotatedType(_, t) =>
+        norm(u, logger)(t)
+      case _ =>
+        x
     }
   }
 

@@ -9,7 +9,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     import TestModel._
 
-    "progression test: `support intersection type subtype checks` isn't fully supported on Dotty" in {
+    "progression test: `support higher-kinded intersection type subtyping` isn't fully supported on Dotty" in {
       type F1 = W3[Int] with W1
       type F2 = W4[Int] with W2
 
@@ -59,10 +59,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
 
       doesntWorkYetOnDotty {
-        assert(subStrALTT.repr == "izumi.reflect.test.TestModel::izumi.reflect.test.TestModel.SubStrA|<scala.Nothing..java.lang.String>")
+        assert(subStrALTT.repr == "izumi.reflect.test.TestModel::SubStrA|<scala.Nothing..java.lang.String>")
       }
       observableIncorrectBehaviorOnDottyButNotOnScala2 {
-        assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::izumi.reflect.test.TestModel$.SubStrA|<scala.Nothing..java.lang.String>")
+        assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
       }
 
       val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
@@ -84,10 +84,23 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     }
 
     "progression test: Dotty fails to `support human-readable representation` (should strip trailing $ from object names)" in {
+      type TX[B] = Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[B, A] }
       doesntWorkYetOnDotty {
         assertRepr(
-          LTT[Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[Unit, A] }],
-          "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})"
+          `LTT[_]`[TX],
+          "λ %0 → (Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})"
+        )
+      }
+      doesntWorkYetOnDotty {
+        assertRepr(
+          `LTT[_]`[TX].combine(LTT[Unit]),
+          "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})"
+        )
+      }
+      doesntWorkYetOnDotty {
+        assertRepr(
+          LTT[TX[Unit]],
+          "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})"
         )
       }
       doesntWorkYetOnDotty {
@@ -204,7 +217,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: fails some bounds-based subtype checks" in {
+    "progression test: Dotty fails some bounds-based subtype checks" in {
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Option[A]
       doesntWorkYetOnDotty {

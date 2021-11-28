@@ -43,7 +43,7 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       object Z {
         type X <: { type A = Int }
       }
-      Z
+      a1; Z
 
       assertSame(LTT[a1.A], LTT[Z.X#A])
     }
@@ -53,7 +53,11 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     }
 
     "`typeArgs` works (Scala 2 syntax)" in {
-      assert(`LTT[_[_]]`[T0[List, *[_]]].typeArgs == List(`LTT[_]`[List]))
+      val tag = `LTT[_[_]]`[T0[List, *[_]]]
+      val tagApplied = tag.combine(`LTT[_]`[Option])
+      assertSame(tagApplied, LTT[T0[List, Option]])
+      assert(tag.typeArgs == List(`LTT[_]`[List]))
+      assert(tagApplied.typeArgs == List(`LTT[_]`[List], `LTT[_]`[Option]))
     }
 
     "combine higher-kinded type lambdas without losing ignored type arguments (Scala 2 syntax)" in {
