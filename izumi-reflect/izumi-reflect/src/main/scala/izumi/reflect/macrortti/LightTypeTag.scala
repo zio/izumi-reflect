@@ -85,17 +85,15 @@ abstract class LightTypeTag(
     */
   def combine(args: LightTypeTag*): LightTypeTag = {
     val argRefs = args.map(_.ref)
-    val appliedBases = basesdb.map {
+    val appliedBases = basesdb ++ basesdb.iterator.collect { // do not remove the unapplied base lambdas after combination (required for inferredLambdaParents in isChild)
       case (self: LightTypeTagRef.Lambda, parents) =>
         self.combine(argRefs) -> parents.map {
           case l: LightTypeTagRef.Lambda =>
             l.combine(argRefs)
-          case o =>
+          case nonLambdaParent =>
             val context = self.input.map(_.name).zip(argRefs.collect { case a: AbstractReference => a }).toMap
-            val out = new RuntimeAPI.Rewriter(context).replaceRefs(o)
-            out
+            new RuntimeAPI.Rewriter(context).replaceRefs(nonLambdaParent)
         }
-      case o => o
     }
 
     def mergedBasesDB = LightTypeTag.mergeIDBs(appliedBases, args.iterator.map(_.basesdb))
@@ -116,14 +114,15 @@ abstract class LightTypeTag(
     */
   def combineNonPos(args: Option[LightTypeTag]*): LightTypeTag = {
     val argRefs = args.map(_.map(_.ref))
-    val appliedBases = basesdb ++ basesdb.map {
+    val appliedBases = basesdb ++ basesdb.iterator.collect { // do not remove the unapplied base lambdas after combination (required for inferredLambdaParents in isChild)
       case (self: LightTypeTagRef.Lambda, parents) =>
         self.combineNonPos(argRefs) -> parents.map {
           case l: LightTypeTagRef.Lambda =>
             l.combineNonPos(argRefs)
-          case o => o
+          case nonLambdaParent =>
+            val context = self.input.map(_.name).zip(argRefs.flatten.collect { case a: AbstractReference => a }).toMap
+            new RuntimeAPI.Rewriter(context).replaceRefs(nonLambdaParent)
         }
-      case o => o
     }
 
     def mergedBasesDB = LightTypeTag.mergeIDBs(appliedBases, args.iterator.map(_.map(_.basesdb).getOrElse(Map.empty)))
@@ -179,10 +178,13 @@ abstract class LightTypeTag(
 
   /** Print internal structures state */
   def debug(name: String = ""): String = {
-    import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+    def renderDb(db: Map[_ <: LightTypeTagRef, Set[_ <: LightTypeTagRef]]): String = {
+      import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+      db.toList.sortBy(_._1).map { case (k, v) => s"${k.repr} -> ${v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2)}" }.niceList()
+    }
     s"""⚙️ begin $name: ${this.repr}
-       |⚡️bases: ${basesdb.map { case (k, v) => k.repr + " -> " + v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2) }.niceList()}
-       |⚡️inheritance: ${idb.map { case (k, v) => k.repr -> v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2) }.niceList()}
+       |⚡️bases:${renderDb(basesdb)}
+       |⚡️inheritance:${renderDb(idb)}
        |⚙️ end $name""".stripMargin
   }
 

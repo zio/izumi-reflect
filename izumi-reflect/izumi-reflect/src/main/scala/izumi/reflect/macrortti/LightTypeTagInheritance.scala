@@ -225,19 +225,15 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       sameArity && parameterShapeCompatible
     } else if (ctx.isChild(self.asName, that.asName)) {
       val allParents = parameterizedParentsOf(self)
-      val moreParents = bdb.collect {
+      val inferredLambdaParents = bdb.collect {
         case (l: Lambda, b) if isSame(l.output, self.asName) =>
           b.collect {
             case l: Lambda if l.input.size == self.parameters.size => l
           }.map(l => l.combine(self.parameters.map(_.ref)))
       }.flatten
-      ctx.logger.log(s"ℹ️ all parents of $self: $allParents ==> $moreParents")
-      (allParents.iterator ++ moreParents)
-        .exists {
-          l =>
-            val maybeParent = l
-            ctx.isChild(maybeParent, that)
-        }
+      ctx.logger.log(s"ℹ️ all parents of $self: baseDbParents=$allParents ==> inferredLambdaParents=$inferredLambdaParents")
+      (allParents.iterator ++ inferredLambdaParents)
+        .exists(ctx.isChild(_, that))
     } else {
       false
     }
@@ -261,24 +257,24 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def unparameterizedParentsOf(t: NameReference): mutable.HashSet[NameReference] = {
+    def parentsOf(t: NameReference, out: mutable.HashSet[NameReference], tested: mutable.HashSet[NameReference]): Unit = {
+      val direct = ib.get(t).toSet.flatten
+      tested += t
+      out ++= direct
+
+      val nextNames = direct.map(_.asName)
+      nextNames
+        .diff(tested)
+        .foreach {
+          b =>
+            parentsOf(b.asName, out, tested)
+        }
+    }
+
     val out = mutable.HashSet[NameReference]()
     val tested = mutable.HashSet[NameReference]()
     parentsOf(t, out, tested)
     out
-  }
-
-  private def parentsOf(t: NameReference, out: mutable.HashSet[NameReference], tested: mutable.HashSet[NameReference]): Unit = {
-    val direct = ib.get(t).toSet.flatten
-    tested += t
-    out ++= direct
-
-    val nextNames = direct.map(_.asName)
-    nextNames
-      .diff(tested)
-      .foreach {
-        b =>
-          parentsOf(b.asName, out, tested)
-      }
   }
 
 }

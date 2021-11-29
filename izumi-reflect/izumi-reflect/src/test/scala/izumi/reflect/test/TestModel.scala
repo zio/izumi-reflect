@@ -62,9 +62,13 @@ object TestModel extends TestModelKindProjector {
 
   trait W2 extends W1
 
-  trait W3[x]
+  trait W3[X]
 
   trait W4[A] extends W3[A]
+
+  trait W5[B] extends W2
+
+  type T3[A, B] = W5[A] with W4[B] with W1
 
   trait I1
 

@@ -402,6 +402,38 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
+    "progression test: combined intersection lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {
+      val tCtor = `LTT[_,_]`[T3]
+      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
+      val debugCombined = combined.debug("combined")
+
+      val alias = LTT[T3[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
+
+      doesntWorkYet {
+        assert(!debugCombined.contains("W4[=scala.Int]"))
+      }
+      doesntWorkYet {
+        assert(!debugCombined.contains("W3[=scala.Int]"))
+      }
+
+      doesntWorkYet {
+        assertDebugSame(combined, alias)
+      }
+      doesntWorkYet {
+        assertDebugSame(combined, direct)
+      }
+    }
+
+    "progression test: combined lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {
+      val curriedApplied = `LTT[_,_]`[Either].combine(LTT[Throwable]).combine(LTT[Unit])
+      val debug1 = curriedApplied.debug()
+
+      doesntWorkYet {
+        assert(!debug1.contains("λ %1 → scala.util.Either[+scala.Unit,+1]"))
+      }
+    }
+
   }
 
 }

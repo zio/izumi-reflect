@@ -21,10 +21,7 @@ package izumi.reflect.test
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 import org.scalatest.wordspec.AnyWordSpec
 
-trait TagAssertions extends AnyWordSpec {
-
-  def println(o: Any): Unit = info(o.toString)
-  def println(o: LightTypeTag): Unit = info(o.ref.toString)
+trait TagAssertions extends AnyWordSpec with TagLogging {
 
   def assertRepr(t: LightTypeTag, expected: String): Unit = {
     assert(t.toString == expected); ()

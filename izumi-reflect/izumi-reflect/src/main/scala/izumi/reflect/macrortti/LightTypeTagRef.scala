@@ -241,9 +241,10 @@ object LightTypeTagRef {
       normalizedOutput.hashCode()
     }
 
-    def paramRefs: Set[NameReference] = input.map(n => NameReference(n.name)).toSet
-    def referenced: Set[NameReference] = RuntimeAPI.unpack(this)
+    lazy val paramRefs: Set[NameReference] = input.map(n => NameReference(n.name)).toSet
+    lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
+    lazy val someArgumentsReferenced: Boolean = paramRefs.diff(referenced).size < referenced.size
 
     lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
     lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)

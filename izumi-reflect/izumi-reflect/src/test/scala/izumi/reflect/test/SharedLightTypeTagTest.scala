@@ -342,17 +342,11 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "support higher-kinded intersection type combination" in {
-      type T[A, B] = W3[A] with W4[B] with W1
-
-      val tCtor = `LTT[_,_]`[T]
+      val tCtor = `LTT[_,_]`[T3]
 
       val combined = tCtor.combine(LTT[Int], LTT[Boolean])
-      val alias = LTT[T[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W3[Int]]
-
-      println(tCtor.debug("ctor"))
-      println(combined.debug("combined"))
-      println(alias.debug("alias"))
+      val alias = LTT[T3[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
 
       assertChild(alias, direct)
       assertChild(combined, alias)
@@ -362,25 +356,42 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertSame(alias, combined)
 
       assertDifferent(combined, LTT[Either[Int, Boolean]])
-      assertDifferent(combined, LTT[T[Boolean, Int]])
+      assertDifferent(combined, LTT[T3[Boolean, Int]])
 
       assertNotChild(combined, LTT[Either[Int, Boolean]])
-      assertNotChild(combined, LTT[T[Boolean, Int]])
+      assertNotChild(combined, LTT[T3[Boolean, Int]])
+
+      assertChild(combined, LTT[W5[Int]])
+      assertChild(combined, LTT[W4[Boolean]])
+      assertChild(combined, LTT[W3[Boolean]])
+      assertChild(combined, LTT[W1])
+      assertChild(combined, LTT[W2])
+      assertChild(combined, LTT[W1 & W3[Boolean]])
+
+      assertNotChild(combined, LTT[W4[Int]])
+      assertNotChild(combined, LTT[W3[Int]])
+      assertNotChild(combined, LTT[W5[Boolean]])
+      assertNotChild(combined, LTT[W1 & W5[Boolean]])
     }
 
-    "basic tags should not contain junk bases" in {
+    "applied tags should not contain junk bases" in {
       val debug1 = LTT[List[_]].debug()
 
       assert(!debug1.contains("scala.List"))
       assert(!debug1.contains("package::List"))
+      assert(!debug1.contains("<refinement>"))
+      assert(!debug1.contains("<none>"))
       assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
 
       val debug2 = LTT[Either[RoleChild[IO], Product]].debug()
 //      val debug2 = PlatformSpecific.fromRuntime[Either[RoleChild[IO], Product]].debug()
 
       assert(!debug2.contains("package::Either"))
+      assert(!debug2.contains("<refinement>"))
+      assert(!debug2.contains("<none>"))
       assert(!debug2.contains("TestModel.E"))
       assert(!debug2.contains("TestModel.A"))
+      assert(debug2.contains("- λ %0 → izumi.reflect.test.TestModel::RoleChild[=0]"))
       assert(debug2.contains("* λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
     }
 
@@ -396,28 +407,76 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!debug2.contains("package::Either"))
       assert(!debug2.contains("scala.package.A"))
       assert(!debug2.contains("scala.package.B"))
+
+      val debug3 = LTT[RoleParent[Either[Throwable, *]]].debug()
+
+      assert(!debug3.contains("package::Either"))
+      assert(!debug3.contains("<refinement>"))
+      assert(!debug3.contains("<none>"))
+      assert(!debug3.contains("TestModel.E"))
+      assert(!debug3.contains("TestModel.A"))
+      assert(!debug3.contains("+scala.Nothing"))
+      assert(debug3.contains("- λ %0,%1 → scala.util.Either[+0,+1]"))
+
+      val debug4 = `LTT[_]`[Either[Throwable, *]].debug()
+//      val debug4 = PlatformSpecific
+//        .fromRuntime(
+//          scala.reflect.runtime.universe.typeOf[{ type l[a] = Either[Throwable, a] }].member(scala.reflect.runtime.universe.TypeName("l")).typeSignature
+//        ).debug()
+
+      assert(!debug4.contains("package::Either"))
+      assert(!debug4.contains("<refinement>"))
+      assert(!debug4.contains("<none>"))
+      assert(!debug4.contains("TestModel.E"))
+      assert(!debug4.contains("TestModel.A"))
+      assert(!debug4.contains("+scala.Nothing"))
+      assert(debug4.contains("- λ %0,%1 → scala.util.Either[+0,+1]"))
+
+      val oneArgApplied = `LTT[_,_]`[Either].combine(LTT[Throwable]).combine(LTT[Unit])
+      val debug5 = oneArgApplied.debug()
+
+      println(debug5)
+      assert(!debug5.contains("package::Either"))
+      assert(!debug5.contains("<refinement>"))
+      assert(!debug5.contains("<none>"))
+      assert(!debug5.contains("scala.package.A"))
+      assert(!debug5.contains("scala.package.B"))
+      assert(!debug5.contains("+scala.Nothing"))
     }
 
     "intersection lambda tags should not contain junk bases" in {
-      type T[A, B] = W3[A] with W4[B] with W1
-
-      val tCtor = `LTT[_,_]`[T]
-      val debug = tCtor.debug()
-
-      assert(!debug.contains("<refinement>"))
-      assert(!debug.contains("<none>"))
-
-      assert(!debug.contains("- T"))
-      assert(!debug.contains("W4[=B]"))
-      assert(!debug.contains("W3[=A]"))
+      val tCtor = `LTT[_,_]`[T3]
+//      val tCtor = PlatformSpecific.fromRuntime(scala.reflect.runtime.universe.typeOf[T3[Any, Any]].typeConstructor)
+      val debugCtor = tCtor.debug("ctor")
 
       val combined = tCtor.combine(LTT[Int], LTT[Boolean])
-      val alias = LTT[T[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W3[Int]]
+      val debugCombined = combined.debug("combined")
+
+      val alias = LTT[T3[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
+
+      println(debugCtor)
+      println(debugCombined)
+      println(alias.debug("alias"))
+      println(direct.debug("direct"))
+
+      assert(!debugCtor.contains("<refinement>"))
+      assert(!debugCtor.contains("<none>"))
+      assert(!debugCtor.contains("- T"))
+      assert(!debugCtor.contains("W4[=B]"))
+      assert(!debugCtor.contains("W5[=A]"))
+
+      assert(!direct.debug().contains("W4[=Int]"))
+      assert(!direct.debug().contains("W4[=scala.Int]"))
+
+      assert(!debugCombined.contains("<refinement>"))
+      assert(!debugCombined.contains("<none>"))
+      assert(!debugCombined.contains("- T"))
+      assert(!debugCombined.contains("W4[=B]"))
+      assert(!debugCombined.contains("W5[=A]"))
+      assert(debugCombined.contains("W5[=scala.Int]"))
 
       assertDebugSame(alias, direct)
-      assertDebugSame(combined, alias)
-      assertDebugSame(combined, direct)
     }
 
   }
