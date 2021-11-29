@@ -20,12 +20,12 @@ package izumi.reflect.macrortti
 
 import scala.annotation.nowarn
 import izumi.reflect.internal.fundamentals.collections.ImmutableMultiMap
-import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean.*
+import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean._
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
-import izumi.reflect.internal.fundamentals.platform.strings.IzString.*
-import izumi.reflect.macrortti.LightTypeTagInheritance.*
-import izumi.reflect.macrortti.LightTypeTagRef.*
+import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+import izumi.reflect.macrortti.LightTypeTagInheritance._
+import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.collection.mutable
 

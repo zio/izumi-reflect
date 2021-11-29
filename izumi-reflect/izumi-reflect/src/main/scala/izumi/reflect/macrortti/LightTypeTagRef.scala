@@ -21,7 +21,7 @@ package izumi.reflect.macrortti
 import izumi.reflect.internal.OrderingCompat
 import izumi.reflect.internal.OrderingCompat.setToSortedSet
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
-import izumi.reflect.macrortti.LightTypeTagRef.*
+import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet

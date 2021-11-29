@@ -1,9 +1,9 @@
 package izumi.reflect.test
 
-import izumi.reflect.*
+import izumi.reflect._
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag110
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
-import izumi.reflect.test.ID.*
+import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions

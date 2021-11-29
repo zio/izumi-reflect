@@ -18,13 +18,13 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.internal.fundamentals.collections.IzCollections.*
+import izumi.reflect.internal.fundamentals.collections.IzCollections._
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.internal.fundamentals.platform.strings.IzString.*
+import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
 import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
-import izumi.reflect.macrortti.LightTypeTagRef.*
+import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 
