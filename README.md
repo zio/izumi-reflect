@@ -42,9 +42,17 @@ Known limitations are:
 4. Path-Dependent Types are based on variable names and may cause unexpected results with variables with different names but the same type or vice-versa (vs. Scala typechecker)
 5. At the moment Scala 3 port does not support Path-Dependent Types, and Structural Refinements. This will be fixed in future.
 
-## Contributing
+## Debugging
 
-When working on the Scala 3 version of the codebase in Intellij, we recommend importing using BSP mode instead of sbt mode, see [Dotty#Importing the Project Using BSP.](https://github.com/lampepfl/dotty/blob/b7d2a122555a6aa44cc7590852a80f12512c535e/docs/docs/usage/ide-support.md#importing-the-project-using-bsp) 
+Set `-Dizumi.reflect.debug.macro.rtti=true` to enable debug output during compilation when tags are constructed and at runtime when they are compared.
+
+```shell
+sbt -Dizumi.reflect.debug.macro.rtti=true
+```
+
+To see debug output when compiling in Intellij, add the above flag to `VM options` in [Preferences | Build, Execution, Deployment | Compiler | Scala Compiler | Scala Compile Server](jetbrains://idea/settings?name=Build%2C+Execution%2C+Deployment--Compiler--Scala+Compiler--Scala+Compile+Server)
+
+You may also set it in `.jvmopts` file during development
 
 ## Build
 
