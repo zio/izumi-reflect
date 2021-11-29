@@ -47,7 +47,7 @@ object LightTypeTagInheritance {
     def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, newparams.iterator.map(_.name).toSet, decls, declNames, logger.sub(), self)
     def next(newdecls: Set[RefinementDecl]): Ctx = Ctx(params, paramNames, newdecls, newdecls.map(_.name), logger.sub(), self)
   }
-  private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
+  private[LightTypeTagInheritance] implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
     def isChild(selfT0: LightTypeTagRef, thatT0: LightTypeTagRef): Boolean = ctx.self.isChild(ctx.next())(selfT0, thatT0)
   }
 }
@@ -194,7 +194,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       ln == rn && ctx.isChild(lref, rref)
     case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
       ln == rn &&
-      lins.iterator.zip(rins).forall { case (l, r) => ctx.isChild(r, l) } // contravariant
+      lins.iterator.zip(rins.iterator).forall { case (l, r) => ctx.isChild(r, l) } // contravariant
       ctx.isChild(lout, rout) // covariant
     case _ =>
       false

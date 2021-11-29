@@ -70,9 +70,9 @@ sealed trait LightTypeTagRef {
       reference match {
         case reference: AppliedNamedReference => appliedNamedReference(reference)
         case LightTypeTagRef.IntersectionReference(refs) =>
-          LightTypeTagRef.maybeIntersection(refs.unsorted.map(appliedReference))
+          LightTypeTagRef.maybeIntersection(refs /*.unsorted*/.toSet.map(appliedReference))
         case LightTypeTagRef.UnionReference(refs) =>
-          LightTypeTagRef.maybeUnion(refs.unsorted.map(appliedReference))
+          LightTypeTagRef.maybeUnion(refs /*.unsorted*/.toSet.map(appliedReference))
         case LightTypeTagRef.Refinement(reference, decls) =>
           LightTypeTagRef.Refinement(appliedReference(reference), decls)
       }
@@ -446,14 +446,14 @@ object LightTypeTagRef {
   }
 
   private[this] def sortedRefs(set: Set[_ <: AbstractReference]): Array[AbstractReference] = {
-    val array: Array[AbstractReference] = Array.from(set)
-    Sorting.stableSort(array)(OrderingAbstractReference)
+    val array: Array[AbstractReference] = set.toArray
+    Sorting.stableSort(array)
     array
   }
 
   private[this] def sortedDecls(set: Set[RefinementDecl]): Array[RefinementDecl] = {
-    val array: Array[RefinementDecl] = Array.from(set)
-    Sorting.stableSort(array)(OrderingRefinementDecl)
+    val array: Array[RefinementDecl] = set.toArray
+    Sorting.stableSort(array)
     array
   }
 

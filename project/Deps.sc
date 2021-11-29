@@ -260,7 +260,7 @@ object Izumi {
     ),
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
-      collection_compat in Scope.Provided.all.scalaVersion(ScalaVersionScope.Versions(Seq(scala211, scala212))),
+      collection_compat in Scope.Provided.all,
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scalatest in Scope.Test.all
     ),

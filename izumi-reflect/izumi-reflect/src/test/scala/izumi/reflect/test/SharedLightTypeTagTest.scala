@@ -366,12 +366,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(combined, LTT[W3[Boolean]])
       assertChild(combined, LTT[W1])
       assertChild(combined, LTT[W2])
-      assertChild(combined, LTT[W1 & W3[Boolean]])
+      assertChild(combined, LTT[W1 with W3[Boolean]])
 
       assertNotChild(combined, LTT[W4[Int]])
       assertNotChild(combined, LTT[W3[Int]])
       assertNotChild(combined, LTT[W5[Boolean]])
-      assertNotChild(combined, LTT[W1 & W5[Boolean]])
+      assertNotChild(combined, LTT[W1 with W5[Boolean]])
     }
 
     "applied tags should not contain junk bases" in {

@@ -33,3 +33,5 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
     }
 
   }
+
+}

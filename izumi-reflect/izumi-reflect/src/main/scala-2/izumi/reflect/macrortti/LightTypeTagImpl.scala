@@ -18,6 +18,7 @@
 
 package izumi.reflect.macrortti
 
+import izumi.reflect.internal.OrderingCompat
 import izumi.reflect.internal.fundamentals.collections.IzCollections._
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
@@ -123,10 +124,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             List(UniRefinement.typeOfTypeMember(sym))
           } else Nil
       }
-      val intersectionExpansionsArgsBounds = intersectionWithPreservedLambdas.iterator.flatMap(collectEtaExpansionArgsBounds)
+      val intersectionExpansionsArgsBounds: Iterator[Type] = intersectionWithPreservedLambdas.iterator.flatMap(collectEtaExpansionArgsBounds)
 
-      val nextToInspect = (intersectionExpansionsArgsBounds.iterator ++ intersectionWithPreservedLambdas.iterator ++ refinementDeclMembers)
-        .to(mutable.HashSet)
+      val nextToInspect = mutable
+        .HashSet.newBuilder[Type]
+        .++=(intersectionExpansionsArgsBounds ++ intersectionWithPreservedLambdas.iterator ++ refinementDeclMembers)
+        .result()
         .diff(inh)
 
       nextToInspect.foreach(t => if (!inh(t) && !ignored(t)) extractComponents(t, inh))
@@ -174,7 +177,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     val inh = mutable.HashSet[Type]()
     extractComponents(tpe0, inh)
-    logger.log(s"Extracted type references for tpe=$tpe0 inh=${inh.iterator.map(t => (t, t.getClass)).toMap.niceList()}")
+    logger.log(s"Extracted type references for tpe=$tpe0 inh=${inh.iterator.map(t => (t, t.getClass.asInstanceOf[Class[Any]])).toMap.niceList()}")
 
     inh.toSet
   }
@@ -239,7 +242,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           val parts = tpes.map(unpackAsProperType(_, rules): AppliedReference)
           val intersection = LightTypeTagRef.maybeIntersection(parts)
           if (decls.nonEmpty) {
-            Refinement(intersection, convertDecls(decls.toList, rules).to(SortedSet))
+            Refinement(intersection, OrderingCompat.setToSortedSet(RefinementDecl.OrderingRefinementDecl0)(convertDecls(decls.toList, rules).toSet))
           } else {
             intersection
           }
@@ -496,7 +499,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             }
             .filterNot {
               parent =>
-                require(parent != t, parent -> t)
+//                require(parent != t, parent -> t)
                 parent == t
             }
       }

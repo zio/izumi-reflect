@@ -24,17 +24,17 @@ import scala.reflect.runtime.{universe => ru}
 
 object PlatformSpecific {
   /** Use for stepping through in debugger */
-  def fromRuntime[T: ru.TypeTag]: LightTypeTag = {
-    fromRuntime(ru.typeOf[T])
-  }
+  def fromRuntime[T: ru.TypeTag]: LightTypeTag = fromRuntime(ru.typeOf[T], false)
+  def fromRuntime[T: ru.TypeTag](loud: Boolean): LightTypeTag = fromRuntime(ru.typeOf[T], loud)
+
   /** Use for stepping through in debugger */
-  def fromRuntime(tpe: ru.Type): LightTypeTag = {
+  def fromRuntime(tpe: ru.Type, loud: Boolean): LightTypeTag = {
     synchronized {
-      val used = System.getProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`) ne null
-      if (!used) System.setProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`, "true")
+      val doSet = loud && (System.getProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`) eq null)
+      if (!doSet) System.setProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`, "true")
       try LightTypeTagImpl.makeLightTypeTag(ru)(tpe)
       finally {
-        System.clearProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`); ()
+        if (!doSet) System.clearProperty(DebugProperties.`izumi.reflect.debug.macro.rtti`); ()
       }
     }
   }

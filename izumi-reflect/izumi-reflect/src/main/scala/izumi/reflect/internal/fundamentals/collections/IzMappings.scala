@@ -22,10 +22,10 @@ import scala.annotation.nowarn
 
 import scala.collection.mutable
 
-private[reflect] final class IzMappings[A, B](private val list: IterableOnce[(A, B)]) extends AnyVal {
+private[reflect] final class IzMappings[A, B](private val list: scala.collection.compat.IterableOnce[(A, B)]) extends AnyVal {
   @nowarn("msg=deprecated")
   def toMutableMultimap: MutableMultiMap[A, B] = {
-    list.iterator.foldLeft(new mutable.HashMap[A, mutable.Set[B]] with mutable.MultiMap[A, B]) {
+    list.foldLeft(new mutable.HashMap[A, mutable.Set[B]] with mutable.MultiMap[A, B]) {
       (map, pair) => map.addBinding(pair._1, pair._2)
     }
   }

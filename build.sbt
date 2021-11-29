@@ -5,17 +5,12 @@ enablePlugins(SbtgenVerificationPlugin)
 lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
     libraryDependencies ++= Seq(
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
       "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
-    ) else Seq.empty },
-    libraryDependencies ++= { if (Seq(
-      "2.11.12",
-      "2.12.15"
-    ) contains scalaVersion.value) Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
     ) else Seq.empty }
   )
   .settings(
@@ -207,17 +202,12 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   )
   .settings(
     libraryDependencies ++= Seq(
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
       "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
-    ) else Seq.empty },
-    libraryDependencies ++= { if (Seq(
-      "2.11.12",
-      "2.12.15"
-    ) contains scalaVersion.value) Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
     ) else Seq.empty }
   )
   .settings(
