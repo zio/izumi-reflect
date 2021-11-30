@@ -180,6 +180,156 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     inh.toSet
   }
 
+  private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
+
+    val appliedBases = allReferenceComponents
+      .filterNot(isHKTOrPolyType) // remove PolyTypes, only process applied types in this inspection
+      .flatMap {
+        component =>
+          val appliedParents = tpeBases(component).filterNot(isHKTOrPolyType)
+          val tparams = component.etaExpand.typeParams
+          val lambdaParams = makeLambdaParams(None, tparams).toMap
+
+          val componentRef = makeRef(component)
+
+          appliedParents.map {
+            parentTpe =>
+              val parentRef = makeRef(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
+                case unapplied: Lambda =>
+                  if (unapplied.someArgumentsReferenced) {
+                    unapplied
+                  } else {
+                    logger.log(
+                      s"Not all arguments referenced in l=$unapplied, parentTpe=$parentTpe(etaExpand:${parentTpe.etaExpand}), tparams=$tparams, mainTpe=$mainTpe(etaExpand:${mainTpe.etaExpand})"
+                    )
+                    unapplied.output
+                  }
+                case applied: AppliedReference =>
+                  applied
+              }
+              (componentRef, parentRef)
+          }
+      }
+    logger.log(s"Computed applied bases for tpe=$mainTpe appliedBases=${appliedBases.toMultimap.niceList()}")
+    appliedBases
+  }
+
+  private[this] def makeLambdaOnlyBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
+
+    def processLambdasReturningRefinements(tpeRaw0: Type): Seq[(AbstractReference, AbstractReference)] = {
+      val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
+
+      IzAssert(
+        assertion = {
+          if (componentsOfPolyTypeResultType.maybeUnbrokenType.nonEmpty) {
+            componentsOfPolyTypeResultType.intersectionComponents.exists(_.etaExpand.typeParams.nonEmpty)
+          } else true
+        },
+        clue = {
+          s"""Unexpected intersection contains a PolyType:
+             |tpeRaw0 = $tpeRaw0
+             |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
+             |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
+             |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
+             |""".stripMargin
+        }
+      )
+
+      componentsOfPolyTypeResultType.intersectionComponents.toSeq.flatMap {
+        component =>
+          val componentAsPolyType = component.etaExpand
+          val tparams = component.etaExpand.typeParams
+
+          if (tparams.isEmpty) {
+            Seq.empty
+          } else {
+
+            val lambdaParams = makeLambdaParams(None, tparams)
+            val maybeComponentLambdaRef = makeRef(componentAsPolyType)
+            IzAssert(maybeComponentLambdaRef.isInstanceOf[LightTypeTagRef.Lambda])
+            val parentLambdas = makeLambdaParents(componentAsPolyType, lambdaParams)
+            parentLambdas.map(maybeComponentLambdaRef -> _)
+          }
+      }
+    }
+
+    def makeLambdaParents(componentPolyType: Type, lambdaParams: List[(String, LambdaParameter)]): Seq[AbstractReference] = {
+      val allBaseTypes = tpeBases(componentPolyType)
+
+      val paramMap = lambdaParams.toMap
+
+      allBaseTypes.map {
+        parentTpe =>
+          val reference = makeRef(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
+          reference match {
+            case l: Lambda =>
+              l
+            case applied: AppliedReference =>
+              val l = Lambda(lambdaParams.map(_._2), applied)
+//              Some(l).filter(_.allArgumentsReferenced) // do not include non-lambda parents such as Product into lambda's inheritance tree
+              // include ALL bases for lambdas (this should be more correct since lambda is a template for a full parameterized db after combine)
+              if (l.someArgumentsReferenced) l else applied
+          }
+      }
+    }
+
+    val unappliedBases = allReferenceComponents.flatMap(processLambdasReturningRefinements)
+    logger.log(s"Computed unapplied lambda bases for tpe=$mainTpe unappliedBases=${unappliedBases.toMultimap.niceList()}")
+    unappliedBases
+  }
+
+  private[this] def makeClassOnlyInheritanceDb(mainTpe: Type, allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
+    val baseclassReferences = allReferenceComponents
+      .iterator
+      .flatMap {
+        // squash all type lambdas and get the intersection of their results
+        // because we don't care about type parameters at all in this inspection
+        UniRefinement.breakRefinement(_, squashHKTRefToPolyTypeResultType = true).intersectionComponents
+      }
+      .flatMap {
+        component =>
+          val prefix = getPrefix(component)
+          val componentRef = makeNameReference(component, component.typeSymbol, Boundaries.Empty, prefix)
+          val appliedBases = tpeBases(component).filterNot(isHKTOrPolyType)
+          appliedBases.map(componentRef -> makeRef(_))
+      }
+
+    val unparameterizedInheritanceData = baseclassReferences
+      .toMultimap
+      .map {
+        case (t, parents) =>
+          t -> parents
+            .collect {
+              case r: AppliedNamedReference =>
+                r.asName
+            }
+            .filterNot {
+              parent =>
+                IzAssert(parent != t, parent -> t) // 2.11/2.12 fail this
+                parent == t
+            }
+      }
+      .filterNot(_._2.isEmpty)
+
+    logger.log(s"Computed unparameterized inheritance data for tpe=$mainTpe unappliedBases=${unparameterizedInheritanceData.toMultimap.niceList()}")
+
+    unparameterizedInheritanceData
+  }
+
+  private[this] def tpeBases(t0: Type): Seq[Type] = {
+    // val tpef = Dealias.fullNormDealiasResultType(t0, squashHKTRefToPolyTypeResultType = false)
+    // no PolyTypes passed to here [but actually we should preserve polyTypes]
+    val tpe = Dealias.fullNormDealias(t0)
+    tpe
+      .baseClasses
+      .iterator
+      .map(tpe.baseType)
+      .filterNot(ignored)
+      .filterNot(if (isSingletonType(tpe)) _ => false else _.typeSymbol.fullName == tpe.typeSymbol.fullName)
+      .filterNot(_ =:= tpe) // 2.11/2.12 fail this
+      .toList
+  }
+
   private[this] def makeRef(tpe: Type): AbstractReference = {
     if (withCache) {
       globalCache.synchronized(globalCache.get(tpe)) match {
@@ -334,156 +484,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         unpackProperTypeRefinement(c, terminalNames)
     }
     out
-  }
-
-  private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
-
-    val appliedBases = allReferenceComponents
-      .filterNot(isHKTOrPolyType) // remove PolyTypes, only process applied types in this inspection
-      .flatMap {
-        component =>
-          val appliedParents = tpeBases(component).filterNot(isHKTOrPolyType)
-          val tparams = component.etaExpand.typeParams
-          val lambdaParams = makeLambdaParams(None, tparams).toMap
-
-          val componentRef = makeRef(component)
-
-          appliedParents.map {
-            parentTpe =>
-              val parentRef = makeRef(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
-                case unapplied: Lambda =>
-                  if (unapplied.someArgumentsReferenced) {
-                    unapplied
-                  } else {
-                    logger.log(
-                      s"Not all arguments referenced in l=$unapplied, parentTpe=$parentTpe(etaExpand:${parentTpe.etaExpand}), tparams=$tparams, mainTpe=$mainTpe(etaExpand:${mainTpe.etaExpand})"
-                    )
-                    unapplied.output
-                  }
-                case applied: AppliedReference =>
-                  applied
-              }
-              (componentRef, parentRef)
-          }
-      }
-    logger.log(s"Computed applied bases for tpe=$mainTpe appliedBases=${appliedBases.toMultimap.niceList()}")
-    appliedBases
-  }
-
-  private[this] def makeLambdaOnlyBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
-
-    def processLambdasReturningRefinements(tpeRaw0: Type): Seq[(AbstractReference, AbstractReference)] = {
-      val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
-
-      IzAssert(
-        assertion = {
-          if (componentsOfPolyTypeResultType.maybeUnbrokenType.nonEmpty) {
-            componentsOfPolyTypeResultType.intersectionComponents.exists(_.etaExpand.typeParams.nonEmpty)
-          } else true
-        },
-        clue = {
-          s"""Unexpected intersection contains a PolyType:
-             |tpeRaw0 = $tpeRaw0
-             |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
-             |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
-             |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
-             |""".stripMargin
-        }
-      )
-
-      componentsOfPolyTypeResultType.intersectionComponents.toSeq.flatMap {
-        component =>
-          val componentAsPolyType = component.etaExpand
-          val tparams = component.etaExpand.typeParams
-
-          if (tparams.isEmpty) {
-            Seq.empty
-          } else {
-
-            val lambdaParams = makeLambdaParams(None, tparams)
-            val maybeComponentLambdaRef = makeRef(componentAsPolyType)
-            IzAssert(maybeComponentLambdaRef.isInstanceOf[LightTypeTagRef.Lambda])
-            val parentLambdas = makeLambdaParents(componentAsPolyType, lambdaParams)
-            parentLambdas.map(maybeComponentLambdaRef -> _)
-          }
-      }
-    }
-
-    def makeLambdaParents(componentPolyType: Type, lambdaParams: List[(String, LambdaParameter)]): Seq[AbstractReference] = {
-      val allBaseTypes = tpeBases(componentPolyType)
-
-      val paramMap = lambdaParams.toMap
-
-      allBaseTypes.map {
-        parentTpe =>
-          val reference = makeRef(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
-          reference match {
-            case l: Lambda =>
-              l
-            case applied: AppliedReference =>
-              val l = Lambda(lambdaParams.map(_._2), applied)
-//              Some(l).filter(_.allArgumentsReferenced) // do not include non-lambda parents such as Product into lambda's inheritance tree
-              // include ALL bases for lambdas (this should be more correct since lambda is a template for a full parameterized db after combine)
-              if (l.someArgumentsReferenced) l else applied
-          }
-      }
-    }
-
-    val unappliedBases = allReferenceComponents.flatMap(processLambdasReturningRefinements)
-    logger.log(s"Computed unapplied lambda bases for tpe=$mainTpe unappliedBases=${unappliedBases.toMultimap.niceList()}")
-    unappliedBases
-  }
-
-  private[this] def makeClassOnlyInheritanceDb(mainTpe: Type, allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
-    val baseclassReferences = allReferenceComponents
-      .iterator
-      .flatMap {
-        // squash all type lambdas and get the intersection of their results
-        // because we don't care about type parameters at all in this inspection
-        UniRefinement.breakRefinement(_, squashHKTRefToPolyTypeResultType = true).intersectionComponents
-      }
-      .flatMap {
-        component =>
-          val prefix = getPrefix(component)
-          val componentRef = makeNameReference(component, component.typeSymbol, Boundaries.Empty, prefix)
-          val appliedBases = tpeBases(component).filterNot(isHKTOrPolyType)
-          appliedBases.map(componentRef -> makeRef(_))
-      }
-
-    val unparameterizedInheritanceData = baseclassReferences
-      .toMultimap
-      .map {
-        case (t, parents) =>
-          t -> parents
-            .collect {
-              case r: AppliedNamedReference =>
-                r.asName
-            }
-            .filterNot {
-              parent =>
-                IzAssert(parent != t, parent -> t) // 2.11/2.12 fail this
-                parent == t
-            }
-      }
-      .filterNot(_._2.isEmpty)
-
-    logger.log(s"Computed unparameterized inheritance data for tpe=$mainTpe unappliedBases=${unparameterizedInheritanceData.toMultimap.niceList()}")
-
-    unparameterizedInheritanceData
-  }
-
-  private[this] def tpeBases(t0: Type): Seq[Type] = {
-    // val tpef = Dealias.fullNormDealiasResultType(t0, squashHKTRefToPolyTypeResultType = false)
-    // no PolyTypes passed to here [but actually we should preserve polyTypes]
-    val tpe = Dealias.fullNormDealias(t0)
-    tpe
-      .baseClasses
-      .iterator
-      .map(tpe.baseType)
-      .filterNot(ignored)
-      .filterNot(if (isSingletonType(tpe)) _ => false else _.typeSymbol.fullName == tpe.typeSymbol.fullName)
-      .filterNot(_ =:= tpe) // 2.11/2.12 fail this
-      .toList
   }
 
   private[this] def makeLambdaParams(ctxIdx: Option[Int], tparams: List[Symbol]): List[(String, LambdaParameter)] = {
