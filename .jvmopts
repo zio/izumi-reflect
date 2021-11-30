@@ -1,7 +1,10 @@
 
 # toggle debug output
 #-Dizumi.reflect.debug.macro.rtti=true
--Dizumi.reflect.debug.macro.rtti=false
+#-Dizumi.reflect.debug.macro.rtti=false
+# toggle debug assertions
+#-Dizumi.reflect.debug.macro.rtti.assertions=true
+#-Dizumi.reflect.debug.macro.rtti.assertions=false
 
 -Xmx8G
 -XX:ReservedCodeCacheSize=256m

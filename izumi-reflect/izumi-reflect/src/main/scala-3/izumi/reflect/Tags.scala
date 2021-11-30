@@ -19,10 +19,9 @@
 package izumi.reflect
 
 import izumi.reflect.dottyreflection.Inspect
-import izumi.reflect.macrortti.LightTypeTag
+import izumi.reflect.macrortti.{LTag, LightTypeTag}
 
 import scala.annotation.implicitNotFound
-import scala.language.experimental.macros
 
 trait AnyTag {
   def tag: LightTypeTag
@@ -73,7 +72,8 @@ trait AnyTag {
   * Without a `TagK` constraint above, this example would fail with `no TypeTag available for MyService[F]` error
   *
   * Currently some limitations apply as to when a `Tag` will be correctly constructed:
-  *   * Type Parameters do not yet resolve inside structural refinements, e.g. T in {{{ Tag[{ def x: T}] }}}
+  *   * Type Parameters do not yet resolve in structural refinement methods, e.g. T in {{{ Tag[{ def x: T}] }}}
+  *     They do resolve in refinement type members however, e.g. {{{ Tag[ Any { type Out = T } ] }}}
   *   * TagK* does not resolve for constructors with bounded parameters, e.g. S in {{{ class Abc[S <: String]; TagK[Abc] }}}
   *     (You can still have a bound in partial application: e.g. {{{ class Abc[S <: String, A]; TagK[Abc["hi", ?]] }}}
   *   * Further details at [[https://github.com/7mind/izumi/issues/374]]
@@ -100,7 +100,9 @@ object Tag {
     *
     * NOTE: On Scala 3+ it's the same as `Tag[T]`
     */
-  object auto { type T[T <: AnyKind] = Tag[T] }
+  object auto {
+    type T[X <: AnyKind] = Tag[X]
+  }
 
   @inline def apply[T <: AnyKind: Tag]: Tag[T] = implicitly
 
@@ -143,11 +145,6 @@ object Tag {
     additionalTypeMembers: Map[String, LightTypeTag]
   ): Tag[R] = {
     Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
-  }
-
-  @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
-  private[Tag] def refinedTag[R](lubClass: Class[_], intersection: List[LightTypeTag], structType: LightTypeTag): Tag[R] = {
-    refinedTag(lubClass, intersection, structType, Map.empty)
   }
 
   inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = ${ TagMacro.createTagExpr[T] }
@@ -230,12 +227,6 @@ type TagK20[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag
 type TagK21[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
 type TagK22[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
 
-// TODO
-//  type TagKUBound[U, K[_ <: U]] = HKTag[{ type Arg[A <: U] = K[A] }]
-//  object TagKUBound {
-//    def apply[U, K[_ <: U]](implicit ev: TagKUBound[U, K]): TagKUBound[U, K] = implicitly
-//  }
-
 // Workaround needed specifically to support generic methods in factories, see `GenericAssistedFactory` and related tests
 //
 // We need to construct a SafeType signature for a generic method, but generic parameters have no type tags
@@ -248,18 +239,18 @@ trait WeakTag[T <: AnyKind] extends AnyTag {
 }
 
 object WeakTag extends WeakTagInstances1 {
-  def apply[T: WeakTag]: WeakTag[T] = implicitly
+  @inline def apply[T <: AnyKind: WeakTag]: WeakTag[T] = implicitly
 
-  def apply[T](cls: Class[_], l: LightTypeTag): WeakTag[T] = {
+  def apply[T <: AnyKind](cls: Class[_], l: LightTypeTag): WeakTag[T] = {
     new WeakTag[T] {
       override val tag: LightTypeTag = l
       override val closestClass: Class[_] = cls
     }
   }
 
-  implicit def weakTagFromTag[T: Tag]: WeakTag[T] = WeakTag(Tag[T].closestClass, Tag[T].tag)
+  implicit def weakTagFromTag[T <: AnyKind](implicit t: Tag[T]): WeakTag[T] = WeakTag(t.closestClass, t.tag)
 }
 trait WeakTagInstances1 {
-//    inline implicit final def weakTagFromWeakTypeTag[T](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
-  inline implicit final def weakTagFromWeakTypeTag[T]: WeakTag[T] = scala.compiletime.error("not implemented")
+  // FIXME: weaken (disable allPartsStrong check for weak tag)
+  implicit final def weakTagFromWeakTypeTag[T <: AnyKind](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
 }

@@ -103,7 +103,8 @@ private[reflect] object TrivialLogger {
     }
     new AtomicBoolean(prop())
   }
-  // for calling within a debugger when live debugging
-  def enableLogs(): Unit = enabled.set(true)
-  def disableLogs(): Unit = enabled.set(true)
+  // for calling within a debugger or tests
+  private[reflect] def enableLogs(): Unit = enabled.set(true)
+  private[reflect] def disableLogs(): Unit = enabled.set(false)
+  private[reflect] def statusLogs(): Boolean = enabled.get()
 }

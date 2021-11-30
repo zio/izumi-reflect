@@ -72,7 +72,8 @@ trait AnyTag {
   * Without a `TagK` constraint above, this example would fail with `no TypeTag available for MyService[F]` error
   *
   * Currently some limitations apply as to when a `Tag` will be correctly constructed:
-  *   * Type Parameters do not yet resolve inside structural refinements, e.g. T in {{{ Tag[{ def x: T}] }}}
+  *   * Type Parameters do not yet resolve in structural refinement methods, e.g. T in {{{ Tag[{ def x: T}] }}}
+  *     They do resolve in refinement type members however, e.g. {{{ Tag[ Any { type Out = T } ] }}}
   *   * TagK* does not resolve for constructors with bounded parameters, e.g. S in {{{ class Abc[S <: String]; TagK[Abc] }}}
   *     (You can still have a bound in partial application: e.g. {{{ class Abc[S <: String, A]; TagK[Abc["hi", ?]] }}}
   *   * Further details at [[https://github.com/7mind/izumi/issues/374]]

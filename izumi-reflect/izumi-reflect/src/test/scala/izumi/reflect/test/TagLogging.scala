@@ -1,5 +1,6 @@
 package izumi.reflect.test
 
+import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti.LightTypeTag
 import org.scalatest.wordspec.AnyWordSpec
@@ -7,15 +8,36 @@ import org.scalatest.wordspec.AnyWordSpec
 trait TagLogging extends AnyWordSpec {
 
   // enable subtype comparison / .fromRuntime construction logging in tests
-  def loud(f: => Any): Unit = {
+  final def loud(f: => Any): Unit = TagLogging.loud(f)
+  final def withSanityChecks(f: => Any): Unit = TagLogging.withSanityChecks(f)
+
+  final def println(o: Any): Unit = info(o.toString)
+  final def println(o: LightTypeTag): Unit = info(o.ref.toString)
+
+}
+
+object TagLogging {
+  def loud[T](f: => T): T = {
     synchronized {
-      TrivialLogger.enableLogs()
-      try { f; () }
-      finally TrivialLogger.disableLogs()
+      val enabledBefore = TrivialLogger.statusLogs()
+
+      if (!enabledBefore) { TrivialLogger.enableLogs() }
+      try {
+        f
+      } finally {
+        if (!enabledBefore) { TrivialLogger.disableLogs() }
+      }
     }
   }
-
-  def println(o: Any): Unit = info(o.toString)
-  def println(o: LightTypeTag): Unit = info(o.ref.toString)
-
+  def withSanityChecks[T](f: => T): T = {
+    synchronized {
+      val enabledBefore = IzAssert.statusAsserts()
+      if (!enabledBefore) { IzAssert.enableAsserts() }
+      try {
+        f
+      } finally {
+        if (!enabledBefore) { IzAssert.disableAsserts() }
+      }
+    }
+  }
 }

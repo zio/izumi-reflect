@@ -19,6 +19,7 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections._
+import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
@@ -105,7 +106,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
 
-  private def allTypeReferences(tpe0: Type): Set[Type] = {
+  // FIXME `allTypeReferences` & `makeRef` should be merged together,
+  //  since they both pass over all visible components of a type in a similar way
+  private[this] def allTypeReferences(mainTpe: Type): Set[Type] = {
 
     def extractComponents(tpeRaw0: Type, inh: mutable.HashSet[Type]): Unit = {
       val breakResult = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = false)
@@ -140,10 +143,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       // polyTypeResult: Either[L,R] where L,R are trash symbols
       val tpePolyTypeResultType = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(tpeUnexpanded)
 
-      logger.log(
-        s"Got tpeUnexpanded=$tpeUnexpanded class=${tpeUnexpanded.getClass} args=${tpeUnexpanded.typeArgs} params=${tpeUnexpanded.typeParams}"
-      )
-
       // we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
       // tpe.etaExpand.resultType.dealias.typeArgs.flatMap(_.dealias.resultType.typeSymbol.typeSignature match {
       val tparamTypeBoundsAndTypeArgs = tpePolyTypeResultType.typeArgs.flatMap {
@@ -161,56 +160,46 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
 
       logger.log(
-        s"Got tpePolyTypeResultType=$tpePolyTypeResultType class=${tpePolyTypeResultType.getClass} args=${tpePolyTypeResultType.typeArgs} params=${tpePolyTypeResultType.typeParams} tparamTypeBounds=$tparamTypeBoundsAndTypeArgs"
-      )
-      val tpePolyType = tpeUnexpanded.etaExpand
-      logger.log(
-        s"Got tpePolyType=$tpePolyType class=${tpePolyType.getClass} args=${tpePolyType.typeArgs} params=${tpePolyType.typeParams}"
+        s"""Got tpeUnexpanded=$tpeUnexpanded:${tpeUnexpanded.getClass} args=${tpeUnexpanded.typeArgs} params=${tpeUnexpanded.typeParams}
+           |tpePolyTypeResultType=$tpePolyTypeResultType:${tpePolyTypeResultType.getClass} args=${tpePolyTypeResultType.typeArgs} params=${tpePolyTypeResultType.typeParams}
+           |tparamTypeBoundsAndTypeArgs=$tparamTypeBoundsAndTypeArgs
+           |""".stripMargin
       )
 
+//    Iterator.single(tpePolyTypeResultType) ++ // trash symbols
+//    tpePolyTypeResultType.typeArgs.iterator ++ // redundant, included in `tparamTypeBoundsAndTypeArgs`
       Iterator.single(tpeUnexpanded) ++
       tpeUnexpanded.typeArgs.iterator ++
-//      Iterator.single(tpePolyTypeResultType) ++ // corrupted type
-//      tpePolyTypeResultType.typeArgs.iterator ++ // redundant, included below
       tparamTypeBoundsAndTypeArgs.iterator
     }
 
     val inh = mutable.HashSet[Type]()
-    extractComponents(tpe0, inh)
-    logger.log(s"Extracted type references for tpe=$tpe0 inh=${inh.iterator.map(t => (t, t.getClass.asInstanceOf[Class[Any]])).toMap.niceList()}")
+    extractComponents(mainTpe, inh)
+    logger.log(s"Extracted all type references for mainTpe=$mainTpe inh=${inh.iterator.map(t => (t, t.getClass.asInstanceOf[Class[Any]])).toMap.niceList()}")
 
     inh.toSet
   }
 
-  private def makeRef(tpe: Type): AbstractReference = {
+  private[this] def makeRef(tpe: Type): AbstractReference = {
     if (withCache) {
       globalCache.synchronized(globalCache.get(tpe)) match {
         case null =>
-          val ref = makeRef(tpe, terminalNames = Map.empty)
+          val ref = makeRef(tpe, terminalNames = Map.empty, isLambdaOutput = false)
           globalCache.synchronized(globalCache.put(tpe, ref))
           ref
         case ref =>
           ref
       }
     } else {
-      makeRef(tpe, terminalNames = Map.empty)
+      makeRef(tpe, terminalNames = Map.empty, isLambdaOutput = false)
     }
   }
 
-  private def makeRef(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean = false): AbstractReference = {
-    val tuple = makeRef0(0)(tpe, Set(tpe), terminalNames, isLambdaOutput, mutable.HashSet.empty)
-    if (tuple._2.nonEmpty) logger.log(s"Gathered inh=${tuple._2}")
-    tuple._1
+  private[this] def makeRef(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
+    this.makeRefImpl(0, nestedIn = Set(tpe), terminalNames)(tpe, isLambdaOutput)
   }
 
-  private def makeRef0(
-    level: Int
-  )(tpe0: Type,
-    path: Set[Type],
-    terminalNames: Map[String, LambdaParameter],
-    isLambdaOutput: Boolean,
-    inh: mutable.HashSet[Type]
-  ): (AbstractReference, inh.type) = {
+  private[this] def makeRefImpl(level: Int, nestedIn: Set[Type], terminalNames: Map[String, LambdaParameter])(tpe0: Type, isLambdaOutput: Boolean): AbstractReference = {
     val thisLevel = logger.sub(level)
 
     def unpackLambda(t: TypeApi): AbstractReference = {
@@ -235,11 +224,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       out
     }
 
-    def unpackNonLambdaRefinement(t0: Type, rules: Map[String, LambdaParameter]): AppliedReference = {
-      require(!isHKTOrPolyType(Dealias.fullNormDealias(t0)))
+    def unpackProperTypeRefinement(t0: Type, rules: Map[String, LambdaParameter]): AppliedReference = {
+      IzAssert(!isHKTOrPolyType(Dealias.fullNormDealias(t0)))
+
       UniRefinement.breakRefinement(t0, squashHKTRefToPolyTypeResultType = false) match {
-        case Broken.Compound(tpes, decls) =>
-          val parts = tpes.map(unpackAsProperType(_, rules): AppliedReference)
+        case Broken.Compound(components, decls) =>
+          val parts = components.map(unpackAsProperType(_, rules): AppliedReference)
           val intersection = LightTypeTagRef.maybeIntersection(parts)
           if (decls.nonEmpty) {
             Refinement(intersection, decls.flatMap(convertDecl(_, rules)))
@@ -248,14 +238,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           }
 
         case Broken.Single(t) =>
-          t0 match {
-            case p if isHKTOrPolyType(p) =>
-              // we intentionally ignore breakRefinement result here, it breaks lambdas (with squashHKTRefToPolyTypeResultType = true)
-              throw new RuntimeException(p.getClass.->(p.etaExpand.getClass -> p.etaExpand.takesTypeArgs).toString)
-              unpackAsProperType(p, rules)
-            case _ =>
-              unpackAsProperType(t, rules)
-          }
+          unpackAsProperType(t, rules)
       }
     }
 
@@ -291,27 +274,20 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     def convertDecl(decl: SymbolApi, rules: Map[String, LambdaParameter]): scala.collection.compat.IterableOnce[RefinementDecl] = {
       if (decl.isMethod) {
-        val m = decl.asMethod
-        val ret = m.returnType
+        val declMethod = decl.asMethod
+        val returnTpe = declMethod.returnType
 
-        val params = m.paramLists.map {
-          paramlist =>
-            paramlist.map {
-              p =>
-                val pt = UniRefinement.typeOfParam(p)
-                makeRefSub(pt, rules).asInstanceOf[AppliedReference]
-            }
-        }
+        val paramLists0 = declMethod
+          .paramLists.map(_.map {
+            param =>
+              val paramTpe = UniRefinement.typeOfParam(param)
+              makeRefSub(paramTpe, rules).asInstanceOf[AppliedReference]
+          })
+        val paramLists = if (paramLists0.nonEmpty) paramLists0 else List(Nil)
 
-        val inputs = if (params.nonEmpty) {
-          params
-        } else {
-          Seq(Seq.empty)
-        }
-
-        inputs.map {
-          pl =>
-            RefinementDecl.Signature(m.name.decodedName.toString, pl.toList, makeRefSub(ret, rules).asInstanceOf[AppliedReference])
+        paramLists.map {
+          parameterList =>
+            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules).asInstanceOf[AppliedReference])
         }
       } else if (decl.isType) {
         val tpe = UniRefinement.typeOfTypeMember(decl)
@@ -325,7 +301,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     def makeBoundaries(t: Type): Boundaries = {
       t.typeSymbol.typeSignature match {
         case b: TypeBoundsApi =>
-          if ((b.lo =:= nothing && b.hi =:= any) || (path.contains(b.lo) || path.contains(b.hi))) {
+          if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
             Boundaries.Empty
           } else {
             Boundaries.Defined(makeRefSub(b.lo), makeRefSub(b.hi))
@@ -336,12 +312,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter] = Map.empty): AbstractReference = {
-      this.makeRef0(level + 1)(tpe, path + tpe, terminalNames ++ stop, isLambdaOutput = false, inh)._1
+      this.makeRefImpl(level + 1, nestedIn + tpe, terminalNames ++ stop)(tpe, isLambdaOutput = false)
     }
 
     val out = tpe0 match {
       case l if isLambdaOutput => // this is required for handling SwapF2, etc.
-        require(!isHKTOrPolyType(l), l -> l.getClass)
+        IzAssert(!isHKTOrPolyType(l), l -> l.getClass)
         Lambda(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
 
       case l: PolyTypeApi =>
@@ -355,12 +331,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         }
 
       case c =>
-        unpackNonLambdaRefinement(c, terminalNames)
+        unpackProperTypeRefinement(c, terminalNames)
     }
-    (out, inh)
+    out
   }
 
-  private def makeAppliedBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
+  private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
 
     val appliedBases = allReferenceComponents
       .filterNot(isHKTOrPolyType) // remove PolyTypes, only process applied types in this inspection
@@ -379,10 +355,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
                   if (unapplied.someArgumentsReferenced) {
                     unapplied
                   } else {
-//                    require(
-//                      unapplied.someArgumentsReferenced,
-//                      s"Not all arguments referenced in l=$unapplied, base=$parentTpe(expand:${parentTpe.etaExpand}), tparams=$tparams(tpe.expand:${mainTpe.etaExpand})"
-//                    )
+                    logger.log(
+                      s"Not all arguments referenced in l=$unapplied, parentTpe=$parentTpe(etaExpand:${parentTpe.etaExpand}), tparams=$tparams, mainTpe=$mainTpe(etaExpand:${mainTpe.etaExpand})"
+                    )
                     unapplied.output
                   }
                 case applied: AppliedReference =>
@@ -395,10 +370,26 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     appliedBases
   }
 
-  private def makeLambdaOnlyBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
+  private[this] def makeLambdaOnlyBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
 
     def processLambdasReturningRefinements(tpeRaw0: Type): Seq[(AbstractReference, AbstractReference)] = {
       val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
+
+      IzAssert(
+        assertion = {
+          if (componentsOfPolyTypeResultType.maybeUnbrokenType.nonEmpty) {
+            componentsOfPolyTypeResultType.intersectionComponents.exists(_.etaExpand.typeParams.nonEmpty)
+          } else true
+        },
+        clue = {
+          s"""Unexpected intersection contains a PolyType:
+             |tpeRaw0 = $tpeRaw0
+             |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
+             |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
+             |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
+             |""".stripMargin
+        }
+      )
 
       componentsOfPolyTypeResultType.intersectionComponents.toSeq.flatMap {
         component =>
@@ -408,18 +399,10 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           if (tparams.isEmpty) {
             Seq.empty
           } else {
-            require(
-              if (componentsOfPolyTypeResultType.maybeUnbrokenType.nonEmpty) {
-                componentsOfPolyTypeResultType.intersectionComponents.exists(_.etaExpand.typeParams.nonEmpty)
-              } else true,
-              message = componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*") ->
-                componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+") ->
-                componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")
-            )
 
             val lambdaParams = makeLambdaParams(None, tparams)
             val maybeComponentLambdaRef = makeRef(componentAsPolyType)
-            require(maybeComponentLambdaRef.isInstanceOf[LightTypeTagRef.Lambda])
+            IzAssert(maybeComponentLambdaRef.isInstanceOf[LightTypeTagRef.Lambda])
             val parentLambdas = makeLambdaParents(componentAsPolyType, lambdaParams)
             parentLambdas.map(maybeComponentLambdaRef -> _)
           }
@@ -433,7 +416,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       allBaseTypes.map {
         parentTpe =>
-          val reference = makeRef(parentTpe, terminalNames = paramMap)
+          val reference = makeRef(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
           reference match {
             case l: Lambda =>
               l
@@ -451,7 +434,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     unappliedBases
   }
 
-  private def makeClassOnlyInheritanceDb(mainTpe: Type, allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
+  private[this] def makeClassOnlyInheritanceDb(mainTpe: Type, allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
     val baseclassReferences = allReferenceComponents
       .iterator
       .flatMap {
@@ -463,25 +446,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         component =>
           val prefix = getPrefix(component)
           val componentRef = makeNameReference(component, component.typeSymbol, Boundaries.Empty, prefix)
-
-          // this doesn't seem to ever happen
-          val innerSymbolName = component match {
-            case a: TypeRefApi =>
-              val innerSymName = symName(a.sym)
-              if (innerSymName != componentRef.ref) {
-                require(false, innerSymName -> componentRef)
-                val innerRef = NameReference(innerSymName, Boundaries.Empty, prefix)
-                Seq(innerRef -> componentRef)
-              } else {
-                Seq.empty
-              }
-            case _ =>
-              Seq.empty
-          }
-
           val appliedBases = tpeBases(component).filterNot(isHKTOrPolyType)
-
-          innerSymbolName ++ appliedBases.map(componentRef -> makeRef(_))
+          appliedBases.map(componentRef -> makeRef(_))
       }
 
     val unparameterizedInheritanceData = baseclassReferences
@@ -495,7 +461,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             }
             .filterNot {
               parent =>
-//                require(parent != t, parent -> t)
+                IzAssert(parent != t, parent -> t) // 2.11/2.12 fail this
                 parent == t
             }
       }
@@ -506,50 +472,21 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     unparameterizedInheritanceData
   }
 
-  private def tpeBases(t0: Type): Seq[Type] = {
-//    val tpef = Dealias.fullNormDealiasResultType(t0, squashHKTRefToPolyTypeResultType = false)
-    // no PolyTypes passed to here
-    val tpef = Dealias.fullNormDealias(t0)
-    val higherBases = tpef.baseClasses
-    val onlyParameterizedBases = {
-      higherBases
-        .filterNot {
-          s =>
-            !s.isType || {
-              val btype = s.asType.toType
-              ignored.exists(_ =:= btype) || btype =:= tpef
-            }
-        }
-        .map(s => tpef.baseType(s))
-    }
-    val allbases = onlyParameterizedBases.filterNot(_ =:= tpef)
-
-    val newBases = {
-
-      //    val tpef = Dealias.fullNormDealiasResultType(t0, squashHKTRefToPolyTypeResultType = false)
-      // no PolyTypes passed to here [actually we should preserve polytypes]
-      val tpe = Dealias.fullNormDealias(t0)
-      tpe
-        .baseClasses
-        .iterator
-        .map(tpe.baseType)
-        .filterNot(ignored)
-        .filterNot(if (isSingletonType(tpe)) _ => false else _.typeSymbol.fullName == tpe.typeSymbol.fullName)
-        .filterNot(_ =:= tpe)
-        .toList
-    }
-
-    val oldremove = allbases.toSet.diff(newBases.toSet)
-    val n = newBases.toSet.diff(allbases.toSet)
-    if (oldremove.nonEmpty) {
-      require(!isSingletonType(tpef), s"blahold removed $tpef $oldremove $tpef ${isSingletonType(tpef)} ${tpef.getClass}")
-      logger.log(s"blahold removed $tpef $oldremove")
-    }
-    if (n.nonEmpty) logger.log(s"blahnew added $tpef $n")
-    newBases
+  private[this] def tpeBases(t0: Type): Seq[Type] = {
+    // val tpef = Dealias.fullNormDealiasResultType(t0, squashHKTRefToPolyTypeResultType = false)
+    // no PolyTypes passed to here [but actually we should preserve polyTypes]
+    val tpe = Dealias.fullNormDealias(t0)
+    tpe
+      .baseClasses
+      .iterator
+      .map(tpe.baseType)
+      .filterNot(ignored)
+      .filterNot(if (isSingletonType(tpe)) _ => false else _.typeSymbol.fullName == tpe.typeSymbol.fullName)
+      .filterNot(_ =:= tpe) // 2.11/2.12 fail this
+      .toList
   }
 
-  private def makeLambdaParams(ctxIdx: Option[Int], tparams: List[Symbol]): List[(String, LambdaParameter)] = {
+  private[this] def makeLambdaParams(ctxIdx: Option[Int], tparams: List[Symbol]): List[(String, LambdaParameter)] = {
     tparams.zipWithIndex.map {
       case (tparamSym, idx) =>
         val fullName = tparamSym.fullName
@@ -563,7 +500,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
   }
 
-  private object UniRefinement {
+  private[this] object UniRefinement {
 
     def unapply(tpe: Type): Option[(List[Type], List[SymbolApi])] = {
       (tpe: AnyRef) match {
@@ -586,7 +523,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    private def breakRefinement0(t0: Type, squashHKTRefToPolyTypeResultType: Boolean): (Set[Type], Set[SymbolApi]) = {
+    private[this] def breakRefinement0(t0: Type, squashHKTRefToPolyTypeResultType: Boolean): (Set[Type], Set[SymbolApi]) = {
       val normalized = if (squashHKTRefToPolyTypeResultType) {
         Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(t0)
       } else {
@@ -617,7 +554,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   }
 
-  private object Dealias {
+  private[this] object Dealias {
 
     def fullNormDealiasSquashHKTToPolyTypeResultType(t0: Type): Type = {
       var prev = null: Type
@@ -642,7 +579,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     // On Scala 2.12+ .dealias automatically destroys wildcards by using TypeMaps#ExistentialExtrapolation on dealiased existential output
     // This is kinda bad. But whatever, we're stuck with this behavior for this moment, so we should emulate it on 2.11 to make it work too.
-    private def scala211ExistentialDealiasWorkaround(t0: Type): Type = {
+    private[this] def scala211ExistentialDealiasWorkaround(t0: Type): Type = {
       t0.dealias match {
         case existential: ExistentialTypeApi =>
           internal.existentialAbstraction(existential.quantified, existential.underlying.dealias)
@@ -667,7 +604,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   }
 
-  private def getPrefix(tpe: Type): Option[AppliedReference] = {
+  private[this] def getPrefix(tpe: Type): Option[AppliedReference] = {
 
     def fromRef(o: Type): Option[AppliedReference] = {
       makeRef(o) match {
@@ -721,7 +658,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     unpacked
   }
 
-  private def makeNameReference(originalType: Type, typeSymbol: Symbol, boundaries: Boundaries, prefix: Option[AppliedReference]): NameReference = {
+  private[this] def makeNameReference(originalType: Type, typeSymbol: Symbol, boundaries: Boundaries, prefix: Option[AppliedReference]): NameReference = {
     originalType match {
       case c: ConstantTypeApi =>
         NameReference(SymLiteral(c.value.value), boundaries, prefix)
@@ -737,7 +674,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
   }
 
-  private def symName(sym: Symbol): SymName = {
+  private[this] def symName(sym: Symbol): SymName = {
     val o = sym.owner
     val base = if (o.asInstanceOf[{ def hasMeaninglessName: Boolean }].hasMeaninglessName) {
       sym.name.decodedName.toString
@@ -752,19 +689,19 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
   }
 
-  private def isHKTOrPolyType(tpe: Type): Boolean = {
+  private[this] def isHKTOrPolyType(tpe: Type): Boolean = {
     tpe.takesTypeArgs || tpe.isInstanceOf[PolyTypeApi]
   }
 
-  private def hasSingletonType(sym: Symbol): Boolean = {
+  private[this] def hasSingletonType(sym: Symbol): Boolean = {
     sym.isTerm || sym.isModuleClass || isSingletonType(sym.typeSignature)
   }
 
-  @inline private def isSingletonType(tpe: Type): Boolean = {
+  @inline private[this] def isSingletonType(tpe: Type): Boolean = {
     tpe.isInstanceOf[SingletonTypeApi] && !tpe.isInstanceOf[ThisTypeApi]
   }
 
-  private def getVariance(tpes: TypeSymbol): Variance = {
+  private[this] def getVariance(tpes: TypeSymbol): Variance = {
     if (tpes.isCovariant) {
       Variance.Covariant
     } else if (tpes.isContravariant) {

@@ -22,4 +22,5 @@ import izumi.reflect.macrortti.{LTag, LightTypeTag}
 
 object PlatformSpecific {
   def fromRuntime[T: LTag]: LightTypeTag = LTag[T].tag
+  def fromRuntime[T: LTag](loud: Boolean): LightTypeTag = LTag[T].tag
 }

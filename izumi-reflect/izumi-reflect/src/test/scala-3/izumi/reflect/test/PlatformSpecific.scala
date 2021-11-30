@@ -23,4 +23,5 @@ import izumi.reflect.macrortti.LightTypeTag
 
 object PlatformSpecific {
   inline def fromRuntime[T]: LightTypeTag = Inspect.inspect[T]
+  inline def fromRuntime[T](loud: Boolean): LightTypeTag = Inspect.inspect[T]
 }
