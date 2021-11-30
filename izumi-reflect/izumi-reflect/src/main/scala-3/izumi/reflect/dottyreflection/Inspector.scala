@@ -8,11 +8,9 @@ import scala.quoted.Type
 import scala.reflect.Selectable.reflectiveSelectable
 
 abstract class Inspector(protected val shift: Int) extends InspectorBase {
-  self =>
-
   import qctx.reflect._
 
-  private def next() = new Inspector(shift + 1) { val qctx: self.qctx.type = self.qctx }
+  private def next() = new Inspector(shift + 1) { val qctx: Inspector.this.qctx.type = Inspector.this.qctx }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
     val uns = TypeTree.of[T]

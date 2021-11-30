@@ -8,13 +8,10 @@ import scala.collection.mutable
 
 import scala.quoted._
 
-abstract class DbInspector(protected val shift: Int) extends InspectorBase {
-  self =>
-
-  // @formatter:off
+abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
-  private lazy val inspector = new Inspector(0) { val qctx: DbInspector.this.qctx.type = DbInspector.this.qctx }
-  // @formatter:on
+
+  private lazy val inspector = new Inspector(0) { val qctx: InheritanceDbInspector.this.qctx.type = InheritanceDbInspector.this.qctx }
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe = TypeRepr.of[T].dealias

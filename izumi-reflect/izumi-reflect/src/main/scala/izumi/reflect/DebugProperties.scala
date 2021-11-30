@@ -39,28 +39,6 @@ object DebugProperties {
   final val `izumi.reflect.rtti.optimized.equals` = "izumi.reflect.rtti.optimized.equals"
 
   /**
-    * To see macro debug output during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` system property
-    *
-    * {{{
-    *   sbt -Dizumi.reflect.debug.macro.rtti=true compile
-    * }}}
-    *
-    * Default: `false`
-    */
-  final val `izumi.reflect.debug.macro.rtti` = "izumi.reflect.debug.macro.rtti"
-
-  /**
-    * To enable sanity checking assertions during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` system property
-    *
-    * {{{
-    *   sbt -Dizumi.reflect.debug.macro.rtti.assertions=true compile
-    * }}}
-    *
-    * Default: `false`
-    */
-  final val `izumi.reflect.debug.macro.rtti.assertions` = "izumi.reflect.debug.macro.rtti.assertions"
-
-  /**
     * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile=false` to disable compile-time caching of computed
     * LightTypeTags. Caching is enabled by default for compile-time light type tag creation.
     *
@@ -83,4 +61,27 @@ object DebugProperties {
     * Default: `true`
     */
   final val `izumi.reflect.rtti.cache.runtime` = "izumi.reflect.rtti.cache.runtime"
+
+  /**
+    * To see macro debug output during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` system property
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.debug.macro.rtti=true compile
+    * }}}
+    *
+    * Default: `false`
+    */
+  final val `izumi.reflect.debug.macro.rtti` = "izumi.reflect.debug.macro.rtti"
+
+  /**
+    * To enable sanity checking assertions during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` system property
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.debug.macro.rtti.assertions=true compile
+    * }}}
+    *
+    * Default: `false`
+    */
+  final val `izumi.reflect.debug.macro.rtti.assertions` = "izumi.reflect.debug.macro.rtti.assertions"
+
 }

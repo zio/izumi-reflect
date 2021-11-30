@@ -194,7 +194,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
           appliedParents.map {
             parentTpe =>
-              val parentRef = makeRef(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
+              val parentRef = makeRefImpl(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
                 case unapplied: Lambda =>
                   if (unapplied.someArgumentsReferenced) {
                     unapplied
@@ -260,7 +260,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       allBaseTypes.map {
         parentTpe =>
-          val reference = makeRef(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
+          val reference = makeRefImpl(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
           reference match {
             case l: Lambda =>
               l
@@ -334,22 +334,22 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     if (withCache) {
       globalCache.synchronized(globalCache.get(tpe)) match {
         case null =>
-          val ref = makeRef(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+          val ref = makeRefImpl(tpe, terminalNames = Map.empty, isLambdaOutput = false)
           globalCache.synchronized(globalCache.put(tpe, ref))
           ref
         case ref =>
           ref
       }
     } else {
-      makeRef(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+      makeRefImpl(tpe, terminalNames = Map.empty, isLambdaOutput = false)
     }
   }
 
-  private[this] def makeRef(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
-    this.makeRefImpl(0, nestedIn = Set(tpe), terminalNames)(tpe, isLambdaOutput)
+  private[this] def makeRefImpl(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
+    this.makeRefImpl0(0, nestedIn = Set(tpe), terminalNames)(tpe, isLambdaOutput)
   }
 
-  private[this] def makeRefImpl(level: Int, nestedIn: Set[Type], terminalNames: Map[String, LambdaParameter])(tpe0: Type, isLambdaOutput: Boolean): AbstractReference = {
+  private[this] def makeRefImpl0(level: Int, nestedIn: Set[Type], terminalNames: Map[String, LambdaParameter])(tpe0: Type, isLambdaOutput: Boolean): AbstractReference = {
     val thisLevel = logger.sub(level)
 
     def unpackLambda(t: TypeApi): AbstractReference = {
@@ -462,7 +462,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter] = Map.empty): AbstractReference = {
-      this.makeRefImpl(level + 1, nestedIn + tpe, terminalNames ++ stop)(tpe, isLambdaOutput = false)
+      this.makeRefImpl0(level + 1, nestedIn + tpe, terminalNames ++ stop)(tpe, isLambdaOutput = false)
     }
 
     val out = tpe0 match {

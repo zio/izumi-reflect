@@ -11,7 +11,7 @@ object TypeInspections {
   }
 
   def unappliedDb[T <: AnyKind: Type](using qctx0: Quotes): Map[NameReference, Set[NameReference]] = {
-    new DbInspector(0) { val qctx = qctx0 }.makeUnappliedInheritanceDb[T]
+    new InheritanceDbInspector(0) { val qctx = qctx0 }.makeUnappliedInheritanceDb[T]
   }
 
   def fullDb[T <: AnyKind: Type](using qctx0: Quotes): Map[AbstractReference, Set[AbstractReference]] = {

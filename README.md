@@ -1,5 +1,6 @@
 [![Project stage][Stage]][Stage-Page]
 ![Build](https://github.com/zio/izumi-reflect/workflows/Build/badge.svg)
+[![javadoc](https://javadoc.io/badge2/dev.zio/izumi-reflect_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13)
 
 # izumi-reflect
 
@@ -36,15 +37,15 @@ This repository contains an independent and more conservative copy of the code c
 
 Known limitations are:
 
-1. Type boundaries support is very limited because of a [problematic behavior](https://github.com/scala/bug/issues/11673) of Scala 2.13 compiler,
+1. Checking of bounds for type parameters may produce unexpected results because of a [problematic behavior](https://github.com/scala/bug/issues/11673) of Scala 2.13 compiler,
 2. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
-3. Existential types written with `forSome` are not supported and may produce unexpected results,
-4. Path-Dependent Types are based on variable names and may cause unexpected results with variables with different names but the same type or vice-versa (vs. Scala typechecker)
-5. At the moment Scala 3 port does not support Path-Dependent Types, and Structural Refinements. This will be fixed in future.
+3. Existential types, both written with wildcards and `forSome`, are not supported and may produce unexpected results.
+4. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
+5. At the moment Scala 3 port does not support Path-Dependent Types, and Structural Refinements. This will be fixed in the future.
 
 ## Debugging
 
-Set `-Dizumi.reflect.debug.macro.rtti=true` to enable debug output during compilation when tags are constructed and at runtime when they are compared.
+Set [`-Dizumi.reflect.debug.macro.rtti=true`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.debug.macro.rtti:String(%22izumi.reflect.debug.macro.rtti%22)) to enable debug output during compilation when tags are constructed and at runtime when they are compared.
 
 ```shell
 sbt -Dizumi.reflect.debug.macro.rtti=true
@@ -52,7 +53,14 @@ sbt -Dizumi.reflect.debug.macro.rtti=true
 
 To see debug output when compiling in Intellij, add the above flag to `VM options` in [Preferences | Build, Execution, Deployment | Compiler | Scala Compiler | Scala Compile Server](jetbrains://idea/settings?name=Build%2C+Execution%2C+Deployment--Compiler--Scala+Compiler--Scala+Compile+Server)
 
-You may also set it in `.jvmopts` file during development
+You may also set it in `.jvmopts` file during development.
+
+Set `-Dizumi.reflect.debug.macro.rtti.assertions=true` to enable additional assertions.
+
+Other useful system properties are:
+
+- [`izumi.reflect.rtti.optimized.equals`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.optimized.equals:String(%22izumi.reflect.rtti.optimized.equals%22)))
+- [`izumi.reflect.rtti.cache.compile`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.cache.compile:String(%22izumi.reflect.rtti.cache.compile%22)))
 
 ## Build
 
