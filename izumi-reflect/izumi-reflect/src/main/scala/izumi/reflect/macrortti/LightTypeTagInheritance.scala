@@ -45,8 +45,7 @@ object LightTypeTagInheritance {
     def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, newparams.iterator.map(_.name).toSet, outerDecls, declNames, logger.sub(), self)
     def next(newdecls: Set[RefinementDecl.TypeMember]): Ctx = Ctx(outerLambdaParams, paramNames, newdecls, newdecls.map(_.name), logger.sub(), self)
   }
-  // https://github.com/lampepfl/dotty/issues/14013
-  // private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
+  // https://github.com/lampepfl/dotty/issues/14013 // private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
   private[LightTypeTagInheritance] implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
     def isChild(selfT0: LightTypeTagRef, thatT0: LightTypeTagRef): Boolean = ctx.self.isChild(ctx.next())(selfT0, thatT0)
   }

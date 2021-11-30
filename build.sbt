@@ -5,7 +5,6 @@ enablePlugins(SbtgenVerificationPlugin)
 lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
       "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
@@ -170,7 +169,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     } },
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "3.1.0") => Set.empty
-      case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
+      case (_, _) => Set(organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.12.15") => Seq(
@@ -202,8 +201,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   )
   .settings(
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided,
-      "org.scalatest" %% "scalatest" % V.scalatest % Test
+      "org.scalatest" %% "scalatest" % V.scalatest % Test,
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
@@ -367,7 +366,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     } },
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "3.1.0") => Set.empty
-      case (_, _) => Set(organization.value %% name.value % "1.0.0-M2")
+      case (_, _) => Set(organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.12.15") => Seq(
@@ -482,11 +481,18 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git")),
     ThisBuild / scalacOptions += """-Xmacro-settings:scalatest-version=${V.scalatest}""",
     ThisBuild / mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr"),
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl#*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.Tag.refinedTag"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.refinedType"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")
+      ProblemFilters.exclude[Problem]("izumi.reflect.internal.*"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.norm"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.izumi$reflect$macrortti$LightTypeTagImpl$$*"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagInheritance.CtxExt"),
+      ProblemFilters.exclude[MissingTypesProblem]       ("izumi.reflect.macrortti.LightTypeTagInheritance$Ctx*"),
+      ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagInheritance#Ctx*"),
+      ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagUnpacker*")
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,

@@ -18,11 +18,8 @@
 
 package izumi.reflect.macrortti
 
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
-
 import izumi.reflect.DebugProperties
-import izumi.reflect.internal.OrderingCompat.setToSortedSet
+import izumi.reflect.internal.OrderingCompat.ArraySeqLike
 import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
@@ -30,8 +27,10 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
 
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import scala.annotation.nowarn
-import scala.collection.immutable.SortedSet
+import scala.collection.immutable.HashSet
 
 /**
   * Extracts internal databases from [[LightTypeTag]].
@@ -39,7 +38,7 @@ import scala.collection.immutable.SortedSet
   *
   * Internal API: binary compatibility not guaranteed.
   */
-case class LightTypeTagUnpacker(tag: LightTypeTag) {
+final case class LightTypeTagUnpacker(tag: LightTypeTag) {
   def bases: Map[AbstractReference, Set[AbstractReference]] = tag.basesdb
   def inheritance: Map[NameReference, Set[NameReference]] = tag.idb
 }
@@ -217,8 +216,10 @@ object LightTypeTag {
     val intersectionRef = LightTypeTagRef.maybeIntersection(parts)
     val ref = {
       val decls = structure.ref match {
-        case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty => decls
-        case _ => SortedSet.empty[RefinementDecl]
+        case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty =>
+          decls
+        case _ =>
+          Set.empty[RefinementDecl]
       }
       if (decls.nonEmpty || additionalTypeMembers.nonEmpty) {
         val newDecls = decls.filterNot(additionalTypeMembers contains _.name) ++ additionalTypeMembers.iterator.map {
@@ -541,7 +542,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet[LightTypeTagRef.AppliedReference](OrderingAbstractReferenceInstance)(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -551,7 +552,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.UnionReference = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.UnionReference(state.unpickle[SortedSet[LightTypeTagRef.AppliedReference]])
+          val value = LightTypeTagRef.UnionReference(state.unpickle[HashSet[LightTypeTagRef.AppliedReference]])
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
@@ -567,7 +568,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet(OrderingAbstractReferenceInstance[LightTypeTagRef.AppliedReference])(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -577,7 +578,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.IntersectionReference = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.IntersectionReference(state.unpickle[SortedSet[LightTypeTagRef.AppliedReference]])
+          val value = LightTypeTagRef.IntersectionReference(state.unpickle[HashSet[LightTypeTagRef.AppliedReference]])
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
@@ -647,7 +648,7 @@ object LightTypeTag {
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.AppliedReference](value.reference)
-            state.pickle[SortedSet[LightTypeTagRef.RefinementDecl]](setToSortedSet(RefinementDecl.OrderingRefinementDecl0)(value.decls))
+            state.pickle[ArraySeqLike[LightTypeTagRef.RefinementDecl]](LightTypeTagRef.refinementDeclSetToSortedArray(value.decls))
             state.addIdentityRef(value)
           }
         }
@@ -657,7 +658,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.Refinement = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.Refinement(state.unpickle[LightTypeTagRef.AppliedReference], state.unpickle[SortedSet[LightTypeTagRef.RefinementDecl]])
+          val value = LightTypeTagRef.Refinement(state.unpickle[LightTypeTagRef.AppliedReference], state.unpickle[HashSet[LightTypeTagRef.RefinementDecl]])
           state.addIdentityRef(value)
           value
         } else if (ic < 0)

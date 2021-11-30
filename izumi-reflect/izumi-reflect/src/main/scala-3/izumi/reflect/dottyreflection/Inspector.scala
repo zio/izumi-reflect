@@ -4,7 +4,6 @@ import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
-import scala.collection.immutable.SortedSet
 import scala.quoted.Type
 import scala.reflect.Selectable.reflectiveSelectable
 
@@ -56,7 +55,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         if (elements.sizeIs == 1) {
           elements.head
         } else {
-          IntersectionReference(elements.to(SortedSet))
+          IntersectionReference(elements)
         }
 
       case o: OrType =>
@@ -64,7 +63,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         if (elements.sizeIs == 1) {
           elements.head
         } else {
-          UnionReference(elements.to(SortedSet))
+          UnionReference(elements)
         }
 
       case term: TermRef =>

@@ -19,12 +19,10 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.internal.OrderingCompat
-import izumi.reflect.internal.OrderingCompat.setToSortedSet
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
-import scala.collection.immutable.SortedSet
 import scala.util.Sorting
 
 sealed trait LightTypeTagRef {
@@ -122,14 +120,13 @@ sealed trait LightTypeTagRef {
         case NameReference(_, _, prefix) => prefix
         case FullReference(_, _, prefix) => prefix
         case IntersectionReference(refs) =>
-          import LightTypeTagRef.OrderingAbstractReferenceInstance
-          val prefixes = refs.map(_.getPrefix).collect {
-            case Some(p: AppliedReference) => p
+          val prefixes = refs.flatMap(_.getPrefix).collect {
+            case p: AppliedReference => p
           }
           if (prefixes.nonEmpty) Some(maybeIntersection(prefixes)) else None
         case UnionReference(refs) =>
-          val prefixes = refs.map(_.getPrefix).collect {
-            case Some(p: AppliedReference) => p
+          val prefixes = refs.flatMap(_.getPrefix).collect {
+            case p: AppliedReference => p
           }
           if (prefixes.nonEmpty) Some(maybeUnion(prefixes)) else None
         case Refinement(reference, _) => getPrefix(reference)
@@ -282,25 +279,16 @@ object LightTypeTagRef {
 
   sealed trait AppliedReference extends AbstractReference
 
-  final case class IntersectionReference(refs: SortedSet[AppliedReference]) extends AppliedReference {
+  final case class IntersectionReference(refs: Set[AppliedReference]) extends AppliedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
-
-//    private[LightTypeTagRef] def refs: Set[AppliedReference] = refs
-    private[LightTypeTagRef] def this(refs: Set[AppliedReference]) = this(setToSortedSet(LightTypeTagRef.OrderingAbstractReferenceInstance[AppliedReference])(refs))
   }
 
-  final case class UnionReference(refs: SortedSet[AppliedReference]) extends AppliedReference {
+  final case class UnionReference(refs: Set[AppliedReference]) extends AppliedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
-
-//    private[LightTypeTagRef] def refs: Set[AppliedReference] = refs
-    private[LightTypeTagRef] def this(refs: Set[AppliedReference]) = this(setToSortedSet(LightTypeTagRef.OrderingAbstractReferenceInstance[AppliedReference])(refs))
   }
 
-  final case class Refinement(reference: AppliedReference, decls: SortedSet[RefinementDecl]) extends AppliedReference {
+  final case class Refinement(reference: AppliedReference, decls: Set[RefinementDecl]) extends AppliedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
-
-    private[LightTypeTagRef] def this(reference: AppliedReference, decls: Set[RefinementDecl]) =
-      this(reference, setToSortedSet(RefinementDecl.OrderingRefinementDecl0)(decls))
   }
 
   private[this] val ignored = Set[AppliedReference](
@@ -317,7 +305,7 @@ object LightTypeTagRef {
       case head :: Nil =>
         head
       case _ =>
-        IntersectionReference(setToSortedSet[AppliedReference](LightTypeTagRef.OrderingAbstractReferenceInstance)(normalized))
+        IntersectionReference(normalized)
     }
   }
 
@@ -329,7 +317,7 @@ object LightTypeTagRef {
       case head :: Nil =>
         head
       case _ =>
-        UnionReference(setToSortedSet[AppliedReference](LightTypeTagRef.OrderingAbstractReferenceInstance)(normalized))
+        UnionReference(normalized)
     }
   }
 
@@ -412,15 +400,15 @@ object LightTypeTagRef {
         lx.compare(ly)
 
       case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
-        OrderingArrayAbstractReference.compare(sortedRefs(refsx), sortedRefs(refsy))
+        OrderingArrayAbstractReference.compare(refSetToSortedArray(refsx), refSetToSortedArray(refsy))
 
       case (UnionReference(refsx), UnionReference(refsy)) =>
-        OrderingArrayAbstractReference.compare(sortedRefs(refsx), sortedRefs(refsy))
+        OrderingArrayAbstractReference.compare(refSetToSortedArray(refsx), refSetToSortedArray(refsy))
 
       case (Refinement(referencex, declsx), Refinement(referencey, declsy)) =>
         val compare1 = compare(referencex, referencey)
         if (compare1 != 0) return compare1
-        OrderingArrayRefinementDecl.compare(sortedDecls(declsx), sortedDecls(declsy))
+        OrderingArrayRefinementDecl.compare(refinementDeclSetToSortedArray(declsx), refinementDeclSetToSortedArray(declsy))
 
       case (NameReference(symx, boundariesx, prefixx), NameReference(symy, boundariesy, prefixy)) =>
         val compare1 = OrderingSymName.compare(symx, symy)
@@ -449,13 +437,13 @@ object LightTypeTagRef {
     }
   }
 
-  private[this] def sortedRefs(set: Set[_ <: AbstractReference]): Array[AbstractReference] = {
+  private[macrortti] def refSetToSortedArray[T <: AbstractReference](set: Set[_ <: T]): Array[T] = {
     val array: Array[AbstractReference] = set.toArray
     Sorting.stableSort(array)
-    array
+    array.asInstanceOf[Array[T]]
   }
 
-  private[this] def sortedDecls(set: Set[RefinementDecl]): Array[RefinementDecl] = {
+  private[macrortti] def refinementDeclSetToSortedArray(set: Set[RefinementDecl]): Array[RefinementDecl] = {
     val array: Array[RefinementDecl] = set.toArray
     Sorting.stableSort(array)
     array

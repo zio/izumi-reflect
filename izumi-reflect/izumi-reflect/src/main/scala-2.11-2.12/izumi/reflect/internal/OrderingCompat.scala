@@ -1,6 +1,5 @@
 package izumi.reflect.internal
 
-import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 
 private[reflect] object OrderingCompat {
@@ -8,12 +7,7 @@ private[reflect] object OrderingCompat {
     Ordering.Implicits.seqDerivedOrdering(ordering)
   }
   @inline private[reflect] def arrayOrdering[A](ordering: Ordering[A]): Ordering[Array[A]] = {
-    Ordering.Implicits.seqDerivedOrdering[mutable.IndexedSeq, A](ordering).on(array => array: mutable.IndexedSeq[A])
+    Ordering.Implicits.seqDerivedOrdering[ArraySeqLike, A](ordering).on(array => array)
   }
-  @inline private[reflect] def sortedSetOrdering[A](ordering: Ordering[A]): Ordering[SortedSet[A]] = {
-    Ordering.Iterable(ordering).asInstanceOf[Ordering[SortedSet[A]]]
-  }
-  private[reflect] def setToSortedSet[A](ord: Ordering[_ >: A])(set: Set[_ <: A]): SortedSet[A] = {
-    SortedSet.newBuilder(ord.asInstanceOf[Ordering[A]]).++=(set).result()
-  }
+  final type ArraySeqLike[A] = mutable.WrappedArray[A]
 }

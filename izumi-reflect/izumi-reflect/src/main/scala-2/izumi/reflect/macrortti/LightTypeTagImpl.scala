@@ -18,16 +18,15 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.internal.OrderingCompat
 import izumi.reflect.internal.fundamentals.collections.IzCollections._
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
 import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
-import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -54,13 +53,13 @@ object LightTypeTagImpl {
 
   private[this] object ReflectionLock
 
-  private[reflect] sealed trait Broken[T, S] {
+  private sealed trait Broken[T, S] {
     def intersectionComponents: Set[T]
     def decls: Set[S]
     def maybeUnbrokenType: Option[T]
   }
 
-  private[reflect] object Broken {
+  private object Broken {
 
     final case class Single[T, S](t: T) extends Broken[T, S] {
       override def intersectionComponents: Set[T] = Set(t)
@@ -243,7 +242,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           val parts = tpes.map(unpackAsProperType(_, rules): AppliedReference)
           val intersection = LightTypeTagRef.maybeIntersection(parts)
           if (decls.nonEmpty) {
-            Refinement(intersection, OrderingCompat.setToSortedSet(RefinementDecl.OrderingRefinementDecl0)(convertDecls(decls.toList, rules).toSet))
+            Refinement(intersection, decls.flatMap(convertDecl(_, rules)))
           } else {
             intersection
           }
@@ -290,39 +289,36 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def convertDecls(decls: List[SymbolApi], rules: Map[String, LambdaParameter]): List[RefinementDecl] = {
-      decls.flatMap {
-        decl =>
-          if (decl.isMethod) {
-            val m = decl.asMethod
-            val ret = m.returnType
+    def convertDecl(decl: SymbolApi, rules: Map[String, LambdaParameter]): scala.collection.compat.IterableOnce[RefinementDecl] = {
+      if (decl.isMethod) {
+        val m = decl.asMethod
+        val ret = m.returnType
 
-            val params = m.paramLists.map {
-              paramlist =>
-                paramlist.map {
-                  p =>
-                    val pt = UniRefinement.typeOfParam(p)
-                    makeRefSub(pt, rules).asInstanceOf[AppliedReference]
-                }
+        val params = m.paramLists.map {
+          paramlist =>
+            paramlist.map {
+              p =>
+                val pt = UniRefinement.typeOfParam(p)
+                makeRefSub(pt, rules).asInstanceOf[AppliedReference]
             }
+        }
 
-            val inputs = if (params.nonEmpty) {
-              params
-            } else {
-              Seq(Seq.empty)
-            }
+        val inputs = if (params.nonEmpty) {
+          params
+        } else {
+          Seq(Seq.empty)
+        }
 
-            inputs.map {
-              pl =>
-                RefinementDecl.Signature(m.name.decodedName.toString, pl.toList, makeRefSub(ret, rules).asInstanceOf[AppliedReference])
-            }
-          } else if (decl.isType) {
-            val tpe = UniRefinement.typeOfTypeMember(decl)
-            val ref = makeRefSub(tpe, rules)
-            Seq(TypeMember(decl.name.decodedName.toString, ref))
-          } else {
-            None
-          }
+        inputs.map {
+          pl =>
+            RefinementDecl.Signature(m.name.decodedName.toString, pl.toList, makeRefSub(ret, rules).asInstanceOf[AppliedReference])
+        }
+      } else if (decl.isType) {
+        val tpe = UniRefinement.typeOfTypeMember(decl)
+        val ref = makeRefSub(tpe, rules)
+        Some(TypeMember(decl.name.decodedName.toString, ref))
+      } else {
+        None
       }
     }
 
