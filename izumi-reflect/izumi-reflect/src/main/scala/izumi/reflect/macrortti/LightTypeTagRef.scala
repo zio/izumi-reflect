@@ -68,9 +68,9 @@ sealed trait LightTypeTagRef {
       reference match {
         case reference: AppliedNamedReference => appliedNamedReference(reference)
         case LightTypeTagRef.IntersectionReference(refs) =>
-          LightTypeTagRef.maybeIntersection(refs /*.unsorted*/.toSet.map(appliedReference))
+          LightTypeTagRef.maybeIntersection(refs.map(appliedReference))
         case LightTypeTagRef.UnionReference(refs) =>
-          LightTypeTagRef.maybeUnion(refs /*.unsorted*/.toSet.map(appliedReference))
+          LightTypeTagRef.maybeUnion(refs.map(appliedReference))
         case LightTypeTagRef.Refinement(reference, decls) =>
           LightTypeTagRef.Refinement(appliedReference(reference), decls)
       }
@@ -200,8 +200,8 @@ sealed trait LightTypeTagRef {
         if (l.input.size < parameters.size) {
           throw new IllegalArgumentException(s"$this expects no more than ${l.input.size} parameters: ${l.input} but got $parameters")
         }
-        val expected = l.input.map(_.name).toSet
-        val unknownKeys = parameters.map(_._1).toSet.diff(expected)
+        val expected = l.input.iterator.map(_.name).toSet
+        val unknownKeys = parameters.iterator.map(_._1).toSet.diff(expected)
         if (unknownKeys.nonEmpty) {
           throw new IllegalArgumentException(s"$this takes parameters: $expected but got unexpected ones: $unknownKeys")
         }
@@ -238,7 +238,7 @@ object LightTypeTagRef {
       normalizedOutput.hashCode()
     }
 
-    lazy val paramRefs: Set[NameReference] = input.map(n => NameReference(n.name)).toSet
+    lazy val paramRefs: Set[NameReference] = input.iterator.map(n => NameReference(n.name)).toSet
     lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
     lazy val someArgumentsReferenced: Boolean = paramRefs.diff(referenced).size < referenced.size
@@ -350,8 +350,6 @@ object LightTypeTagRef {
   object RefinementDecl {
     final case class Signature(name: String, input: List[AppliedReference], output: AppliedReference) extends RefinementDecl
     final case class TypeMember(name: String, ref: AbstractReference) extends RefinementDecl
-
-    private[reflect] implicit def OrderingRefinementDecl0: Ordering[RefinementDecl] = OrderingRefinementDecl
   }
 
   sealed trait Variance {
@@ -389,7 +387,8 @@ object LightTypeTagRef {
     }
   }
 
-  private[reflect] implicit def OrderingAbstractReferenceInstance[A <: LightTypeTagRef]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
+  @inline private[macrortti] final def OrderingAbstractReferenceInstance[A <: AbstractReference]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
+  @inline private[macrortti] final def OrderingRefinementDeclInstance: Ordering[RefinementDecl] = OrderingRefinementDecl
 
   private[this] val OrderingAbstractReference: Ordering[AbstractReference] = new Ordering[AbstractReference] {
     override def equiv(x: AbstractReference, y: AbstractReference): Boolean = x == y
@@ -438,12 +437,14 @@ object LightTypeTagRef {
   }
 
   private[macrortti] def refSetToSortedArray[T <: AbstractReference](set: Set[_ <: T]): Array[T] = {
+    @inline implicit def OrderingInstance: Ordering[AbstractReference] = LightTypeTagRef.OrderingAbstractReferenceInstance
     val array: Array[AbstractReference] = set.toArray
     Sorting.stableSort(array)
     array.asInstanceOf[Array[T]]
   }
 
   private[macrortti] def refinementDeclSetToSortedArray(set: Set[RefinementDecl]): Array[RefinementDecl] = {
+    @inline implicit def OrderingInstance: Ordering[RefinementDecl] = LightTypeTagRef.OrderingRefinementDeclInstance
     val array: Array[RefinementDecl] = set.toArray
     Sorting.stableSort(array)
     array

@@ -157,7 +157,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // refinements
       case (s: Refinement, t: Refinement) =>
         (ctx.isChild(s.reference, t.reference)
-        && compareDecls(ctx.next(t.decls.toSet[RefinementDecl].collect { case tm: RefinementDecl.TypeMember => tm }))(s.decls, t.decls))
+        && compareDecls(ctx.next(t.decls.collect { case tm: RefinementDecl.TypeMember => tm }))(s.decls, t.decls))
       case (s: Refinement, t: LightTypeTagRef) =>
         ctx.isChild(s.reference, t)
       case (s: AbstractReference, t: Refinement) =>

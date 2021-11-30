@@ -139,7 +139,7 @@ class TagMacro(val c: blackbox.Context) {
             }
             val (paramArgs0, nonParamArgs) = origOrderingArgs.partition(t => isLambdaParam(t._1))
             val lambdaParams = {
-              val paramArgsMap = paramArgs0.map { case (t, s) => t.typeSymbol -> s }.toMap
+              val paramArgsMap = paramArgs0.iterator.map { case (t, s) => t.typeSymbol -> s }.toMap
               params.map {
                 symbol =>
                   paramArgsMap

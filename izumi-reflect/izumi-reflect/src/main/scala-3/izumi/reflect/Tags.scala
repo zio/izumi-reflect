@@ -125,7 +125,7 @@ object Tag {
   }
 
   def unionTag[R <: AnyKind](lubClass: Class[_], union: List[LightTypeTag]): Tag[R] = {
-    Tag(lubClass, LightTypeTag.union(union))
+    Tag(lubClass, LightTypeTag.unionType(union))
   }
 
   /**

@@ -58,7 +58,7 @@ trait LTTRenderables extends WithRenderableSyntax {
 
   implicit lazy val r_Refinement: Renderable[Refinement] = new Renderable[Refinement] {
     override def render(value: Refinement): String = {
-      s"(${value.reference.render()} & ${value.decls.toSeq.sorted.map(_.render()).mkString("{", ", ", "}")})"
+      s"(${value.reference.render()} & ${value.decls.toSeq.sorted(OrderingRefinementDeclInstance).map(_.render()).mkString("{", ", ", "}")})"
     }
   }
 
@@ -120,13 +120,13 @@ trait LTTRenderables extends WithRenderableSyntax {
 
   implicit lazy val r_IntersectionReference: Renderable[IntersectionReference] = new Renderable[IntersectionReference] {
     override def render(value: IntersectionReference): String = {
-      value.refs.toSeq.sorted.map(_.render()).mkString("{", " & ", "}")
+      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(_.render()).mkString("{", " & ", "}")
     }
   }
 
   implicit lazy val r_UnionReference: Renderable[UnionReference] = new Renderable[UnionReference] {
     override def render(value: UnionReference): String = {
-      value.refs.toSeq.sorted.map(_.render()).mkString("{", " | ", "}")
+      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(_.render()).mkString("{", " | ", "}")
     }
   }
 
@@ -174,9 +174,11 @@ object LTTRenderables {
       if (!hasPrefix) sym.name else Short.r_SymName(sym, hasPrefix)
     }
 
-    private[macrortti] def renderDb(db: Map[_ <: LightTypeTagRef, Set[_ <: LightTypeTagRef]]): String = {
+    private[macrortti] def renderDb(db: Map[_ <: AbstractReference, Set[_ <: AbstractReference]]): String = {
       import izumi.reflect.internal.fundamentals.platform.strings.IzString._
-      db.toList.sortBy(_._1).map { case (k, v) => s"${k.repr} -> ${v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2)}" }.niceList()
+      db.toList.sortBy(_._1)(OrderingAbstractReferenceInstance).map {
+          case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
+        }.niceList()
     }
   }
 

@@ -66,7 +66,7 @@ abstract class LightTypeTag(
   final def decompose: Set[LightTypeTag] = {
     ref match {
       case LightTypeTagRef.IntersectionReference(refs) =>
-        refs.iterator.map(LightTypeTag(_, basesdb, idb)).toSet
+        refs.map(LightTypeTag(_, basesdb, idb))
       case _ =>
         Set(this)
     }
@@ -246,7 +246,7 @@ object LightTypeTag {
     refinedType(intersection, structure, Map.empty)
   }
 
-  def union(union: List[LightTypeTag]): LightTypeTag = {
+  def unionType(union: List[LightTypeTag]): LightTypeTag = {
     val parts = union.iterator.flatMap(_.ref.decomposeUnion).toSet
     val ref = LightTypeTagRef.maybeUnion(parts)
 
