@@ -288,7 +288,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
       .flatMap {
         component =>
-          val prefix = getPrefix(component)
+          val prefix = makePrefixReference(component)
           val componentRef = makeNameReference(component, component.typeSymbol, Boundaries.Empty, prefix)
           val appliedBases = tpeBases(component).filterNot(isHKTOrPolyType)
           appliedBases.map(componentRef -> makeRef(_))
@@ -394,7 +394,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     def unpackAsProperType(tpeRaw: Type, rules: Map[String, LambdaParameter]): AppliedNamedReference = {
       val tpe = Dealias.fullNormDealias(tpeRaw)
-      val prefix = getPrefix(tpe)
+      val prefix = makePrefixReference(tpe)
       val typeSymbol = tpe.typeSymbol
       val boundaries = makeBoundaries(tpe)
       val nameRef = rules.get(typeSymbol.fullName) match {
@@ -414,7 +414,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           val tparams = tpeRaw.dealias.typeConstructor.typeParams
           val refParams = args.zip(tparams).map {
             case (arg, param) =>
-              TypeParam(makeRefSub(arg), getVariance(param.asType))
+              TypeParam(makeRefSub(arg), makeVariance(param.asType))
           }
           val res = FullReference(nameRef.ref.name, refParams, prefix)
           thisLevel.log(s"Assembled FullReference=$res from args=$args and tparams=$tparams")
@@ -497,6 +497,101 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             idx.toString
         }
         fullName -> LambdaParameter(idxStr)
+    }
+  }
+
+  private[this] def makeNameReference(originalType: Type, typeSymbol: Symbol, boundaries: Boundaries, prefix: Option[AppliedReference]): NameReference = {
+    originalType match {
+      case c: ConstantTypeApi =>
+        NameReference(SymLiteral(c.value.value), boundaries, prefix)
+
+      case s: SingleTypeApi if s.sym != NoSymbol =>
+        val sym = Dealias.dealiasSingletons(s.termSymbol)
+        val resultType = Dealias.fullNormDealias(sym.typeSignatureIn(s.pre).finalResultType)
+        val newPrefix = if (hasSingletonType(resultType.typeSymbol)) makePrefixReference(resultType) else prefix
+        NameReference(makeSymName(sym), boundaries, newPrefix)
+
+      case _ =>
+        NameReference(makeSymName(typeSymbol), boundaries, prefix)
+    }
+  }
+
+  private[this] def makePrefixReference(originalType: Type): Option[AppliedReference] = {
+
+    @tailrec def extractPrefix(t0: Type): Option[Type] = {
+      t0 match {
+        case t: TypeRefApi => Some(t.pre).filterNot(_ == NoPrefix)
+        case t: SingleTypeApi => Some(t.pre).filterNot(_ == NoPrefix)
+        case t: ExistentialTypeApi => extractPrefix(t.underlying)
+        case _ => None
+      }
+    }
+
+    def unpackPrefix(pre: Type): Option[AppliedReference] = {
+      pre match {
+        case i if i.typeSymbol.isPackage =>
+          None
+        case k if k == NoPrefix =>
+          None
+        case k: ThisTypeApi =>
+          k.sym.asType.toType match {
+            // This case matches UniRefinement.unapply#it.RefinementTypeRef case
+            case UniRefinement(_, _) =>
+              None
+            case _ =>
+              if (originalType.termSymbol != NoSymbol) {
+                fromRef(originalType.termSymbol.owner.asType.toType)
+              } else {
+                fromRef(originalType.typeSymbol.owner.asType.toType)
+              }
+          }
+        case k if k.termSymbol != NoSymbol =>
+          val finalSymbol = Dealias.dealiasSingletons(k.termSymbol)
+          val finalSymbolTpe = Dealias.fullNormDealias(finalSymbol.typeSignature.finalResultType)
+          val name = makeSymName(finalSymbol)
+          val prePrefix = makePrefixReference(finalSymbolTpe)
+          Some(NameReference(name, Boundaries.Empty, prePrefix))
+        case o =>
+          fromRef(o)
+      }
+    }
+
+    def fromRef(o: Type): Option[AppliedReference] = {
+      makeRef(o) match {
+        case a: AppliedReference =>
+          Some(a)
+        case o =>
+          throw new IllegalStateException(s"Cannot extract prefix from $originalType: expected applied reference, but got $o")
+      }
+    }
+
+    val prefix = extractPrefix(originalType)
+    val unpacked = prefix.flatMap(unpackPrefix)
+    unpacked
+  }
+
+  private[this] def makeSymName(sym: Symbol): SymName = {
+    val o = sym.owner
+    val base = if (o.asInstanceOf[{ def hasMeaninglessName: Boolean }].hasMeaninglessName) {
+      sym.name.decodedName.toString
+    } else {
+      sym.fullName
+    }
+
+    if (hasSingletonType(sym)) {
+      SymTermName(base)
+    } else {
+      SymTypeName(base)
+    }
+  }
+
+  private[this] def makeVariance(tpes: TypeSymbol): Variance = {
+    if (tpes.isCovariant) {
+      Variance.Covariant
+    } else if (tpes.isContravariant) {
+      Variance.Contravariant
+    } else {
+      Variance.Invariant
     }
   }
 
@@ -604,91 +699,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   }
 
-  private[this] def getPrefix(tpe: Type): Option[AppliedReference] = {
-
-    def fromRef(o: Type): Option[AppliedReference] = {
-      makeRef(o) match {
-        case a: AppliedReference =>
-          Some(a)
-        case o =>
-          throw new IllegalStateException(s"Cannot extract prefix from $tpe: expected applied reference, but got $o")
-      }
-    }
-
-    def unpackPrefix(pre: Type): Option[AppliedReference] = {
-      pre match {
-        case i if i.typeSymbol.isPackage =>
-          None
-        case k if k == NoPrefix =>
-          None
-        case k: ThisTypeApi =>
-          k.sym.asType.toType match {
-            // This case matches UniRefinement.unapply#it.RefinementTypeRef case
-            case UniRefinement(_, _) =>
-              None
-            case _ =>
-              if (tpe.termSymbol != NoSymbol) {
-                fromRef(tpe.termSymbol.owner.asType.toType)
-              } else {
-                fromRef(tpe.typeSymbol.owner.asType.toType)
-              }
-          }
-        case k if k.termSymbol != NoSymbol =>
-          val finalSymbol = Dealias.dealiasSingletons(k.termSymbol)
-          val finalSymbolTpe = Dealias.fullNormDealias(finalSymbol.typeSignature.finalResultType)
-          val name = symName(finalSymbol)
-          val prePrefix = getPrefix(finalSymbolTpe)
-          Some(NameReference(name, Boundaries.Empty, prePrefix))
-        case o =>
-          fromRef(o)
-      }
-    }
-
-    @tailrec def getPre(t0: Type): Option[Type] = {
-      t0 match {
-        case t: TypeRefApi => Some(t.pre).filterNot(_ == NoPrefix)
-        case t: SingleTypeApi => Some(t.pre).filterNot(_ == NoPrefix)
-        case t: ExistentialTypeApi => getPre(t.underlying)
-        case _ => None
-      }
-    }
-
-    val prefix = getPre(tpe)
-    val unpacked = prefix.flatMap(unpackPrefix)
-    unpacked
-  }
-
-  private[this] def makeNameReference(originalType: Type, typeSymbol: Symbol, boundaries: Boundaries, prefix: Option[AppliedReference]): NameReference = {
-    originalType match {
-      case c: ConstantTypeApi =>
-        NameReference(SymLiteral(c.value.value), boundaries, prefix)
-
-      case s: SingleTypeApi if s.sym != NoSymbol =>
-        val sym = Dealias.dealiasSingletons(s.termSymbol)
-        val resultType = Dealias.fullNormDealias(sym.typeSignatureIn(s.pre).finalResultType)
-        val newPrefix = if (hasSingletonType(resultType.typeSymbol)) getPrefix(resultType) else prefix
-        NameReference(symName(sym), boundaries, newPrefix)
-
-      case _ =>
-        NameReference(symName(typeSymbol), boundaries, prefix)
-    }
-  }
-
-  private[this] def symName(sym: Symbol): SymName = {
-    val o = sym.owner
-    val base = if (o.asInstanceOf[{ def hasMeaninglessName: Boolean }].hasMeaninglessName) {
-      sym.name.decodedName.toString
-    } else {
-      sym.fullName
-    }
-
-    if (hasSingletonType(sym)) {
-      SymTermName(base)
-    } else {
-      SymTypeName(base)
-    }
-  }
-
   private[this] def isHKTOrPolyType(tpe: Type): Boolean = {
     tpe.takesTypeArgs || tpe.isInstanceOf[PolyTypeApi]
   }
@@ -699,16 +709,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   @inline private[this] def isSingletonType(tpe: Type): Boolean = {
     tpe.isInstanceOf[SingletonTypeApi] && !tpe.isInstanceOf[ThisTypeApi]
-  }
-
-  private[this] def getVariance(tpes: TypeSymbol): Variance = {
-    if (tpes.isCovariant) {
-      Variance.Covariant
-    } else if (tpes.isContravariant) {
-      Variance.Contravariant
-    } else {
-      Variance.Invariant
-    }
   }
 
 }
