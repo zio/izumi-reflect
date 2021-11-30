@@ -26,12 +26,6 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
       }
     }
 
-    "progression test: tautological intersections with Matchable are still preserved in internal structure despite being useless" in {
-      doesntWorkYet {
-        assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])
-      }
-    }
-
   }
 
 }

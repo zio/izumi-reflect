@@ -418,7 +418,7 @@ class TagTest extends SharedTagTest {
       assertSame(t[Int].tag, Tag[{ type T = Int }].tag)
     }
 
-    "can resolve TagK's themselves correctly" in {
+    "can resolve Tags of TagK's themselves correctly" in {
       trait X[A, B, C]
 
       def tagk[F[_]: TagK]: Tag[TagK[F]] = Tag[TagK[F]]
@@ -426,10 +426,10 @@ class TagTest extends SharedTagTest {
       def tagk3[F[_, _, _]: TagK3]: Tag[TagK3[F]] = Tag[TagK3[F]]
       def tagtk[F[_[_], _]: TagTK]: Tag[TagTK[F]] = Tag[TagTK[F]]
 
-      assert(tagk[List].tag == Tag[TagK[List]].tag)
-      assert(tagkk[Either].tag == Tag[TagKK[Either]].tag)
-      assert(tagk3[X].tag == Tag[TagK3[X]].tag)
-      assert(tagtk[OptionT].tag == Tag[TagTK[OptionT]].tag)
+      assertChild(tagk[List].tag, Tag[TagK[List]].tag)
+      assertSame(tagkk[Either].tag, Tag[TagKK[Either]].tag)
+      assertSame(tagk3[X].tag, Tag[TagK3[X]].tag)
+      assertSame(tagtk[OptionT].tag, Tag[TagTK[OptionT]].tag)
     }
 
     "regression test: ignore function-local anonymous classes (https://github.com/zio/zio/issues/4285)" in {

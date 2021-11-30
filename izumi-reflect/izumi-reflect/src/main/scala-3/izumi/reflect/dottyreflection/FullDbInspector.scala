@@ -8,12 +8,9 @@ import scala.collection.mutable
 import scala.quoted._
 
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
-  self =>
 
-  // @formatter:off
   import qctx.reflect._
   private lazy val inspector = new Inspector(0) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
-  // @formatter:on
 
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
     val uns = TypeTree.of[T]
@@ -28,24 +25,22 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   }
 
   class Run() {
-    private val termination = mutable.HashSet[TypeRepr]()
+    private val termination = mutable.HashSet.empty[TypeRepr]
 
-    def inspectTreeToFull(uns: TypeTree): List[(AbstractReference, AbstractReference)] = {
-      val symbol = uns.symbol
-      // FIXME: `inspectSymbolToFull` seems unnecessary and lead to bad results after blackbox macros were introduce{d
-      if (true) {
-        inspectTypeReprToFullBases(uns.tpe).distinct
-      } else {
-        inspectSymbolToFull(symbol).distinct
-      }
+    def inspectTreeToFull(tpeTree: TypeTree): List[(AbstractReference, AbstractReference)] = {
+      inspectTypeReprToFullBases(tpeTree.tpe).distinct
     }
 
-    private def inspectTypeReprToFullBases(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
-      val selfRef = inspector.inspectTypeRepr(tpe)
+    private def inspectTypeReprToFullBases(tpe0: TypeRepr): List[(AbstractReference, AbstractReference)] = {
+      val tpe = tpe0.dealias
+      lazy val selfRef = inspector.inspectTypeRepr(tpe)
 
-      tpe.dealias match {
+      tpe match {
+        case t if ignored(t) =>
+          Nil
+
         case a: AppliedType =>
-          val baseTypes = a.baseClasses.map(b => a.baseType(b)).filterNot(termination.contains)
+          val baseTypes = a.baseClasses.iterator.map(a.baseType).filterNot(ignored).filterNot(termination).toList
           log(s"For `$tpe` found base types $baseTypes")
 
           val main = (selfRef, selfRef) +: baseTypes.map {
@@ -81,6 +76,8 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           inspectTypeReprToFullBases(o.left) ++ inspectTypeReprToFullBases(o.right)
 
         case r: TypeRef =>
+          // inspectTypeReprToFullBases(r.qualifier.memberType(r.typeSymbol))
+          // FIXME below still required for non `subtype check fails when child type has absorbed a covariant type parameter of the supertype`
           inspectSymbolToFull(r.typeSymbol)
 
         case r: ParamRef =>
@@ -94,10 +91,11 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
         case o =>
           log(s"FullDbInspector: UNSUPPORTED: $o")
-          List.empty
+          Nil
       }
     }
 
+    // FIXME reimplement using `baseClasses`
     private def inspectSymbolToFull(symbol: Symbol): List[(AbstractReference, AbstractReference)] = {
       symbol.tree match {
         case c: ClassDef =>

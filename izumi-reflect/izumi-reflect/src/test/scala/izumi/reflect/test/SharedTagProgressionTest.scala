@@ -1,6 +1,6 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LTT
+import izumi.reflect.macrortti._
 import izumi.reflect.test.TestModel._
 import izumi.reflect._
 import org.scalatest.exceptions.TestFailedException
@@ -33,7 +33,11 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       """
         )
       }
-      assert(t.message.get.contains("could not find implicit value") || t.message.get.contains("diverging implicit") /*2.11*/ )
+      assert(
+        t.message.get.contains("could not find implicit value") ||
+        t.message.get.contains("diverging implicit") || /*2.11*/
+        t.message.get.contains("no implicit argument of type") /*Dotty*/
+      )
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in an anonymous deeply-nested type lambda" in {
@@ -47,7 +51,11 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       """
         )
       }
-      assert(t.message.get.contains("could not find implicit value") || t.message.get.contains("diverging implicit") /*2.11*/ )
+      assert(
+        t.message.get.contains("could not find implicit value") ||
+        t.message.get.contains("diverging implicit") || /*2.11*/
+        t.message.get.contains("no implicit argument of type") /*Dotty*/
+      )
     }
 
     "progression test: type tags with bounds are not currently requested by the macro" in {
@@ -60,38 +68,76 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         assert(t[Trait3, Dep].tag == safe[Trait3[Dep]].tag)
         """)
       }
-      assert(t.message.get contains "could not find implicit value")
+      assert(
+        t.message.get.contains("could not find implicit value") ||
+        t.message.get.contains("no implicit argument of type") /*Dotty*/
+      )
     }
 
     "progression test: projections into singletons are not handled properly" in {
       trait A {
+        class X
+
+        final val singleton1 = "bar"
+        type S1 = singleton1.type
+
         val singleton2 = "bar"
         type S2 = singleton2.type
 
+        val xa = Tag[X].tag
+
+//        val s1a = Tag[S1] // class type required but String("bar") found error on 2.11
+        val s1a = LTT[S1]
+        val s1a1 = Tag[singleton1.type].tag
+
+//        val s2a = Tag[S2]
         val s2a = LTT[S2]
         val s2a1 = Tag[singleton2.type].tag
       }
 
       trait B extends A {
+        val xb = Tag[X].tag
+
+//        val s1b = Tag[S1].tag
+        val s1b = LTT[S1]
+        val s1b1 = Tag[singleton1.type].tag
+
         val s2b = LTT[S2]
         val s2b1 = Tag[singleton2.type].tag
       }
 
       object B extends B
 
+      assertDifferent(Tag[A#S1].tag, LTT[String])
+      doesntWorkYetOnDotty {
+        assertSame(Tag[A#S1].tag, B.s1a)
+      }
+      doesntWorkYetOnDotty {
+        assertSame(Tag[A#S1].tag, B.s1a1)
+      }
+      doesntWorkYetOnDotty {
+        assertSame(Tag[A#S1].tag, B.s1b)
+      }
+      doesntWorkYetOnDotty {
+        assertSame(Tag[A#S1].tag, B.s1b1)
+      }
+
       // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
       //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled
-      doesntWorkYet {
-        assert(Tag[A#S2].tag == B.s2a)
+      doesntWorkYetOnDotty {
+        assert(!Tag[A#S2].tag.debug().contains("::_$A::singleton2"))
       }
-      doesntWorkYet {
-        assert(Tag[A#S2].tag == B.s2b)
+      doesntWorkYetOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2a)
       }
-      doesntWorkYet {
-        assert(Tag[A#S2].tag == B.s2a1)
+      doesntWorkYetOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2b)
       }
-      doesntWorkYet {
-        assert(Tag[A#S2].tag == B.s2b1)
+      doesntWorkYetOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2a1)
+      }
+      doesntWorkYetOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2b1)
       }
     }
 

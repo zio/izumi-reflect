@@ -88,9 +88,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       assert(Tag[With[Any]].tag == fromRuntime[With[Any]])
       assert(Tag[With[Nothing]].tag == fromRuntime[With[Nothing]])
-      assert(Tag[With[Nothing]].tag.debug().contains("SharedTagTest::"))
       assert(Tag[With[_]].tag == fromRuntime[With[_]])
-      assert(Tag[With[_]].tag.debug().contains("SharedTagTest::"))
 
       assert(Tag[Int with String].tag == fromRuntime[Int with String])
 
@@ -289,37 +287,17 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       object B extends B
 
-      assert(B.xa == B.xb)
-      assert(B.s1a == B.s1b)
-      assert(B.s1a1 == B.s1b1)
-      assert(B.s2a == B.s2b)
-      assert(B.s2a1 == B.s2b1)
+      assertSame(B.xa, B.xb)
+      assertSame(B.s1a, B.s1b)
+      assertSame(B.s1a1, B.s1b1)
+      assertSame(B.s2a, B.s2b)
+      assertSame(B.s2a1, B.s2b1)
 
-      assert(Tag[A#X].tag == B.xa)
+      assertSame(Tag[A#X].tag, B.xa)
 
-      assert(B.s1b == B.s1a)
-      assert(B.s1a == B.s1a1)
-      assert(B.s1b == B.s1b1)
-
-      assert(Tag[A#S1].tag == B.s1a)
-      assert(Tag[A#S1].tag == B.s1a1)
-      assert(Tag[A#S1].tag == B.s1b)
-      assert(Tag[A#S1].tag == B.s1b1)
-
-      // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
-      //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2a)
-      }
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2b)
-      }
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2a1)
-      }
-      intercept[TestFailedException] {
-        assert(Tag[A#S2].tag == B.s2b1)
-      }
+      assertSame(B.s1b, B.s1a)
+      assertSame(B.s1a, B.s1a1)
+      assertSame(B.s1b, B.s1b1)
     }
 
   }

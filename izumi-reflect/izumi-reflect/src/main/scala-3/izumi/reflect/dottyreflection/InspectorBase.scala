@@ -9,9 +9,12 @@ trait InspectorBase extends ReflectionUtil {
 
   protected def shift: Int
 
+  protected final lazy val ignoredSyms: Set[Symbol] = Set(defn.AnyClass, defn.AnyRefClass, defn.ObjectClass, defn.MatchableClass)
+  protected final def ignored(tpe: TypeRepr): Boolean = ignoredSyms(tpe.typeSymbol)
+
   // FIXME reimplement TrivialMacroLogger on Scala 3
   inline val debug = false
-  type debug = debug.type
+  final type debug = debug.type
 
   inline final protected def logStart(inline s: String): Unit = {
     if (debug) println(" " * shift + s)

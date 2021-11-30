@@ -252,15 +252,20 @@ object LightTypeTagRef {
     override def equals(obj: Any): Boolean = {
       obj match {
         case l: Lambda =>
-          if (input.size == l.input.size) {
-            normalizedOutput == l.normalizedOutput
-          } else {
-            false
-          }
+          input.size == l.input.size &&
+          (normalizedOutput == l.normalizedOutput)
 
         case _ =>
           false
       }
+    }
+
+    private[LightTypeTagRef] def compare(y: Lambda): Int = {
+      val x = this
+      // Mirror equals
+      val compare1 = Ordering.Int.compare(x.input.size, y.input.size)
+      if (compare1 != 0) return compare1
+      OrderingAbstractReference.compare(x.normalizedOutput, y.normalizedOutput)
     }
 
     private[this] def makeFakeParams: List[(String, NameReference)] = {
@@ -402,10 +407,9 @@ object LightTypeTagRef {
     override def equiv(x: AbstractReference, y: AbstractReference): Boolean = x == y
 
     override def compare(x: AbstractReference, y: AbstractReference): Int = (x, y) match {
-      case (Lambda(inputx, outputx), Lambda(inputy, outputy)) =>
-        val compare1 = OrderingListLambdaParameter.compare(inputx, inputy)
-        if (compare1 != 0) return compare1
-        this.compare(outputx, outputy)
+      case (lx: Lambda, ly: Lambda) =>
+        // Mirror Lambda#equals
+        lx.compare(ly)
 
       case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
         OrderingArrayAbstractReference.compare(sortedRefs(refsx), sortedRefs(refsy))
@@ -432,8 +436,8 @@ object LightTypeTagRef {
         if (compare2 != 0) return compare2
         OrderingOptionAbstractReference.compare(prefixx, prefixy)
 
-      case (x, y) =>
-        def idx(abstractReference: LightTypeTagRef): Int = abstractReference match {
+      case _ =>
+        def idx(abstractReference: AbstractReference): Int = abstractReference match {
           case _: Lambda => 0
           case _: IntersectionReference => 1
           case _: UnionReference => 2
@@ -473,17 +477,13 @@ object LightTypeTagRef {
         if (compare1 != 0) return compare1
         OrderingAbstractReference.compare(refx, refy)
 
-      case (x, y) =>
+      case _ =>
         def idx(refinementDecl: RefinementDecl): Int = refinementDecl match {
           case _: RefinementDecl.Signature => 0
           case _: RefinementDecl.TypeMember => 1
         }
         Ordering.Int.compare(idx(x), idx(y))
     }
-  }
-
-  private[this] val OrderingLambdaParameter: Ordering[LambdaParameter] = {
-    Ordering.by((_: LambdaParameter).name)
   }
 
   private[this] val OrderingSymName: Ordering[SymName] = new Ordering[SymName] {
@@ -541,8 +541,6 @@ object LightTypeTagRef {
   private[this] val OrderingOptionAbstractReference: Ordering[Option[AbstractReference]] = Ordering.Option(OrderingAbstractReference)
 
   private[this] val OrderingArrayRefinementDecl: Ordering[Array[RefinementDecl]] = OrderingCompat.arrayOrdering(OrderingRefinementDecl)
-
-  private[this] val OrderingListLambdaParameter: Ordering[List[LambdaParameter]] = OrderingCompat.listOrdering(OrderingLambdaParameter)
 
   private[this] val OrderingListTypeParam: Ordering[List[TypeParam]] = OrderingCompat.listOrdering(OrderingTypeParam)
 }

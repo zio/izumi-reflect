@@ -173,6 +173,11 @@ object LTTRenderables {
     def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
       if (!hasPrefix) sym.name else Short.r_SymName(sym, hasPrefix)
     }
+
+    private[macrortti] def renderDb(db: Map[_ <: LightTypeTagRef, Set[_ <: LightTypeTagRef]]): String = {
+      import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+      db.toList.sortBy(_._1).map { case (k, v) => s"${k.repr} -> ${v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2)}" }.niceList()
+    }
   }
 
 }

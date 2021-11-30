@@ -6,8 +6,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 trait TagLogging extends AnyWordSpec {
 
-  // enable subtype comparison logging in tests
-  def loud(): Unit = TrivialLogger.enableLogs()
+  // enable subtype comparison / .fromRuntime construction logging in tests
   def loud(f: => Any): Unit = {
     synchronized {
       TrivialLogger.enableLogs()

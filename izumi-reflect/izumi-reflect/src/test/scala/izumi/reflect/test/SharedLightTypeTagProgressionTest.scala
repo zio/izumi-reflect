@@ -9,6 +9,48 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     import TestModel._
 
+    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
+      doesntWorkYet {
+        assertDifferent(LTT[Set[_]], LTT[Set[Any]])
+      }
+      doesntWorkYet {
+        assertDifferent(LTT[List[_]], LTT[List[Any]])
+      }
+      doesntWorkYet {
+        assertDifferent(LTT[_ => _], LTT[Any => Any])
+      }
+      doesntWorkYet {
+        assertChild(LTT[Set[Int]], LTT[Set[_]])
+      }
+      doesntWorkYet {
+        assertChild(LTT[Set[_]], LTT[Set[Int]])
+      }
+      doesntWorkYet {
+        assertChild(LTT[List[_]], LTT[List[Int]])
+      }
+      doesntWorkYet {
+        assertChild(LTT[Int => Int], LTT[_ => Int])
+      }
+    }
+
+    "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
+      doesntWorkYet {
+        assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
+      }
+      doesntWorkYet {
+        assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
+      }
+      doesntWorkYet {
+        assertDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]])
+      }
+    }
+
+    "progression test: Dotty fails to `support contravariance in refinement method comparisons`" in {
+      doesntWorkYetOnDotty {
+        assertDeepChild(LTT[{ def compare(a: AnyVal): Int }], LTT[{ def compare(b: Int): Int }])
+      }
+    }
+
     "progression test: `support higher-kinded intersection type subtyping` isn't fully supported on Dotty" in {
       type F1 = W3[Int] with W1
       type F2 = W4[Int] with W2
@@ -125,12 +167,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: tautological intersections with Any/Object are still preserved in internal structure despite being useless" in {
-      assertDebugSame(LTT[Object with Option[String]], LTT[Option[String]])
-      assertDebugSame(LTT[Any with Option[String]], LTT[Option[String]])
-      assertDebugSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
-    }
-
     "progression test: what about non-empty refinements with intersections" in {
       val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
       println(ltt.debug())
@@ -168,17 +204,12 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: wildcards are not supported" in {
-      doesntWorkYet {
-        assertChild(LTT[Set[Int]], LTT[Set[_]])
-      }
-    }
-
     "progression test: subtype check fails when child type has absorbed a covariant type parameter of the supertype" in {
       assertChild(LTT[Set[Int]], LTT[Iterable[AnyVal]])
 
       val tagF3 = LTT[F3]
-      assertChild(tagF3, LTT[F2[Int]])
+      val tagF2 = LTT[F2[Int]]
+      assertChild(tagF3, tagF2)
 
       doesntWorkYetOnScala2 {
         assertChild(tagF3, LTT[F2[AnyVal]])
@@ -319,8 +350,11 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     }
 
     "progression test: indirect structural checks do not work" in {
-      doesntWorkYet {
-        assertChild(LTT[C], LTT[{ type A }])
+      doesntWorkYetOnDotty {
+        assertDifferent(LTT[{ type A }], LTT[Object])
+      }
+      doesntWorkYetOnScala2 {
+        assertDeepChild(LTT[C], LTT[{ type A }])
       }
     }
 
@@ -402,6 +436,47 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
+    "progression test: `support higher-kinded intersection type combination` isn't supported on Dotty" in {
+      val tCtor = `LTT[_,_]`[T3]
+
+      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
+      val alias = LTT[T3[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
+
+      assertChild(alias, direct)
+      assertChild(combined, alias)
+      assertChild(combined, direct)
+
+      assertSame(alias, direct)
+      assertSame(alias, combined)
+
+      assertDifferent(combined, LTT[Either[Int, Boolean]])
+      assertDifferent(combined, LTT[T3[Boolean, Int]])
+
+      assertNotChild(combined, LTT[Either[Int, Boolean]])
+      assertNotChild(combined, LTT[T3[Boolean, Int]])
+
+      assertChild(combined, LTT[W5[Int]])
+      assertChild(combined, LTT[W4[Boolean]])
+      doesntWorkYetOnDotty {
+        assertChild(combined, LTT[W3[Boolean]])
+      }
+      doesntWorkYetOnDotty {
+        assertChild(combined, LTT[W1])
+      }
+      doesntWorkYetOnDotty {
+        assertChild(combined, LTT[W2])
+      }
+      doesntWorkYetOnDotty {
+        assertChild(combined, LTT[W1 with W3[Boolean]])
+      }
+
+      assertNotChild(combined, LTT[W4[Int]])
+      assertNotChild(combined, LTT[W3[Int]])
+      assertNotChild(combined, LTT[W5[Boolean]])
+      assertNotChild(combined, LTT[W1 with W5[Boolean]])
+    }
+
     "progression test: combined intersection lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {
       val tCtor = `LTT[_,_]`[T3]
       val combined = tCtor.combine(LTT[Int], LTT[Boolean])
@@ -410,10 +485,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val alias = LTT[T3[Int, Boolean]]
       val direct = LTT[W1 with W4[Boolean] with W5[Int]]
 
-      doesntWorkYet {
+      doesntWorkYetOnScala2 {
         assert(!debugCombined.contains("W4[=scala.Int]"))
       }
-      doesntWorkYet {
+      doesntWorkYetOnScala2 {
         assert(!debugCombined.contains("W3[=scala.Int]"))
       }
 
@@ -426,12 +501,177 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     }
 
     "progression test: combined lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {
-      val curriedApplied = `LTT[_,_]`[Either].combine(LTT[Throwable]).combine(LTT[Unit])
+      val curriedApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
       val debug1 = curriedApplied.debug()
 
-      doesntWorkYet {
-        assert(!debug1.contains("λ %1 → scala.util.Either[+scala.Unit,+1]"))
+      assertSame(curriedApplied, LTT[Right[Throwable, Unit]])
+
+      assert(debug1.contains(": scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
+      assert(debug1.contains("- scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
+      assert(debug1.contains("* scala.Product"))
+      doesntWorkYetOnDotty {
+        assert(debug1.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
       }
+      doesntWorkYetOnDotty {
+        assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      }
+
+      doesntWorkYetOnScala2 {
+        assert(!debug1.contains("λ %1 → scala.util.Right[+scala.Unit,+1]"))
+      }
+    }
+
+    "progression test: `applied tags should not contain junk bases` is not supported on Dotty" in {
+      val debug0 = LTT[List[Any]].debug()
+//      val debug0 = PlatformSpecific.fromRuntime[List[Any]].debug()
+
+      assert(!debug0.contains("scala.List"))
+      assert(!debug0.contains("package::List"))
+      assert(!debug0.contains("<refinement>"))
+      assert(!debug0.contains("<none>"))
+      doesntWorkYetOnDotty {
+        assert(debug0.contains("- λ %0 → scala.collection.immutable.List[+0]"))
+      }
+
+      //      val debug1 = LTT[List[_]].debug()
+      val debug1 = PlatformSpecific.fromRuntime[List[_]].debug()
+
+      assert(!debug1.contains("scala.List"))
+      assert(!debug1.contains("package::List"))
+      assert(!debug1.contains("<refinement>"))
+      assert(!debug1.contains("<none>"))
+      doesntWorkYetOnDotty {
+        assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
+      }
+
+      val debug2 = LTT[Either[RoleChild[IO], Product]].debug()
+//      val debug2 = PlatformSpecific.fromRuntime[Either[RoleChild[IO], Product]].debug()
+
+      assert(!debug2.contains("package::Either"))
+      assert(!debug2.contains("<refinement>"))
+      assert(!debug2.contains("<none>"))
+      assert(!debug2.contains("TestModel.E"))
+      assert(!debug2.contains("TestModel.A"))
+      doesntWorkYetOnDotty {
+        assert(debug2.contains("- λ %0 → izumi.reflect.test.TestModel::RoleChild[=0]"))
+      }
+      doesntWorkYetOnDotty {
+        assert(debug2.contains("* λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
+      }
+    }
+
+    "progression test: `lambda tags should not contain junk bases` is not supported on Dotty" in {
+      val debug1 = `LTT[_,_]`[Right].debug()
+
+      assert(!debug1.contains("package::Either"))
+      assert(!debug1.contains("scala.package.A"))
+      assert(!debug1.contains("scala.package.B"))
+      doesntWorkYetOnDotty {
+        assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      }
+      assert(debug1.contains("* scala.Product"))
+
+      val debug2 = `LTT[_,_]`[Right].combine(LTT[Int], LTT[Int]).debug()
+
+      assert(!debug2.contains("package::Either"))
+      assert(!debug2.contains("scala.package.A"))
+      assert(!debug2.contains("scala.package.B"))
+      doesntWorkYetOnDotty {
+        assert(debug2.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      }
+      assert(debug2.contains("* scala.Product"))
+
+      val debug3 = LTT[RoleParent[Right[Throwable, *]]].debug()
+//      val debug3 = PlatformSpecific.fromRuntime[RoleParent[Right[Throwable, *]]].debug()
+
+      assert(!debug3.contains("package::Right"))
+      assert(!debug3.contains("<refinement>"))
+      assert(!debug3.contains("<none>"))
+      assert(!debug3.contains("TestModel.E"))
+      assert(!debug3.contains("TestModel.A"))
+      assert(!debug3.contains("+scala.Nothing"))
+      doesntWorkYetOnDotty {
+        assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      }
+      assert(debug3.contains("* scala.Product"))
+
+      val debug4 = `LTT[_]`[Right[Throwable, *]].debug()
+//      val debug4 = PlatformSpecific
+//        .fromRuntime(
+//          scala.reflect.runtime.universe.typeOf[{ type l[a] = Right[Throwable, a] }].member(scala.reflect.runtime.universe.TypeName("l")).typeSignature
+//        ).debug()
+
+      assert(!debug4.contains("package::Right"))
+      assert(!debug4.contains("<refinement>"))
+      assert(!debug4.contains("<none>"))
+      assert(!debug4.contains("TestModel.E"))
+      assert(!debug4.contains("TestModel.A"))
+      assert(!debug4.contains("+scala.Nothing"))
+      doesntWorkYetOnDotty {
+        assert(debug4.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      }
+      assert(debug4.contains("* scala.Product"))
+
+      val oneArgApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
+      val debug5 = oneArgApplied.debug()
+
+      println(debug5)
+      assert(!debug5.contains("package::Right"))
+      assert(!debug5.contains("<refinement>"))
+      assert(!debug5.contains("<none>"))
+      assert(!debug5.contains("scala.package.A"))
+      assert(!debug5.contains("scala.package.B"))
+      assert(!debug5.contains("+scala.Nothing"))
+      assert(debug5.contains("* scala.Product"))
+    }
+
+    "progression test: `intersection lambda tags should not contain junk bases` is not supported on Dotty" in {
+      val tCtor = `LTT[_,_]`[T3]
+//      val tCtor = PlatformSpecific.fromRuntime(scala.reflect.runtime.universe.typeOf[T3[Any, Any]].typeConstructor)
+      val debugCtor = tCtor.debug("ctor")
+
+      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
+      val debugCombined = combined.debug("combined")
+
+      val alias = LTT[T3[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
+
+      println(debugCtor)
+      println(debugCombined)
+      println(alias.debug("alias"))
+      println(direct.debug("direct"))
+
+      assert(!debugCtor.contains("<refinement>"))
+      assert(!debugCtor.contains("<none>"))
+      assert(!debugCtor.contains("- T"))
+      doesntWorkYetOnDotty {
+        assert(!debugCtor.contains("W4[=B]"))
+      }
+      doesntWorkYetOnDotty {
+        assert(!debugCtor.contains("W3[=B]"))
+      }
+      doesntWorkYetOnDotty {
+        assert(!debugCtor.contains("W5[=A]"))
+      }
+
+      assert(!direct.debug().contains("W4[=Int]"))
+      assert(!direct.debug().contains("W4[=scala.Int]"))
+
+      assert(!debugCombined.contains("<refinement>"))
+      assert(!debugCombined.contains("<none>"))
+      assert(!debugCombined.contains("- T"))
+      doesntWorkYetOnDotty {
+        assert(!debugCombined.contains("W4[=B]"))
+      }
+      doesntWorkYetOnDotty {
+        assert(!debugCombined.contains("W3[=B]"))
+      }
+      doesntWorkYetOnDotty {
+        assert(!debugCombined.contains("W5[=A]"))
+      }
+      assert(debugCombined.contains("W5[=scala.Int]"))
+
+      assertDebugSame(alias, direct)
     }
 
   }

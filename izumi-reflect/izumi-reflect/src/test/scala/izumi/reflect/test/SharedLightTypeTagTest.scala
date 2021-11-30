@@ -3,12 +3,15 @@ package izumi.reflect.test
 import izumi.reflect.macrortti._
 import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries}
 
+import scala.annotation.StaticAnnotation
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
 abstract class SharedLightTypeTagTest extends TagAssertions {
 
   import TestModel._
+
+  final class With[T] extends StaticAnnotation
 
   "lightweight type tags (all versions)" should {
 
@@ -80,6 +83,31 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertSame(`LTT`[String with String], `LTT`[String])
     }
 
+    "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
+      assertSame(LTT[Option[W1]], LTT[Option[_ <: W1]])
+      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
+      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
+
+      assertChild(LTT[Option[_ <: W2]], LTT[Option[W1]])
+      assertChild(LTT[Option[_ <: W2]], LTT[Option[W2]])
+      assertNotChild(LTT[Option[_ <: I1]], LTT[Option[W2]])
+
+      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
+      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
+
+      assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
+      assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
+      assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
+
+      if (!IsDotty) {
+        assertCompiles("val opt: Option[_ >: H4 <: H2] = None: Option[H5]")
+      } else {
+        assertCompiles("val opt: Option[_ >: H4 <: H2] = (None: Option[H5]): Option[H4]")
+      }
+      // bottom boundary is weird!
+      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+    }
+
     "support subtype checks" in {
       assertChild(LTT[Int], LTT[AnyVal])
       assertChild(LTT[Int], LTT[Int])
@@ -97,15 +125,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
       assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
 
-      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
-      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
-
-      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
-      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
-
-      // bottom boundary is weird!
-      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
-
       assertChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X2, X1]])
       assertNotChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X1, X2]])
 
@@ -113,7 +132,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X2]])
       assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X1]])
       assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X1, X2]])
-
     }
 
     "support swapped parents" in {
@@ -160,6 +178,23 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(noncombinedTag, expectedTag)
     }
 
+    "properly dealias and assign prefixes to existential types and wildcards" in {
+      val withNothing = LTT[With[Nothing]]
+      val with_ = LTT[With[_]]
+      assert(withNothing.debug().contains(": izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Nothing]"))
+      assert(withNothing.debug().contains("- izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Nothing]"))
+      assert(with_.debug().contains(": izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Any]"))
+      assert(with_.debug().contains("- izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Any]"))
+
+      val list_ = LTT[List[_]]
+      val immutableList_ = LTT[List[_]]
+      assertChild(LTT[List[Int]], immutableList_)
+      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
+      assertChild(list_, immutableList_)
+      assertChild(immutableList_, list_)
+      assertDebugSame(list_, immutableList_)
+    }
+
     "support PDTs" in {
       val a = new C {
         override type A = Int
@@ -187,11 +222,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       type T1[A] = (W3[A] with W1) with I1
       type T2[A] = W3[A] with (W1 with I1)
 
-      assertSame(LTT[F1], LTT[F2])
-      assertChildSame(LTT[F1], LTT[F2])
-
-      assertSame(`LTT[_]`[T1], `LTT[_]`[T2])
-      assertChildSame(`LTT[_]`[T1], `LTT[_]`[T2])
+      assertDeepSame(LTT[F1], LTT[F2])
+      assertDeepSame(`LTT[_]`[T1], `LTT[_]`[T2])
     }
 
     "runtime-combined intersections are associative" in {
@@ -311,7 +343,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[J[Option]], LTT[J1[Option] with J2 with J3])
     }
 
-    "support TagK* family summoners" in {
+    "support LTagK* family summoners" in {
       val tag = LTagK[List].tag
       val tag1 = LTagKK[Either].tag
       assertSame(tag, `LTT[_]`[List])
@@ -324,6 +356,10 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertSame(`LTT[_]`[T1], `LTT[_]`[T1])
       assertDifferent(`LTT[_]`[T1], `LTT[_]`[T2])
+    }
+
+    "support contravariance" in {
+      assertDeepChild(LTT[Any => Int], LTT[Int => Int])
     }
 
     "support typetag combination" in {
@@ -341,142 +377,14 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertCombine(`LTT[_]`[ComplexRef], LTT[Int], LTT[W1 with Int { def a(p: Int): Int; type M = Int }])
     }
 
-    "support higher-kinded intersection type combination" in {
-      val tCtor = `LTT[_,_]`[T3]
+    "tautological intersections with Any/Object are discarded from internal structure" in {
+      assertDeepSame(LTT[(Object {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
+      assertDeepSame(LTT[(Any {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
+      assertDeepSame(LTT[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
 
-      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
-      val alias = LTT[T3[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
-
-      assertChild(alias, direct)
-      assertChild(combined, alias)
-      assertChild(combined, direct)
-
-      assertSame(alias, direct)
-      assertSame(alias, combined)
-
-      assertDifferent(combined, LTT[Either[Int, Boolean]])
-      assertDifferent(combined, LTT[T3[Boolean, Int]])
-
-      assertNotChild(combined, LTT[Either[Int, Boolean]])
-      assertNotChild(combined, LTT[T3[Boolean, Int]])
-
-      assertChild(combined, LTT[W5[Int]])
-      assertChild(combined, LTT[W4[Boolean]])
-      assertChild(combined, LTT[W3[Boolean]])
-      assertChild(combined, LTT[W1])
-      assertChild(combined, LTT[W2])
-      assertChild(combined, LTT[W1 with W3[Boolean]])
-
-      assertNotChild(combined, LTT[W4[Int]])
-      assertNotChild(combined, LTT[W3[Int]])
-      assertNotChild(combined, LTT[W5[Boolean]])
-      assertNotChild(combined, LTT[W1 with W5[Boolean]])
-    }
-
-    "applied tags should not contain junk bases" in {
-      val debug1 = LTT[List[_]].debug()
-
-      assert(!debug1.contains("scala.List"))
-      assert(!debug1.contains("package::List"))
-      assert(!debug1.contains("<refinement>"))
-      assert(!debug1.contains("<none>"))
-      assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
-
-      val debug2 = LTT[Either[RoleChild[IO], Product]].debug()
-//      val debug2 = PlatformSpecific.fromRuntime[Either[RoleChild[IO], Product]].debug()
-
-      assert(!debug2.contains("package::Either"))
-      assert(!debug2.contains("<refinement>"))
-      assert(!debug2.contains("<none>"))
-      assert(!debug2.contains("TestModel.E"))
-      assert(!debug2.contains("TestModel.A"))
-      assert(debug2.contains("- λ %0 → izumi.reflect.test.TestModel::RoleChild[=0]"))
-      assert(debug2.contains("* λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
-    }
-
-    "lambda tags should not contain junk bases" in {
-      val debug1 = `LTT[_,_]`[Either].debug()
-
-      assert(!debug1.contains("package::Either"))
-      assert(!debug1.contains("scala.package.A"))
-      assert(!debug1.contains("scala.package.B"))
-
-      val debug2 = `LTT[_,_]`[Either].combine(LTT[Int], LTT[Int]).debug()
-
-      assert(!debug2.contains("package::Either"))
-      assert(!debug2.contains("scala.package.A"))
-      assert(!debug2.contains("scala.package.B"))
-
-      val debug3 = LTT[RoleParent[Either[Throwable, *]]].debug()
-
-      assert(!debug3.contains("package::Either"))
-      assert(!debug3.contains("<refinement>"))
-      assert(!debug3.contains("<none>"))
-      assert(!debug3.contains("TestModel.E"))
-      assert(!debug3.contains("TestModel.A"))
-      assert(!debug3.contains("+scala.Nothing"))
-      assert(debug3.contains("- λ %0,%1 → scala.util.Either[+0,+1]"))
-
-      val debug4 = `LTT[_]`[Either[Throwable, *]].debug()
-//      val debug4 = PlatformSpecific
-//        .fromRuntime(
-//          scala.reflect.runtime.universe.typeOf[{ type l[a] = Either[Throwable, a] }].member(scala.reflect.runtime.universe.TypeName("l")).typeSignature
-//        ).debug()
-
-      assert(!debug4.contains("package::Either"))
-      assert(!debug4.contains("<refinement>"))
-      assert(!debug4.contains("<none>"))
-      assert(!debug4.contains("TestModel.E"))
-      assert(!debug4.contains("TestModel.A"))
-      assert(!debug4.contains("+scala.Nothing"))
-      assert(debug4.contains("- λ %0,%1 → scala.util.Either[+0,+1]"))
-
-      val oneArgApplied = `LTT[_,_]`[Either].combine(LTT[Throwable]).combine(LTT[Unit])
-      val debug5 = oneArgApplied.debug()
-
-      println(debug5)
-      assert(!debug5.contains("package::Either"))
-      assert(!debug5.contains("<refinement>"))
-      assert(!debug5.contains("<none>"))
-      assert(!debug5.contains("scala.package.A"))
-      assert(!debug5.contains("scala.package.B"))
-      assert(!debug5.contains("+scala.Nothing"))
-    }
-
-    "intersection lambda tags should not contain junk bases" in {
-      val tCtor = `LTT[_,_]`[T3]
-//      val tCtor = PlatformSpecific.fromRuntime(scala.reflect.runtime.universe.typeOf[T3[Any, Any]].typeConstructor)
-      val debugCtor = tCtor.debug("ctor")
-
-      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
-      val debugCombined = combined.debug("combined")
-
-      val alias = LTT[T3[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
-
-      println(debugCtor)
-      println(debugCombined)
-      println(alias.debug("alias"))
-      println(direct.debug("direct"))
-
-      assert(!debugCtor.contains("<refinement>"))
-      assert(!debugCtor.contains("<none>"))
-      assert(!debugCtor.contains("- T"))
-      assert(!debugCtor.contains("W4[=B]"))
-      assert(!debugCtor.contains("W5[=A]"))
-
-      assert(!direct.debug().contains("W4[=Int]"))
-      assert(!direct.debug().contains("W4[=scala.Int]"))
-
-      assert(!debugCombined.contains("<refinement>"))
-      assert(!debugCombined.contains("<none>"))
-      assert(!debugCombined.contains("- T"))
-      assert(!debugCombined.contains("W4[=B]"))
-      assert(!debugCombined.contains("W5[=A]"))
-      assert(debugCombined.contains("W5[=scala.Int]"))
-
-      assertDebugSame(alias, direct)
+      assertDebugSame(LTT[(Object {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
+      assertDebugSame(LTT[(Any {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
+      assertDebugSame(LTT[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
     }
 
   }

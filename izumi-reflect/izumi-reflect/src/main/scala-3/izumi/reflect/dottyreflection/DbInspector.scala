@@ -19,10 +19,7 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe = TypeRepr.of[T].dealias
 
-    val allReferenceComponents = {
-      allTypeReferences(tpe)
-        .flatMap(breakRefinement)
-    }
+    val allReferenceComponents = allTypeReferences(tpe)
 
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
@@ -46,16 +43,21 @@ abstract class DbInspector(protected val shift: Int) extends InspectorBase {
   private def allTypeReferences(tpe0: TypeRepr): collection.Set[TypeRepr] = {
     val inh = mutable.HashSet.empty[TypeRepr]
 
-    def extract(t: TypeRepr): Unit = {
-      val resType = t.dealias.simplified._resultType
-      inh += resType
+    def extractComponents(tpeRaw0: TypeRepr): Unit = {
+      val intersectionUnionMembers = breakRefinement(tpeRaw0.dealias.simplified._resultType)
 
-      val next = t._typeArgs.iterator ++ resType._typeArgs.iterator
-      next.foreach(extract)
+      if (intersectionUnionMembers.sizeIs == 1) {
+        inh += intersectionUnionMembers.head
+      }
+
+      (
+//        tpeRaw0._typeArgs.iterator ++
+        intersectionUnionMembers.iterator.flatMap(_._typeArgs) ++
+        intersectionUnionMembers
+      ).foreach(t => if (!inh(t) && !ignored(t)) extractComponents(t))
     }
 
-    inh += tpe0
-    extract(tpe0)
+    extractComponents(tpe0)
     inh
   }
 

@@ -1,7 +1,7 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.macrortti.LightTypeTagRef
-import izumi.reflect.macrortti.LightTypeTagRef.*
+import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
@@ -13,9 +13,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   import qctx.reflect._
 
-  private def next() = new Inspector(shift + 1) {
-    val qctx: self.qctx.type = self.qctx
-  }
+  private def next() = new Inspector(shift + 1) { val qctx: self.qctx.type = self.qctx }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
     val uns = TypeTree.of[T]
@@ -25,8 +23,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     res
   }
 
-  private[dottyreflection] def inspectTypeRepr(tpe: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    tpe.dealias.simplified match {
+  private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
+    val tpe = tpe0.dealias.simplified
+    tpe match {
       case a: AnnotatedType =>
         inspectTypeRepr(a.underlying)
 
@@ -160,8 +159,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def flattenInspectAnd(and: AndType): Set[AppliedReference] =
+  private def flattenInspectAnd(and: AndType): Set[AppliedReference] = {
     flattenAnd(and).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
+  }
 
   private def flattenInspectOr(or: OrType): Set[AppliedReference] =
     flattenOr(or).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])

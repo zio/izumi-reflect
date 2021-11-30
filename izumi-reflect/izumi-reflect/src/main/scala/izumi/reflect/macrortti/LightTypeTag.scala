@@ -162,8 +162,7 @@ abstract class LightTypeTag(
     * Use [[toString]] for a rendering that omits package names
     */
   def repr: String = {
-    import izumi.reflect.macrortti.LTTRenderables.Long._
-    ref.render()
+    ref.repr
   }
 
   /** Short class or type-constructor name of this type, without package or prefix names */
@@ -178,13 +177,9 @@ abstract class LightTypeTag(
 
   /** Print internal structures state */
   def debug(name: String = ""): String = {
-    def renderDb(db: Map[_ <: LightTypeTagRef, Set[_ <: LightTypeTagRef]]): String = {
-      import izumi.reflect.internal.fundamentals.platform.strings.IzString._
-      db.toList.sortBy(_._1).map { case (k, v) => s"${k.repr} -> ${v.toList.sorted.map(_.repr).niceList(prefix = "* ").shift(2)}" }.niceList()
-    }
     s"""⚙️ begin $name: ${this.repr}
-       |⚡️bases:${renderDb(basesdb)}
-       |⚡️inheritance:${renderDb(idb)}
+       |⚡️bases:${LTTRenderables.Long.renderDb(basesdb)}
+       |⚡️inheritance:${LTTRenderables.Long.renderDb(idb)}
        |⚙️ end $name""".stripMargin
   }
 

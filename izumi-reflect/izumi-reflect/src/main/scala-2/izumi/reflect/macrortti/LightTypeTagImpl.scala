@@ -30,7 +30,6 @@ import izumi.reflect.{DebugProperties, ReflectionUtil}
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 
 import scala.annotation.tailrec
-import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
@@ -89,6 +88,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
 
+    logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
+
     val lttRef = makeRef(tpe)
 
     val allReferenceComponents = allTypeReferences(tpe)
@@ -100,9 +101,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       allBases.iterator.flatten.toMultimap.filterNot(_._2.isEmpty)
     }
 
-    val unappliedDb = {
-      makeUnappliedInheritanceDb(allReferenceComponents)
-    }
+    val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents)
 
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
@@ -124,7 +123,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             List(UniRefinement.typeOfTypeMember(sym))
           } else Nil
       }
-      val intersectionExpansionsArgsBounds: Iterator[Type] = intersectionWithPreservedLambdas.iterator.flatMap(collectEtaExpansionArgsBounds)
+      val intersectionExpansionsArgsBounds: Iterator[Type] = intersectionWithPreservedLambdas.iterator.flatMap(collectArgsAndBounds)
 
       val nextToInspect = mutable
         .HashSet.newBuilder[Type]
@@ -135,7 +134,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       nextToInspect.foreach(t => if (!inh(t) && !ignored(t)) extractComponents(t, inh))
     }
 
-    def collectEtaExpansionArgsBounds(tpeUnexpanded0: Type): Iterator[Type] = {
+    def collectArgsAndBounds(tpeUnexpanded0: Type): Iterator[Type] = {
       // unexpanded: Either
       val tpeUnexpanded = Dealias.fullNormDealias(tpeUnexpanded0)
       // polyType: [L,R]Either[L,R]
@@ -156,7 +155,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             case t: TypeBoundsApi =>
               Seq(t.hi, t.lo).filterNot(ignored)
             case _ =>
-              if (!targSym.isParameter) Seq(targ0) else Seq.empty
+              if (!targSym.isParameter) {
+                Seq(targ0)
+              } else Seq.empty
           }
       }
 
@@ -170,7 +171,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       Iterator.single(tpeUnexpanded) ++
       tpeUnexpanded.typeArgs.iterator ++
-//      Iterator.single(tpePolyTypeResultType) ++ // trash
+//      Iterator.single(tpePolyTypeResultType) ++ // corrupted type
 //      tpePolyTypeResultType.typeArgs.iterator ++ // redundant, included below
       tparamTypeBoundsAndTypeArgs.iterator
     }
@@ -264,7 +265,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val prefix = getPrefix(tpe)
       val typeSymbol = tpe.typeSymbol
       val boundaries = makeBoundaries(tpe)
-      val nameref = rules.get(typeSymbol.fullName) match {
+      val nameRef = rules.get(typeSymbol.fullName) match {
         case Some(lambdaParameter) =>
           // this is a previously encountered type variable
           NameReference(SymTypeName(lambdaParameter.name), boundaries, prefix)
@@ -274,7 +275,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
 
       tpe.typeArgs match {
-        case Nil => nameref
+        case Nil =>
+          nameRef
 
         case args =>
           val tparams = tpeRaw.dealias.typeConstructor.typeParams
@@ -282,7 +284,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             case (arg, param) =>
               TypeParam(makeRefSub(arg), getVariance(param.asType))
           }
-          val res = FullReference(nameref.ref.name, refParams, prefix)
+          val res = FullReference(nameRef.ref.name, refParams, prefix)
           thisLevel.log(s"Assembled FullReference=$res from args=$args and tparams=$tparams")
           res
       }
@@ -422,13 +424,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             val lambdaParams = makeLambdaParams(None, tparams)
             val maybeComponentLambdaRef = makeRef(componentAsPolyType)
             require(maybeComponentLambdaRef.isInstanceOf[LightTypeTagRef.Lambda])
-            makeParentLambdas(componentAsPolyType, lambdaParams)
-              .map(maybeComponentLambdaRef -> _)
+            val parentLambdas = makeLambdaParents(componentAsPolyType, lambdaParams)
+            parentLambdas.map(maybeComponentLambdaRef -> _)
           }
       }
     }
 
-    def makeParentLambdas(componentPolyType: Type, lambdaParams: List[(String, LambdaParameter)]): Seq[AbstractReference] = {
+    def makeLambdaParents(componentPolyType: Type, lambdaParams: List[(String, LambdaParameter)]): Seq[AbstractReference] = {
       val allBaseTypes = tpeBases(componentPolyType)
 
       val paramMap = lambdaParams.toMap
@@ -448,14 +450,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    val unappliedBases = {
-      allReferenceComponents.flatMap(processLambdasReturningRefinements)
-    }
-    logger.log(s"Computed unapplied bases for tpe=$mainTpe unappliedBases=${unappliedBases.niceList()}")
+    val unappliedBases = allReferenceComponents.flatMap(processLambdasReturningRefinements)
+    logger.log(s"Computed unapplied lambda bases for tpe=$mainTpe unappliedBases=${unappliedBases.toMultimap.niceList()}")
     unappliedBases
   }
 
-  private def makeUnappliedInheritanceDb(allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
+  private def makeClassOnlyInheritanceDb(mainTpe: Type, allReferenceComponents: Set[Type]): Map[NameReference, Set[NameReference]] = {
     val baseclassReferences = allReferenceComponents
       .iterator
       .flatMap {
@@ -504,6 +504,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             }
       }
       .filterNot(_._2.isEmpty)
+
+    logger.log(s"Computed unparameterized inheritance data for tpe=$mainTpe unappliedBases=${unparameterizedInheritanceData.toMultimap.niceList()}")
 
     unparameterizedInheritanceData
   }
@@ -634,12 +636,23 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     def fullNormDealias(t0: Type): Type = {
       var prev = null: Type
-      var cur = t0
+      var cur = scala211ExistentialDealiasWorkaround(t0)
       while (cur ne prev) {
         prev = cur
         cur = norm(prev).dealias
       }
       cur
+    }
+
+    // On Scala 2.12+ .dealias automatically destroys wildcards by using TypeMaps#ExistentialExtrapolation on dealiased existential output
+    // This is kinda bad. But whatever, we're stuck with this behavior for this moment, so we should emulate it on 2.11 to make it work too.
+    private def scala211ExistentialDealiasWorkaround(t0: Type): Type = {
+      t0.dealias match {
+        case existential: ExistentialTypeApi =>
+          internal.existentialAbstraction(existential.quantified, existential.underlying.dealias)
+        case t =>
+          t
+      }
     }
 
     @tailrec
@@ -689,8 +702,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           }
         case k if k.termSymbol != NoSymbol =>
           val finalSymbol = Dealias.dealiasSingletons(k.termSymbol)
+          val finalSymbolTpe = Dealias.fullNormDealias(finalSymbol.typeSignature.finalResultType)
           val name = symName(finalSymbol)
-          val prePrefix = getPrefix(finalSymbol.typeSignature.finalResultType)
+          val prePrefix = getPrefix(finalSymbolTpe)
           Some(NameReference(name, Boundaries.Empty, prePrefix))
         case o =>
           fromRef(o)
@@ -718,7 +732,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       case s: SingleTypeApi if s.sym != NoSymbol =>
         val sym = Dealias.dealiasSingletons(s.termSymbol)
-        val resultType = sym.typeSignatureIn(s.pre).finalResultType
+        val resultType = Dealias.fullNormDealias(sym.typeSignatureIn(s.pre).finalResultType)
         val newPrefix = if (hasSingletonType(resultType.typeSymbol)) getPrefix(resultType) else prefix
         NameReference(symName(sym), boundaries, newPrefix)
 
@@ -763,4 +777,5 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       Variance.Invariant
     }
   }
+
 }

@@ -46,5 +46,10 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assert(`LTT[_[_]]`[[T[_]] =>> T0[List, T]].typeArgs == List(`LTT[_]`[List]))
     }
 
+    "tautological intersections with Matchable are discarded from internal structure" in {
+      assertDeepSame(LTT[Matchable with Option[String]], LTT[Option[String]])
+      assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])
+    }
+
   }
 }
