@@ -1,7 +1,6 @@
 package izumi.reflect.dottyreflection
 
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, NameReference}
 
 import scala.quoted.{Quotes, Type}
 

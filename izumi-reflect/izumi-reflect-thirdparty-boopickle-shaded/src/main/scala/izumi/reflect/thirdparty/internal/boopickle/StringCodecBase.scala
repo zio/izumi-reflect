@@ -168,7 +168,7 @@ private[reflect] abstract class StringCodecFast {
   }
 }
 
-abstract class StringCodecBase extends StringCodecFast {
+private[reflect] abstract class StringCodecBase extends StringCodecFast {
   def decodeUTF8(len: Int, buf: ByteBuffer): String
 
   def encodeUTF8(s: String): ByteBuffer

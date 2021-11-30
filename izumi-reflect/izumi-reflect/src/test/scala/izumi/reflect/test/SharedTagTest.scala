@@ -1,7 +1,7 @@
 package izumi.reflect.test
 
 import izumi.reflect._
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag110
+import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation}
@@ -116,8 +116,8 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
           assert(tag1.tag.ref == tag2.tag.ref)
 
-          assert(rtTag1 == tag1.tag.asInstanceOf[ParsedLightTypeTag110].refString)
-          assert(rtTag2 == tag2.tag.asInstanceOf[ParsedLightTypeTag110].refString)
+          assert(rtTag1 == tag1.tag.asInstanceOf[ParsedLightTypeTag210].refString)
+          assert(rtTag2 == tag2.tag.asInstanceOf[ParsedLightTypeTag210].refString)
 
           assert(rtTag1 == rtTag2)
 

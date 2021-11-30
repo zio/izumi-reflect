@@ -481,6 +481,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git")),
     ThisBuild / scalacOptions += """-Xmacro-settings:scalatest-version=${V.scalatest}""",
     ThisBuild / mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr"),
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*"),
@@ -496,7 +497,8 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.87" % Provided
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.87" % Provided,
+    Global / onChangedBuildSource := ReloadOnSourceChanges
   )
   .aggregate(
     `izumi-reflect-aggregate`

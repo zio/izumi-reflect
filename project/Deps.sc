@@ -139,6 +139,7 @@ object Izumi {
         "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=$${V.scalatest}${"\"" * 3}""".raw,
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
           // new methods added
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr")""".raw,
           // compile-time only
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
@@ -162,7 +163,10 @@ object Izumi {
         // scala-steward workaround
         // add sbtgen version to sbt build to allow scala-steward to find it and update it in .sc files
         // https://github.com/scala-steward-org/scala-steward/issues/696#issuecomment-545800968
-        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw
+        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw,
+
+        // sbt reload
+        "onChangedBuildSource" in SettingScope.Raw("Global") := "ReloadOnSourceChanges".raw
       )
 
       final val sharedSettings =

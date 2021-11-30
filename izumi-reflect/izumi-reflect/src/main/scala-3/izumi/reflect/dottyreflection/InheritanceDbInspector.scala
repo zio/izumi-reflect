@@ -1,8 +1,6 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef._
 import scala.collection.mutable
 

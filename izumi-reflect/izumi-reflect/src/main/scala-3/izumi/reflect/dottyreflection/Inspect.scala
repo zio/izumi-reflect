@@ -2,10 +2,7 @@ package izumi.reflect.dottyreflection
 
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, NameReference}
 
-import java.nio.charset.StandardCharsets
-import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 
 import scala.quoted.{Expr, Quotes, Type}
@@ -18,9 +15,6 @@ object Inspect {
       val ref = TypeInspections.apply[T]
       val fullDb = TypeInspections.fullDb[T]
       val nameDb = TypeInspections.unappliedDb[T]
-      // val ref = NameReference("xa")
-      // val nameDb = Map.empty[NameReference, Set[NameReference]] // FIXME: slowness is in nameDb, fullDb is fine
-      // val fullDb = Map.empty[AbstractReference, Set[AbstractReference]]
       LightTypeTag(ref, fullDb, nameDb)
     }
 
