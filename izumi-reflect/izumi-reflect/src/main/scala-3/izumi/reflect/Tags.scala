@@ -23,7 +23,7 @@ import izumi.reflect.macrortti.{LTag, LightTypeTag}
 
 import scala.annotation.implicitNotFound
 
-trait AnyTag {
+trait AnyTag extends Serializable {
   def tag: LightTypeTag
 
   /**

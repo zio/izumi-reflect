@@ -25,7 +25,7 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import scala.annotation.tailrec
 import scala.util.Sorting
 
-sealed trait LightTypeTagRef {
+sealed trait LightTypeTagRef extends Serializable {
 
   final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {
     if (args.nonEmpty) {

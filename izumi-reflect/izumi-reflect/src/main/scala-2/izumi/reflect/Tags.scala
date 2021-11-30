@@ -23,7 +23,7 @@ import izumi.reflect.macrortti.{LTag, LightTypeTag}
 import scala.annotation.implicitNotFound
 import scala.language.experimental.macros
 
-trait AnyTag {
+trait AnyTag extends Serializable {
   def tag: LightTypeTag
 
   /**
@@ -241,6 +241,6 @@ object WeakTag extends WeakTagInstances1 {
 
   implicit def weakTagFromTag[T: Tag]: WeakTag[T] = WeakTag(Tag[T].closestClass, Tag[T].tag)
 }
-trait WeakTagInstances1 {
+private[reflect] trait WeakTagInstances1 {
   implicit def weakTagFromWeakTypeTag[T](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
 }
