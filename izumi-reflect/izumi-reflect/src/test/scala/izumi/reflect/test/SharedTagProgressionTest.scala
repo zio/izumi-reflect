@@ -84,8 +84,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         val singleton2 = "bar"
         type S2 = singleton2.type
 
-        val xa = Tag[X].tag
-
 //        val s1a = Tag[S1] // class type required but String("bar") found error on 2.11
         val s1a = LTT[S1]
         val s1a1 = Tag[singleton1.type].tag
@@ -108,7 +106,10 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       object B extends B
 
-      assertDifferent(Tag[A#S1].tag, LTT[String])
+      // Scala 2.12 doesn't handle literal types here
+      if (LTT[B.singleton1.type] != LTT[String] && !IsDotty) {
+        assertDifferent(Tag[A#S1].tag, LTT[String])
+      }
       doesntWorkYetOnDotty {
         assertSame(Tag[A#S1].tag, B.s1a)
       }
