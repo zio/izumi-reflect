@@ -46,6 +46,8 @@ object RuntimeAPI {
               case f: FullReference =>
                 f.parameters.iterator.map(_.ref).flatMap(unpack).toSet ++ f.prefix.toSet.flatMap(unpack) + f.asName
             }
+          case WildcardReference =>
+            Set.empty
           case IntersectionReference(refs) =>
             refs.flatMap(unpack)
           case UnionReference(refs) =>
@@ -123,6 +125,8 @@ object RuntimeAPI {
         case UnionReference(refs) =>
           val replaced = refs.map(replaceApplied).map(r => ensureApplied(reference, r))
           maybeUnion(replaced)
+        case r: WildcardReference.type =>
+          r
         case Refinement(base, decls) =>
           val rdecls = decls.map {
             case RefinementDecl.Signature(name, input, output) =>
