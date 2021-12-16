@@ -424,15 +424,17 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           //      //    println()
           //      //    println(r.pre)
           //      //    println(r.sym.getClass)
-          val tparams = tpeRaw.dealias.typeConstructor.typeParams
+          val tparams = Dealias.fullNormDealias(tpeRaw).typeConstructor.typeParams
 
           val refParams = tpeRaw match {
             case t: ExistentialTypeApi =>
+              val quantifiedParams = t.quantified.toSet
               t.underlying.typeArgs.zip(tparams).map {
                 case (arg, param) =>
+                  // (!arg.typeSymbol.asType.isClass && arg.typeSymbol.asType.isAbstract && arg.typeSymbol.asType.isType && !rules.contains(arg.typeSymbol.fullName))
+
                   val paramRef =
-                    if (!arg.typeSymbol.asType.isClass && arg.typeSymbol.asType.isAbstract && arg.typeSymbol.asType.isType && !rules
-                        .contains(arg.typeSymbol.fullName)) {
+                    if (quantifiedParams.contains(arg.typeSymbol)) {
                       //                println(s"$tpeRaw: $arg, ${arg.getClass}, ${arg.typeSymbol}, ${arg.typeSymbol.getClass} ")
                       WildcardReference
                     } else {
@@ -448,35 +450,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               }
           }
 
-//          println(s"$tpe ${tpe.getClass} => ${realArgs.map(
-//            a =>
-//              (
-//                a,
-//                a.getClass,
-//                !a.typeSymbol.asType.isClass && a.typeSymbol.asType.isAbstract && a.typeSymbol.asType.isType,
-//                try {
-//                  a.asInstanceOf[{ val pre: Type; val sym: Symbol }].sym.isAbstract && !a.asInstanceOf[{ val pre: Type; val sym: Symbol }].sym.isClass
-//                } catch {
-//                  case t: Throwable => "?"
-//                }
-//              )
-//          )}")
-
-//          val refParams = realArgs.zip(tparams).map {
-//            case (arg, param) =>
-//              val paramRef = if (!arg.typeSymbol.asType.isClass && arg.typeSymbol.asType.isAbstract && arg.typeSymbol.asType.isType) {
-////                println(s"$tpeRaw: $arg, ${arg.getClass}, ${arg.typeSymbol}, ${arg.typeSymbol.getClass} ")
-//                WildcardReference
-//              } else {
-//                makeRefSub(arg)
-//              }
-//              TypeParam(paramRef, makeVariance(param.asType))
-//          }
-
-          //
-
           val res = FullReference(nameRef.ref.name, refParams, prefix)
-//          println(s"$tpeRaw => Assembled FullReference=$res from args=$args and tparams=$tparams")
           thisLevel.log(s"Assembled FullReference=$res from args=$args and tparams=$tparams")
           res
       }
@@ -715,6 +689,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       var prev = null: Type
       val t1 = fullNormDealias(t0)
       var cur = if (t1.takesTypeArgs) t1.etaExpand else t1
+
       while (cur ne prev) {
         prev = cur
         cur = norm(prev).dealias.resultType
@@ -723,24 +698,23 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def fullNormDealias(t0: Type): Type = {
-      // t0
-      var prev = null: Type
-      var cur = scala211ExistentialDealiasWorkaround(t0)
-      while (cur ne prev) {
-        prev = cur
-        cur = norm(prev).dealias
-      }
-      cur
+      scala211ExistentialDealiasWorkaround(t0)
     }
 
     // On Scala 2.12+ .dealias automatically destroys wildcards by using TypeMaps#ExistentialExtrapolation on dealiased existential output
     // This is kinda bad. But whatever, we're stuck with this behavior for this moment, so we should emulate it on 2.11 to make it work too.
     private[this] def scala211ExistentialDealiasWorkaround(t0: Type): Type = {
-      t0.dealias match {
+      t0 match {
         case existential: ExistentialTypeApi =>
-          internal.existentialAbstraction(existential.quantified, existential.underlying.dealias)
+          internal.existentialType(existential.quantified, scala211ExistentialDealiasWorkaround(existential.underlying.dealias))
+        // internal.existentialAbstraction(existential.quantified, existential.underlying.dealias)
         case t =>
-          t
+          val next = norm(t).dealias
+          if (next eq t) {
+            t
+          } else {
+            scala211ExistentialDealiasWorkaround(next)
+          }
       }
     }
 
