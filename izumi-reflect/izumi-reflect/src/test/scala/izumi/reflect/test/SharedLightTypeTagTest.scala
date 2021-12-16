@@ -175,7 +175,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[scala.collection.immutable.List[Int]], list_)
       assertChild(list_, immutableList_)
       assertChild(immutableList_, list_)
-      println(list_.debug())
       assertDebugSame(list_, immutableList_)
     }
 
