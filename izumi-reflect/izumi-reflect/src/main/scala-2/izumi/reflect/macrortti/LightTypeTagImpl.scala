@@ -91,6 +91,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
 
     val lttRef = makeRef(tpe)
+//    println(s"$tpe0 => $tpe => $lttRef")
 
     val allReferenceComponents = allTypeReferences(tpe)
 
@@ -360,7 +361,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val nestingLevel = if (level > 0) Some(level) else None
       val lambdaParams = makeLambdaParams(nestingLevel, tparams)
 
-      thisLevel.log(s"✴️ λ type $t has parameters $lambdaParams, terminal names = $terminalNames")
+      thisLevel.log(s"✴️ λ type $t has parameters $lambdaParams and result $polyTypeResult terminal names = $terminalNames")
       val reference = makeRefSub(polyTypeResult, lambdaParams.toMap)
       val out = Lambda(lambdaParams.map(_._2), reference)
       if (!out.allArgumentsReferenced) {
@@ -411,12 +412,71 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           nameRef
 
         case args =>
+          //      println(tpeUnexpanded0)
+          //      tpe0 match {
+          //        case t: ExistentialTypeApi =>
+          //          val r = tpe0.asInstanceOf[{ val underlying: Type }].underlying.typeArgs.head.asInstanceOf[{ val pre: Type; val sym: Symbol }]
+          //          println(s"$tpe0 => ${tpe0.typeArgs}, ${tpe0.typeParams}, ${tpe0.getClass}, ${t.underlying.typeArgs}")
+          //        case _ =>
+          //
+          //      }
+          //
+          //      //    println()
+          //      //    println(r.pre)
+          //      //    println(r.sym.getClass)
           val tparams = tpeRaw.dealias.typeConstructor.typeParams
-          val refParams = args.zip(tparams).map {
-            case (arg, param) =>
-              TypeParam(makeRefSub(arg), makeVariance(param.asType))
+
+          val refParams = tpeRaw match {
+            case t: ExistentialTypeApi =>
+              t.underlying.typeArgs.zip(tparams).map {
+                case (arg, param) =>
+                  val paramRef =
+                    if (!arg.typeSymbol.asType.isClass && arg.typeSymbol.asType.isAbstract && arg.typeSymbol.asType.isType && !rules
+                        .contains(arg.typeSymbol.fullName)) {
+                      //                println(s"$tpeRaw: $arg, ${arg.getClass}, ${arg.typeSymbol}, ${arg.typeSymbol.getClass} ")
+                      WildcardReference
+                    } else {
+                      makeRefSub(arg)
+                    }
+                  TypeParam(paramRef, makeVariance(param.asType))
+              }
+            case _ =>
+              args.zip(tparams).map {
+                case (arg, param) =>
+                  val paramRef = makeRefSub(arg)
+                  TypeParam(paramRef, makeVariance(param.asType))
+              }
           }
+
+//          println(s"$tpe ${tpe.getClass} => ${realArgs.map(
+//            a =>
+//              (
+//                a,
+//                a.getClass,
+//                !a.typeSymbol.asType.isClass && a.typeSymbol.asType.isAbstract && a.typeSymbol.asType.isType,
+//                try {
+//                  a.asInstanceOf[{ val pre: Type; val sym: Symbol }].sym.isAbstract && !a.asInstanceOf[{ val pre: Type; val sym: Symbol }].sym.isClass
+//                } catch {
+//                  case t: Throwable => "?"
+//                }
+//              )
+//          )}")
+
+//          val refParams = realArgs.zip(tparams).map {
+//            case (arg, param) =>
+//              val paramRef = if (!arg.typeSymbol.asType.isClass && arg.typeSymbol.asType.isAbstract && arg.typeSymbol.asType.isType) {
+////                println(s"$tpeRaw: $arg, ${arg.getClass}, ${arg.typeSymbol}, ${arg.typeSymbol.getClass} ")
+//                WildcardReference
+//              } else {
+//                makeRefSub(arg)
+//              }
+//              TypeParam(paramRef, makeVariance(param.asType))
+//          }
+
+          //
+
           val res = FullReference(nameRef.ref.name, refParams, prefix)
+//          println(s"$tpeRaw => Assembled FullReference=$res from args=$args and tparams=$tparams")
           thisLevel.log(s"Assembled FullReference=$res from args=$args and tparams=$tparams")
           res
       }
@@ -663,6 +723,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def fullNormDealias(t0: Type): Type = {
+      // t0
       var prev = null: Type
       var cur = scala211ExistentialDealiasWorkaround(t0)
       while (cur ne prev) {

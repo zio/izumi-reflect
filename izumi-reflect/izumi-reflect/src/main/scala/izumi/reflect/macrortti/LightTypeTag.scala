@@ -507,6 +507,7 @@ object LightTypeTag {
       addConcreteType[NameReference]
       addConcreteType[Refinement]
       addConcreteType[UnionReference]
+      addConcreteType[WildcardReference.type]
     }
     implicit lazy val aref: Pickler[AbstractReference] = new boopickle.CompositePickler[LightTypeTagRef.AbstractReference] {
       addConcreteType[FullReference]
@@ -515,6 +516,7 @@ object LightTypeTag {
       addConcreteType[NameReference]
       addConcreteType[Refinement]
       addConcreteType[UnionReference]
+      addConcreteType[WildcardReference.type]
     }
     implicit lazy val tagref: Pickler[LightTypeTagRef] = new boopickle.CompositePickler[LightTypeTagRef] {
       addConcreteType[FullReference]
@@ -523,7 +525,15 @@ object LightTypeTag {
       addConcreteType[NameReference]
       addConcreteType[Refinement]
       addConcreteType[UnionReference]
+      addConcreteType[WildcardReference.type]
     }
+
+    implicit lazy val wildcardRef: Pickler[WildcardReference.type] = IntPickler.xmap {
+      case 0 => WildcardReference
+    } {
+      case WildcardReference => 0
+    }
+
     implicit lazy val fullRef: Pickler[FullReference] = new boopickle.Pickler[LightTypeTagRef.FullReference] {
       override def pickle(value: LightTypeTagRef.FullReference)(implicit state: boopickle.PickleState): Unit = {
         {

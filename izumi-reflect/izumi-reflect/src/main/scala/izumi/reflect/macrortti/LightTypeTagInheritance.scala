@@ -205,14 +205,19 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     def parameterShapeCompatible: Boolean = {
       self.parameters.zip(that.parameters).forall {
         case (ps, pt) =>
-          pt.variance match {
-            case Variance.Invariant =>
-              ps.ref == pt.ref
-            case Variance.Contravariant =>
-              ctx.isChild(pt.ref, ps.ref)
-            case Variance.Covariant =>
-              ctx.isChild(ps.ref, pt.ref)
+          if (pt.ref == LightTypeTagRef.WildcardReference) {
+            true
+          } else {
+            pt.variance match {
+              case Variance.Invariant =>
+                ps.ref == pt.ref
+              case Variance.Contravariant =>
+                ctx.isChild(pt.ref, ps.ref)
+              case Variance.Covariant =>
+                ctx.isChild(ps.ref, pt.ref)
+            }
           }
+
       }
     }
 
