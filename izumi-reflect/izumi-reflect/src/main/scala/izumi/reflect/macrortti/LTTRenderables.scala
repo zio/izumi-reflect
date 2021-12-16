@@ -23,7 +23,7 @@ import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izumi.reflect.macrortti.LightTypeTagRef._
 
-trait LTTRenderables extends WithRenderableSyntax {
+trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
 
@@ -58,7 +58,7 @@ trait LTTRenderables extends WithRenderableSyntax {
 
   implicit lazy val r_Refinement: Renderable[Refinement] = new Renderable[Refinement] {
     override def render(value: Refinement): String = {
-      s"(${value.reference.render()} & ${value.decls.map(_.render()).toSeq.sorted.mkString("{", ", ", "}")})"
+      s"(${value.reference.render()} & ${value.decls.toSeq.sorted(OrderingRefinementDeclInstance).map(_.render()).mkString("{", ", ", "}")})"
     }
   }
 
@@ -120,19 +120,19 @@ trait LTTRenderables extends WithRenderableSyntax {
 
   implicit lazy val r_IntersectionReference: Renderable[IntersectionReference] = new Renderable[IntersectionReference] {
     override def render(value: IntersectionReference): String = {
-      value.refs.map(_.render()).mkString("{", " & ", "}")
+      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(_.render()).mkString("{", " & ", "}")
     }
   }
 
   implicit lazy val r_UnionReference: Renderable[UnionReference] = new Renderable[UnionReference] {
     override def render(value: UnionReference): String = {
-      value.refs.map(_.render()).mkString("{", " | ", "}")
+      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(_.render()).mkString("{", " | ", "}")
     }
   }
 
   implicit lazy val r_TypeParam: Renderable[TypeParam] = new Renderable[TypeParam] {
     override def render(value: TypeParam): String = {
-      s"${value.variance.render()}${value.ref}"
+      s"${value.variance.render()}${value.ref.render()}"
     }
   }
 
@@ -158,6 +158,7 @@ trait LTTRenderables extends WithRenderableSyntax {
 
 object LTTRenderables {
 
+  // omit package names
   object Short extends LTTRenderables {
     def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
       sym match {
@@ -167,9 +168,18 @@ object LTTRenderables {
     }
   }
 
+  // print package names
   object Long extends LTTRenderables {
-    def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
-      sym.name
+    def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
+      if (!hasPrefix) sym.name else Short.r_SymName(sym, hasPrefix)
+    }
+
+    private[macrortti] def renderDb(db: Map[_ <: AbstractReference, Set[_ <: AbstractReference]]): String = {
+      import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+      db.toList.sortBy(_._1)(OrderingAbstractReferenceInstance).map {
+          case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
+        }.niceList()
     }
   }
+
 }

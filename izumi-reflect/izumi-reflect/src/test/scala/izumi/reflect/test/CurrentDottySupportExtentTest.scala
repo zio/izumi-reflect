@@ -19,6 +19,8 @@ trait CurrentDottySupportExtentTest extends TagAssertions {
   trait SubInvariantoid[V] extends Invariantoid[V] with Traitoid
 
   "super-basic test 1" in { test() }
+
+  // FIXME workaround for 'Cyclic reference involving class Bar'
   def test() = {
     val intTag = LTT[Int]
 

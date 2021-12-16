@@ -21,5 +21,5 @@ package izumi.reflect.internal.fundamentals.collections
 import scala.language.implicitConversions
 
 private[reflect] object IzCollections {
-  implicit def toRich[A, B](xs: Iterable[(A, B)]): IzMappings[A, B] = new IzMappings(xs)
+  private[reflect] implicit def toRich[A, B](xs: scala.collection.compat.IterableOnce[(A, B)]): IzMappings[A, B] = new IzMappings(xs)
 }

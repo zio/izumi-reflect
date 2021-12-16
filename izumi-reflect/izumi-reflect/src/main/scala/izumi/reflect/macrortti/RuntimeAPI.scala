@@ -44,7 +44,7 @@ object RuntimeAPI {
               case n: NameReference =>
                 Set(n.copy(prefix = None, boundaries = Boundaries.Empty)) ++ n.prefix.toSet.flatMap(unpack) ++ unpackBoundaries(n.boundaries)
               case f: FullReference =>
-                f.parameters.map(_.ref).flatMap(unpack).toSet ++ f.prefix.toSet.flatMap(unpack) + f.asName
+                f.parameters.iterator.map(_.ref).flatMap(unpack).toSet ++ f.prefix.toSet.flatMap(unpack) + f.asName
             }
           case IntersectionReference(refs) =>
             refs.flatMap(unpack)
@@ -65,15 +65,15 @@ object RuntimeAPI {
   }
 
   def applyLambda(lambda: Lambda, parameters: Seq[(String, AbstractReference)]): AbstractReference = {
-    val pmap = parameters.toMap
+    val paramMap = parameters.toMap
 
     val replaced = parameters.foldLeft(lambda.output) {
       case (acc, p) =>
-        val rewriter = new Rewriter(Seq(p).toMap)
+        val rewriter = new Rewriter(Map(p))
         rewriter.replaceRefs(acc)
     }
 
-    val newParams = lambda.input.filterNot(pmap contains _.name)
+    val newParams = lambda.input.filterNot(paramMap contains _.name)
     if (newParams.isEmpty) {
       replaced
     } else {
@@ -93,8 +93,8 @@ object RuntimeAPI {
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>
-          val bad = l.input.map(_.name).toSet
-          val fixed = new Rewriter(rules.filterKeys(k => !bad.contains(k)).toMap).replaceRefs(l.output)
+          val bad = l.input.iterator.map(_.name).toSet
+          val fixed = new Rewriter(rules.filterKeys(!bad(_)).toMap).replaceRefs(l.output)
           l.copy(output = fixed)
 
         case o: AppliedReference =>
@@ -126,12 +126,12 @@ object RuntimeAPI {
         case Refinement(base, decls) =>
           val rdecls = decls.map {
             case RefinementDecl.Signature(name, input, output) =>
-              RefinementDecl.Signature(name, input.map(p => ensureApplied(reference, replaceRefs(p))), ensureApplied(reference, replaceRefs(output)))
+              RefinementDecl.Signature(name, input.map(p => ensureApplied(reference, replaceRefs(p))), ensureApplied(reference, replaceRefs(output))): RefinementDecl
             case RefinementDecl.TypeMember(name, ref) =>
-              RefinementDecl.TypeMember(name, replaceRefs(ref))
+              RefinementDecl.TypeMember(name, replaceRefs(ref)): RefinementDecl
           }
 
-          Refinement(ensureApplied(base, replaceApplied(base)), rdecls.toSet)
+          Refinement(ensureApplied(base, replaceApplied(base)), rdecls)
         case n: AppliedNamedReference =>
           replaceNamed(n)
       }

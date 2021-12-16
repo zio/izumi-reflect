@@ -18,11 +18,8 @@
 
 package izumi.reflect.macrortti
 
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
-
 import izumi.reflect.DebugProperties
-import izumi.reflect.internal.OrderingCompat.setToSortedSet
+import izumi.reflect.internal.OrderingCompat.ArraySeqLike
 import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
@@ -30,8 +27,10 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
 
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import scala.annotation.nowarn
-import scala.collection.immutable.SortedSet
+import scala.collection.immutable.HashSet
 
 /**
   * Extracts internal databases from [[LightTypeTag]].
@@ -39,20 +38,24 @@ import scala.collection.immutable.SortedSet
   *
   * Internal API: binary compatibility not guaranteed.
   */
-case class LightTypeTagUnpacker(tag: LightTypeTag) {
+final case class LightTypeTagUnpacker(tag: LightTypeTag) {
   def bases: Map[AbstractReference, Set[AbstractReference]] = tag.basesdb
   def inheritance: Map[NameReference, Set[NameReference]] = tag.idb
 }
 
-abstract class LightTypeTag(
+abstract class LightTypeTag private[reflect] (
   bases: () => Map[AbstractReference, Set[AbstractReference]],
   inheritanceDb: () => Map[NameReference, Set[NameReference]]
 ) extends Serializable {
 
   def ref: LightTypeTagRef
 
+  // full subtyping db with lambdas, parameters and variance, e.g. List[+A] <: SeqOps[A, List, List[A]], λ %0 → List[+%0] <: λ %0,%1,%2 → SeqOps[+%0, +%1, +%2]
   private[reflect] lazy val basesdb: Map[AbstractReference, Set[AbstractReference]] = bases()
+  // class inheritance db without lambdas and without parameters, e.g. List <: SeqOps, Iterable
   private[reflect] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
+
+  def binaryFormatVersion: Int
 
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
     new LightTypeTagInheritance(this, maybeParent).isChild()
@@ -65,7 +68,7 @@ abstract class LightTypeTag(
   final def decompose: Set[LightTypeTag] = {
     ref match {
       case LightTypeTagRef.IntersectionReference(refs) =>
-        refs.map(r => LightTypeTag(r, basesdb, idb))
+        refs.map(LightTypeTag(_, basesdb, idb))
       case _ =>
         Set(this)
     }
@@ -83,17 +86,15 @@ abstract class LightTypeTag(
     */
   def combine(args: LightTypeTag*): LightTypeTag = {
     val argRefs = args.map(_.ref)
-    val appliedBases = basesdb.map {
+    val appliedBases = basesdb ++ basesdb.iterator.collect { // do not remove the unapplied base lambdas after combination (required for inferredLambdaParents in isChild)
       case (self: LightTypeTagRef.Lambda, parents) =>
         self.combine(argRefs) -> parents.map {
           case l: LightTypeTagRef.Lambda =>
             l.combine(argRefs)
-          case o =>
+          case nonLambdaParent =>
             val context = self.input.map(_.name).zip(argRefs.collect { case a: AbstractReference => a }).toMap
-            val out = new RuntimeAPI.Rewriter(context).replaceRefs(o)
-            out
+            new RuntimeAPI.Rewriter(context).replaceRefs(nonLambdaParent)
         }
-      case o => o
     }
 
     def mergedBasesDB = LightTypeTag.mergeIDBs(appliedBases, args.iterator.map(_.basesdb))
@@ -101,29 +102,6 @@ abstract class LightTypeTag(
     def mergedInheritanceDb = LightTypeTag.mergeIDBs(idb, args.iterator.map(_.idb))
 
     LightTypeTag(ref.combine(argRefs), mergedBasesDB, mergedInheritanceDb)
-  }
-
-  def asUnion(args: LightTypeTag*): LightTypeTag = {
-    def mergedBasesDB = LightTypeTag.mergeIDBs(basesdb, args.iterator.map(_.basesdb))
-
-    def mergedInheritanceDb = LightTypeTag.mergeIDBs(idb, args.iterator.map(_.idb))
-
-    LightTypeTag(
-      LightTypeTagRef.UnionReference(
-        args
-          .map(_.ref match {
-            case reference: AbstractReference =>
-              reference match {
-                case lambda: Lambda =>
-                  throw new IllegalArgumentException(s"Type Lambdas ($lambda) are not supported as arguments to a UnionReference")
-                case reference: AppliedReference =>
-                  reference
-              }
-          }).toSet
-      ),
-      mergedBasesDB,
-      mergedInheritanceDb
-    )
   }
 
   /**
@@ -137,14 +115,15 @@ abstract class LightTypeTag(
     */
   def combineNonPos(args: Option[LightTypeTag]*): LightTypeTag = {
     val argRefs = args.map(_.map(_.ref))
-    val appliedBases = basesdb ++ basesdb.map {
+    val appliedBases = basesdb ++ basesdb.iterator.collect { // do not remove the unapplied base lambdas after combination (required for inferredLambdaParents in isChild)
       case (self: LightTypeTagRef.Lambda, parents) =>
         self.combineNonPos(argRefs) -> parents.map {
           case l: LightTypeTagRef.Lambda =>
             l.combineNonPos(argRefs)
-          case o => o
+          case nonLambdaParent =>
+            val context = self.input.map(_.name).zip(argRefs.flatten.collect { case a: AbstractReference => a }).toMap
+            new RuntimeAPI.Rewriter(context).replaceRefs(nonLambdaParent)
         }
-      case o => o
     }
 
     def mergedBasesDB = LightTypeTag.mergeIDBs(appliedBases, args.iterator.map(_.map(_.basesdb).getOrElse(Map.empty)))
@@ -184,8 +163,7 @@ abstract class LightTypeTag(
     * Use [[toString]] for a rendering that omits package names
     */
   def repr: String = {
-    import izumi.reflect.macrortti.LTTRenderables.Long._
-    ref.render()
+    ref.repr
   }
 
   /** Short class or type-constructor name of this type, without package or prefix names */
@@ -199,12 +177,10 @@ abstract class LightTypeTag(
   }
 
   /** Print internal structures state */
-  @nowarn("msg=view.mapValues")
   def debug(name: String = ""): String = {
-    import izumi.reflect.internal.fundamentals.platform.strings.IzString._
-    s"""⚙️ $name: ${this.toString}
-       |⚡️bases: ${basesdb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
-       |⚡️inheritance: ${idb.mapValues(_.niceList(prefix = "* ").shift(2)).niceList()}
+    s"""⚙️ begin $name: ${this.repr}
+       |⚡️bases:${LTTRenderables.Long.renderDb(basesdb)}
+       |⚡️inheritance:${LTTRenderables.Long.renderDb(idb)}
        |⚙️ end $name""".stripMargin
   }
 
@@ -216,7 +192,9 @@ abstract class LightTypeTag(
     }
   }
 
-  override def hashCode(): Int = hashcode
+  override def hashCode(): Int = {
+    hashcode
+  }
 
   private[this] lazy val hashcode: Int = {
     ref.hashCode() * 31
@@ -224,12 +202,10 @@ abstract class LightTypeTag(
 }
 
 object LightTypeTag {
-  final val currentBinaryFormatVersion = 11
+  final val currentBinaryFormatVersion = 21
 
   @inline def apply(ref0: LightTypeTagRef, bases: => Map[AbstractReference, Set[AbstractReference]], db: => Map[NameReference, Set[NameReference]]): LightTypeTag = {
-    new LightTypeTag(() => bases, () => db) {
-      override final val ref: LightTypeTagRef = ref0
-    }
+    new UnparsedLightTypeTag(ref0, () => bases, () => db)
   }
 
   /** Create a [[LightTypeTag]] formed of `intersection` with the structural refinement taken from `structure`
@@ -242,8 +218,10 @@ object LightTypeTag {
     val intersectionRef = LightTypeTagRef.maybeIntersection(parts)
     val ref = {
       val decls = structure.ref match {
-        case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty => decls
-        case _ => Set.empty
+        case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty =>
+          decls
+        case _ =>
+          Set.empty[RefinementDecl]
       }
       if (decls.nonEmpty || additionalTypeMembers.nonEmpty) {
         val newDecls = decls.filterNot(additionalTypeMembers contains _.name) ++ additionalTypeMembers.iterator.map {
@@ -265,9 +243,17 @@ object LightTypeTag {
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
 
-  @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
-  private[reflect] def refinedType(intersection: List[LightTypeTag], structure: LightTypeTag): LightTypeTag = {
-    refinedType(intersection, structure, Map.empty)
+  def unionType(union: List[LightTypeTag]): LightTypeTag = {
+    val parts = union.iterator.flatMap(_.ref.decomposeUnion).toSet
+    val ref = LightTypeTagRef.maybeUnion(parts)
+
+    def mergedBasesDB: Map[AbstractReference, Set[AbstractReference]] =
+      LightTypeTag.mergeIDBs(Map.empty[AbstractReference, Set[AbstractReference]], union.iterator.map(_.basesdb))
+
+    def mergedInheritanceDb: Map[NameReference, Set[NameReference]] =
+      LightTypeTag.mergeIDBs(Map.empty[NameReference, Set[NameReference]], union.iterator.map(_.idb))
+
+    LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
 
   def parse[T](hashCode: Int, refString: String, basesString: String, version: Int): LightTypeTag = {
@@ -281,6 +267,8 @@ object LightTypeTag {
       new ParsedLightTypeTagM8(hashCode, refString, () => shared.bases, () => shared.idb)
     } else if (version >= 11 && version <= 20) {
       new ParsedLightTypeTag110(hashCode, refString, () => shared.bases, () => shared.idb)
+    } else if (version >= 21 && version <= 29) {
+      new ParsedLightTypeTag210(hashCode, refString, () => shared.bases, () => shared.idb)
     } else {
       throw new LinkageError(s"""Couldn't parse a `LightTypeTag` version=$version generated by a newer version of `izumi-reflect`,
                                 |please include a newer version of the library jar `dev.zio:izumi-reflect`!
@@ -289,40 +277,58 @@ object LightTypeTag {
     }
   }
 
+  @deprecated("Binary compatibility for 1.0.0-M6+", "1.0.0-M6")
+  private[reflect] def refinedType(intersection: List[LightTypeTag], structure: LightTypeTag): LightTypeTag = {
+    refinedType(intersection, structure, Map.empty)
+  }
+
+  private[reflect] final class UnparsedLightTypeTag private[reflect] (
+    override val ref: LightTypeTagRef,
+    bases: () => Map[AbstractReference, Set[AbstractReference]],
+    inheritanceDb: () => Map[NameReference, Set[NameReference]]
+  ) extends LightTypeTag(bases, inheritanceDb) {
+    @noinline override def binaryFormatVersion: Int = -1
+  }
+
   /** Old `ParsedLightTypeTag` generated before `1.0.0-M8`, must be kept for bincompat */
-  final class ParsedLightTypeTag(
+  private[reflect] final class ParsedLightTypeTag private[reflect] (
     override val hashCode: Int,
     private val refString: String,
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
     override lazy val ref: LightTypeTagRef = {
-      lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
+      deserializeRefString(refString)
     }
+
+    @noinline override def binaryFormatVersion: Int = 0
 
     override def equals(other: Any): Boolean = {
       other match {
-        case that: ParsedLightTypeTag if refString == that.refString =>
-          true
+        case that: ParsedLightTypeTag =>
+          if (refString == that.refString) true
+          else super.equals(other)
         case _ =>
           super.equals(other)
       }
     }
   }
-  object ParsedLightTypeTag {
-    final case class SubtypeDBs(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]])
+  private[reflect] object ParsedLightTypeTag {
+    private[reflect] final case class SubtypeDBs(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]])
   }
 
   /** `ParsedLightTypeTag` since 1.0.0-M8 */
-  final class ParsedLightTypeTagM8(
+  private[reflect] final class ParsedLightTypeTagM8 private[reflect] (
     override val hashCode: Int,
     private val refString: String,
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
     override lazy val ref: LightTypeTagRef = {
-      lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
+      deserializeRefString(refString)
     }
+
+    @noinline override def binaryFormatVersion: Int = 1
 
     override def equals(other: Any): Boolean = {
       other match {
@@ -336,26 +342,57 @@ object LightTypeTag {
   }
 
   /** `ParsedLightTypeTag` since 1.1.0. */
-  final class ParsedLightTypeTag110(
+  private[reflect] final class ParsedLightTypeTag110 private[reflect] (
     override val hashCode: Int,
     private[reflect] val refString: String,
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
     override lazy val ref: LightTypeTagRef = {
-      lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
+      deserializeRefString(refString)
     }
+
+    @noinline override def binaryFormatVersion: Int = 11
 
     override def equals(other: Any): Boolean = {
       other match {
         case that: ParsedLightTypeTag110 =>
           if (refString == that.refString) true
+//          else if (optimisticEqualsEnabled) false // disable optimization on older versions with buggy ordering
+          else super.equals(other)
+        case _ =>
+          super.equals(other)
+      }
+    }
+  }
+
+  /** `ParsedLightTypeTag` since 2.0.9 */
+  private[reflect] final class ParsedLightTypeTag210 private[reflect] (
+    override val hashCode: Int,
+    private[reflect] val refString: String,
+    bases: () => Map[AbstractReference, Set[AbstractReference]],
+    db: () => Map[NameReference, Set[NameReference]]
+  ) extends LightTypeTag(bases, db) {
+    override lazy val ref: LightTypeTagRef = {
+      deserializeRefString(refString)
+    }
+
+    @noinline override def binaryFormatVersion: Int = 21
+
+    override def equals(other: Any): Boolean = {
+      other match {
+        case that: ParsedLightTypeTag210 =>
+          if (this.binaryFormatVersion == that.binaryFormatVersion && this.refString == that.refString) true
           else if (optimisticEqualsEnabled) false
           else super.equals(other)
         case _ =>
           super.equals(other)
       }
     }
+  }
+
+  @noinline private[reflect] def deserializeRefString(refString: String): LightTypeTagRef = {
+    lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
   }
 
   private[this] final val optimisticEqualsEnabled = {
@@ -553,7 +590,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet[LightTypeTagRef.AppliedReference](OrderingAbstractReferenceInstance)(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -563,7 +600,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.UnionReference = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.UnionReference(state.unpickle[SortedSet[LightTypeTagRef.AppliedReference]])
+          val value = LightTypeTagRef.UnionReference(state.unpickle[HashSet[LightTypeTagRef.AppliedReference]])
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
@@ -579,7 +616,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[SortedSet[LightTypeTagRef.AppliedReference]](setToSortedSet(OrderingAbstractReferenceInstance[LightTypeTagRef.AppliedReference])(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -589,7 +626,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.IntersectionReference = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.IntersectionReference(state.unpickle[SortedSet[LightTypeTagRef.AppliedReference]])
+          val value = LightTypeTagRef.IntersectionReference(state.unpickle[HashSet[LightTypeTagRef.AppliedReference]])
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
@@ -659,7 +696,7 @@ object LightTypeTag {
           else {
             state.enc.writeInt(0)
             state.pickle[LightTypeTagRef.AppliedReference](value.reference)
-            state.pickle[SortedSet[LightTypeTagRef.RefinementDecl]](setToSortedSet(OrderingRefinementDecl)(value.decls))
+            state.pickle[ArraySeqLike[LightTypeTagRef.RefinementDecl]](LightTypeTagRef.refinementDeclSetToSortedArray(value.decls))
             state.addIdentityRef(value)
           }
         }
@@ -669,7 +706,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.Refinement = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.Refinement(state.unpickle[LightTypeTagRef.AppliedReference], state.unpickle[SortedSet[LightTypeTagRef.RefinementDecl]])
+          val value = LightTypeTagRef.Refinement(state.unpickle[LightTypeTagRef.AppliedReference], state.unpickle[HashSet[LightTypeTagRef.RefinementDecl]])
           state.addIdentityRef(value)
           value
         } else if (ic < 0)

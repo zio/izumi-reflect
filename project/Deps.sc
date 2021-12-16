@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.83`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.87`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -138,11 +138,24 @@ object Izumi {
         "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
         "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=$${V.scalatest}${"\"" * 3}""".raw,
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
+          // new methods added
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr")""".raw,
+          // compile-time only
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl#*")""".raw,
+          // private packages
           """ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*")""".raw,
-          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.Tag.refinedTag")""".raw,
-          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.refinedType")""".raw,
-          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl.name")""".raw
+          """ProblemFilters.exclude[Problem]("izumi.reflect.internal.*")""".raw,
+          // private methods
+          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.norm")""".raw,
+          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.izumi$reflect$macrortti$LightTypeTagImpl$$*")""".raw,
+          // private types
+          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagInheritance.CtxExt")""".raw,
+          """ProblemFilters.exclude[MissingTypesProblem]       ("izumi.reflect.macrortti.LightTypeTagInheritance$Ctx*")""".raw,
+          """ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagInheritance#Ctx*")""".raw,
+          """ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagUnpacker*")""".raw
         ),
         "mimaFailOnProblem" in SettingScope.Build := true,
         "mimaFailOnNoPrevious" in SettingScope.Build := false,
@@ -150,54 +163,62 @@ object Izumi {
         // scala-steward workaround
         // add sbtgen version to sbt build to allow scala-steward to find it and update it in .sc files
         // https://github.com/scala-steward-org/scala-steward/issues/696#issuecomment-545800968
-        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw
+        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw,
+
+        // sbt reload
+        "onChangedBuildSource" in SettingScope.Raw("Global") := "ReloadOnSourceChanges".raw
       )
 
-      final val sharedSettings = Defaults.SbtMetaOptions ++ Seq(
-        "test" in Platform.Native := "{}".raw,
-        "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
-        "sources" in SettingScope.Raw("Compile / doc") := Seq(
-          SettingKey(Some(scala300), None) := Seq.empty[String],
-          SettingKey.Default := "(Compile / doc / sources).value".raw
-        ),
-        "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
-        // "testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
-        "scalacOptions" ++= Seq(
-          SettingKey(Some(scala211), None) := Const.EmptySeq,
-          SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
-          SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
-          SettingKey.Default := Seq(
-            "-Ykind-projector",
-            "-no-indent",
-            "-language:implicitConversions"
+      final val sharedSettings =
+        Defaults.SbtMetaOptions ++
+        Defaults.CrossScalaPlusSources ++
+        Defaults.CrossScalaRangeSources ++
+        Seq(
+          "test" in Platform.Native := "{}".raw,
+          "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
+          "sources" in SettingScope.Raw("Compile / doc") := Seq(
+            SettingKey(Some(scala300), None) := Seq.empty[String],
+            SettingKey.Default := "(Compile / doc / sources).value".raw
+          ),
+          "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
+          // "testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
+          "scalacOptions" ++= Seq(
+            SettingKey(Some(scala211), None) := Const.EmptySeq,
+            SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
+            SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
+            SettingKey.Default := Seq(
+              "-Ykind-projector",
+              "-no-indent",
+              "-language:implicitConversions"
+            )
+          ),
+          "mimaPreviousArtifacts" := Seq(
+//            SettingKey(Some(scala300), None) := """Set(organization.value %% name.value % "2.0.9")""".raw,
+            SettingKey(Some(scala300), None) := """Set.empty""".raw,
+            SettingKey.Default := """Set(organization.value %% name.value % "1.0.0")""".raw
+          ),
+          "scalacOptions" ++= Seq(
+            SettingKey(Some(scala212), None) := Seq(
+              "-Wconf:msg=nowarn:silent"
+            ),
+            SettingKey(Some(scala213), None) := Seq(
+              "-Xlint:-implicit-recursion"
+            ),
+            SettingKey.Default := Const.EmptySeq
+          ),
+          "scalacOptions" -= "-Wconf:any:error",
+          "scalacOptions" ++= Seq(
+            SettingKey(Some(scala212), Some(true)) := Seq(
+              "-opt:l:inline",
+              "-opt-inline-from:izumi.reflect.**"
+            ),
+            SettingKey(Some(scala213), Some(true)) := Seq(
+              "-opt:l:inline",
+              "-opt-inline-from:izumi.reflect.**"
+            ),
+            SettingKey.Default := Const.EmptySeq
           )
-        ),
-        "mimaPreviousArtifacts" := Seq(
-          SettingKey(Some(scala300), None) := "Set.empty".raw,
-          SettingKey.Default := """Set(organization.value %% name.value % "1.0.0-M2")""".raw
-        ),
-        "scalacOptions" ++= Seq(
-          SettingKey(Some(scala212), None) := Seq(
-            "-Wconf:msg=nowarn:silent"
-          ),
-          SettingKey(Some(scala213), None) := Seq(
-            "-Xlint:-implicit-recursion"
-          ),
-          SettingKey.Default := Const.EmptySeq
-        ),
-        "scalacOptions" -= "-Wconf:any:error",
-        "scalacOptions" ++= Seq(
-          SettingKey(Some(scala212), Some(true)) := Seq(
-            "-opt:l:inline",
-            "-opt-inline-from:izumi.reflect.**"
-          ),
-          SettingKey(Some(scala213), Some(true)) := Seq(
-            "-opt:l:inline",
-            "-opt-inline-from:izumi.reflect.**"
-          ),
-          SettingKey.Default := Const.EmptySeq
         )
-      )
 
     }
 
@@ -218,7 +239,7 @@ object Izumi {
         name = Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         libs = Seq.empty,
         depends = Seq.empty,
-        settings = Defaults.CrossScalaSources ++ Seq(
+        settings = Seq(
           SettingDef.RawSettingDef(
             """Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")""",
             FullSettingScope(SettingScope.Compile, Platform.All)
@@ -227,8 +248,9 @@ object Izumi {
       ),
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
-        libs = Seq.empty,
-        settings = Defaults.CrossScalaSources,
+        libs = Seq(
+          collection_compat in Scope.Provided.all
+        ),
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
         )
@@ -257,7 +279,6 @@ object Izumi {
     ),
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
-      collection_compat in Scope.Provided.all.scalaVersion(ScalaVersionScope.Versions(Seq(scala211, scala212))),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
       scalatest in Scope.Test.all
     ),

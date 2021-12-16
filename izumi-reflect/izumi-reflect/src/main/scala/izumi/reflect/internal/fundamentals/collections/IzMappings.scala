@@ -20,15 +20,16 @@ package izumi.reflect.internal.fundamentals.collections
 
 import scala.annotation.nowarn
 
-import scala.collection.{Iterable, mutable}
+import scala.collection.mutable
 
-private[reflect] final class IzMappings[A, B](private val list: Iterable[(A, B)]) extends AnyVal {
+private[reflect] final class IzMappings[A, B](private val list: scala.collection.compat.IterableOnce[(A, B)]) extends AnyVal {
   @nowarn("msg=deprecated")
   def toMutableMultimap: MutableMultiMap[A, B] = {
     list.foldLeft(new mutable.HashMap[A, mutable.Set[B]] with mutable.MultiMap[A, B]) {
-      (acc, pair) => acc.addBinding(pair._1, pair._2)
+      (map, pair) => map.addBinding(pair._1, pair._2)
     }
   }
 
-  def toMultimap: ImmutableMultiMap[A, B] = toMutableMultimap.map { case (k, v) => (k, v.toSet) }.toMap
+  @nowarn("msg=mapValues")
+  def toMultimap: ImmutableMultiMap[A, B] = toMutableMultimap.mapValues(_.toSet).toMap
 }
