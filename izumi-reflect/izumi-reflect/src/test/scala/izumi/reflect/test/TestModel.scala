@@ -23,6 +23,8 @@ import scala.annotation.StaticAnnotation
 import izumi.reflect.macrortti.LTag
 
 object TestModel extends TestModelKindProjector {
+  final class With[T] extends StaticAnnotation
+
   final class IdAnnotation(val name: String) extends StaticAnnotation
 
   trait YieldOpCounts {

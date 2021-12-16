@@ -11,8 +11,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
   import TestModel._
 
-  final class With[T] extends StaticAnnotation
-
   "lightweight type tags (all versions)" should {
 
     "support distinction between subtypes" in {
@@ -83,33 +81,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertSame(`LTT`[String with String], `LTT`[String])
     }
 
-    "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
-      assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
-      assertChild(LTT[Option[W1]], LTT[Option[_ <: W1]])
-      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
-      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
-
-      assertChild(LTT[Option[_ <: W2]], LTT[Option[W1]])
-      assertChild(LTT[Option[_ <: W2]], LTT[Option[W2]])
-      assertNotChild(LTT[Option[_ <: I1]], LTT[Option[W2]])
-
-//      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
-      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
-
-      assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
-      assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
-      assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
-
-      if (!IsDotty) {
-        assertCompiles("val opt: Option[_ >: H4 <: H2] = None: Option[H5]")
-      } else {
-        assertCompiles("val opt: Option[_ >: H4 <: H2] = (None: Option[H5]): Option[H4]")
-      }
-      assertChild(LTT[Option[H4]], LTT[Option[_ >: H4 <: H2]])
-      assertChild(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
-      assertNotChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
-    }
-
     "support subtype checks" in {
       assertChild(LTT[Int], LTT[AnyVal])
       assertChild(LTT[Int], LTT[Int])
@@ -178,23 +149,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertSame(combinedTag, noncombinedTag)
       assertChild(noncombinedTag, expectedTag)
-    }
-
-    "properly dealias and assign prefixes to existential types and wildcards" in {
-      val withNothing = LTT[With[Nothing]]
-      val with_ = LTT[With[_]]
-      assert(withNothing.debug().contains(": izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Nothing]"))
-      assert(withNothing.debug().contains("- izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Nothing]"))
-      assert(with_.debug().contains(": izumi.reflect.test.SharedLightTypeTagTest::With[=?]"))
-      assert(with_.debug().contains("- izumi.reflect.test.SharedLightTypeTagTest::With[=?]"))
-
-      val list_ = LTT[List[_]]
-      val immutableList_ = LTT[List[_]]
-      assertChild(LTT[List[Int]], immutableList_)
-      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
-      assertChild(list_, immutableList_)
-      assertChild(immutableList_, list_)
-      assertDebugSame(list_, immutableList_)
     }
 
     "support PDTs" in {

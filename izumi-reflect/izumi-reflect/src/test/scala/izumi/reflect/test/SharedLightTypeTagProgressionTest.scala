@@ -10,29 +10,54 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     import TestModel._
 
-    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      assertDifferent(LTT[Set[_]], LTT[Set[Any]])
-      assertDifferent(LTT[List[_]], LTT[List[Any]])
-
-      assertChild(LTT[Set[Int]], LTT[Set[_]])
-      assertNotChild(LTT[Set[_]], LTT[Set[Int]])
-
-      assertChild(LTT[List[Int]], LTT[List[_]])
-      assertNotChild(LTT[List[_]], LTT[List[Int]])
-
-      assertChild(LTT[Int => Int], LTT[_ => Int])
-    }
-
-    "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
-      assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
-      assertDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]])
-    }
-
     "progression test: Dotty fails to `support contravariance in refinement method comparisons`" in {
       doesntWorkYetOnDotty {
         assertDeepChild(LTT[{ def compare(a: AnyVal): Int }], LTT[{ def compare(b: Int): Int }])
       }
+    }
+
+    "properly dealias and assign prefixes to existential types and wildcards" in {
+      val withNothing = LTT[With[Nothing]]
+      val with_ = LTT[With[_]]
+      doesntWorkYetOnDotty(assert(withNothing.debug().contains(": izumi.reflect.test.TestModel::With[=scala.Nothing]")))
+      doesntWorkYetOnDotty(assert(withNothing.debug().contains("- izumi.reflect.test.TestModel::With[=scala.Nothing]")))
+      doesntWorkYetOnDotty(assert(with_.debug().contains(": izumi.reflect.test.TestModel::With[=?]")))
+      doesntWorkYetOnDotty(assert(with_.debug().contains("- izumi.reflect.test.TestModel::With[=?]")))
+
+      val list_ = LTT[List[_]]
+      val immutableList_ = LTT[List[_]]
+      assertChild(LTT[List[Int]], immutableList_)
+      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
+      assertChild(list_, immutableList_)
+      assertChild(immutableList_, list_)
+      assertDebugSame(list_, immutableList_)
+    }
+
+    "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
+      doesntWorkYetOnDotty(assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]]))
+      assertChild(LTT[Option[W1]], LTT[Option[_ <: W1]])
+      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
+      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
+
+      assertChild(LTT[Option[_ <: W2]], LTT[Option[W1]])
+      assertChild(LTT[Option[_ <: W2]], LTT[Option[W2]])
+      assertNotChild(LTT[Option[_ <: I1]], LTT[Option[W2]])
+
+      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
+      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
+
+      assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
+      assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
+      assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
+
+      if (!IsDotty) {
+        assertCompiles("val opt: Option[_ >: H4 <: H2] = None: Option[H5]")
+      } else {
+        assertCompiles("val opt: Option[_ >: H4 <: H2] = (None: Option[H5]): Option[H4]")
+      }
+      assertChild(LTT[Option[H4]], LTT[Option[_ >: H4 <: H2]])
+      assertChild(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
+      doesntWorkYetOnDotty(assertNotChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]]))
     }
 
     "progression test: `support higher-kinded intersection type subtyping` isn't fully supported on Dotty" in {

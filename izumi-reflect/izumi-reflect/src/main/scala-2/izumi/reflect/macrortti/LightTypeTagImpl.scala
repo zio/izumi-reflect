@@ -155,15 +155,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             val targSym = targ.typeSymbol
             targSym.typeSignature match {
               case t: TypeBoundsApi =>
-                println(("COLLECT/1", tpePolyTypeResultType, t.hi, t.lo))
-
                 Seq(t.hi, t.lo).filterNot(ignored)
-              case o =>
+              case _ =>
                 if (!targSym.isParameter) {
-                  println(("COLLECT/2", tpePolyTypeResultType, o, o.getClass))
-
                   Seq(targ0)
-                } else Seq.empty
+                } else {
+                  Seq.empty
+                }
             }
         }
       }
@@ -213,7 +211,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
           appliedParents.map {
             parentTpe =>
-              println(("XXX", lambdaParams, lambdaParams.nonEmpty))
               val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
                 case unapplied: Lambda =>
                   if (unapplied.someArgumentsReferenced) {
@@ -391,7 +388,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter], knownWildcardsSub: Set[Symbol]): AbstractReference = {
-      // println(("MRI", tpe0, terminalNames, isLambdaOutput))
       val allWildcards = knownWildcards ++ knownWildcardsSub
       if (allWildcards.contains(tpe.typeSymbol)) {
         WildcardReference(makeBoundaries(tpe0))
@@ -462,18 +458,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           nameRef
 
         case args =>
-          //      println(tpeUnexpanded0)
-          //      tpe0 match {
-          //        case t: ExistentialTypeApi =>
-          //          val r = tpe0.asInstanceOf[{ val underlying: Type }].underlying.typeArgs.head.asInstanceOf[{ val pre: Type; val sym: Symbol }]
-          //          println(s"$tpe0 => ${tpe0.typeArgs}, ${tpe0.typeParams}, ${tpe0.getClass}, ${t.underlying.typeArgs}")
-          //        case _ =>
-          //
-          //      }
-          //
-          //      //    println()
-          //      //    println(r.pre)
-          //      //    println(r.sym.getClass)
           val tparams = Dealias.fullNormDealias(tpeRaw).typeConstructor.typeParams
 
           val refParams = tpeRaw match {
@@ -481,13 +465,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               val quantifiedParams = t.quantified.toSet
               t.underlying.typeArgs.zip(tparams).map {
                 case (arg, param) =>
-//                  println(("UNPACK", tpeRaw, arg, param, rules))
-
-                  // (!arg.typeSymbol.asType.isClass && arg.typeSymbol.asType.isAbstract && arg.typeSymbol.asType.isType && !rules.contains(arg.typeSymbol.fullName))
-
                   val paramRef =
                     if (quantifiedParams.contains(arg.typeSymbol) && !rules.contains(arg.typeSymbol.fullName)) {
-                      //                println(s"$tpeRaw: $arg, ${arg.getClass}, ${arg.typeSymbol}, ${arg.typeSymbol.getClass} ")
                       WildcardReference(makeBoundaries(arg))
                     } else {
                       makeRefSub(arg, Map.empty, quantifiedParams)
@@ -538,26 +517,18 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       case l if isLambdaOutput => // this is required for handling SwapF2, etc.
         IzAssert(!isHKTOrPolyType(l), l -> l.getClass)
         val out = Lambda(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
-//        println(s"Case1: $l ;; ${l.getClass};; $terminalNames => $out")
-
         out
 
       case l: PolyTypeApi =>
         val out = unpackLambda(l)
-//        println(s"Case2: $l => $out")
-
         out
 
       case l if l.takesTypeArgs =>
         if (terminalNames.contains(l.typeSymbol.fullName)) {
           val out = unpackAsProperType(l, terminalNames)
-//          println(s"Case3: $l => $out")
-
           out
         } else {
           val out = unpackLambda(l)
-//          println(s"Case4: $l => $out")
-
           out
         }
 
