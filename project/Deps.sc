@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.87`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.88`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -163,10 +163,7 @@ object Izumi {
         // scala-steward workaround
         // add sbtgen version to sbt build to allow scala-steward to find it and update it in .sc files
         // https://github.com/scala-steward-org/scala-steward/issues/696#issuecomment-545800968
-        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw,
-
-        // sbt reload
-        "onChangedBuildSource" in SettingScope.Raw("Global") := "ReloadOnSourceChanges".raw
+        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw
       )
 
       final val sharedSettings =
@@ -182,42 +179,51 @@ object Izumi {
           ),
           "testOptions" in SettingScope.Test += """Tests.Argument("-oDF")""".raw,
           // "testOptions" in (SettingScope.Test, Platform.Jvm) ++= s"""Seq(Tests.Argument("-u"), Tests.Argument(s"$${target.value}/junit-xml-$${scalaVersion.value}"))""".raw,
-          "scalacOptions" ++= Seq(
-            SettingKey(Some(scala211), None) := Const.EmptySeq,
-            SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
-            SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(Set[Const]("-P:kind-projector:underscore-placeholders", "-Vimplicits")),
-            SettingKey.Default := Seq(
-              "-Ykind-projector",
-              "-no-indent",
-              "-language:implicitConversions"
+          "scalacOptions" ++= {
+            val removedOpts = Set[Const](
+              "-P:kind-projector:underscore-placeholders",
+              "-Vimplicits",
+              "-Wconf:any:error",
+              "-Xsource:3" // FIXME return after dropping 2.11
             )
-          ),
+            val addedOpts = Seq[Const](
+              "-Wconf:msg=nowarn:silent"
+            )
+            Seq(
+              SettingKey(Some(scala211), None) := Const.EmptySeq,
+              SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(removedOpts) ++ addedOpts,
+              SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(removedOpts) ++ addedOpts,
+              SettingKey.Default := Seq(
+                "-Ykind-projector",
+                "-no-indent",
+                "-language:implicitConversions"
+              )
+            )
+          },
           "mimaPreviousArtifacts" := Seq(
-//            SettingKey(Some(scala300), None) := """Set(organization.value %% name.value % "2.0.9")""".raw,
+            // FIXME setup mima for dotty after 2.1.0
+//            SettingKey(Some(scala300), None) := """Set(organization.value %% name.value % "2.1.0")""".raw,
             SettingKey(Some(scala300), None) := """Set.empty""".raw,
             SettingKey.Default := """Set(organization.value %% name.value % "1.0.0")""".raw
           ),
           "scalacOptions" ++= Seq(
-            SettingKey(Some(scala212), None) := Seq(
-              "-Wconf:msg=nowarn:silent"
-            ),
             SettingKey(Some(scala213), None) := Seq(
+              // workaround for https://github.com/scala/bug/issues/12103
               "-Xlint:-implicit-recursion"
             ),
             SettingKey.Default := Const.EmptySeq
           ),
-          "scalacOptions" -= "-Wconf:any:error",
-          "scalacOptions" ++= Seq(
-            SettingKey(Some(scala212), Some(true)) := Seq(
+          "scalacOptions" ++= {
+            val inlineOpts = Seq(
               "-opt:l:inline",
               "-opt-inline-from:izumi.reflect.**"
-            ),
-            SettingKey(Some(scala213), Some(true)) := Seq(
-              "-opt:l:inline",
-              "-opt-inline-from:izumi.reflect.**"
-            ),
-            SettingKey.Default := Const.EmptySeq
-          )
+            )
+            Seq(
+              SettingKey(Some(scala212), Some(true)) := inlineOpts,
+              SettingKey(Some(scala213), Some(true)) := inlineOpts,
+              SettingKey.Default := Const.EmptySeq
+            )
+          }
         )
 
     }

@@ -366,7 +366,7 @@ object LightTypeTag {
     }
   }
 
-  /** `ParsedLightTypeTag` since 2.0.9 */
+  /** `ParsedLightTypeTag` since 2.1.0 */
   private[reflect] final class ParsedLightTypeTag210 private[reflect] (
     override val hashCode: Int,
     private[reflect] val refString: String,
