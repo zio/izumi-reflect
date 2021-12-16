@@ -80,6 +80,10 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)
         true
 
+      case (_, _: WildcardReference.type) =>
+        true
+      case (s: WildcardReference.type, t) =>
+        s == t
       // parameterized type
       case (s: FullReference, t: FullReference) =>
         (oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
