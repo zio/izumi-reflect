@@ -193,7 +193,6 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   private def compareBounds(ctx: Ctx)(s: AbstractReference, t: Boundaries): Boolean = {
     t match {
       case Boundaries.Defined(tLow, tUp) =>
-        println(("XXX", s, t, ctx.isChild(s, tUp), ctx.isChild(tLow, s)))
         ctx.isChild(s, tUp) && ctx.isChild(tLow, s)
       case Boundaries.Empty =>
         true
