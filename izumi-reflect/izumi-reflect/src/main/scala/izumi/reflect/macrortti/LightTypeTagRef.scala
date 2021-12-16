@@ -227,7 +227,7 @@ sealed trait LightTypeTagRef extends Serializable {
       case IntersectionReference(refs) => refs.map(_.shortName).mkString(" & ")
       case UnionReference(refs) => refs.map(_.shortName).mkString(" | ")
       case Refinement(reference, _) => getName(render, reference)
-      case r: WildcardReference.type => "?"
+      case WildcardReference => "?"
     }
   }
 

@@ -66,7 +66,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
-      assertSame(LTT[Option[W1]], LTT[Option[_ <: W1]])
+      assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
+      assertChild(LTT[Option[W1]], LTT[Option[_ <: W1]])
       assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
       assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
 
@@ -174,6 +175,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[scala.collection.immutable.List[Int]], list_)
       assertChild(list_, immutableList_)
       assertChild(immutableList_, list_)
+      println(list_.debug())
       assertDebugSame(list_, immutableList_)
     }
 
