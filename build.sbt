@@ -167,6 +167,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-language:implicitConversions"
       )
     } },
+    scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "3.1.0") => Set.empty
       case (_, _) => Set(organization.value %% name.value % "1.0.0")
@@ -360,6 +361,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-language:implicitConversions"
       )
     } },
+    scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "3.1.0") => Set.empty
       case (_, _) => Set(organization.value %% name.value % "1.0.0")

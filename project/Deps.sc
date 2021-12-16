@@ -185,7 +185,6 @@ object Izumi {
             val removedOpts = Set[Const](
               "-P:kind-projector:underscore-placeholders",
               "-Vimplicits",
-              "-Wconf:any:error",
               "-Xsource:3" // FIXME return after dropping 2.11
             )
             val addedOpts = Seq[Const](
@@ -202,6 +201,7 @@ object Izumi {
               )
             )
           },
+          "scalacOptions" -= "-Wconf:any:error",
           "mimaPreviousArtifacts" := Seq(
             // FIXME setup mima for dotty after 2.1.0
 //            SettingKey(Some(scala300), None) := """Set(organization.value %% name.value % "2.1.0")""".raw,
