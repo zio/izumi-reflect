@@ -142,36 +142,54 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val tpeUnexpanded = Dealias.fullNormDealias(tpeUnexpanded0)
       // polyType: [L,R]Either[L,R]
       // polyTypeResult: Either[L,R] where L,R are trash symbols
-      val tpePolyTypeResultType = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(tpeUnexpanded)
 
       // we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
       // tpe.etaExpand.resultType.dealias.typeArgs.flatMap(_.dealias.resultType.typeSymbol.typeSignature match {
-      val tparamTypeBoundsAndTypeArgs = tpePolyTypeResultType.typeArgs.flatMap {
-        targ0 =>
-          val targ = Dealias.fullNormDealias(targ0)
-          val targSym = targ.typeSymbol
-          targSym.typeSignature match {
-            case t: TypeBoundsApi =>
-              Seq(t.hi, t.lo).filterNot(ignored)
-            case _ =>
-              if (!targSym.isParameter) {
-                Seq(targ0)
-              } else Seq.empty
-          }
+
+      def doExtract(t: Type) = {
+        val tpePolyTypeResultType = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(t)
+
+        tpePolyTypeResultType.typeArgs.flatMap {
+          targ0 =>
+            val targ = Dealias.fullNormDealias(targ0)
+            val targSym = targ.typeSymbol
+            targSym.typeSignature match {
+              case t: TypeBoundsApi =>
+                println(("COLLECT/1", tpePolyTypeResultType, t.hi, t.lo))
+
+                Seq(t.hi, t.lo).filterNot(ignored)
+              case o =>
+                if (!targSym.isParameter) {
+                  println(("COLLECT/2", tpePolyTypeResultType, o, o.getClass))
+
+                  Seq(targ0)
+                } else Seq.empty
+            }
+        }
+      }
+      val tparamTypeBoundsAndTypeArgs = tpeUnexpanded match {
+        case e: ExistentialTypeApi =>
+          doExtract(e.underlying)
+        case o =>
+          doExtract(o)
       }
 
-      logger.log(
-        s"""Got tpeUnexpanded=$tpeUnexpanded:${tpeUnexpanded.getClass} args=${tpeUnexpanded.typeArgs} params=${tpeUnexpanded.typeParams}
-           |tpePolyTypeResultType=$tpePolyTypeResultType:${tpePolyTypeResultType.getClass} args=${tpePolyTypeResultType.typeArgs} params=${tpePolyTypeResultType.typeParams}
-           |tparamTypeBoundsAndTypeArgs=$tparamTypeBoundsAndTypeArgs
-           |""".stripMargin
-      )
+//      logger.log(
+//        s"""Got tpeUnexpanded=$tpeUnexpanded:${tpeUnexpanded.getClass} args=${tpeUnexpanded.typeArgs} params=${tpeUnexpanded.typeParams}
+//           |tpePolyTypeResultType=$tpePolyTypeResultType:${tpePolyTypeResultType.getClass} args=${tpePolyTypeResultType.typeArgs} params=${tpePolyTypeResultType.typeParams}
+//           |tparamTypeBoundsAndTypeArgs=$tparamTypeBoundsAndTypeArgs
+//           |""".stripMargin
+//      )
 
-//    Iterator.single(tpePolyTypeResultType) ++ // trash symbols
-//    tpePolyTypeResultType.typeArgs.iterator ++ // redundant, included in `tparamTypeBoundsAndTypeArgs`
-      Iterator.single(tpeUnexpanded) ++
-      tpeUnexpanded.typeArgs.iterator ++
-      tparamTypeBoundsAndTypeArgs.iterator
+      /**
+        * Don't do this:
+        *  Iterator.single(tpePolyTypeResultType) -- produces trash sybmold out of skolems
+        *  tpePolyTypeResultType.typeArgs.iterator -- just redundant, included in `tparamTypeBoundsAndTypeArgs`
+        */
+      val out = Iterator.single(tpeUnexpanded) ++
+        tpeUnexpanded.typeArgs.iterator ++
+        tparamTypeBoundsAndTypeArgs.iterator
+      out
     }
 
     val inh = mutable.HashSet[Type]()
