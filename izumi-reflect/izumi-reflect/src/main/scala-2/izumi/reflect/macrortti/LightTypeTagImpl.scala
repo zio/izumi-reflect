@@ -195,7 +195,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
           appliedParents.map {
             parentTpe =>
-              val parentRef = makeRefImpl(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
+              println(("XXX", lambdaParams, lambdaParams.nonEmpty))
+              val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
                 case unapplied: Lambda =>
                   if (unapplied.someArgumentsReferenced) {
                     unapplied
@@ -261,7 +262,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       allBaseTypes.map {
         parentTpe =>
-          val reference = makeRefImpl(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
+          val reference = makeRefTop(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
           reference match {
             case l: Lambda =>
               l
@@ -335,22 +336,39 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     if (withCache) {
       globalCache.synchronized(globalCache.get(tpe)) match {
         case null =>
-          val ref = makeRefImpl(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+          val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
           globalCache.synchronized(globalCache.put(tpe, ref))
           ref
         case ref =>
           ref
       }
     } else {
-      makeRefImpl(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+      makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
     }
   }
 
-  private[this] def makeRefImpl(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
-    this.makeRefImpl0(0, nestedIn = Set(tpe), terminalNames)(tpe, isLambdaOutput)
+  private[this] def makeRefTop(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
+    this.makeRefImpl(0, nestedIn = Set(tpe), terminalNames, Set.empty)(tpe, terminalNames.nonEmpty)
   }
 
-  private[this] def makeRefImpl0(level: Int, nestedIn: Set[Type], terminalNames: Map[String, LambdaParameter])(tpe0: Type, isLambdaOutput: Boolean): AbstractReference = {
+  private[this] def makeRefImpl(
+    level: Int,
+    nestedIn: Set[Type],
+    terminalNames: Map[String, LambdaParameter],
+    knownWildcards: Set[Symbol]
+  )(tpe0: Type,
+    isLambdaOutput: Boolean
+  ): AbstractReference = {
+    def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter], knownWildcardsSub: Set[Symbol]): AbstractReference = {
+      // println(("MRI", tpe0, terminalNames, isLambdaOutput))
+      val allWildcards = knownWildcards ++ knownWildcardsSub
+      if (allWildcards.contains(tpe.typeSymbol)) {
+        WildcardReference
+      } else {
+        this.makeRefImpl(level + 1, nestedIn + tpe, terminalNames ++ stop, allWildcards)(tpe, isLambdaOutput = false)
+      }
+    }
+
     val thisLevel = logger.sub(level)
 
     def unpackLambda(t: TypeApi): AbstractReference = {
@@ -362,7 +380,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val lambdaParams = makeLambdaParams(nestingLevel, tparams)
 
       thisLevel.log(s"✴️ λ type $t has parameters $lambdaParams and result $polyTypeResult terminal names = $terminalNames")
-      val reference = makeRefSub(polyTypeResult, lambdaParams.toMap)
+      val reference = makeRefSub(polyTypeResult, lambdaParams.toMap, Set.empty)
       val out = Lambda(lambdaParams.map(_._2), reference)
       if (!out.allArgumentsReferenced) {
         val kvParams = lambdaParams.map { case (k, v) => s"$v = $k" }
@@ -397,6 +415,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val tpe = Dealias.fullNormDealias(tpeRaw)
       val prefix = makePrefixReference(tpe)
       val typeSymbol = tpe.typeSymbol
+
       val boundaries = makeBoundaries(tpe)
       val nameRef = rules.get(typeSymbol.fullName) match {
         case Some(lambdaParameter) =>
@@ -431,21 +450,23 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               val quantifiedParams = t.quantified.toSet
               t.underlying.typeArgs.zip(tparams).map {
                 case (arg, param) =>
+//                  println(("UNPACK", tpeRaw, arg, param, rules))
+
                   // (!arg.typeSymbol.asType.isClass && arg.typeSymbol.asType.isAbstract && arg.typeSymbol.asType.isType && !rules.contains(arg.typeSymbol.fullName))
 
                   val paramRef =
-                    if (quantifiedParams.contains(arg.typeSymbol)) {
+                    if (quantifiedParams.contains(arg.typeSymbol) && !rules.contains(arg.typeSymbol.fullName)) {
                       //                println(s"$tpeRaw: $arg, ${arg.getClass}, ${arg.typeSymbol}, ${arg.typeSymbol.getClass} ")
                       WildcardReference
                     } else {
-                      makeRefSub(arg)
+                      makeRefSub(arg, Map.empty, quantifiedParams)
                     }
                   TypeParam(paramRef, makeVariance(param.asType))
               }
             case _ =>
               args.zip(tparams).map {
                 case (arg, param) =>
-                  val paramRef = makeRefSub(arg)
+                  val paramRef = makeRefSub(arg, Map.empty, Set.empty)
                   TypeParam(paramRef, makeVariance(param.asType))
               }
           }
@@ -465,17 +486,17 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           .paramLists.map(_.map {
             param =>
               val paramTpe = UniRefinement.typeOfParam(param)
-              makeRefSub(paramTpe, rules).asInstanceOf[AppliedReference]
+              makeRefSub(paramTpe, rules, Set.empty).asInstanceOf[AppliedReference]
           })
         val paramLists = if (paramLists0.nonEmpty) paramLists0 else List(Nil)
 
         paramLists.map {
           parameterList =>
-            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules).asInstanceOf[AppliedReference])
+            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules, Set.empty).asInstanceOf[AppliedReference])
         }
       } else if (decl.isType) {
         val tpe = UniRefinement.typeOfTypeMember(decl)
-        val ref = makeRefSub(tpe, rules)
+        val ref = makeRefSub(tpe, rules, Set.empty)
         Some(TypeMember(decl.name.decodedName.toString, ref))
       } else {
         None
@@ -488,30 +509,38 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
             Boundaries.Empty
           } else {
-            Boundaries.Defined(makeRefSub(b.lo), makeRefSub(b.hi))
+            Boundaries.Defined(makeRefSub(b.lo, Map.empty, Set.empty), makeRefSub(b.hi, Map.empty, Set.empty))
           }
         case _ =>
           Boundaries.Empty
       }
     }
 
-    def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter] = Map.empty): AbstractReference = {
-      this.makeRefImpl0(level + 1, nestedIn + tpe, terminalNames ++ stop)(tpe, isLambdaOutput = false)
-    }
-
     val out = tpe0 match {
       case l if isLambdaOutput => // this is required for handling SwapF2, etc.
         IzAssert(!isHKTOrPolyType(l), l -> l.getClass)
-        Lambda(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
+        val out = Lambda(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
+//        println(s"Case1: $l ;; ${l.getClass};; $terminalNames => $out")
+
+        out
 
       case l: PolyTypeApi =>
-        unpackLambda(l)
+        val out = unpackLambda(l)
+//        println(s"Case2: $l => $out")
+
+        out
 
       case l if l.takesTypeArgs =>
         if (terminalNames.contains(l.typeSymbol.fullName)) {
-          unpackAsProperType(l, terminalNames)
+          val out = unpackAsProperType(l, terminalNames)
+//          println(s"Case3: $l => $out")
+
+          out
         } else {
-          unpackLambda(l)
+          val out = unpackLambda(l)
+//          println(s"Case4: $l => $out")
+
+          out
         }
 
       case c =>
