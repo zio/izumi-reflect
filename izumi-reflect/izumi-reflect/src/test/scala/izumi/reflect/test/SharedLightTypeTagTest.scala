@@ -165,8 +165,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val with_ = LTT[With[_]]
       assert(withNothing.debug().contains(": izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Nothing]"))
       assert(withNothing.debug().contains("- izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Nothing]"))
-      assert(with_.debug().contains(": izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Any]"))
-      assert(with_.debug().contains("- izumi.reflect.test.SharedLightTypeTagTest::With[=scala.Any]"))
+      assert(with_.debug().contains(": izumi.reflect.test.SharedLightTypeTagTest::With[=?]"))
+      assert(with_.debug().contains("- izumi.reflect.test.SharedLightTypeTagTest::With[=?]"))
 
       val list_ = LTT[List[_]]
       val immutableList_ = LTT[List[_]]

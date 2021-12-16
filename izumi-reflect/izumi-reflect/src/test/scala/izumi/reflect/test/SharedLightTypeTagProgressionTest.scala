@@ -1,6 +1,7 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti._
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.macrortti.*
 import izumi.reflect.macrortti.LightTypeTagRef.AppliedNamedReference
 
 abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagProgressions {
@@ -10,27 +11,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     import TestModel._
 
     "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      doesntWorkYet {
-        assertDifferent(LTT[Set[_]], LTT[Set[Any]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[List[_]], LTT[List[Any]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[_ => _], LTT[Any => Any])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Set[Int]], LTT[Set[_]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Set[_]], LTT[Set[Int]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[List[_]], LTT[List[Int]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Int => Int], LTT[_ => Int])
-      }
+      assertChild(LTT[Set[Int]], LTT[Set[_]])
+      assertNotChild(LTT[Set[_]], LTT[Set[Int]])
+      assertNotChild(LTT[List[_]], LTT[List[Int]])
+      assertChild(LTT[Int => Int], LTT[_ => Int])
     }
 
     "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
