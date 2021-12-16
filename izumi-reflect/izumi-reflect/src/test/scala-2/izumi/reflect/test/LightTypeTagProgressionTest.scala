@@ -18,6 +18,7 @@
 
 package izumi.reflect.test
 
+import izumi.reflect.macrortti.LTT
 import izumi.reflect.{Tag, TagK3, TagKK}
 import izumi.reflect.test.TestModel.{BIO2, IO, ZIO}
 
@@ -45,6 +46,20 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
       doesntWorkYetOnScala2 {
         assertSame(direct[ZIO[Any, +*, +*]].tag, indirectFrom3[ZIO].tag)
+      }
+    }
+
+    "progression test: there should be no unexpected lambdas in bases db produced from nested existential types" in {
+      trait L[ARRG0]
+
+      trait Test0[+ARRG1]
+      trait Test1[+ARRG2] extends Test0[ARRG2]
+
+      type T1[AAA] = Test1[L[AAA]]
+
+      val list_ = LTT[T1[_]]
+      doesntWorkYetOnScala2 {
+        assert(!list_.debug().contains("* λ %0 → izumi.reflect.test.LightTypeTagProgressionTest.Test0[+izumi.reflect.test.LightTypeTagProgressionTest.L[=?]]"))
       }
     }
 
