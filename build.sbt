@@ -104,7 +104,6 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.11.12") => Seq.empty
       case (_, "2.12.15") => Seq(
-        "-Xsource:3",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -141,10 +140,10 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Ywarn-unused-import",
         "-Ywarn-value-discard",
         "-Ycache-plugin-class-loader:always",
-        "-Ycache-macro-class-loader:last-modified"
+        "-Ycache-macro-class-loader:last-modified",
+        "-Wconf:msg=nowarn:silent"
       )
       case (_, "2.13.7") => Seq(
-        "-Xsource:3",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
@@ -159,7 +158,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Wunused:_",
         "-Wmacros:after",
         "-Ycache-plugin-class-loader:always",
-        "-Ycache-macro-class-loader:last-modified"
+        "-Ycache-macro-class-loader:last-modified",
+        "-Wconf:msg=nowarn:silent"
       )
       case (_, _) => Seq(
         "-Ykind-projector",
@@ -172,15 +172,11 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       case (_, _) => Set(organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.15") => Seq(
-        "-Wconf:msg=nowarn:silent"
-      )
       case (_, "2.13.7") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
     } },
-    scalacOptions -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.15") => Seq(
         "-opt:l:inline",
@@ -301,7 +297,6 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.11.12") => Seq.empty
       case (_, "2.12.15") => Seq(
-        "-Xsource:3",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -338,10 +333,10 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Ywarn-unused-import",
         "-Ywarn-value-discard",
         "-Ycache-plugin-class-loader:always",
-        "-Ycache-macro-class-loader:last-modified"
+        "-Ycache-macro-class-loader:last-modified",
+        "-Wconf:msg=nowarn:silent"
       )
       case (_, "2.13.7") => Seq(
-        "-Xsource:3",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
@@ -356,7 +351,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Wunused:_",
         "-Wmacros:after",
         "-Ycache-plugin-class-loader:always",
-        "-Ycache-macro-class-loader:last-modified"
+        "-Ycache-macro-class-loader:last-modified",
+        "-Wconf:msg=nowarn:silent"
       )
       case (_, _) => Seq(
         "-Ykind-projector",
@@ -369,15 +365,11 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
       case (_, _) => Set(organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.15") => Seq(
-        "-Wconf:msg=nowarn:silent"
-      )
       case (_, "2.13.7") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
     } },
-    scalacOptions -= "-Wconf:any:error",
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (false, "2.12.15") => Seq(
         "-opt:l:inline",
@@ -429,6 +421,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
 lazy val `izumi-reflect-root` = (project in file("."))
   .settings(
     publish / skip := true,
+    Global / onChangedBuildSource := ReloadOnSourceChanges,
     ThisBuild / publishMavenStyle := true,
     ThisBuild / scalacOptions ++= Seq(
       "-encoding",
@@ -497,8 +490,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.87" % Provided,
-    Global / onChangedBuildSource := ReloadOnSourceChanges
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.88" % Provided
   )
   .aggregate(
     `izumi-reflect-aggregate`
