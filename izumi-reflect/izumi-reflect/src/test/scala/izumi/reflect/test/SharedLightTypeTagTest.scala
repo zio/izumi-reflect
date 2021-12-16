@@ -93,7 +93,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[Option[_ <: W2]], LTT[Option[W2]])
       assertNotChild(LTT[Option[_ <: I1]], LTT[Option[W2]])
 
-      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
+//      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
       assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
 
       assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
@@ -105,8 +105,9 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       } else {
         assertCompiles("val opt: Option[_ >: H4 <: H2] = (None: Option[H5]): Option[H4]")
       }
-      // bottom boundary is weird!
-      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+      assertChild(LTT[Option[H4]], LTT[Option[_ >: H4 <: H2]])
+      assertChild(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
+      assertNotChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
     }
 
     "support subtype checks" in {

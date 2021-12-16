@@ -348,7 +348,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private[this] def makeRefTop(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
-    this.makeRefImpl(0, nestedIn = Set(tpe), terminalNames, Set.empty)(tpe, terminalNames.nonEmpty)
+    this.makeRefImpl(0, nestedIn = Set(tpe), terminalNames, Set.empty)(tpe, isLambdaOutput)
   }
 
   private[this] def makeRefImpl(
@@ -359,11 +359,24 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   )(tpe0: Type,
     isLambdaOutput: Boolean
   ): AbstractReference = {
+    def makeBoundaries(t: Type): Boundaries = {
+      t.typeSymbol.typeSignature match {
+        case b: TypeBoundsApi =>
+          if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
+            Boundaries.Empty
+          } else {
+            Boundaries.Defined(makeRefSub(b.lo, Map.empty, Set.empty), makeRefSub(b.hi, Map.empty, Set.empty))
+          }
+        case _ =>
+          Boundaries.Empty
+      }
+    }
+
     def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter], knownWildcardsSub: Set[Symbol]): AbstractReference = {
       // println(("MRI", tpe0, terminalNames, isLambdaOutput))
       val allWildcards = knownWildcards ++ knownWildcardsSub
       if (allWildcards.contains(tpe.typeSymbol)) {
-        WildcardReference
+        WildcardReference(makeBoundaries(tpe0))
       } else {
         this.makeRefImpl(level + 1, nestedIn + tpe, terminalNames ++ stop, allWildcards)(tpe, isLambdaOutput = false)
       }
@@ -457,7 +470,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
                   val paramRef =
                     if (quantifiedParams.contains(arg.typeSymbol) && !rules.contains(arg.typeSymbol.fullName)) {
                       //                println(s"$tpeRaw: $arg, ${arg.getClass}, ${arg.typeSymbol}, ${arg.typeSymbol.getClass} ")
-                      WildcardReference
+                      WildcardReference(makeBoundaries(arg))
                     } else {
                       makeRefSub(arg, Map.empty, quantifiedParams)
                     }
@@ -500,19 +513,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         Some(TypeMember(decl.name.decodedName.toString, ref))
       } else {
         None
-      }
-    }
-
-    def makeBoundaries(t: Type): Boundaries = {
-      t.typeSymbol.typeSignature match {
-        case b: TypeBoundsApi =>
-          if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
-            Boundaries.Empty
-          } else {
-            Boundaries.Defined(makeRefSub(b.lo, Map.empty, Set.empty), makeRefSub(b.hi, Map.empty, Set.empty))
-          }
-        case _ =>
-          Boundaries.Empty
       }
     }
 

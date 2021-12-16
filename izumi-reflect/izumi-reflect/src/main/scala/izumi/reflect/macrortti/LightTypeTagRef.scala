@@ -73,7 +73,7 @@ sealed trait LightTypeTagRef extends Serializable {
           LightTypeTagRef.maybeUnion(refs.map(appliedReference))
         case LightTypeTagRef.Refinement(reference, decls) =>
           LightTypeTagRef.Refinement(appliedReference(reference), decls)
-        case r: LightTypeTagRef.WildcardReference.type =>
+        case r: LightTypeTagRef.WildcardReference =>
           r
       }
     }
@@ -132,7 +132,7 @@ sealed trait LightTypeTagRef extends Serializable {
           }
           if (prefixes.nonEmpty) Some(maybeUnion(prefixes)) else None
         case Refinement(reference, _) => getPrefix(reference)
-        case WildcardReference => None
+        case _: WildcardReference => None
       }
     }
 
@@ -157,7 +157,7 @@ sealed trait LightTypeTagRef extends Serializable {
         Nil
       case UnionReference(_) =>
         Nil
-      case WildcardReference =>
+      case WildcardReference(_) =>
         Nil
       case Refinement(reference, _) =>
         reference.typeArgs
@@ -227,7 +227,7 @@ sealed trait LightTypeTagRef extends Serializable {
       case IntersectionReference(refs) => refs.map(_.shortName).mkString(" & ")
       case UnionReference(refs) => refs.map(_.shortName).mkString(" | ")
       case Refinement(reference, _) => getName(render, reference)
-      case WildcardReference => "?"
+      case WildcardReference(_) => "?"
     }
   }
 
@@ -289,7 +289,7 @@ object LightTypeTagRef {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
   }
 
-  final case object WildcardReference extends AppliedReference
+  final case class WildcardReference(boundaries: Boundaries) extends AppliedReference
 
   final case class UnionReference(refs: Set[AppliedReference]) extends AppliedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
@@ -439,7 +439,7 @@ object LightTypeTagRef {
           case _: Refinement => 3
           case _: NameReference => 4
           case _: FullReference => 5
-          case WildcardReference => 6
+          case _: WildcardReference => 6
         }
         Ordering.Int.compare(idx(x), idx(y))
     }
