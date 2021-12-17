@@ -89,7 +89,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     },
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "3.1.0") => Seq(
-      
+
       )
       case (_, _) => (Compile / doc / sources).value
     } },
@@ -185,6 +185,25 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
+    } },
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "2.12.15") => Seq(
+        s"-Xmacro-settings:product-name=${name.value}",
+        s"-Xmacro-settings:product-version=${version.value}",
+        s"-Xmacro-settings:product-group=${organization.value}",
+        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
+        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
+      )
+      case (_, "2.13.7") => Seq(
+        s"-Xmacro-settings:product-name=${name.value}",
+        s"-Xmacro-settings:product-version=${version.value}",
+        s"-Xmacro-settings:product-group=${organization.value}",
+        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
+        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
+      )
+      case (_, _) => Seq(
+
+      )
     } },
     Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")
   )
@@ -280,7 +299,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     },
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
       case (_, "3.1.0") => Seq(
-      
+
       )
       case (_, _) => (Compile / doc / sources).value
     } },
@@ -376,6 +395,25 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
+    } },
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "2.12.15") => Seq(
+        s"-Xmacro-settings:product-name=${name.value}",
+        s"-Xmacro-settings:product-version=${version.value}",
+        s"-Xmacro-settings:product-group=${organization.value}",
+        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
+        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
+      )
+      case (_, "2.13.7") => Seq(
+        s"-Xmacro-settings:product-name=${name.value}",
+        s"-Xmacro-settings:product-version=${version.value}",
+        s"-Xmacro-settings:product-group=${organization.value}",
+        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
+        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
+      )
+      case (_, _) => Seq(
+
+      )
     } }
   )
 
@@ -444,7 +482,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ThisBuild / organization := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
-    ThisBuild / publishTo := 
+    ThisBuild / publishTo :=
     (if (!isSnapshot.value) {
         sonatypePublishToBundle.value
       } else {
