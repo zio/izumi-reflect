@@ -1,7 +1,7 @@
 package izumi.reflect.dottyreflection
 
-import izumi.reflect.macrortti.LightTypeTagRef
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
+import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.annotation.tailrec
 import scala.quoted.Type
@@ -34,7 +34,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
             // https://github.com/lampepfl/dotty/issues/8520
             val params = a.tycon.typeSymbol.typeMembers
             val zargs = a.args.zip(params)
-
             val args = zargs.map(next().inspectTypeParam)
             val nameref = makeNameReferenceFromType(a.tycon)
             FullReference(nameref.ref.name, args, prefix = nameref.prefix)
@@ -70,15 +69,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case r: TypeRef =>
         next().inspectSymbolTree(r.typeSymbol, Some(r))
 
-      case tb: TypeBounds => // weird thingy
-        val hi = next().inspectTypeRepr(tb.hi)
-        val low = next().inspectTypeRepr(tb.low)
-        if (hi == low) hi
-        else {
-          // if hi and low boundaries are defined and distinct, type is not reducible to one of them
-          val typeSymbol = outerTypeRef.getOrElse(tb).typeSymbol
-          makeNameReferenceFromSymbol(typeSymbol).copy(boundaries = Boundaries.Defined(low, hi))
-        }
+      case tb: TypeBounds =>
+        inspectBounds(outerTypeRef, tb, isParam = false)
 
       case constant: ConstantType =>
         val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
@@ -96,6 +88,31 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         log(s"TYPEREPR UNSUPPORTED: $o")
         throw new RuntimeException(s"TYPEREPR, UNSUPPORTED: ${o.getClass} - $o")
 
+    }
+  }
+
+  private def inspectBounds(outerTypeRef: Option[qctx.reflect.TypeRef], tb: TypeBounds, isParam: Boolean) = {
+    val hi = next().inspectTypeRepr(tb.hi)
+    val low = next().inspectTypeRepr(tb.low)
+    if (hi == low) {
+      hi
+    } else {
+      val boundaries = if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
+        Boundaries.Empty
+      } else {
+        Boundaries.Defined(low, hi)
+      }
+
+      if (isParam) {
+        // Boundaries in parameters always stand for wildcards even though Scala3 eliminates wildcards
+        WildcardReference(boundaries)
+      } else {
+        // Boundaries which are not parameters are named types (e.g. type members) and are NOT wildcards
+        // if hi and low boundaries are defined and distinct, type is not reducible to one of them
+        val typeSymbol = outerTypeRef.getOrElse(tb).typeSymbol
+        val symref = makeNameReferenceFromSymbol(typeSymbol).copy(boundaries = boundaries)
+        symref
+      }
     }
   }
 
@@ -138,9 +155,12 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private def inspectTypeParam(tpe: TypeRepr, td: Symbol): TypeParam = {
     val variance = extractVariance(td)
+//    TypeParam(inspectTypeRepr(tpe), variance)
+
     tpe match {
       case t: TypeBounds =>
-        TypeParam(inspectTypeRepr(t.hi), variance)
+        TypeParam(inspectBounds(None, t, isParam = true), variance)
+//        TypeParam(inspectTypeRepr(t.hi), variance)
       case t: TypeRepr =>
         TypeParam(inspectTypeRepr(t), variance)
     }

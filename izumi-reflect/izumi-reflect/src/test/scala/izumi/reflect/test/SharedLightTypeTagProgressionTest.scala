@@ -2,28 +2,13 @@ package izumi.reflect.test
 
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti._
-import izumi.reflect.macrortti.LightTypeTagRef.AppliedNamedReference
+import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, AppliedReference}
 
 abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagProgressions {
 
   "[progression] lightweight type tags (all versions)" should {
 
     import TestModel._
-    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      doesntWorkYetOnDotty(assertDifferent(LTT[Set[_]], LTT[Set[Any]]))
-      doesntWorkYetOnDotty(assertDifferent(LTT[List[_]], LTT[List[Any]]))
-      doesntWorkYetOnDotty(assertChild(LTT[Set[Int]], LTT[Set[_]]))
-      assertNotChild(LTT[Set[_]], LTT[Set[Int]])
-      assertChild(LTT[List[Int]], LTT[List[_]])
-      assertNotChild(LTT[List[_]], LTT[List[Int]])
-      doesntWorkYetOnDotty(assertChild(LTT[Int => Int], LTT[_ => Int]))
-    }
-
-    "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      doesntWorkYetOnDotty(assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]]))
-      doesntWorkYetOnDotty(assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]]))
-      doesntWorkYetOnDotty(assertDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]]))
-    }
 
     "progression test: Dotty fails to `support contravariance in refinement method comparisons`" in {
       doesntWorkYetOnDotty {
@@ -46,33 +31,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertChild(list_, immutableList_)
       assertChild(immutableList_, list_)
       assertDebugSame(list_, immutableList_)
-    }
-
-    "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
-      doesntWorkYetOnDotty(assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]]))
-      assertChild(LTT[Option[W1]], LTT[Option[_ <: W1]])
-      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
-      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
-
-      assertChild(LTT[Option[_ <: W2]], LTT[Option[W1]])
-      assertChild(LTT[Option[_ <: W2]], LTT[Option[W2]])
-      assertNotChild(LTT[Option[_ <: I1]], LTT[Option[W2]])
-
-      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
-      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
-
-      assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
-      assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
-      assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
-
-      if (!IsDotty) {
-        assertCompiles("val opt: Option[_ >: H4 <: H2] = None: Option[H5]")
-      } else {
-        assertCompiles("val opt: Option[_ >: H4 <: H2] = (None: Option[H5]): Option[H4]")
-      }
-      assertChild(LTT[Option[H4]], LTT[Option[_ >: H4 <: H2]])
-      assertChild(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
-      doesntWorkYetOnDotty(assertNotChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]]))
     }
 
     "progression test: `support higher-kinded intersection type subtyping` isn't fully supported on Dotty" in {
@@ -117,8 +75,8 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
       val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
       val strTR = strLTT.ref.asInstanceOf[AppliedNamedReference]
-      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedNamedReference]
-      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedNamedReference]
+      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedReference]
+      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedReference]
 
       doesntWorkYetOnDotty {
         assert(strUnpacker.bases.keySet == Set(strTR))

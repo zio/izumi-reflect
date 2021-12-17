@@ -14,8 +14,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.7",
       "3.1.0",
+      "2.13.7",
       "2.12.15",
       "2.11.12"
     ),
@@ -205,8 +205,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   )
   .settings(
     crossScalaVersions := Seq(
-      "2.13.7",
       "3.1.0",
+      "2.13.7",
       "2.12.15",
       "2.11.12"
     ),
@@ -403,8 +403,8 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     publish / skip := true,
     crossScalaVersions := Seq(
-      "2.13.7",
       "3.1.0",
+      "2.13.7",
       "2.12.15",
       "2.11.12"
     ),
@@ -440,7 +440,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       "-XDignore.symbol.file"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "2.13.7",
+    scalaVersion := "3.1.0",
     ThisBuild / organization := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
