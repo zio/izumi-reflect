@@ -28,10 +28,10 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import scala.collection.mutable
 
 object LightTypeTagInheritance {
-  private[macrortti] final val tpeNothing = NameReference("scala.Nothing")
-  private[macrortti] final val tpeAny = NameReference("scala.Any")
-  private[macrortti] final val tpeAnyRef = NameReference("scala.AnyRef")
-  private[macrortti] final val tpeObject = NameReference(classOf[Object].getName)
+  private[reflect] final val tpeNothing = NameReference("scala.Nothing")
+  private[reflect] final val tpeAny = NameReference("scala.Any")
+  private[reflect] final val tpeAnyRef = NameReference("scala.AnyRef")
+  private[reflect] final val tpeObject = NameReference(classOf[Object].getName)
 
   private final case class Ctx(
     outerLambdaParams: List[LambdaParameter],

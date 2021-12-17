@@ -45,10 +45,12 @@ object Izumi {
             s
         }.orNull
     )
-    if (args.contains("--help"))
+    if (args.contains("--help")) {
       println(
         "launch with `./sbtgen.sc 3` to use Scala 3 in IDEA, launch with `./sbtgen.sc 2` to use Scala 2"
       )
+    }
+    println(s"Scala targets: $targetScala")
     Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ newArgs)
   }
 
