@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.88`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.89-SNAPSHOT`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -136,7 +136,6 @@ object Izumi {
           Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
         )""".raw,
         "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
-        "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=$${V.scalatest}${"\"" * 3}""".raw,
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
           // new methods added
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion")""".raw,
@@ -163,11 +162,23 @@ object Izumi {
         // scala-steward workaround
         // add sbtgen version to sbt build to allow scala-steward to find it and update it in .sc files
         // https://github.com/scala-steward-org/scala-steward/issues/696#issuecomment-545800968
-        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw
+        "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw,
+
+        // sbt reload
+        "onChangedBuildSource" in SettingScope.Raw("Global") := "ReloadOnSourceChanges".raw
+      ) ++ Seq(
+        "scalacOptions" ++= Seq(
+          SettingKey(Some(scala212), None) := Defaults.SbtMetaRootOptionsScala2 ++ Seq(
+            s"""s"-Xmacro-settings:scalatest-version=$${V.scalatest}"""".raw
+          ),
+          SettingKey(Some(scala213), None) := Defaults.SbtMetaRootOptionsScala2 ++ Seq(
+            s"""s"-Xmacro-settings:scalatest-version=$${V.scalatest}"""".raw
+          ),
+          SettingKey.Default := Defaults.SbtMetaRootOptions
+        )
       )
 
       final val sharedSettings =
-        Defaults.SbtMetaOptions ++
         Defaults.CrossScalaPlusSources ++
         Defaults.CrossScalaRangeSources ++
         Seq(
@@ -224,6 +235,12 @@ object Izumi {
               SettingKey.Default := Const.EmptySeq
             )
           }
+        ) ++ Seq(
+          "scalacOptions" ++= Seq(
+            SettingKey(Some(scala212), None) := Defaults.SbtMetaOptionsScala2,
+            SettingKey(Some(scala213), None) := Defaults.SbtMetaOptionsScala2,
+            SettingKey.Default := Defaults.SbtMetaOptions
+          )
         )
 
     }
