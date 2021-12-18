@@ -29,13 +29,6 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     Test / unmanagedSourceDirectories ++= (scalaBinaryVersion.value :: CrossVersion.partialVersion(scalaVersion.value).toList.map(_._1))
       .map(v => baseDirectory.value / s".jvm/src/test/scala-$v").distinct,
     Test / unmanagedResourceDirectories += baseDirectory.value / ".jvm/src/test/resources" ,
-    scalacOptions ++= Seq(
-      s"-Xmacro-settings:product-name=${name.value}",
-      s"-Xmacro-settings:product-version=${version.value}",
-      s"-Xmacro-settings:product-group=${organization.value}",
-      s"-Xmacro-settings:scala-version=${scalaVersion.value}",
-      s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
-    ),
     Compile / unmanagedSourceDirectories ++= {
       val version = scalaVersion.value
       val crossVersions = crossScalaVersions.value
@@ -104,6 +97,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.11.12") => Seq.empty
       case (_, "2.12.15") => Seq(
+        "-target:jvm-1.8",
+        "-explaintypes",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -144,6 +139,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
         "-Wconf:msg=nowarn:silent"
       )
       case (_, "2.13.7") => Seq(
+        "-target:jvm-1.8",
+        "-explaintypes",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
@@ -223,13 +220,6 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     Test / unmanagedSourceDirectories ++= (scalaBinaryVersion.value :: CrossVersion.partialVersion(scalaVersion.value).toList.map(_._1))
       .map(v => baseDirectory.value / s".jvm/src/test/scala-$v").distinct,
     Test / unmanagedResourceDirectories += baseDirectory.value / ".jvm/src/test/resources" ,
-    scalacOptions ++= Seq(
-      s"-Xmacro-settings:product-name=${name.value}",
-      s"-Xmacro-settings:product-version=${version.value}",
-      s"-Xmacro-settings:product-group=${organization.value}",
-      s"-Xmacro-settings:scala-version=${scalaVersion.value}",
-      s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
-    ),
     Compile / unmanagedSourceDirectories ++= {
       val version = scalaVersion.value
       val crossVersions = crossScalaVersions.value
@@ -298,6 +288,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.11.12") => Seq.empty
       case (_, "2.12.15") => Seq(
+        "-target:jvm-1.8",
+        "-explaintypes",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -338,6 +330,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-Wconf:msg=nowarn:silent"
       )
       case (_, "2.13.7") => Seq(
+        "-target:jvm-1.8",
+        "-explaintypes",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
         "-Wconf:cat=other-match-analysis:error",
@@ -428,12 +422,10 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ThisBuild / scalacOptions ++= Seq(
       "-encoding",
       "UTF-8",
-      "-target:jvm-1.8",
       "-feature",
       "-unchecked",
       "-deprecation",
-      "-language:higherKinds",
-      "-explaintypes"
+      "-language:higherKinds"
     ),
     ThisBuild / javacOptions ++= Seq(
       "-encoding",
@@ -446,13 +438,6 @@ lazy val `izumi-reflect-root` = (project in file("."))
       "-parameters",
       "-Xlint:all",
       "-XDignore.symbol.file"
-    ),
-    ThisBuild / scalacOptions ++= Seq(
-      s"-Xmacro-settings:sbt-version=${sbtVersion.value}",
-      s"-Xmacro-settings:git-repo-clean=${com.typesafe.sbt.SbtGit.GitKeys.gitUncommittedChanges.value}",
-      s"-Xmacro-settings:git-branch=${com.typesafe.sbt.SbtGit.GitKeys.gitCurrentBranch.value}",
-      s"-Xmacro-settings:git-described-version=${com.typesafe.sbt.SbtGit.GitKeys.gitDescribedVersion.value.getOrElse("")}",
-      s"-Xmacro-settings:git-head-commit=${com.typesafe.sbt.SbtGit.GitKeys.gitHeadCommit.value.getOrElse("")}"
     ),
     crossScalaVersions := Nil,
     scalaVersion := "3.1.0",
@@ -474,7 +459,6 @@ lazy val `izumi-reflect-root` = (project in file("."))
               Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
             ),
     ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git")),
-    ThisBuild / scalacOptions += """-Xmacro-settings:scalatest-version=${V.scalatest}""",
     ThisBuild / mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr"),
@@ -492,7 +476,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.88" % Provided
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.89" % Provided
   )
   .aggregate(
     `izumi-reflect-aggregate`

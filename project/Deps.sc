@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.88`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.89`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -113,7 +113,7 @@ object Izumi {
         "scalaVersion" := "crossScalaVersions.value.head".raw
       )
 
-      final val rootSettings = Defaults.SharedOptions ++ Seq(
+      final val rootSettings = Defaults.RootOptions ++ Seq(
         "crossScalaVersions" := "Nil".raw,
         "scalaVersion" := Targets.targetScala.head.value,
         "organization" in SettingScope.Build := "dev.zio",
@@ -136,7 +136,6 @@ object Izumi {
           Developer(id = "7mind", name = "Septimal Mind", url = url("https://github.com/7mind"), email = "team@7mind.io"),
         )""".raw,
         "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
-        "scalacOptions" in SettingScope.Build += s"""${"\"" * 3}-Xmacro-settings:scalatest-version=$${V.scalatest}${"\"" * 3}""".raw,
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
           // new methods added
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion")""".raw,
@@ -167,7 +166,6 @@ object Izumi {
       )
 
       final val sharedSettings =
-        Defaults.SbtMetaOptions ++
         Defaults.CrossScalaPlusSources ++
         Defaults.CrossScalaRangeSources ++
         Seq(
@@ -225,7 +223,6 @@ object Izumi {
             )
           }
         )
-
     }
 
     object izumi_reflect_aggregate {
