@@ -5,10 +5,10 @@ import org.scalatest.exceptions.TestFailedException
 trait TagProgressions { this: TagAssertions =>
 
   final def doesntWorkYetOnDotty(f: => Any): Unit = {
-    if (IsDotty) doesntWorkYet(f) else f
+    if (IsDotty) doesntWorkYet(f) else f; ()
   }
   final def doesntWorkYetOnScala2(f: => Any): Unit = {
-    if (!IsDotty) doesntWorkYet(f) else f
+    if (!IsDotty) doesntWorkYet(f) else f; ()
   }
   final def doesntWorkYet(f: => Any): Unit = {
     intercept[TestFailedException](f); ()

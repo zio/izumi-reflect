@@ -224,7 +224,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: fails None.type subtype check" in {
+    "progression test: Dotty fails basic None.type subtype check" in {
       doesntWorkYetOnDotty {
         assertChild(LTT[None.type], LTT[Option[Int]])
       }
@@ -290,44 +290,30 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     "progression test: `support structural & refinement type subtype checks` doesn't work on Dotty" in {
       doesntWorkYetOnDotty {
         type C1 = C
-        assertChild(LTT[{ val a: Int }], LTT[{ def a: Int }])
-        assertSame(LTT[{ def a: Int }], LTT[{ val a: Int }])
-        assertChild(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
+        assertDeepSame(LTT[{ def a: Int }], LTT[{ val a: Int }])
+        assertDeepSame(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
 
-        assertChild(LTT[C { def a: Int }], LTT[C])
-        assertChild(LTT[C { type A = Int }], LTT[C])
-        assertChild(LTT[C { type A <: Int }], LTT[C])
-        assertNotChild(LTT[C], LTT[C { type A = Int }])
-        assertNotChild(LTT[C], LTT[C { type A <: Int }])
-        assertNotChild(LTT[C], LTT[C { def a: Int }])
+        assertDeepChild(LTT[C { def a: Int }], LTT[C])
+        assertDeepChild(LTT[C { type A = Int }], LTT[C])
+        assertDeepChild(LTT[C { type A <: Int }], LTT[C])
 
-        assertChild(LTT[C { def a: Int; def b: Int }], LTT[C { def a: Int }])
-        assertNotChild(LTT[C { def a: Int }], LTT[C { def a: Int; def b: Int }])
+        assertDeepChild(LTT[C { def a: Int; def b: Int }], LTT[C { def a: Int }])
 
-        assertChild(LTT[C { def a: Int }], LTT[{ def a: Int }])
+        assertDeepChild(LTT[C { def a: Int }], LTT[{ def a: Int }])
       }
     }
 
     "progression test: `support structural subtype checks` doesn't work on Dotty" in {
       doesntWorkYetOnDotty {
-        assertChild(LTT[{ type T = List[Int] }], LTT[{ type T <: List[Any] }])
-        assertChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
-        assertChild(LTT[{ type T = Int }], LTT[{ type T <: Any }])
-        assertChild(LTT[{ type T = String }], LTT[{ type T <: CharSequence }])
-        assertChild(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
-        assertChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+        assertDeepChild(LTT[{ type T = List[Int] }], LTT[{ type T <: List[Any] }])
+        assertDeepChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+        assertDeepChild(LTT[{ type T = Int }], LTT[{ type T <: Any }])
+        assertDeepChild(LTT[{ type T = String }], LTT[{ type T <: CharSequence }])
+        assertDeepChild(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
+        assertDeepChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
 
         assertNotChild(LTT[{ type T = Int }], LTT[{ type T <: CharSequence }])
-
-        assertNotChild(LTT[{ type T <: List[Any] }], LTT[{ type T = List[Int] }])
-        assertNotChild(LTT[{ type T <: AnyVal }], LTT[{ type T = Int }])
-        assertNotChild(LTT[{ type T <: Any }], LTT[{ type T = Int }])
-        assertNotChild(LTT[{ type T <: CharSequence }], LTT[{ type T = String }])
-        assertNotChild(LTT[{ def T: AnyVal }], LTT[{ def T: Int }])
-        assertNotChild(LTT[{ type T <: AnyVal }], LTT[{ type T = Int }])
-
-        assertNotChild(LTT[{ def T: Int }], LTT[{ type T }])
-        assertDifferent(LTT[{ def T: Int }], LTT[{ type T }])
+        assertDeepNotChild(LTT[{ def T: Int }], LTT[{ type T }])
       }
     }
 

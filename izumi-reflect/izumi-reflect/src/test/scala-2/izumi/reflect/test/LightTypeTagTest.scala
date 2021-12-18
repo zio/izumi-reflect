@@ -42,7 +42,7 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       object Z {
         type X <: { type A = Int }
       }
-      a1; Z
+      val _ = (a1, Z)
 
       assertSame(LTT[a1.A], LTT[Z.X#A])
     }

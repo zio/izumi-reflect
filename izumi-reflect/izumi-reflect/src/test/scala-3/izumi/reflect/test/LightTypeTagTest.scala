@@ -35,7 +35,7 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertDifferent(LTT["abc"], LTT["cba"])
       assertChild(LTT["abc"], LTT["abc"])
       assertChild(LTT["abc"], LTT[String])
-      assertNotChild(LTT[String], LTT["abc"])
+      assertDeepNotChild(LTT[String], LTT["abc"])
     }
 
     "support typetag combination (Dotty syntax)" in {
