@@ -1,7 +1,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.89-SNAPSHOT")
+addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.89")
 
 addSbtPlugin("com.jsuereth" % "sbt-pgp" % PV.sbt_pgp)
 

@@ -186,25 +186,6 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
       )
       case (_, _) => Seq.empty
     } },
-    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.15") => Seq(
-        s"-Xmacro-settings:product-name=${name.value}",
-        s"-Xmacro-settings:product-version=${version.value}",
-        s"-Xmacro-settings:product-group=${organization.value}",
-        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
-        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
-      )
-      case (_, "2.13.7") => Seq(
-        s"-Xmacro-settings:product-name=${name.value}",
-        s"-Xmacro-settings:product-version=${version.value}",
-        s"-Xmacro-settings:product-group=${organization.value}",
-        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
-        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
-      )
-      case (_, _) => Seq(
-      
-      )
-    } },
     Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")
   )
 
@@ -395,25 +376,6 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
         "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
-    } },
-    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.15") => Seq(
-        s"-Xmacro-settings:product-name=${name.value}",
-        s"-Xmacro-settings:product-version=${version.value}",
-        s"-Xmacro-settings:product-group=${organization.value}",
-        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
-        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
-      )
-      case (_, "2.13.7") => Seq(
-        s"-Xmacro-settings:product-name=${name.value}",
-        s"-Xmacro-settings:product-version=${version.value}",
-        s"-Xmacro-settings:product-group=${organization.value}",
-        s"-Xmacro-settings:scala-version=${scalaVersion.value}",
-        s"-Xmacro-settings:scala-versions=${crossScalaVersions.value.mkString(":")}"
-      )
-      case (_, _) => Seq(
-      
-      )
     } }
   )
 
@@ -514,29 +476,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.89-SNAPSHOT" % Provided,
-    Global / onChangedBuildSource := ReloadOnSourceChanges,
-    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.12.15") => Seq(
-        s"-Xmacro-settings:sbt-version=${sbtVersion.value}",
-        s"-Xmacro-settings:git-repo-clean=${com.typesafe.sbt.SbtGit.GitKeys.gitUncommittedChanges.value}",
-        s"-Xmacro-settings:git-branch=${com.typesafe.sbt.SbtGit.GitKeys.gitCurrentBranch.value}",
-        s"-Xmacro-settings:git-described-version=${com.typesafe.sbt.SbtGit.GitKeys.gitDescribedVersion.value.getOrElse("")}",
-        s"-Xmacro-settings:git-head-commit=${com.typesafe.sbt.SbtGit.GitKeys.gitHeadCommit.value.getOrElse("")}",
-        s"-Xmacro-settings:scalatest-version=${V.scalatest}"
-      )
-      case (_, "2.13.7") => Seq(
-        s"-Xmacro-settings:sbt-version=${sbtVersion.value}",
-        s"-Xmacro-settings:git-repo-clean=${com.typesafe.sbt.SbtGit.GitKeys.gitUncommittedChanges.value}",
-        s"-Xmacro-settings:git-branch=${com.typesafe.sbt.SbtGit.GitKeys.gitCurrentBranch.value}",
-        s"-Xmacro-settings:git-described-version=${com.typesafe.sbt.SbtGit.GitKeys.gitDescribedVersion.value.getOrElse("")}",
-        s"-Xmacro-settings:git-head-commit=${com.typesafe.sbt.SbtGit.GitKeys.gitHeadCommit.value.getOrElse("")}",
-        s"-Xmacro-settings:scalatest-version=${V.scalatest}"
-      )
-      case (_, _) => Seq(
-      
-      )
-    } }
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.89" % Provided
   )
   .aggregate(
     `izumi-reflect-aggregate`
