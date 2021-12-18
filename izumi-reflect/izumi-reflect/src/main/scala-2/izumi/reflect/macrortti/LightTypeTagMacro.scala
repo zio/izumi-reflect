@@ -37,6 +37,8 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
   protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izumi.reflect.rtti.cache.compile`}=false")
   protected final val impl = new LightTypeTagImpl[c.universe.type](c.universe, withCache = cacheEnabled, logger)
 
+  def xa[T: c.WeakTypeTag]: c.Expr[List[List[String]]] = c.Expr[List[List[String]]](impl.xa[T])
+
   final def makeStrongHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[LTag.StrongHK[ArgStruct]] = {
     val tpe = unpackArgStruct(weakTypeOf[ArgStruct])
     if (ReflectionUtil.allPartsStrong(tpe)) {

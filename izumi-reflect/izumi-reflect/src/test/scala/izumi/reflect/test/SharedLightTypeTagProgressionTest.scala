@@ -10,6 +10,52 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     import TestModel._
 
+    "subtyping applies to bounds of type lambda and class constructor type parameters" in {
+      type TAnyVal[A <: AnyVal] = Option[A]
+      type TAny[A <: Any] = Option[A]
+
+      assertDeepChild(`LTT[_]`[TAny], `LTT[_ >: Low <: High]`[TAnyVal, Nothing, AnyVal])
+    }
+
+    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
+      trait T {
+        type A
+      }
+      object T {
+        type A
+      }
+
+      assertDifferent(LTT[Set[T#A]], LTT[Set[T.A]])
+
+      doesntWorkYet {
+        assertDifferent(LTT[Set[_]], LTT[Set[Any]])
+      }
+      doesntWorkYet {
+        assertDifferent(LTT[List[_]], LTT[List[Any]])
+      }
+      doesntWorkYet {
+        assertDifferent(LTT[_ => _], LTT[Any => Any])
+      }
+      doesntWorkYet {
+        assertChild(LTT[Set[Int]], LTT[Set[_]])
+      }
+      doesntWorkYet {
+        assertChild(LTT[Set[_]], LTT[Set[Int]])
+      }
+      doesntWorkYet {
+        assertChild(LTT[List[_]], LTT[List[Int]])
+      }
+      doesntWorkYet {
+        assertChild(LTT[Int => Int], LTT[_ => Int])
+      }
+    }
+
+    "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
+      assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
+      assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
+      assertDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]])
+    }
+
     "progression test: Dotty fails to `support contravariance in refinement method comparisons`" in {
       doesntWorkYetOnDotty {
         assertDeepChild(LTT[{ def compare(a: AnyVal): Int }], LTT[{ def compare(b: Int): Int }])
@@ -230,15 +276,80 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: Dotty fails some bounds-based subtype checks" in {
-      // I consider this stuff practically useless
-      type X[A >: H4 <: H2] = Option[A]
-      doesntWorkYetOnDotty {
-        assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+    "blah" in {
+      trait A[X <: A[X]]
+      trait B extends A[B]
+
+      println(LTT[B].debug())
+      println(LTT[List[Int]].debug())
+
+      println(izumi.reflect.example.materialize1[A])
+      println(izumi.reflect.example.materialize1[Enum])
+      println(izumi.reflect.example.materialize2[B])
+      loud {
+        PlatformSpecific.fromRuntime(reflect.runtime.universe.typeOf[Enum[_ <: java.lang.Character]].typeConstructor, loud = true)
       }
+    }
+
+    "support recursive type bounds (F-bounded types)" in {
+      trait A[X <: A[X]]
+      trait B extends A[B]
+
+      trait A_[X <: A_[_]]
+      trait B_ extends A_[B_]
+      val tag = `LTT[x <: T[x]]`[Enum]
+      val tag2 = LTT[Enum[_]]
+
+      val tag3 = LTT[B]
+      val tag4 = `LTT[x <: T[x]]`[A]
+
+      val tag5 = LTT[B_]
+      val tag6 = `LTT[_ >: Low <: High]`[A_, Nothing, A_[_]]
+
+      println(tag.debug())
+      println(tag2.debug())
+
+      println(tag3.debug())
+      println(tag4.debug())
+
+      println(tag5.debug())
+      println(tag6.debug())
+
+      assertDeepChild(LTT[Character], tag)
+      assertDeepChild(LTT[Enum[Character]], tag)
+    }
+
+    "progression test: type parameter bounds are supported, except on Dotty" in {
+      // I consider this stuff practically useless
+      type XInv[A >: H4 <: H2] = Set[A]
+      type YInv[A >: H5 <: H1] = Set[A]
+      type ZInv[A >: Nil.type <: Iterable[Any]] = Set[A]
+
+      type XCov[+A >: H4 <: H2] = Option[A]
+      type YCov[+A >: H5 <: H1] = Option[A]
+      type ZCov[+A >: Nil.type <: Iterable[Any]] = Option[A]
+
+      type XContra[-A >: H4 <: H2] = A => Unit
+      type YContra[-A >: H5 <: H1] = A => Unit
+      type ZContra[-A >: Nil.type <: Iterable[Any]] = A => Unit
+
+      val x = `LTT[_ >: Low <: High]`[XInv, H4, H2]
+      val y = `LTT[_ >: Low <: High]`[YInv, H5, H1]
+      val z = `LTT[_ >: Low <: High]`[ZInv, Nil.type, Iterable[Any]]
+
+      println(x.debug())
+
+      assertDeepChild(y, x)
+
+      // comparisons between proper type and lambda
+      doesntWorkYetOnDotty {
+        assertNotChild(LTT[Option[H5]], x)
+      }
+      assertDeepChild(LTT[Option[H4]], x)
 //      // allTypeReferences: we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
 //      doesntWorkYetOnScala2 {
-      assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      assertChild(LTT[Option[H3]], x)
+      assertChild(LTT[Option[H5]], x)
 //      }
     }
 

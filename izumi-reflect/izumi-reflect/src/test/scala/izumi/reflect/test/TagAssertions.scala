@@ -109,13 +109,20 @@ trait TagAssertions extends AnyWordSpec with TagLogging {
   def assertDeepChild(t: LightTypeTag, expected: LightTypeTag): Unit = {
     assertChild(t, expected)
     assertNotChild(expected, t)
-    assertDifferent(expected, t)
+    assertDifferent(t, expected)
   }
 
   def assertDeepNotChild(t: LightTypeTag, expected: LightTypeTag): Unit = {
     assertNotChild(t, expected)
     assertNotChild(expected, t)
-    assertDifferent(expected, t)
+    assertDifferent(t, expected)
+  }
+
+  // This paradox can occur with abstract types and wildcards
+  def assertDeepChildButDifferent(t: LightTypeTag, expected: LightTypeTag): Unit = {
+    assertChild(t, expected)
+    assertChild(expected, t)
+    assertDifferent(t, expected)
   }
 
   def literalLtt(s: String)(implicit l: LTag[s.type]): LightTypeTag = l.tag
