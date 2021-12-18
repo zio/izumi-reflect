@@ -2,6 +2,7 @@
 # toggle debug output
 #-Dizumi.reflect.debug.macro.rtti=true
 #-Dizumi.reflect.debug.macro.rtti=false
+
 # toggle debug assertions
 #-Dizumi.reflect.debug.macro.rtti.assertions=true
 #-Dizumi.reflect.debug.macro.rtti.assertions=false
