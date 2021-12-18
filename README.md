@@ -51,16 +51,16 @@ Set [`-Dizumi.reflect.debug.macro.rtti=true`](https://javadoc.io/doc/dev.zio/izu
 sbt -Dizumi.reflect.debug.macro.rtti=true
 ```
 
-To see debug output when compiling in Intellij, add the above flag to `VM options` in [Preferences | Build, Execution, Deployment | Compiler | Scala Compiler | Scala Compile Server](jetbrains://idea/settings?name=Build%2C+Execution%2C+Deployment--Compiler--Scala+Compiler--Scala+Compile+Server)
+To see debug output when compiling in Intellij, add the above flag to `VM options` in [Preferences -> Build, Execution, Deployment -> Compiler -> Scala Compiler -> Scala Compile Server](jetbrains://idea/settings?name=Build%2C+Execution%2C+Deployment--Compiler--Scala+Compiler--Scala+Compile+Server)
 
-You may also set it in `.jvmopts` file during development.
+You may also set it in `.jvmopts` file during development. (`.jvmopts` properties will not apply to Intellij compile server, only to sbt)
 
 Set `-Dizumi.reflect.debug.macro.rtti.assertions=true` to enable additional assertions.
 
 Other useful system properties are:
 
-- [`izumi.reflect.rtti.optimized.equals`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.optimized.equals:String(%22izumi.reflect.rtti.optimized.equals%22)))
-- [`izumi.reflect.rtti.cache.compile`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.cache.compile:String(%22izumi.reflect.rtti.cache.compile%22)))
+- [`izumi.reflect.rtti.optimized.equals`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.optimized.equals:String(%22izumi.reflect.rtti.optimized.equals%22))
+- [`izumi.reflect.rtti.cache.compile`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.cache.compile:String(%22izumi.reflect.rtti.cache.compile%22))
 
 ## Build
 
@@ -90,7 +90,7 @@ Likewise with Scala 3:
 ./sbtgen.sc 3
 ```
 
-You may also set Scala version from inside Intellij using `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
+In Intellij, you may also set Scala version by changing the option `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
 
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
