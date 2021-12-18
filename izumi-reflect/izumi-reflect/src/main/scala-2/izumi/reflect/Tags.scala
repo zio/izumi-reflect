@@ -18,7 +18,7 @@
 
 package izumi.reflect
 
-import izumi.reflect.macrortti.{LTag, LightTypeTag}
+import izumi.reflect.macrortti.{LTag, LightTypeTag, LightTypeTagMacro}
 
 import scala.annotation.implicitNotFound
 import scala.language.experimental.macros
@@ -187,6 +187,33 @@ trait HKTag[T] extends AnyTag {
   def closestClass: Class[_]
 
   override final def toString: String = s"HKTag[$tag]"
+}
+
+object example {
+  import scala.language.experimental.macros
+  import scala.reflect.macros.blackbox
+
+  def makeTag[T: c.WeakTypeTag](c: blackbox.Context): c.Expr[List[List[String]]] = {
+    import c.universe._
+    val tpe = implicitly[WeakTypeTag[T]].tpe
+
+    def test() = {
+      tpe
+        .etaExpand.resultType.typeArgs.map(_.typeSymbol.typeSignature).map {
+          case tpe: TypeBoundsApi =>
+            tpe.hi
+        }.map {
+          arg =>
+            (arg, arg.hashCode, System.identityHashCode(arg)).toString()
+        }
+    }
+    c.Expr[List[List[String]]] {
+      q"${List(test(), test(), test())}"
+    }
+  }
+
+  def materialize1[T[x <: T[x]]]: List[List[String]] = macro LightTypeTagMacro.xa[T[Nothing]]
+  def materialize2[T]: List[List[String]] = macro LightTypeTagMacro.xa[T]
 }
 
 object HKTag {

@@ -107,6 +107,27 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
 
+  def xa[T: WeakTypeTag] = {
+    val tpe = Dealias.fullNormDealias(implicitly[WeakTypeTag[T]].tpe)
+
+    def test() = {
+      Dealias
+        .fullNormDealiasSquashHKTToPolyTypeResultType(tpe).typeArgs.map {
+          targ0 =>
+            val targ = Dealias.fullNormDealias(targ0)
+            val targSym = targ.typeSymbol
+            targSym.typeSignature match {
+              case t: TypeBoundsApi =>
+                t.hi
+            }
+        }.map {
+          arg =>
+            (arg, arg.hashCode, System.identityHashCode(arg)).toString()
+        }
+    }
+    q"${List(test(), test(), test())}"
+  }
+
   // FIXME `allTypeReferences` & `makeRef` should be merged together,
   //  since they both pass over all visible components of a type in a similar way
   private[this] def allTypeReferences(mainTpe: Type): Set[Type] = {

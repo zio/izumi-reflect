@@ -331,13 +331,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[Int => Int], LTT[_ => Int])
     }
 
-    "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
-      assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
-      assertDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]])
+    "wildcards with bounds are supported" in {
+      assertDeepChildButDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
+      assertDeepChildButDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
+      assertDeepChildButDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]])
     }
 
-    "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
+    "generate tags for wildcards with type boundaries" in {
       assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
       assertChild(LTT[Option[W1]], LTT[Option[_ <: W1]])
       assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
@@ -361,8 +361,46 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       }
       assertChild(LTT[Option[H4]], LTT[Option[_ >: H4 <: H2]])
       assertChild(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
-      // this is counterintuitive but that's how Scala works, it ignores lower boundary in contravariant position
+      // this is counterintuitive but that's how Scala works, it ignores lower boundary in covariant position
       assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+
+      // FIXME
+
+//      assertSame(LTT[Option[W1]], LTT[Option[_ <: W1]])
+//      assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
+//      assertNotChild(LTT[Option[W2]], LTT[Option[_ <: I1]])
+//
+//      assertChild(LTT[Option[_ <: W2]], LTT[Option[W1]])
+//      assertChild(LTT[Option[_ <: W2]], LTT[Option[W2]])
+//      assertNotChild(LTT[Option[_ <: I1]], LTT[Option[W2]])
+//
+//      assertChild(LTT[Option[H3]], LTT[Option[_ >: H4 <: H2]])
+//      assertNotChild(LTT[Option[H1]], LTT[Option[_ >: H4 <: H2]])
+//
+//      assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
+//      assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
+//      assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
+
+      if (!IsDotty) {
+        assertCompiles("val opt: Option[_ >: H4 <: H2] = None: Option[H5]")
+      } else {
+        assertCompiles("val opt: Option[_ >: H4 <: H2] = (None: Option[H5]): Option[H4]")
+      }
+      // bottom boundary is weird!
+      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+
+      assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+      assertNotChild(LTT[Set[H5]], LTT[Set[_ >: H4 <: H2]])
+
+      // works:
+      //      val opt: Option[_ >: H4 <: H2] = /*(*/ None: Option[H5] /*): Option[H2]*/
+
+      // doesn't work:
+      //      val set: Set[_ >: H4 <: H2] = Set.empty[H5]: Set[H5]
+      // works
+      //      val contra1: (_ >: H4 <: H2) => Unit = ((h1: H1) => ()): H1 => Unit
+      //      val contra: (_ >: H4 <: H2) => Unit = ((h5: H5) => ()): H5 => Unit
+
     }
 
   }
