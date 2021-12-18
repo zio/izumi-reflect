@@ -1,5 +1,6 @@
 package izumi.reflect.dottyreflection
 
+import scala.annotation.tailrec
 import scala.quoted.Quotes
 
 trait InspectorBase extends ReflectionUtil {
@@ -32,6 +33,62 @@ trait InspectorBase extends ReflectionUtil {
         s"Attrs[${tree.show}]: type=${symbol.isType}, term=${symbol.isTerm}, packageDef=${symbol.isPackageDef}, classDef=${symbol.isClassDef}, typeDef=${symbol.isValDef}, defdef=${symbol.isDefDef}, bind=${symbol.isBind}, nosymbol=${symbol.isNoSymbol}"
       )
     }
+  }
+
+  extension (tpe0: TypeRepr) {
+
+    @tailrec protected final def _fullNormDealiasSimplified: TypeRepr = {
+      val tpe = tpe0.simplified
+      val t = tpe._norm.dealias
+      inline def tpeAnyRef = tpe.asInstanceOf[AnyRef] // workaround for `implicit conversion result must be more specific than AnyRef`
+      if (t.asInstanceOf[AnyRef] eq tpeAnyRef) {
+        t
+      } else {
+        t._fullNormDealiasSimplified
+      }
+    }
+
+    @tailrec protected final def _norm: TypeRepr = {
+      tpe0 match {
+        case anno: AnnotatedType =>
+          anno.underlying._norm
+        case ref: Refinement =>
+          ref.parent._norm
+        case other =>
+          other
+      }
+    }
+
+    /**
+      *  +- TypeRepr -+- NamedType -+- TermRef
+      *               |             +- TypeRef
+      *               +- ConstantType
+      *               +- SuperType
+      *               +- Refinement
+      *               +- AppliedType
+      *               +- AnnotatedType
+      *               +- AndOrType -+- AndType
+      *               |             +- OrType
+      *               +- MatchType
+      *               +- ByNameType
+      *               +- ParamRef
+      *               +- ThisType
+      *               +- RecursiveThis
+      *               +- RecursiveType
+      *               +- LambdaType -+- MethodOrPoly -+- MethodType
+      *               |              |                +- PolyType
+      *               |              +- TypeLambda
+      *               +- MatchCase
+      *               +- TypeBounds
+      *               +- NoPrefix
+      */
+    protected final infix def _exhaustiveMatch[A](
+      f: TermRef | TypeRef | ConstantType | SuperType | Refinement | AppliedType | AnnotatedType | AndType | OrType | MatchType | ByNameType | ParamRef | ThisType |
+        RecursiveThis | RecursiveType | LambdaType | MatchCase | TypeBounds | NoPrefix => A
+    ): A = {
+      f(tpe0.asInstanceOf)
+    }
+
   }
 
 }

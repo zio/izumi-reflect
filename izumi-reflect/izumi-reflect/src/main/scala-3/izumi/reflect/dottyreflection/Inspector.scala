@@ -20,9 +20,32 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     res
   }
 
+  /**
+    *  +- TypeRepr -+- NamedType -+- TermRef
+    *               |             +- TypeRef
+    *               +- ConstantType
+    *               +- SuperType
+    *               +- Refinement
+    *               +- AppliedType
+    *               +- AnnotatedType
+    *               +- AndOrType -+- AndType
+    *               |             +- OrType
+    *               +- MatchType
+    *               +- ByNameType
+    *               +- ParamRef
+    *               +- ThisType
+    *               +- RecursiveThis
+    *               +- RecursiveType
+    *               +- LambdaType -+- MethodOrPoly -+- MethodType
+    *               |              |                +- PolyType
+    *               |              +- TypeLambda
+    *               +- MatchCase
+    *               +- TypeBounds
+    *               +- NoPrefix
+    */
   private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    val tpe = tpe0.dealias.simplified
-    tpe match {
+    val tpe = tpe0._fullNormDealiasSimplified
+    tpe _exhaustiveMatch {
       case a: AnnotatedType =>
         inspectTypeRepr(a.underlying)
 
@@ -32,15 +55,15 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
             makeNameReferenceFromType(a.tycon)
           case o =>
             // https://github.com/lampepfl/dotty/issues/8520
-            val params = a.tycon.typeSymbol.typeMembers
+            val params = a.tycon.typeSymbol.typeMembers.filter(_.isTypeParam)
             val zargs = a.args.zip(params)
 
-            val args = zargs.map(next().inspectTypeParam)
+            val args = zargs.map(next().inspectTypeParam(_, _))
             val nameref = makeNameReferenceFromType(a.tycon)
             FullReference(nameref.ref.name, args, prefix = nameref.prefix)
         }
 
-      case l: TypeLambda =>
+      case l: LambdaType =>
         val resType = next().inspectTypeRepr(l.resType)
         val paramNames = l.paramNames.map(LambdaParameter(_))
         LightTypeTagRef.Lambda(paramNames, resType)
@@ -67,8 +90,14 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case term: TermRef =>
         makeNameReferenceFromType(term)
 
-      case r: TypeRef =>
-        next().inspectSymbolTree(r.typeSymbol, Some(r))
+      case tref: TypeRef =>
+        makeNameReferenceFromType(tref)
+
+      case matchType: MatchType =>
+        makeNameReferenceFromType(matchType)
+
+      case matchCase: MatchCase =>
+        next().inspectTypeRepr(matchCase.rhs)
 
       case tb: TypeBounds => // weird thingy
         val hi = next().inspectTypeRepr(tb.hi)
@@ -76,63 +105,40 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         if (hi == low) hi
         else {
           // if hi and low boundaries are defined and distinct, type is not reducible to one of them
-          val typeSymbol = outerTypeRef.getOrElse(tb).typeSymbol
-          makeNameReferenceFromSymbol(typeSymbol).copy(boundaries = Boundaries.Defined(low, hi))
+          makeNameReferenceFromType(outerTypeRef.getOrElse(tb))
+            .copy(boundaries = Boundaries.Defined(low, hi))
         }
 
       case constant: ConstantType =>
         val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi))
 
-      case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
-        log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
-        NameReference("???")
-
       // Matches CachedRefinedType for this ZIO issue https://github.com/zio/zio/issues/6071
       case ref: Refinement =>
         next().inspectTypeRepr(ref.parent)
 
-      case o =>
+      case superType: SuperType =>
+        next().inspectTypeRepr(superType.thistpe)
+
+      case thisType: ThisType =>
+        next().inspectTypeRepr(thisType.tref)
+
+      case byName: ByNameType =>
+        next().inspectTypeRepr(byName.underlying)
+
+      case recursiveThis: RecursiveThis =>
+        next().inspectTypeRepr(recursiveThis.binder.underlying)
+
+      case recursiveType: RecursiveType =>
+        next().inspectTypeRepr(recursiveType.underlying)
+
+      case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
+        log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
+        NameReference("???")
+
+      case o: NoPrefix =>
         log(s"TYPEREPR UNSUPPORTED: $o")
         throw new RuntimeException(s"TYPEREPR, UNSUPPORTED: ${o.getClass} - $o")
-
-    }
-  }
-
-  private[dottyreflection] def inspectSymbolTree(symbol: Symbol, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    symbol.tree match {
-      case c: ClassDef =>
-        makeNameReferenceFromSymbol(symbol)
-      case t: TypeDef =>
-        // FIXME: does not work for parameterized type aliases or non-alias abstract types (wrong kindedness)
-        log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
-        next().inspectTypeRepr(t.rhs.asInstanceOf[TypeTree].tpe, outerTypeRef)
-      case d: DefDef =>
-        log(s"inspectSymbol: Found DefDef symbol ${d.show}")
-        next().inspectTypeRepr(d.returnTpt.tpe)
-      case v: ValDef =>
-        log(s"inspectSymbol: Found ValDef symbol ${v.show}")
-        NameReference(SymName.SymTermName(symbol.fullName))
-      case b: Bind =>
-        log(s"inspectSymbol: Found Bind symbol ${b.show}")
-        NameReference(SymName.SymTermName(symbol.fullName))
-      case o => // Should not happen according to documentation of `.tree` method
-        log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
-        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
-    }
-  }
-
-  private def getPrefixFromDefinitionOwner(symbol: Symbol): Option[AppliedReference] = {
-    val maybeOwner = symbol.maybeOwner
-    if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef || maybeOwner.isDefDef || maybeOwner.isTypeDef) {
-      None
-    } else {
-      inspectSymbolTree(maybeOwner) match {
-        case a: AppliedReference =>
-          Some(a)
-        case _ =>
-          None
-      }
     }
   }
 
@@ -164,39 +170,58 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     flattenOr(or).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
 
   private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
+
+    def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
+      val symName = symNameFromSymbol(symbol)
+      val prefix = getPrefixFromQualifier(t)
+      NameReference(symName, Boundaries.Empty, prefix)
+    }
+
     t match {
-      case ref: TypeRef =>
-        makeNameReferenceFromSymbol(ref.typeSymbol)
       case term: TermRef =>
         makeNameReferenceFromSymbol(term.termSymbol)
-      case t: ParamRef =>
-        NameReference(tpeName = t.binder.asInstanceOf[{ def paramNames: List[Object] }].paramNames(t.paramNum).toString)
-      case ref =>
-        makeNameReferenceFromSymbol(ref.typeSymbol)
+      case param: ParamRef =>
+        // fixme: incorrect, should use numbering scheme
+        val paramName: String = param.binder.asInstanceOf[LambdaType].paramNames(param.paramNum)
+        NameReference(paramName)
+      case other =>
+        makeNameReferenceFromSymbol(other.typeSymbol)
     }
   }
 
-  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
-    val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
-    val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
-    NameReference(symName, Boundaries.Empty, prefix)
-  }
-
-  private def getPrefixFromQualifier(t: TypeRepr) = {
+  private def getPrefixFromQualifier(t0: TypeRepr): Option[AppliedReference] = {
     @tailrec def unpack(tpe: TypeRepr): Option[TypeRepr] = tpe match {
-      case t: ThisType => unpack(t.tref)
-      case _: NoPrefix => None
-      case t =>
-        val typeSymbol = t.typeSymbol
-        if (!typeSymbol.exists || typeSymbol.isNoSymbol || typeSymbol.isPackageDef || typeSymbol.isDefDef) {
+      case t: NamedType =>
+        val prefix = t.qualifier
+        val prefixSym = prefix.typeSymbol
+        if (!prefixSym.exists || prefixSym.isNoSymbol || prefixSym.isPackageDef || prefixSym.isDefDef) {
           None
         } else {
-          Some(t)
+          Some(prefix)
         }
+      case t: ThisType =>
+        unpack(t.tref)
+      case _: NoPrefix =>
+        None
+      case t =>
+        None
     }
-    unpack(t).flatMap(inspectTypeRepr(_) match {
-      case reference: AppliedReference => Some(reference)
-      case _ => None
-    })
+
+    unpack(t0)
+      .flatMap(inspectTypeRepr(_) match {
+        case reference: AppliedReference => Some(reference)
+        case _ => None
+      })
+    // FIXME disabling prefixes due to test failures
+    None
   }
+
+  private def symNameFromSymbol(symbol: Symbol): SymName = {
+    if (symbol.isTerm) {
+      SymName.SymTermName(symbol.fullName)
+    } else {
+      SymName.SymTypeName(symbol.fullName)
+    }
+  }
+
 }
