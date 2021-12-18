@@ -40,18 +40,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
         case p => p
       })
 
-      assertDifferent(subStrALTT, strLTT)
-      assertChild(subStrALTT, strLTT)
-      assertChild(subSubStrLTT, strLTT)
-      assertChild(subSubStrLTT, subStrALTT)
-      assertNotChild(strLTT, subStrALTT)
-      assertNotChild(subStrALTT, subSubStrLTT)
-      assertNotChild(subSubStrLTT, subStrBLTT)
-      assertDifferent(subStrALTT, subStrBLTT)
+      assertDeepChild(subStrALTT, strLTT)
+      assertDeepChild(subSubStrLTT, strLTT)
+      assertDeepChild(subSubStrLTT, subStrALTT)
+      assertDeepNotChild(subSubStrLTT, subStrBLTT)
 
-      assertSame(subStrCLTT, strLTT)
-      assertChild(subStrCLTT, strLTT)
-      assertChild(strLTT, subStrCLTT)
+      assertDeepSame(subStrCLTT, strLTT)
 
       assertNotChild(subStrALTT, subStrBLTT)
       assertSame(subStrALTT, subStrDLTT)
@@ -62,25 +56,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "eradicate tautologies with Any/Object" in {
-      assertSame(LTT[Object with Option[String]], LTT[Option[String]])
-      assertSame(LTT[Any with Option[String]], LTT[Option[String]])
-      assertSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
-
-      assertSameRef(LTT[Object with Option[String]], LTT[Option[String]])
-      assertSameRef(LTT[Any with Option[String]], LTT[Option[String]])
-      assertSameRef(LTT[AnyRef with Option[String]], LTT[Option[String]])
-
-      assertChild(LTT[Object with Option[String]], LTT[Option[String]])
-      assertChild(LTT[Any with Option[String]], LTT[Option[String]])
-      assertChild(LTT[AnyRef with Option[String]], LTT[Option[String]])
-
-      assertChild(LTT[Option[String]], LTT[Object with Option[String]])
-      assertChild(LTT[Option[String]], LTT[Any with Option[String]])
-      assertChild(LTT[Option[String]], LTT[AnyRef with Option[String]])
+      assertDeepSame(LTT[Object with Option[String]], LTT[Option[String]])
+      assertDeepSame(LTT[Any with Option[String]], LTT[Option[String]])
+      assertDeepSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
     }
 
-    "support self-intersection (X with X)" in {
-      assertSame(`LTT`[String with String], `LTT`[String])
+    "eradicate self-intersection (X with X)" in {
+      assertDeepSame(`LTT`[String with String], `LTT`[String])
     }
 
     "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
@@ -245,20 +227,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "support type alias and refinement subtype checks" in {
-      assertChild(LTT[XS], LTT[WithX])
-      assertChild(LTT[XS], LTT[{ type X }])
-      assertNotChild(LTT[WithX], LTT[XS])
-      assertNotChild(LTT[{ type X }], LTT[XS])
+      assertDeepChild(LTT[XS], LTT[WithX])
+      assertDeepChild(LTT[XS], LTT[{ type X }])
     }
 
     "support literal types" in {
       assertSame(literalLtt("str2"), literalLtt("str2"))
       assertDifferent(literalLtt("str1"), literalLtt("str2"))
 
-      assertChild(literalLtt("str"), LTT[String])
+      assertDeepChild(literalLtt("str"), LTT[String])
       assertNotChild(literalLtt("str"), LTT[Int])
-      assertNotChild(LTT[String], literalLtt("str"))
-      assertDifferent(LTT[String], literalLtt("str"))
     }
 
     "resolve comparisons of object and trait with the same name" in {
@@ -269,7 +247,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "resolve prefixes of annotated types" in {
-      assert(LTT[TPrefix.T @unchecked] == LTT[TPrefix.T])
+      assertSame(LTT[TPrefix.T @unchecked], LTT[TPrefix.T])
     }
 
     "`withoutArgs` comparison works" in {

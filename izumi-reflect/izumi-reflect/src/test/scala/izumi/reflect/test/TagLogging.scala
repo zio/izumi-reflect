@@ -8,8 +8,8 @@ import org.scalatest.wordspec.AnyWordSpec
 trait TagLogging extends AnyWordSpec {
 
   // enable subtype comparison / .fromRuntime construction logging in tests
-  final def loud(f: => Any): Unit = TagLogging.loud(f)
-  final def withSanityChecks(f: => Any): Unit = TagLogging.withSanityChecks(f)
+  final def loud(f: => Any): Unit = TagLogging.loud { f; () }
+  final def withSanityChecks(f: => Any): Unit = TagLogging.withSanityChecks { f; () }
 
   final def println(o: Any): Unit = info(o.toString)
   final def println(o: LightTypeTag): Unit = info(o.ref.toString)

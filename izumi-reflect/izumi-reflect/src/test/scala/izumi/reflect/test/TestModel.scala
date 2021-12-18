@@ -143,7 +143,7 @@ object TestModel extends TestModelKindProjector {
   trait KK1[+A, +B, +U]
   trait KK2[+A, +B] extends KK1[B, A, Unit]
 
-  class \/[L, R](implicit lt: LTag[L], rt: LTag[R])
+  class \/[L, R](implicit val lt: LTag[L], val rt: LTag[R])
   type SubStrA <: String
   type SubStrB <: String
   type SubStrC = String
