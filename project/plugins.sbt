@@ -9,6 +9,9 @@ addSbtPlugin("ch.epfl.scala" % "sbt-scalajs-bundler" % "0.20.0")
 
 // https://github.com/scala-js/jsdependencies
 addSbtPlugin("org.scala-js" % "sbt-jsdependencies" % "1.0.2")
+addSbtPlugin("org.portable-scala" % "sbt-scala-native-crossproject" % "1.1.0")
+
+addSbtPlugin("org.scala-native"   % "sbt-scala-native"              % "0.4.2")
 
 ////////////////////////////////////////////////////////////////////////////////
 
