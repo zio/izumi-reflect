@@ -105,3 +105,9 @@ In Intellij, you may also set Scala version by changing the option `sbt -> sbt s
 * Requires compiler plugin
 * Type lambdas are not supported
 * Preserves field information
+
+## [`airframe-surface`](https://wvlet.org/airframe/docs/airframe-surface)
+
+* Scala 2 and Scala 3
+* No support for subtype checks
+* Preserves field information
