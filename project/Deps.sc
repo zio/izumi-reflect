@@ -142,6 +142,7 @@ object Izumi {
           // new methods added
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.r_Wildcard")""".raw,
           // compile-time only
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*")""".raw,
