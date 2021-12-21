@@ -97,7 +97,7 @@ In Intellij, you may also set Scala version by changing the option `sbt -> sbt s
 
 # See also
 
-## (gzoller/scala-reflection)[https://github.com/gzoller/scala-reflection]
+## [`gzoller/scala-reflection`](https://github.com/gzoller/scala-reflection)
 
 * Scala 3 only
 * No support for subtype checks
