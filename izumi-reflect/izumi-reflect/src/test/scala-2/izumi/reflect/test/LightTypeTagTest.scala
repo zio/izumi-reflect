@@ -25,7 +25,6 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
   import TestModel._
 
   "lightweight type tags (Scala 2)" should {
-
     "support typetag combination (Scala 2 syntax)" in {
       assertCombine(`LTT[_[_]]`[T0[Id, *[_]]], `LTT[_]`[FP], LTT[T0[Id, FP]])
     }

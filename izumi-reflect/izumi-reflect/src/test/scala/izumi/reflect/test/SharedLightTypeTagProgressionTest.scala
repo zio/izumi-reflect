@@ -1,7 +1,8 @@
 package izumi.reflect.test
 
+import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti._
-import izumi.reflect.macrortti.LightTypeTagRef.AppliedNamedReference
+import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, AppliedReference}
 
 abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagProgressions {
 
@@ -9,46 +10,27 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     import TestModel._
 
-    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      doesntWorkYet {
-        assertDifferent(LTT[Set[_]], LTT[Set[Any]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[List[_]], LTT[List[Any]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[_ => _], LTT[Any => Any])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Set[Int]], LTT[Set[_]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Set[_]], LTT[Set[Int]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[List[_]], LTT[List[Int]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Int => Int], LTT[_ => Int])
-      }
-    }
-
-    "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      doesntWorkYet {
-        assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]])
-      }
-    }
-
     "progression test: Dotty fails to `support contravariance in refinement method comparisons`" in {
       doesntWorkYetOnDotty {
         assertDeepChild(LTT[{ def compare(a: AnyVal): Int }], LTT[{ def compare(b: Int): Int }])
       }
+    }
+
+    "properly dealias and assign prefixes to existential types and wildcards" in {
+      val withNothing = LTT[With[Nothing]]
+      val with_ = LTT[With[_]]
+      doesntWorkYetOnDotty(assert(withNothing.debug().contains(": izumi.reflect.test.TestModel::With[=scala.Nothing]")))
+      doesntWorkYetOnDotty(assert(withNothing.debug().contains("- izumi.reflect.test.TestModel::With[=scala.Nothing]")))
+      doesntWorkYetOnDotty(assert(with_.debug().contains(": izumi.reflect.test.TestModel::With[=?]")))
+      doesntWorkYetOnDotty(assert(with_.debug().contains("- izumi.reflect.test.TestModel::With[=?]")))
+
+      val list_ = LTT[List[_]]
+      val immutableList_ = LTT[List[_]]
+      assertChild(LTT[List[Int]], immutableList_)
+      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
+      assertChild(list_, immutableList_)
+      assertChild(immutableList_, list_)
+      assertDebugSame(list_, immutableList_)
     }
 
     "progression test: `support higher-kinded intersection type subtyping` isn't fully supported on Dotty" in {
@@ -93,8 +75,8 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
       val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
       val strTR = strLTT.ref.asInstanceOf[AppliedNamedReference]
-      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedNamedReference]
-      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedNamedReference]
+      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedReference]
+      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedReference]
 
       doesntWorkYetOnDotty {
         assert(strUnpacker.bases.keySet == Set(strTR))

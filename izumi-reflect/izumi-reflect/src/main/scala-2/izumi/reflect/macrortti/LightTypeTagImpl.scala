@@ -91,6 +91,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
 
     val lttRef = makeRef(tpe)
+//    println(s"$tpe0 => $tpe => $lttRef")
 
     val allReferenceComponents = allTypeReferences(tpe)
 
@@ -141,36 +142,52 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val tpeUnexpanded = Dealias.fullNormDealias(tpeUnexpanded0)
       // polyType: [L,R]Either[L,R]
       // polyTypeResult: Either[L,R] where L,R are trash symbols
-      val tpePolyTypeResultType = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(tpeUnexpanded)
 
       // we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
       // tpe.etaExpand.resultType.dealias.typeArgs.flatMap(_.dealias.resultType.typeSymbol.typeSignature match {
-      val tparamTypeBoundsAndTypeArgs = tpePolyTypeResultType.typeArgs.flatMap {
-        targ0 =>
-          val targ = Dealias.fullNormDealias(targ0)
-          val targSym = targ.typeSymbol
-          targSym.typeSignature match {
-            case t: TypeBoundsApi =>
-              Seq(t.hi, t.lo).filterNot(ignored)
-            case _ =>
-              if (!targSym.isParameter) {
-                Seq(targ0)
-              } else Seq.empty
-          }
+
+      def doExtract(t: Type) = {
+        val tpePolyTypeResultType = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(t)
+
+        tpePolyTypeResultType.typeArgs.flatMap {
+          targ0 =>
+            val targ = Dealias.fullNormDealias(targ0)
+            val targSym = targ.typeSymbol
+            targSym.typeSignature match {
+              case t: TypeBoundsApi =>
+                Seq(t.hi, t.lo).filterNot(ignored)
+              case _ =>
+                if (!targSym.isParameter) {
+                  Seq(targ0)
+                } else {
+                  Seq.empty
+                }
+            }
+        }
+      }
+      val tparamTypeBoundsAndTypeArgs = tpeUnexpanded match {
+        case e: ExistentialTypeApi =>
+          doExtract(e.underlying)
+        case o =>
+          doExtract(o)
       }
 
-      logger.log(
-        s"""Got tpeUnexpanded=$tpeUnexpanded:${tpeUnexpanded.getClass} args=${tpeUnexpanded.typeArgs} params=${tpeUnexpanded.typeParams}
-           |tpePolyTypeResultType=$tpePolyTypeResultType:${tpePolyTypeResultType.getClass} args=${tpePolyTypeResultType.typeArgs} params=${tpePolyTypeResultType.typeParams}
-           |tparamTypeBoundsAndTypeArgs=$tparamTypeBoundsAndTypeArgs
-           |""".stripMargin
-      )
+//      logger.log(
+//        s"""Got tpeUnexpanded=$tpeUnexpanded:${tpeUnexpanded.getClass} args=${tpeUnexpanded.typeArgs} params=${tpeUnexpanded.typeParams}
+//           |tpePolyTypeResultType=$tpePolyTypeResultType:${tpePolyTypeResultType.getClass} args=${tpePolyTypeResultType.typeArgs} params=${tpePolyTypeResultType.typeParams}
+//           |tparamTypeBoundsAndTypeArgs=$tparamTypeBoundsAndTypeArgs
+//           |""".stripMargin
+//      )
 
-//    Iterator.single(tpePolyTypeResultType) ++ // trash symbols
-//    tpePolyTypeResultType.typeArgs.iterator ++ // redundant, included in `tparamTypeBoundsAndTypeArgs`
-      Iterator.single(tpeUnexpanded) ++
-      tpeUnexpanded.typeArgs.iterator ++
-      tparamTypeBoundsAndTypeArgs.iterator
+      /**
+        * Don't do this:
+        *  Iterator.single(tpePolyTypeResultType) -- produces trash sybmold out of skolems
+        *  tpePolyTypeResultType.typeArgs.iterator -- just redundant, included in `tparamTypeBoundsAndTypeArgs`
+        */
+      val out = Iterator.single(tpeUnexpanded) ++
+        tpeUnexpanded.typeArgs.iterator ++
+        tparamTypeBoundsAndTypeArgs.iterator
+      out
     }
 
     val inh = mutable.HashSet[Type]()
@@ -194,7 +211,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
           appliedParents.map {
             parentTpe =>
-              val parentRef = makeRefImpl(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
+              val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
                 case unapplied: Lambda =>
                   if (unapplied.someArgumentsReferenced) {
                     unapplied
@@ -260,7 +277,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       allBaseTypes.map {
         parentTpe =>
-          val reference = makeRefImpl(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
+          val reference = makeRefTop(parentTpe, terminalNames = paramMap, isLambdaOutput = false)
           reference match {
             case l: Lambda =>
               l
@@ -334,22 +351,51 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     if (withCache) {
       globalCache.synchronized(globalCache.get(tpe)) match {
         case null =>
-          val ref = makeRefImpl(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+          val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
           globalCache.synchronized(globalCache.put(tpe, ref))
           ref
         case ref =>
           ref
       }
     } else {
-      makeRefImpl(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+      makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
     }
   }
 
-  private[this] def makeRefImpl(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
-    this.makeRefImpl0(0, nestedIn = Set(tpe), terminalNames)(tpe, isLambdaOutput)
+  private[this] def makeRefTop(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
+    this.makeRefImpl(0, nestedIn = Set(tpe), terminalNames, Set.empty)(tpe, isLambdaOutput)
   }
 
-  private[this] def makeRefImpl0(level: Int, nestedIn: Set[Type], terminalNames: Map[String, LambdaParameter])(tpe0: Type, isLambdaOutput: Boolean): AbstractReference = {
+  private[this] def makeRefImpl(
+    level: Int,
+    nestedIn: Set[Type],
+    terminalNames: Map[String, LambdaParameter],
+    knownWildcards: Set[Symbol]
+  )(tpe0: Type,
+    isLambdaOutput: Boolean
+  ): AbstractReference = {
+    def makeBoundaries(t: Type): Boundaries = {
+      t.typeSymbol.typeSignature match {
+        case b: TypeBoundsApi =>
+          if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
+            Boundaries.Empty
+          } else {
+            Boundaries.Defined(makeRefSub(b.lo, Map.empty, Set.empty), makeRefSub(b.hi, Map.empty, Set.empty))
+          }
+        case _ =>
+          Boundaries.Empty
+      }
+    }
+
+    def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter], knownWildcardsSub: Set[Symbol]): AbstractReference = {
+      val allWildcards = knownWildcards ++ knownWildcardsSub
+      if (allWildcards.contains(tpe.typeSymbol)) {
+        WildcardReference(makeBoundaries(tpe0))
+      } else {
+        this.makeRefImpl(level + 1, nestedIn + tpe, terminalNames ++ stop, allWildcards)(tpe, isLambdaOutput = false)
+      }
+    }
+
     val thisLevel = logger.sub(level)
 
     def unpackLambda(t: TypeApi): AbstractReference = {
@@ -360,8 +406,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val nestingLevel = if (level > 0) Some(level) else None
       val lambdaParams = makeLambdaParams(nestingLevel, tparams)
 
-      thisLevel.log(s"✴️ λ type $t has parameters $lambdaParams, terminal names = $terminalNames")
-      val reference = makeRefSub(polyTypeResult, lambdaParams.toMap)
+      thisLevel.log(s"✴️ λ type $t has parameters $lambdaParams and result $polyTypeResult terminal names = $terminalNames")
+      val reference = makeRefSub(polyTypeResult, lambdaParams.toMap, Set.empty)
       val out = Lambda(lambdaParams.map(_._2), reference)
       if (!out.allArgumentsReferenced) {
         val kvParams = lambdaParams.map { case (k, v) => s"$v = $k" }
@@ -396,6 +442,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val tpe = Dealias.fullNormDealias(tpeRaw)
       val prefix = makePrefixReference(tpe)
       val typeSymbol = tpe.typeSymbol
+
       val boundaries = makeBoundaries(tpe)
       val nameRef = rules.get(typeSymbol.fullName) match {
         case Some(lambdaParameter) =>
@@ -411,11 +458,29 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           nameRef
 
         case args =>
-          val tparams = tpeRaw.dealias.typeConstructor.typeParams
-          val refParams = args.zip(tparams).map {
-            case (arg, param) =>
-              TypeParam(makeRefSub(arg), makeVariance(param.asType))
+          val tparams = Dealias.fullNormDealias(tpeRaw).typeConstructor.typeParams
+
+          val refParams = tpeRaw match {
+            case t: ExistentialTypeApi =>
+              val quantifiedParams = t.quantified.toSet
+              t.underlying.typeArgs.zip(tparams).map {
+                case (arg, param) =>
+                  val paramRef =
+                    if (quantifiedParams.contains(arg.typeSymbol) && !rules.contains(arg.typeSymbol.fullName)) {
+                      WildcardReference(makeBoundaries(arg))
+                    } else {
+                      makeRefSub(arg, Map.empty, quantifiedParams)
+                    }
+                  TypeParam(paramRef, makeVariance(param.asType))
+              }
+            case _ =>
+              args.zip(tparams).map {
+                case (arg, param) =>
+                  val paramRef = makeRefSub(arg, Map.empty, Set.empty)
+                  TypeParam(paramRef, makeVariance(param.asType))
+              }
           }
+
           val res = FullReference(nameRef.ref.name, refParams, prefix)
           thisLevel.log(s"Assembled FullReference=$res from args=$args and tparams=$tparams")
           res
@@ -431,53 +496,40 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           .paramLists.map(_.map {
             param =>
               val paramTpe = UniRefinement.typeOfParam(param)
-              makeRefSub(paramTpe, rules).asInstanceOf[AppliedReference]
+              makeRefSub(paramTpe, rules, Set.empty).asInstanceOf[AppliedReference]
           })
         val paramLists = if (paramLists0.nonEmpty) paramLists0 else List(Nil)
 
         paramLists.map {
           parameterList =>
-            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules).asInstanceOf[AppliedReference])
+            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules, Set.empty).asInstanceOf[AppliedReference])
         }
       } else if (decl.isType) {
         val tpe = UniRefinement.typeOfTypeMember(decl)
-        val ref = makeRefSub(tpe, rules)
+        val ref = makeRefSub(tpe, rules, Set.empty)
         Some(TypeMember(decl.name.decodedName.toString, ref))
       } else {
         None
       }
     }
 
-    def makeBoundaries(t: Type): Boundaries = {
-      t.typeSymbol.typeSignature match {
-        case b: TypeBoundsApi =>
-          if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
-            Boundaries.Empty
-          } else {
-            Boundaries.Defined(makeRefSub(b.lo), makeRefSub(b.hi))
-          }
-        case _ =>
-          Boundaries.Empty
-      }
-    }
-
-    def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter] = Map.empty): AbstractReference = {
-      this.makeRefImpl0(level + 1, nestedIn + tpe, terminalNames ++ stop)(tpe, isLambdaOutput = false)
-    }
-
     val out = tpe0 match {
       case l if isLambdaOutput => // this is required for handling SwapF2, etc.
         IzAssert(!isHKTOrPolyType(l), l -> l.getClass)
-        Lambda(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
+        val out = Lambda(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
+        out
 
       case l: PolyTypeApi =>
-        unpackLambda(l)
+        val out = unpackLambda(l)
+        out
 
       case l if l.takesTypeArgs =>
         if (terminalNames.contains(l.typeSymbol.fullName)) {
-          unpackAsProperType(l, terminalNames)
+          val out = unpackAsProperType(l, terminalNames)
+          out
         } else {
-          unpackLambda(l)
+          val out = unpackLambda(l)
+          out
         }
 
       case c =>
@@ -655,6 +707,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       var prev = null: Type
       val t1 = fullNormDealias(t0)
       var cur = if (t1.takesTypeArgs) t1.etaExpand else t1
+
       while (cur ne prev) {
         prev = cur
         cur = norm(prev).dealias.resultType
@@ -663,23 +716,23 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def fullNormDealias(t0: Type): Type = {
-      var prev = null: Type
-      var cur = scala211ExistentialDealiasWorkaround(t0)
-      while (cur ne prev) {
-        prev = cur
-        cur = norm(prev).dealias
-      }
-      cur
+      scala211ExistentialDealiasWorkaround(t0)
     }
 
     // On Scala 2.12+ .dealias automatically destroys wildcards by using TypeMaps#ExistentialExtrapolation on dealiased existential output
     // This is kinda bad. But whatever, we're stuck with this behavior for this moment, so we should emulate it on 2.11 to make it work too.
     private[this] def scala211ExistentialDealiasWorkaround(t0: Type): Type = {
-      t0.dealias match {
+      t0 match {
         case existential: ExistentialTypeApi =>
-          internal.existentialAbstraction(existential.quantified, existential.underlying.dealias)
+          internal.existentialType(existential.quantified, scala211ExistentialDealiasWorkaround(existential.underlying.dealias))
+        // internal.existentialAbstraction(existential.quantified, existential.underlying.dealias)
         case t =>
-          t
+          val next = norm(t).dealias
+          if (next eq t) {
+            t
+          } else {
+            scala211ExistentialDealiasWorkaround(next)
+          }
       }
     }
 

@@ -507,6 +507,7 @@ object LightTypeTag {
       addConcreteType[NameReference]
       addConcreteType[Refinement]
       addConcreteType[UnionReference]
+      addConcreteType[WildcardReference]
     }
     implicit lazy val aref: Pickler[AbstractReference] = new boopickle.CompositePickler[LightTypeTagRef.AbstractReference] {
       addConcreteType[FullReference]
@@ -515,6 +516,7 @@ object LightTypeTag {
       addConcreteType[NameReference]
       addConcreteType[Refinement]
       addConcreteType[UnionReference]
+      addConcreteType[WildcardReference]
     }
     implicit lazy val tagref: Pickler[LightTypeTagRef] = new boopickle.CompositePickler[LightTypeTagRef] {
       addConcreteType[FullReference]
@@ -523,7 +525,37 @@ object LightTypeTag {
       addConcreteType[NameReference]
       addConcreteType[Refinement]
       addConcreteType[UnionReference]
+      addConcreteType[WildcardReference]
     }
+
+    implicit def wildcardRefSerializer: Pickler[WildcardReference] = new boopickle.Pickler[LightTypeTagRef.WildcardReference] {
+      override def pickle(value: LightTypeTagRef.WildcardReference)(implicit state: boopickle.PickleState): Unit = {
+        {
+          val ref = state.identityRefFor(value)
+          if (ref.isDefined) state.enc.writeInt(-ref.get)
+          else {
+            state.enc.writeInt(0)
+            state.pickle[LightTypeTagRef.Boundaries](value.boundaries)
+          }
+        }
+        ()
+      }
+
+      override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.WildcardReference = {
+        val ic = state.dec.readInt
+        if (ic == 0) {
+          val value = new WildcardReference(
+            state.unpickle[Boundaries]
+          )
+          state.addIdentityRef(value)
+          value
+        } else if (ic < 0)
+          state.identityFor[LightTypeTagRef.WildcardReference](-ic)
+        else
+          state.codingError(ic)
+      }
+    }
+
     implicit lazy val fullRef: Pickler[FullReference] = new boopickle.Pickler[LightTypeTagRef.FullReference] {
       override def pickle(value: LightTypeTagRef.FullReference)(implicit state: boopickle.PickleState): Unit = {
         {

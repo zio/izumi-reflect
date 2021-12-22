@@ -53,12 +53,26 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
         u.render()
       case r: Refinement =>
         r.render()
+      case r: WildcardReference =>
+        r.render()
     }
   }
 
   implicit lazy val r_Refinement: Renderable[Refinement] = new Renderable[Refinement] {
     override def render(value: Refinement): String = {
       s"(${value.reference.render()} & ${value.decls.toSeq.sorted(OrderingRefinementDeclInstance).map(_.render()).mkString("{", ", ", "}")})"
+    }
+  }
+
+  implicit lazy val r_Wildcard: Renderable[WildcardReference] = new Renderable[WildcardReference] {
+    override def render(value: WildcardReference): String = {
+      value.boundaries match {
+        case _: Boundaries.Defined =>
+          s"?: ${value.boundaries.render()}"
+
+        case Boundaries.Empty =>
+          "?"
+      }
     }
   }
 

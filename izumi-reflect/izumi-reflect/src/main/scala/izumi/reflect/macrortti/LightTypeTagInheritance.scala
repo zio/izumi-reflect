@@ -28,10 +28,10 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import scala.collection.mutable
 
 object LightTypeTagInheritance {
-  private[macrortti] final val tpeNothing = NameReference("scala.Nothing")
-  private[macrortti] final val tpeAny = NameReference("scala.Any")
-  private[macrortti] final val tpeAnyRef = NameReference("scala.AnyRef")
-  private[macrortti] final val tpeObject = NameReference(classOf[Object].getName)
+  private[reflect] final val tpeNothing = NameReference("scala.Nothing")
+  private[reflect] final val tpeAny = NameReference("scala.Any")
+  private[reflect] final val tpeAnyRef = NameReference("scala.AnyRef")
+  private[reflect] final val tpeObject = NameReference(classOf[Object].getName)
 
   private final case class Ctx(
     outerLambdaParams: List[LambdaParameter],
@@ -80,6 +80,29 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)
         true
 
+      case (s: WildcardReference, t: WildcardReference) =>
+        s.boundaries match {
+          case Boundaries.Defined(_, top) =>
+            compareBounds(ctx)(top, t.boundaries)
+          case Boundaries.Empty =>
+            t.boundaries match {
+              case Boundaries.Defined(_, _) =>
+                false
+              case Boundaries.Empty =>
+                true
+            }
+        }
+      case (s: AppliedNamedReference, t: WildcardReference) =>
+        compareBounds(ctx)(s, t.boundaries)
+      case (s: Lambda, t: WildcardReference) =>
+        isChild(ctx.next(s.input))(s.output, t)
+      case (s: WildcardReference, t) =>
+        s.boundaries match {
+          case Boundaries.Defined(_, top) =>
+            ctx.next().isChild(top, t)
+          case Boundaries.Empty =>
+            s == t
+        }
       // parameterized type
       case (s: FullReference, t: FullReference) =>
         (oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
@@ -87,7 +110,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
       case (s: FullReference, t: NameReference) =>
         oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t) || {
-          val boundIsOk = compareBounds(ctx)(s, t)
+          val boundIsOk = compareBounds(ctx)(s, t.boundaries)
 
           boundIsOk && (
             outerLambdaParams.map(_.name).contains(t.ref.name) // lambda parameter may accept anything within bounds
@@ -100,7 +123,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
       // unparameterized type
       case (s: NameReference, t: NameReference) =>
-        val boundIsOk = compareBounds(ctx)(s, t)
+        val boundIsOk = compareBounds(ctx)(s, t.boundaries)
 
         any(
           all(boundIsOk, parameterizedParentsOf(s).exists(ctx.isChild(_, t))),
@@ -167,8 +190,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     result
   }
 
-  private def compareBounds(ctx: Ctx)(s: AppliedNamedReference, t: NameReference): Boolean = {
-    t.boundaries match {
+  private def compareBounds(ctx: Ctx)(s: AbstractReference, t: Boundaries): Boolean = {
+    t match {
       case Boundaries.Defined(tLow, tUp) =>
         ctx.isChild(s, tUp) && ctx.isChild(tLow, s)
       case Boundaries.Empty =>
@@ -203,11 +226,39 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         case (ps, pt) =>
           pt.variance match {
             case Variance.Invariant =>
-              ps.ref == pt.ref
+              pt.ref match {
+                case wc: LightTypeTagRef.WildcardReference =>
+                  compareBounds(ctx)(ps.ref, wc.boundaries)
+                case _ =>
+                  ps.ref == pt.ref
+              }
             case Variance.Contravariant =>
-              ctx.isChild(pt.ref, ps.ref)
+              pt.ref match {
+                case wc: LightTypeTagRef.WildcardReference =>
+                  wc.boundaries match {
+                    case Boundaries.Defined(bottom, _) =>
+                      ctx.isChild(bottom, ps.ref)
+
+                    case Boundaries.Empty =>
+                      true
+                  }
+                case _ =>
+                  ctx.isChild(pt.ref, ps.ref)
+              }
+
             case Variance.Covariant =>
-              ctx.isChild(ps.ref, pt.ref)
+              pt.ref match {
+                case wc: LightTypeTagRef.WildcardReference =>
+                  wc.boundaries match {
+                    case Boundaries.Defined(_, top) =>
+                      ctx.isChild(ps.ref, top)
+
+                    case Boundaries.Empty =>
+                      true
+                  }
+                case _ =>
+                  ctx.isChild(ps.ref, pt.ref)
+              }
           }
       }
     }

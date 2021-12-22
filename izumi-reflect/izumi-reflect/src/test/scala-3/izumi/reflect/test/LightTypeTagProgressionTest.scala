@@ -1,13 +1,12 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti._
+import izumi.reflect.macrortti.*
 
 class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
   import TestModel._
 
   "[progression] lightweight type tag (Dotty)" should {
-
     "progression test: fails to support complex type lambdas (Dotty syntax)" in {
       doesntWorkYetOnDotty {
         assertSame(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[[A, B] =>> FM2[(B, A)]])
