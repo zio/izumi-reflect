@@ -33,9 +33,8 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     "support string constant types (Scala 2.13+ syntax)" in {
       assertDifferent(LTT["abc"], LTT[String])
       assertDifferent(LTT["abc"], LTT["cba"])
-      assertChild(LTT["abc"], LTT["abc"])
-      assertChild(LTT["abc"], LTT[String])
-      assertDeepNotChild(LTT[String], LTT["abc"])
+      assertDeepSame(LTT["abc"], LTT["abc"])
+      assertDeepChild(LTT["abc"], LTT[String])
     }
 
     "support typetag combination (Dotty syntax)" in {
