@@ -82,12 +82,11 @@ class TagMacro(val c: blackbox.Context) {
     val embeddedMaybeNonParamTypeArgs = lambdaResult.typeArgs.map {
       arg => if (!isLambdaParam(arg)) Some(arg) else None
     }
-    val isSimplePartialApplication = {
+    val isSimplePartialApplication =
       lambdaResult
         .typeArgs
         .takeRight(outerLambda.typeParams.size)
         .map(_.typeSymbol) == outerLambda.typeParams
-    }
 
     val constructorTag: c.Expr[HKTag[_]] = {
       val ctor = lambdaResult.typeConstructor
@@ -115,7 +114,7 @@ class TagMacro(val c: blackbox.Context) {
       }
     }
 
-    val res = {
+    val res =
       if (isSimplePartialApplication) {
         // FIXME: unused in complex type lambda ???
         val argTags = {
@@ -185,7 +184,6 @@ class TagMacro(val c: blackbox.Context) {
             }
         }
       }
-    }
 
     logger.log(s"Final code of ${tagFormat(outerLambda)}:\n ${showCode(res.tree)}")
 

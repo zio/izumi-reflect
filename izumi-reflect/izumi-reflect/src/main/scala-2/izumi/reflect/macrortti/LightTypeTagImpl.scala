@@ -38,11 +38,10 @@ object LightTypeTagImpl {
   private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
 
   /** caching is enabled by default for runtime light type tag creation */
-  private[this] lazy val runtimeCacheEnabled: Boolean = {
+  private[this] lazy val runtimeCacheEnabled: Boolean =
     System
       .getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
       .getOrElse(true)
-  }
 
   /** Create a LightTypeTag at runtime for a reflected type */
   def makeLightTypeTag(u: Universe)(typeTag: u.Type): LightTypeTag = {

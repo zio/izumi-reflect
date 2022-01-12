@@ -196,9 +196,8 @@ abstract class LightTypeTag private[reflect] (
     hashcode
   }
 
-  private[this] lazy val hashcode: Int = {
+  private[this] lazy val hashcode: Int =
     ref.hashCode() * 31
-  }
 }
 
 object LightTypeTag {
@@ -257,9 +256,8 @@ object LightTypeTag {
   }
 
   def parse[T](hashCode: Int, refString: String, basesString: String, version: Int): LightTypeTag = {
-    lazy val shared = {
+    lazy val shared =
       subtypeDBsSerializer.unpickle(UnpickleState(ByteBuffer.wrap(basesString.getBytes(StandardCharsets.ISO_8859_1))))
-    }
 
     if (version == 0) {
       new ParsedLightTypeTag(hashCode, refString, () => shared.bases, () => shared.idb)
@@ -297,9 +295,8 @@ object LightTypeTag {
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
-    override lazy val ref: LightTypeTagRef = {
+    override lazy val ref: LightTypeTagRef =
       deserializeRefString(refString)
-    }
 
     @noinline override def binaryFormatVersion: Int = 0
 
@@ -324,9 +321,8 @@ object LightTypeTag {
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
-    override lazy val ref: LightTypeTagRef = {
+    override lazy val ref: LightTypeTagRef =
       deserializeRefString(refString)
-    }
 
     @noinline override def binaryFormatVersion: Int = 1
 
@@ -348,9 +344,8 @@ object LightTypeTag {
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
-    override lazy val ref: LightTypeTagRef = {
+    override lazy val ref: LightTypeTagRef =
       deserializeRefString(refString)
-    }
 
     @noinline override def binaryFormatVersion: Int = 11
 
@@ -373,9 +368,8 @@ object LightTypeTag {
     bases: () => Map[AbstractReference, Set[AbstractReference]],
     db: () => Map[NameReference, Set[NameReference]]
   ) extends LightTypeTag(bases, db) {
-    override lazy val ref: LightTypeTagRef = {
+    override lazy val ref: LightTypeTagRef =
       deserializeRefString(refString)
-    }
 
     @noinline override def binaryFormatVersion: Int = 21
 
@@ -395,12 +389,11 @@ object LightTypeTag {
     lttRefSerializer.unpickle(UnpickleState(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1))))
   }
 
-  private[this] final val optimisticEqualsEnabled = {
+  private[this] final val optimisticEqualsEnabled =
     System
       .getProperty(DebugProperties.`izumi.reflect.rtti.optimized.equals`)
       .asBoolean()
       .getOrElse(true)
-  }
 
   private[reflect] val (lttRefSerializer: Pickler[LightTypeTagRef], subtypeDBsSerializer: Pickler[SubtypeDBs]) = {
     import izumi.reflect.thirdparty.internal.boopickle
