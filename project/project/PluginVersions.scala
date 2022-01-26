@@ -21,4 +21,5 @@ object PV {
   val sbt_pgp = "2.1.1"
 
   val sbt_mima_version = "1.0.1"
+  val scala_native_version = "0.4.3"
 }

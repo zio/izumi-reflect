@@ -56,7 +56,8 @@ object Izumi {
 
   val settings = GlobalSettings(
     groupId = "dev.zio",
-    sbtVersion = None
+    sbtVersion = None,
+    scalaNativeVersion = Version.VExpr("PV.scala_native_version")
   )
 
   object Deps {
