@@ -125,7 +125,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
         "-Ycache-macro-class-loader:last-modified",
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.7") => Seq(
+      case (_, "2.13.8") => Seq(
         "-target:jvm-1.8",
         "-explaintypes",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
@@ -157,7 +157,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       case (_, _) => Set(organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.13.7") => Seq(
+      case (_, "2.13.8") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
@@ -167,7 +167,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.7") => Seq(
+      case (false, "2.13.8") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -178,7 +178,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   .jvmSettings(
     crossScalaVersions := Seq(
       "3.1.0",
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -187,7 +187,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   .jsSettings(
     crossScalaVersions := Seq(
       "3.1.0",
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -197,7 +197,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   )
   .nativeSettings(
     crossScalaVersions := Seq(
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -335,7 +335,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
         "-Ycache-macro-class-loader:last-modified",
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.7") => Seq(
+      case (_, "2.13.8") => Seq(
         "-target:jvm-1.8",
         "-explaintypes",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
@@ -367,7 +367,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       case (_, _) => Set(organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.13.7") => Seq(
+      case (_, "2.13.8") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
@@ -377,7 +377,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.7") => Seq(
+      case (false, "2.13.8") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -387,7 +387,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .jvmSettings(
     crossScalaVersions := Seq(
       "3.1.0",
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -396,7 +396,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .jsSettings(
     crossScalaVersions := Seq(
       "3.1.0",
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -406,7 +406,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .nativeSettings(
     crossScalaVersions := Seq(
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -468,7 +468,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
     publish / skip := true,
     crossScalaVersions := Seq(
       "3.1.0",
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -483,7 +483,7 @@ lazy val `izumi-reflect-root-js` = (project in file(".agg/.agg-js"))
     publish / skip := true,
     crossScalaVersions := Seq(
       "3.1.0",
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -498,7 +498,7 @@ lazy val `izumi-reflect-root-native` = (project in file(".agg/.agg-native"))
     publish / skip := true,
     crossScalaVersions := Seq(
       "3.1.0",
-      "2.13.7",
+      "2.13.8",
       "2.12.15",
       "2.11.12"
     ),
@@ -571,7 +571,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.89" % Provided
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.92" % Provided
   )
   .aggregate(
     `izumi-reflect-aggregate`

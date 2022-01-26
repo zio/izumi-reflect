@@ -11,11 +11,11 @@ addSbtPlugin("ch.epfl.scala" % "sbt-scalajs-bundler" % "0.20.0")
 addSbtPlugin("org.scala-js" % "sbt-jsdependencies" % "1.0.2")
 addSbtPlugin("org.portable-scala" % "sbt-scala-native-crossproject" % "1.1.0")
 
-addSbtPlugin("org.scala-native"   % "sbt-scala-native"              % "0.4.2")
+addSbtPlugin("org.scala-native"   % "sbt-scala-native"              % "0.4.3")
 
 ////////////////////////////////////////////////////////////////////////////////
 
-addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.89")
+addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.92")
 
 addSbtPlugin("com.jsuereth" % "sbt-pgp" % PV.sbt_pgp)
 
