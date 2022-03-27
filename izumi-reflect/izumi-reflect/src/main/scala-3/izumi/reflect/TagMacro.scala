@@ -43,8 +43,6 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     typeRepr.dealias match {
       case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => summonTag(x)
 
-      case x if x.typeSymbol.isTypeParam => summonTag(x)
-
       case AppliedType(ctor, args) =>
         val ctorTag = createTagExpr(ctor.asType)
         val argsTags = Expr.ofList(args.map(mkLtt))
@@ -64,6 +62,8 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         val ltts0: List[Expr[LightTypeTag]] = flattenOr(orType).map(mkLtt)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(ltts0)
         '{ Tag.unionTag[T](classOf[Any], $ltts) }
+
+      case x if x.typeSymbol.isTypeParam => summonTag(x)
 
       case _ =>
         throw new Exception(s"Unsupported type: $typeRepr")

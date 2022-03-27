@@ -23,6 +23,15 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertNotChild(Tag[Animal | String].tag, Tag[Dog | String].tag)
     }
 
+    "Support HKTag for unapplied type lambdas with type bounds" in {
+      trait X
+      trait XAble[A <: X]
+      class Y extends X
+
+      def getTag[F[_ <: X]: Tag.auto.T] = Tag[F[Y]]
+
+      assertSame(getTag[XAble].tag, Tag[XAble[Y]].tag)
+    }
   }
 
 }
