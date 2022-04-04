@@ -5,6 +5,8 @@ import izumi.reflect.test.ID._
 
 class TagTest extends SharedTagTest with TagAssertions {
 
+  type Abstract
+
   override final val tagZ = Tag[String]
 
   "Tag (Dotty)" should {
@@ -21,6 +23,11 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertChild(Tag[Dog].tag, Tag[Animal].tag)
       assertChild(Tag[Dog | String].tag, Tag[Animal | String].tag)
       assertNotChild(Tag[Animal | String].tag, Tag[Dog | String].tag)
+    }
+
+    "Does not synthesize Tags for abstract types, but recursively summons" in {
+      implicit val tag0: Tag[Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
+      val tag = Tag[Option[Abstract]]
     }
 
   }
