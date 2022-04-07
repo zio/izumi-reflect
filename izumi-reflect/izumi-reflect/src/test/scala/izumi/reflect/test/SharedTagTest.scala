@@ -321,6 +321,13 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     assert(tag.tag.typeArgs.head != tag0.tag)
   }
 
+  "DOES synthesize Tags for abstract types (val x; x.T)" in {
+    val x = new SomeTrait {}
+    implicit val tag0: Tag[x.Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
+    val tag = Tag[Option[x.Abstract]]
+    assert(tag.tag.typeArgs.head != tag0.tag)
+  }
+
 }
 
 
