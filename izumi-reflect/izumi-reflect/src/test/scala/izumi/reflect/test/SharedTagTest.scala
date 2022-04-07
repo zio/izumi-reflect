@@ -58,6 +58,7 @@ trait T2[A, B, C[_[_], _], D[_], E]
 
 abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions with InheritedModelKindProjector {
 
+  type Abstract
   type Swap[A, B] = Either[B, A]
   type SwapF2[F[_, _], A, B] = F[B, A]
   type Id[A] = A
@@ -302,4 +303,31 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
   }
 
+  "Does not synthesize Tags for abstract types, but recursively summons (this.Abstract)" in {
+    implicit val tag0: Tag[Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
+    val tag = Tag[Option[Abstract]]
+    assert(tag.tag.typeArgs.head == tag0.tag)
+  }
+
+  "DOES synthesize Tags for abstract types (object X; X.T)" in {
+    implicit val tag0: Tag[SomeObject.Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
+    val tag = Tag[Option[SomeObject.Abstract]]
+    assert(tag.tag.typeArgs.head != tag0.tag)
+  }
+
+  "DOES synthesize Tags for abstract types (trait X; X#T)" in {
+    implicit val tag0: Tag[SomeTrait#Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
+    val tag = Tag[Option[SomeTrait#Abstract]]
+    assert(tag.tag.typeArgs.head != tag0.tag)
+  }
+
+}
+
+
+trait SomeTrait {
+  type Abstract
+}
+
+object SomeObject {
+  type Abstract
 }
