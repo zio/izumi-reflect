@@ -309,16 +309,16 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     assert(tag.tag.typeArgs.head == tag0.tag)
   }
 
-  "Does not synthesize Tags for abstract types, but recursively summons (object X; X.T)" in {
+  "DOES synthesize Tags for abstract types (object X; X.T)" in {
     implicit val tag0: Tag[SomeObject.Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
     val tag = Tag[Option[SomeObject.Abstract]]
-    assert(tag.tag.typeArgs.head == tag0.tag)
+    assert(tag.tag.typeArgs.head != tag0.tag)
   }
 
-  "Does not synthesize Tags for abstract types, but recursively summons (trait X; X#T)" in {
+  "DOES synthesize Tags for abstract types (trait X; X#T)" in {
     implicit val tag0: Tag[SomeTrait#Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
     val tag = Tag[Option[SomeTrait#Abstract]]
-    assert(tag.tag.typeArgs.head == tag0.tag)
+    assert(tag.tag.typeArgs.head != tag0.tag)
   }
 
 }

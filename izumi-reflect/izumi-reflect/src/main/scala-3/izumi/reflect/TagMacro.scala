@@ -41,8 +41,9 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private def summonCombinedTag[T <: AnyKind: Type](typeRepr: TypeRepr): Expr[Tag[T]] =
     typeRepr.dealias match {
+      case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => summonTag(x)
 
-      case x if x.typeSymbol.isTypeParam || x.typeSymbol.isAbstractType => summonTag(x)
+      case x if x.typeSymbol.isTypeParam => summonTag(x)
 
       case AppliedType(ctor, args) =>
         val ctorTag = createTagExpr(ctor.asType)
@@ -81,7 +82,8 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     */
   private def allPartsStrong(typeRepr: TypeRepr): Boolean =
     typeRepr.dealias match {
-      case x if x.typeSymbol.isTypeParam || (x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef) => false
+      case x if x.typeSymbol.isTypeParam => false
+      case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => false
       case AppliedType(tpe, args) => allPartsStrong(tpe) && args.forall(allPartsStrong)
       case AndType(lhs, rhs) => allPartsStrong(lhs) && allPartsStrong(rhs)
       case OrType(lhs, rhs) => allPartsStrong(lhs) && allPartsStrong(rhs)
