@@ -180,7 +180,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
     // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
     Compile / packageBin / packageOptions +=
       Package.ManifestAttributes(
-        "Automatic-Module-Name" -> s"${organization.value.replaceAll("-",".")}.${moduleName.value.replaceAll("-",".")}"
+        "Automatic-Module-Name" -> s"${organization.value}.${moduleName.value}".replaceAll("-",".")
       )    
   )
   .jvmSettings(
