@@ -295,7 +295,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDeepChild(LTT[Any => Int], LTT[Int => Int])
     }
 
-    "regression test: IntegrationCheck[F] should not related to IntegrationCheck[Identity]" in {
+    "regression test: IntegrationCheck[F] should not be related to IntegrationCheck[Identity]" in {
       loud {
         assertDeepNotChild(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
       }
