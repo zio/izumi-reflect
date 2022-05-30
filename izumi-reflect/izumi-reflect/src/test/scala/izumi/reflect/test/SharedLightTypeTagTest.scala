@@ -1,9 +1,8 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti._
-import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, AppliedReference, Boundaries}
+import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries}
 
-import scala.annotation.StaticAnnotation
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
@@ -294,6 +293,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
     "support contravariance" in {
       assertDeepChild(LTT[Any => Int], LTT[Int => Int])
+    }
+
+    "regression test: IntegrationCheck[F] should not related to IntegrationCheck[Identity]" in {
+      loud {
+        assertDeepNotChild(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
+      }
     }
 
     "support typetag combination" in {

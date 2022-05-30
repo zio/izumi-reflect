@@ -1,6 +1,5 @@
 package izumi.reflect.test
 
-import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti._
 import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, AppliedReference}
 

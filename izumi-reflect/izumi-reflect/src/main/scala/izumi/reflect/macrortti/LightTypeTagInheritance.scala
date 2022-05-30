@@ -109,14 +109,22 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         || compareParameterizedRefs(ctx)(s, t))
 
       case (s: FullReference, t: NameReference) =>
-        oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t) || {
+        (oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
+          || {
           val boundIsOk = compareBounds(ctx)(s, t.boundaries)
 
           boundIsOk && (
-            outerLambdaParams.map(_.name).contains(t.ref.name) // lambda parameter may accept anything within bounds
-            || outerDecls.map(_.name).contains(t.ref.name) // refinement type decl may accept anything within bounds
-          )
-        }
+            paramNames.contains(t.ref.name) // lambda parameter may accept anything within bounds
+            || declNames.contains(t.ref.name) // refinement type decl may accept anything within bounds
+          ) && {
+            val sArgNames = s.parameters.iterator.collect(_.ref match {
+              case reference: AppliedNamedReference => reference.asName.ref.name
+            }).toSet
+            // FIXME a workaround. Real solution: compare lambdas inside-out, not outside-in.
+            !paramNames.contains(s.ref) && !sArgNames.subsetOf(paramNames) &&
+              !declNames.contains(s.ref) && !sArgNames.subsetOf(declNames)
+          }
+        })
 
       case (s: NameReference, t: FullReference) =>
         oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
@@ -128,8 +136,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         any(
           all(boundIsOk, parameterizedParentsOf(s).exists(ctx.isChild(_, t))),
           all(boundIsOk, unparameterizedParentsOf(s).exists(ctx.isChild(_, t))),
-          all(boundIsOk, outerLambdaParams.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything within bounds
-          all(boundIsOk, outerDecls.map(_.name).contains(t.ref.name)), // refinement decl may accept anything within bounds
+          all(boundIsOk, paramNames.contains(t.ref.name)), // lambda parameter may accept anything within bounds
+          all(boundIsOk, declNames.contains(t.ref.name)), // refinement decl may accept anything within bounds
           s.boundaries match {
             case Boundaries.Defined(_, sUp) =>
               ctx.isChild(sUp, t)
@@ -144,8 +152,9 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (s: Lambda, t: AppliedNamedReference) =>
         isChild(ctx.next(s.input))(s.output, t)
       case (s: Lambda, o: Lambda) =>
+        val res = isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.name))))(s.normalizedOutput, o.normalizedOutput)
         (s.input.size == o.input.size
-        && isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.name))))(s.normalizedOutput, o.normalizedOutput))
+        && res)
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>

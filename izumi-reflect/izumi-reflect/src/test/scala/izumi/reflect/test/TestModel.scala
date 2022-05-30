@@ -155,4 +155,6 @@ object TestModel extends TestModelKindProjector {
   final case class VarArgsAnyVal(args: String*) extends AnyVal
 
   trait BIO3[F[-_, +_, +_]]
+
+  trait IntegrationCheck[+F[_]]
 }
