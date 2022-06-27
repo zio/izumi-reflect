@@ -57,7 +57,9 @@ object Izumi {
   val settings = GlobalSettings(
     groupId = "dev.zio",
     sbtVersion = None,
-    scalaNativeVersion = Version.VExpr("PV.scala_native_version")
+    scalaJsVersion = Version.VExpr("PV.scala_js_version"),
+    scalaNativeVersion = Version.VExpr("PV.scala_native_version"),
+    crossProjectVersion = Version.VExpr("PV.sbt_crossproject_version")
   )
 
   object Deps {
@@ -225,7 +227,11 @@ object Izumi {
               SettingKey(Some(scala213), Some(true)) := inlineOpts,
               SettingKey.Default := Const.EmptySeq
             )
-          }
+          },
+          // For compatibility with Java 9+ module system;
+          // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
+          "packageOptions" in SettingScope.Raw("Compile / packageBin") +=
+            s"""Package.ManifestAttributes("Automatic-Module-Name" -> s"$${organization.value.replaceAll("-",".")}.$${moduleName.value.replaceAll("-",".")}")""".raw,
         )
     }
 

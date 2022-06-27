@@ -173,15 +173,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       )
       case (_, _) => Seq.empty
     } },
+    Compile / packageBin / packageOptions += Package.ManifestAttributes("Automatic-Module-Name" -> s"${organization.value.replaceAll("-",".")}.${moduleName.value.replaceAll("-",".")}"),
     Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")
-  )
-  .settings(
-    // For compatibility with Java 9+ module system;
-    // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
-    Compile / packageBin / packageOptions +=
-      Package.ManifestAttributes(
-        "Automatic-Module-Name" -> s"${organization.value}.${moduleName.value}".replaceAll("-",".")
-      )    
   )
   .jvmSettings(
     crossScalaVersions := Seq(
@@ -391,15 +384,8 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
         "-opt-inline-from:izumi.reflect.**"
       )
       case (_, _) => Seq.empty
-    } }
-  )
-  .settings(
-    // For compatibility with Java 9+ module system;
-    // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
-    Compile / packageBin / packageOptions +=
-      Package.ManifestAttributes(
-        "Automatic-Module-Name" -> s"${organization.value.replaceAll("-",".")}.${moduleName.value.replaceAll("-",".")}"
-      )    
+    } },
+    Compile / packageBin / packageOptions += Package.ManifestAttributes("Automatic-Module-Name" -> s"${organization.value.replaceAll("-",".")}.${moduleName.value.replaceAll("-",".")}")
   )
   .jvmSettings(
     crossScalaVersions := Seq(
