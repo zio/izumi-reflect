@@ -321,7 +321,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDebugSame(LTT[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
     }
 
-    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
+    "wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
       assertDifferent(LTT[Set[_]], LTT[Set[Any]])
       assertDifferent(LTT[List[_]], LTT[List[Any]])
       assertChild(LTT[Set[Int]], LTT[Set[_]])

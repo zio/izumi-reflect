@@ -17,39 +17,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertDeepChild(`LTT[_]`[TAny], `LTT[_ >: Low <: High]`[TAnyVal, Nothing, AnyVal])
     }
 
-    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
-      trait T {
-        type A
-      }
-      object T {
-        type A
-      }
-
-      assertDifferent(LTT[Set[T#A]], LTT[Set[T.A]])
-
-      doesntWorkYet {
-        assertDifferent(LTT[Set[_]], LTT[Set[Any]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[List[_]], LTT[List[Any]])
-      }
-      doesntWorkYet {
-        assertDifferent(LTT[_ => _], LTT[Any => Any])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Set[Int]], LTT[Set[_]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Set[_]], LTT[Set[Int]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[List[_]], LTT[List[Int]])
-      }
-      doesntWorkYet {
-        assertChild(LTT[Int => Int], LTT[_ => Int])
-      }
-    }
-
     "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
       assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
       assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
@@ -276,47 +243,16 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "blah" in {
-      trait A[X <: A[X]]
+    "progression test: fails to support comparison of recursive type bounds (F-bounded types)" in {
+      trait A[x <: A[x]]
       trait B extends A[B]
 
-      println(LTT[B].debug())
-      println(LTT[List[Int]].debug())
+      assertDeepChild(LTT[Option[Int]], `LTT[x <: T[x]]`[Option])
 
-      println(izumi.reflect.example.materialize1[A])
-      println(izumi.reflect.example.materialize1[Enum])
-      println(izumi.reflect.example.materialize2[B])
-      loud {
-        PlatformSpecific.fromRuntime(reflect.runtime.universe.typeOf[Enum[_ <: java.lang.Character]].typeConstructor, loud = true)
-      }
-    }
+      assertDeepChild(LTT[B], `LTT[x <: T[x]]`[A])
 
-    "support recursive type bounds (F-bounded types)" in {
-      trait A[X <: A[X]]
-      trait B extends A[B]
-
-      trait A_[X <: A_[_]]
-      trait B_ extends A_[B_]
-      val tag = `LTT[x <: T[x]]`[Enum]
-      val tag2 = LTT[Enum[_]]
-
-      val tag3 = LTT[B]
-      val tag4 = `LTT[x <: T[x]]`[A]
-
-      val tag5 = LTT[B_]
-      val tag6 = `LTT[_ >: Low <: High]`[A_, Nothing, A_[_]]
-
-      println(tag.debug())
-      println(tag2.debug())
-
-      println(tag3.debug())
-      println(tag4.debug())
-
-      println(tag5.debug())
-      println(tag6.debug())
-
-      assertDeepChild(LTT[Character], tag)
-      assertDeepChild(LTT[Enum[Character]], tag)
+      assertDeepChild(LTT[ProcessBuilder.Redirect.Type], `LTT[x <: T[x]]`[Enum])
+      assertDeepChild(LTT[Enum[ProcessBuilder.Redirect.Type]], `LTT[x <: T[x]]`[Enum])
     }
 
     "progression test: type parameter bounds are supported, except on Dotty" in {
