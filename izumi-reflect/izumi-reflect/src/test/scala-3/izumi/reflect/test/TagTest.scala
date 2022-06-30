@@ -56,6 +56,17 @@ class TagTest extends SharedTagTest with TagAssertions {
 
       implicitly[`TagK<:Dep`[Trait3]].tag.withoutArgs =:= LTag[Trait3[Nothing]].tag.withoutArgs
     }
+
+    "combine union types" in {
+      def t1[A: Tag] = Tag[String | A]
+      def t2[A: Tag, B: Tag] = Tag[A | B]
+
+      assertDeepSame(t1[Int].tag, Tag[Int | String].tag)
+      assertDeepSame(t2[Int, String].tag, Tag[String | Int].tag)
+      assertDeepSame(t1[String].tag, Tag[String].tag)
+      assertDeepSame(t2[String, String].tag, Tag[String].tag)
+    }
+
   }
 
 }
