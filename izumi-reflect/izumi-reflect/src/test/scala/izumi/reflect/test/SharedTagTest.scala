@@ -321,29 +321,49 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
   }
 
-  "Does not synthesize Tags for abstract types, but recursively summons (this.Abstract)" in {
-    implicit val tag0: Tag[Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
-    val tag = Tag[Option[Abstract]]
-    assert(tag.tag.typeArgs.head == tag0.tag)
+  "Does NOT synthesize Tags for abstract types, but recursively summons Tag[this.Abstract]" in {
+    // no tag synthesized, there's no Tag[Abstract] unless defined
+    assertDoesNotCompile("Tag[Abstract]")
+    locally {
+      implicit val implicitTag: Tag[Abstract] = Tag[Abstract](Tag[Int].closestClass, Tag[Int].tag)
+      val tag = Tag[Option[Abstract]]
+      assertDeepSame(tag.tag.typeArgs.head, implicitTag.tag)
+      assertDeepSame(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+    }
   }
 
-  "DOES synthesize Tags for abstract types (object X; X.T)" in {
-    implicit val tag0: Tag[SomeObject.Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
-    val tag = Tag[Option[SomeObject.Abstract]]
-    assert(tag.tag.typeArgs.head != tag0.tag)
+  "DOES synthesize Tags for abstract types (object X; X.T), does not summon Tag[X.T]" in {
+    val realTag = Tag[Option[SomeObject.Abstract]]
+    locally {
+      implicit val implicitTag: Tag[SomeObject.Abstract] = Tag[SomeObject.Abstract](Tag[Int].closestClass, Tag[Int].tag)
+      val tag = Tag[Option[SomeObject.Abstract]]
+      assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
+      assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+      assertDeepSame(realTag.tag, tag.tag)
+    }
   }
 
-  "DOES synthesize Tags for abstract types (trait X; X#T)" in {
-    implicit val tag0: Tag[SomeTrait#Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
-    val tag = Tag[Option[SomeTrait#Abstract]]
-    assert(tag.tag.typeArgs.head != tag0.tag)
+  "DOES synthesize Tags for abstract types (trait X; X#T), does not summon Tag[X#T]" in {
+    val realTag = Tag[Option[SomeTrait#Abstract]]
+    locally {
+      implicit val implicitTag: Tag[SomeTrait#Abstract] = Tag[SomeTrait#Abstract](Tag[Int].closestClass, Tag[Int].tag)
+      val tag = Tag[Option[SomeTrait#Abstract]]
+      assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
+      assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+      assertDeepSame(realTag.tag, tag.tag)
+    }
   }
 
-  "DOES synthesize Tags for abstract types (val x; x.T)" in {
+  "DOES synthesize Tags for abstract types (val x; x.T), does not summon Tag[x.T]" in {
     val x = new SomeTrait {}
-    implicit val tag0: Tag[x.Abstract] = Tag.apply(Tag[Int].closestClass, Tag[Int].tag)
-    val tag = Tag[Option[x.Abstract]]
-    assert(tag.tag.typeArgs.head != tag0.tag)
+    val realTag = Tag[Option[x.Abstract]]
+    locally {
+      implicit val implicitTag: Tag[x.Abstract] = Tag[x.Abstract](Tag[Int].closestClass, Tag[Int].tag)
+      val tag = Tag[Option[x.Abstract]]
+      assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
+      assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+      assertDeepSame(realTag.tag, tag.tag)
+    }
   }
 
   "handle function local type aliases" in {
