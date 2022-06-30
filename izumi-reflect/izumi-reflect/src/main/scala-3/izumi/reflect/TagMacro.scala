@@ -68,7 +68,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
       case andType: AndType =>
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(flattenAnd(andType).map(summonLttIfTypeParam))
-        val structLtt = summonLttIfTypeParam(andType)
+        val structLtt = Inspect.inspectAny(using andType.asType, qctx)
         '{ Tag.refinedTag[T](classOf[Any], $ltts, $structLtt, Map.empty) }
 
       case orType: OrType =>

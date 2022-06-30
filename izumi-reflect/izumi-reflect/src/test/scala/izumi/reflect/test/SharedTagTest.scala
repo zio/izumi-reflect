@@ -426,6 +426,16 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     assertDeepSame(tag[Int].tag, Tag[mutable.Builder[Int, java.util.Collection[Int]]].tag)
   }
 
+  "combine intersection types" in {
+    def t1[A: Tag] = Tag[String with A]
+    def t2[A: Tag, B: Tag] = Tag[A with B]
+
+    assertDeepSame(t1[Int].tag, Tag[Int with String].tag)
+    assertDeepSame(t2[Int, String].tag, Tag[String with Int].tag)
+    assertDeepSame(t1[String].tag, Tag[String].tag)
+    assertDeepSame(t2[String, String].tag, Tag[String].tag)
+  }
+
   "summon HKT Tag for a Java type" in {
     assertCompiles("TagK[java.util.Collection]")
   }
