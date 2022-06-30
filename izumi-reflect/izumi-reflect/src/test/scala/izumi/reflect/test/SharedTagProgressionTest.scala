@@ -3,6 +3,7 @@ package izumi.reflect.test
 import izumi.reflect.macrortti._
 import izumi.reflect.test.TestModel._
 import izumi.reflect._
+import izumi.reflect.test.PlatformSpecific.fromRuntime
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -139,6 +140,32 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
       doesntWorkYetOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2b1)
+      }
+    }
+
+    "Work for structural concrete types doesn't work on Dotty" in {
+      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
+      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
+
+      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
+      doesntWorkYetOnDotty {
+        assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
+      }
+    }
+
+    "progression test: subtyping for Invariant Java HKT doesn't work on Dotty" in {
+      val collection = TagK[java.util.Collection]
+      val javaIterable = TagK[java.lang.Iterable]
+      doesntWorkYetOnDotty {
+        assertDeepChild(collection.tag, javaIterable.tag)
+      }
+    }
+
+    "progression test: subtyping for Invariant Scala HKT doesn't work on Dotty" in {
+      val mutableSet = TagK[scala.collection.mutable.Set]
+      val collectionSet = TagK[scala.collection.Set]
+      doesntWorkYetOnDotty {
+        assertDeepChild(mutableSet.tag, collectionSet.tag)
       }
     }
 

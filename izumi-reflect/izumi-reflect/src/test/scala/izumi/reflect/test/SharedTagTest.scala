@@ -4,13 +4,16 @@ import izumi.reflect._
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 import izumi.reflect.test.ID._
-import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation}
+import izumi.reflect.test.PlatformSpecific.fromRuntime
+import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation, T1}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util
 import scala.annotation.StaticAnnotation
+import scala.collection.mutable
 import scala.util.Try
 
 object ID {
@@ -71,6 +74,12 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
   final val str = "str"
 
   final class With[T] extends StaticAnnotation
+
+  case class ZOBA[A, B, C](value: Either[B, C])
+
+  trait Test[A, dafg, adfg, LS, L[_], SD, GG[A] <: L[A], ZZZ[_, _], S, SDD, TG]
+  trait T1[A, B, C, D, E, F[_]]
+  trait YX[V] extends XY[V]
 
   "Tag (all versions)" should {
 
@@ -142,6 +151,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     }
 
     "handle function local type aliases" in {
+
       def testTag[T: Tag] = {
         type X[A] = Either[Int, A]
 
@@ -157,6 +167,14 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       }
 
       assert(testTag2[String].tag == fromRuntime[List[String]])
+
+      def testTag3[F[_]: TagK] = {
+        type X = OptionT[F, Int]
+
+        Tag[X]
+      }
+
+      assert(testTag3[List].tag == fromRuntime[OptionT[List, Int]])
     }
 
     "Can dealias transparent type members with class type parameters inside them when a tag is summoned _inside_ the class, because LightTypeTags are not affected by https://github.com/scala/bug/issues/11139" in {
@@ -328,8 +346,91 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     assert(tag.tag.typeArgs.head != tag0.tag)
   }
 
-}
+  "handle function local type aliases" in {
+    def testTag3[F[_]: TagK] = {
+      type X = OptionT[F, Int]
 
+      Tag[X]
+    }
+
+    assert(testTag3[List].tag == fromRuntime[OptionT[List, Int]])
+  }
+
+  "Can dealias transparent type members with class type parameters inside them when a tag is summoned _inside_ the class, because LightTypeTags are not affected by https://github.com/scala/bug/issues/11139" in {
+    assert(testTag3[List]().res == fromRuntime[OptionT[List, Int]])
+  }
+
+  "Work for an abstract type with available TagK when obscured by empty refinement" in {
+    def testTagK[F[_]: TagK, T: Tag] = Tag[F[T {}] {}]
+
+    assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
+  }
+
+  "Work for an abstract type with available TagK when TagK is requested through an explicit implicit" in {
+    def testTagK[F[_], T: Tag](implicit ev: Tag.auto.T[F]) = {
+      val _ = ev
+      Tag[F[T {}] {}]
+    }
+
+    assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
+  }
+
+  "Work for an abstract type with available TagKK" in {
+    def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
+
+    assert(t1[ZOBA[Int, *, *], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
+  }
+
+  "Work for any configuration of parameters" in {
+    def t1[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F[_]: TagK]: Tag[T1[A, B, C, D, E, F]] = Tag[T1[A, B, C, D, E, F]]
+
+    type ZOB[A, B, C] = Either[B, C]
+
+    assert(
+      t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, *]].tag
+      == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, *]]]
+    )
+
+    def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
+      : Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]] =
+      Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]]
+
+    assert(
+      t2[SharedTagTest.this.Z, SharedTagTest.this.Z, T1[
+        ZOB[String, Int, Byte],
+        String,
+        String,
+        String,
+        String,
+        List
+      ], SharedTagTest.this.Z, XY, SharedTagTest.this.Z, YX, Either, SharedTagTest.this.Z, SharedTagTest.this.Z, SharedTagTest.this.Z].tag
+      == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
+    )
+  }
+
+  "handle Swap type lambda" in {
+    def t1[F[_, _]: TagKK, A: Tag, B: Tag] = Tag[F[A, B]]
+
+    assert(t1[Swap, Int, String].tag == fromRuntime[Either[String, Int]])
+  }
+
+  "Assemble from higher than TagKK tags" in {
+    def tag[T[_[_], _]: TagTK, F[_]: TagK, A: Tag] = Tag[T[F, A]]
+
+    assert(tag[OptionT, Option, Int].tag == fromRuntime[OptionT[Option, Int]])
+  }
+
+  "regression test: https://github.com/zio/izumi-reflect/issues/293 assemble tag for Builder[B, Collection[B]]" in {
+    def tag[B: Tag](implicit tag: Tag[java.util.Collection[B]]) = Tag[mutable.Builder[B, java.util.Collection[B]]]
+
+    assertDeepSame(tag[Int].tag, Tag[mutable.Builder[Int, java.util.Collection[Int]]].tag)
+  }
+
+  "summon HKT Tag for a Java type" in {
+    assertCompiles("TagK[java.util.Collection]")
+  }
+
+}
 
 trait SomeTrait {
   type Abstract
@@ -337,4 +438,10 @@ trait SomeTrait {
 
 object SomeObject {
   type Abstract
+}
+
+// https://github.com/scala/bug/issues/11139
+final case class testTag3[F[_]: TagK]() {
+  type X = OptionT[F, Int]
+  val res = Tag[X].tag
 }
