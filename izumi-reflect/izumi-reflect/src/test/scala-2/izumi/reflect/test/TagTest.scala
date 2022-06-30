@@ -23,12 +23,6 @@ import izumi.reflect.macrortti._
 import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel.VarArgsAnyVal
 
-// https://github.com/scala/bug/issues/11139
-final case class testTag3[F[_]: TagK]() {
-  type X = OptionT[F, Int]
-  val res = Tag[X].tag
-}
-
 class TagTest extends SharedTagTest {
 
   import izumi.reflect.test.PlatformSpecific.fromRuntime
@@ -40,8 +34,6 @@ class TagTest extends SharedTagTest {
   trait T1[A, B, C, D, E, F[_]]
   trait T2[A, B, C[_[_], _], D[_], E]
   trait Test[A, dafg, adfg, LS, L[_], SD, GG[A] <: L[A], ZZZ[_, _], S, SDD, TG]
-  trait YX[V] extends XY[V]
-  case class ZOBA[A, B, C](value: Either[B, C])
   type Const[A, B] = A
   trait ZIO[-R, +E, +A]
   type IO[+E, +A] = ZIO[Any, E, A]
@@ -102,41 +94,13 @@ class TagTest extends SharedTagTest {
       assert(idTpeLTT == idLambdaLTT)
     }
 
-    "Work for structural concrete types" in {
-      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
-      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
-
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
-    }
-
     "Work for any abstract type with available Tag while preserving additional refinement" in {
       def testTag[T: Tag] = Tag[T { def x: Int }]
 
       assert(testTag[String].tag == fromRuntime[String { def x: Int }])
     }
 
-    "handle function local type aliases" in {
-      def testTag3[F[_]: TagK] = {
-        type X = OptionT[F, Int]
-
-        Tag[X]
-      }
-
-      assert(testTag3[List].tag == fromRuntime[OptionT[List, Int]])
-    }
-
-    "Can dealias transparent type members with class type parameters inside them when a tag is summoned _inside_ the class, because LightTypeTags are not affected by https://github.com/scala/bug/issues/11139" in {
-      assert(testTag3[List]().res == fromRuntime[OptionT[List, Int]])
-    }
-
-    "Work for an abstract type with available TagK when obscured by empty refinement" in {
-      def testTagK[F[_]: TagK, T: Tag] = Tag[F[T {}] {}]
-
-      assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
-    }
-
-    "Work for an abstract type with available TagK when TagK is requested through an explicit implicit" in {
+    "Work for an abstract type with available TagK when TagK is requested through an explicit implicit (Scala 2 Syntax)" in {
       def testTagK[F[_], T: Tag](implicit ev: HKTag[{ type Arg[C] = F[C] }]) = {
         val _ = ev
         Tag[F[T {}] {}]
@@ -145,59 +109,13 @@ class TagTest extends SharedTagTest {
       assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
     }
 
-    "Work for an abstract type with available TagKK" in {
-      def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
-
-      assert(t1[ZOBA[Int, *, *], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
-    }
-
-    "Handle Tags outside of a predefined set" in {
+    "Handle Tags outside of a predefined set (Scala 2 Syntax)" in {
       type TagX[T[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[A, B, C[_[_], _], D[_], E] = T[A, B, C, D, E] }]
 
       def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag] = Tag[F[A, B, C, D, E]]
 
       val value = testTagX[T2, Int, String, OptionT, List, Boolean]
       assert(value.tag == fromRuntime[T2[Int, String, OptionT, List, Boolean]])
-    }
-
-    "Work for any configuration of parameters" in {
-
-      def t1[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F[_]: TagK]: Tag[T1[A, B, C, D, E, F]] = Tag[T1[A, B, C, D, E, F]]
-
-      type ZOB[A, B, C] = Either[B, C]
-
-      assert(
-        t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, *]].tag
-        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, *]]]
-      )
-
-      def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
-        : Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]] =
-        Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]]
-
-      assert(
-        t2[TagTest.this.Z, TagTest.this.Z, T1[
-          ZOB[String, Int, Byte],
-          String,
-          String,
-          String,
-          String,
-          List
-        ], TagTest.this.Z, XY, TagTest.this.Z, YX, Either, TagTest.this.Z, TagTest.this.Z, TagTest.this.Z].tag
-        == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
-      )
-    }
-
-    "handle Swap type lambda" in {
-      def t1[F[_, _]: TagKK, A: Tag, B: Tag] = Tag[F[A, B]]
-
-      assert(t1[Swap, Int, String].tag == fromRuntime[Either[String, Int]])
-    }
-
-    "Assemble from higher than TagKK tags" in {
-      def tag[T[_[_], _]: TagTK, F[_]: TagK, A: Tag] = Tag[T[F, A]]
-
-      assert(tag[OptionT, Option, Int].tag == fromRuntime[OptionT[Option, Int]])
     }
 
     "Handle abstract types instead of parameters" in {
@@ -237,7 +155,7 @@ class TagTest extends SharedTagTest {
       assert(t1.x.tag == fromRuntime[OptionT[List, Either[Int, Byte]]])
     }
 
-    "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK" in {
+    "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK (Scala 2 Syntax)" in {
       type `TagK<:Dep`[K[_ <: Dep]] = HKTag[{ type Arg[A <: Dep] = K[A] }]
 
       implicitly[`TagK<:Dep`[Trait3]].tag.withoutArgs =:= LTag[Trait3[Nothing]].tag.withoutArgs
@@ -271,10 +189,9 @@ class TagTest extends SharedTagTest {
       val tagEitherThrowable = getTag[Either].tag
       val tag = TagK[Either[Throwable, *]].tag
 
-      assert(tagEitherThrowable =:= tag)
-      assert(tagEitherThrowable <:< tag)
-      assert(tagEitherThrowable <:< TagK[Either[Any, *]].tag)
-      assert(TagK[Either[Nothing, *]].tag <:< tagEitherThrowable)
+      assertDeepSame(tagEitherThrowable, tag)
+      assertDeepChild(tagEitherThrowable, TagK[Either[Any, *]].tag)
+      assertDeepChild(TagK[Either[Nothing, *]].tag, tagEitherThrowable)
     }
 
     "can materialize TagK for type lambdas that close on a generic parameter with available Tag" in {
