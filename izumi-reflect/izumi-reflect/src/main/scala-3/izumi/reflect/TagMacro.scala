@@ -36,7 +36,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     def summonLttIfTypeParam(typeRepr: TypeRepr): Expr[LightTypeTag] = {
       if (allPartsStrong(typeRepr)) {
         typeRepr.asType match {
-  //        case given Type[a] => Inspect.inspectAny[a]
+          //        case given Type[a] => Inspect.inspectAny[a]
           case given Type[a] => '{ Inspect.inspect[a] }
         }
       } else {

@@ -231,7 +231,7 @@ object Izumi {
           // For compatibility with Java 9+ module system;
           // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
           "packageOptions" in SettingScope.Raw("Compile / packageBin") +=
-            s"""Package.ManifestAttributes("Automatic-Module-Name" -> s"$${organization.value.replaceAll("-",".")}.$${moduleName.value.replaceAll("-",".")}")""".raw,
+            s"""Package.ManifestAttributes("Automatic-Module-Name" -> s"$${organization.value.replaceAll("-",".")}.$${moduleName.value.replaceAll("-",".")}")""".raw
         )
     }
 
