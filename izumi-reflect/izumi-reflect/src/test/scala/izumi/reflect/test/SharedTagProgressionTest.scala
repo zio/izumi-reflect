@@ -37,7 +37,8 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       assert(
         t.message.get.contains("could not find implicit value") ||
         t.message.get.contains("diverging implicit") || /*2.11*/
-        t.message.get.contains("no implicit argument of type") /*Dotty*/
+        t.message.get.contains("no implicit argument of type") || /*Dotty*/
+        t.message.get.contains("no given instance of type") /*Dotty 3.1.3+*/
       )
     }
 
@@ -55,7 +56,8 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       assert(
         t.message.get.contains("could not find implicit value") ||
         t.message.get.contains("diverging implicit") || /*2.11*/
-        t.message.get.contains("no implicit argument of type") /*Dotty*/
+        t.message.get.contains("no implicit argument of type") || /*Dotty*/
+        t.message.get.contains("no given instance of type") /*Dotty 3.1.3+*/
       )
     }
 
