@@ -24,7 +24,7 @@ object Izumi {
 
   // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
-  final val scala212 = ScalaVersion("2.12.15")
+  final val scala212 = ScalaVersion("2.12.16")
   final val scala213 = ScalaVersion("2.13.8")
   final val scala300 = ScalaVersion("3.1.2")
 
@@ -231,7 +231,7 @@ object Izumi {
           // For compatibility with Java 9+ module system;
           // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
           "packageOptions" in SettingScope.Raw("Compile / packageBin") +=
-            s"""Package.ManifestAttributes("Automatic-Module-Name" -> s"$${organization.value.replaceAll("-",".")}.$${moduleName.value.replaceAll("-",".")}")""".raw,
+            s"""Package.ManifestAttributes("Automatic-Module-Name" -> s"$${organization.value.replaceAll("-",".")}.$${moduleName.value.replaceAll("-",".")}")""".raw
         )
     }
 
