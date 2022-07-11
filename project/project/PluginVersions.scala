@@ -22,7 +22,7 @@ object PV {
 
   val sbt_mima_version = "1.1.0"
 
-  val scala_js_version = "1.10.0"
+  val scala_js_version = "1.10.1"
   val scala_native_version = "0.4.4"
 
   val sbt_crossproject_version = "1.2.0"
