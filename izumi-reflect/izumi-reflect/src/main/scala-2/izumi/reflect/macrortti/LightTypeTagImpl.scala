@@ -444,6 +444,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val typeSymbol = tpe.typeSymbol
 
       val boundaries = makeBoundaries(tpe)
+
       val nameRef = rules.get(typeSymbol.fullName) match {
         case Some(lambdaParameter) =>
           // this is a previously encountered type variable
@@ -558,10 +559,16 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         NameReference(SymLiteral(c.value.value), boundaries, prefix)
 
       case s: SingleTypeApi if s.sym != NoSymbol =>
-        val sym = Dealias.dealiasSingletons(s.termSymbol)
-        val resultType = Dealias.fullNormDealias(sym.typeSignatureIn(s.pre).finalResultType)
-        val newPrefix = if (hasSingletonType(resultType.typeSymbol)) makePrefixReference(resultType) else prefix
-        NameReference(makeSymName(sym), boundaries, newPrefix)
+        s.sym.info match {
+          case c: ConstantTypeApi =>
+            NameReference(SymLiteral(c.value.value), boundaries, prefix)
+
+          case _ =>
+            val sym = Dealias.dealiasSingletons(s.termSymbol)
+            val resultType = Dealias.fullNormDealias(sym.typeSignatureIn(s.pre).finalResultType)
+            val newPrefix = if (hasSingletonType(resultType.typeSymbol)) makePrefixReference(resultType) else prefix
+            NameReference(makeSymName(sym), boundaries, newPrefix)
+        }
 
       case _ =>
         NameReference(makeSymName(typeSymbol), boundaries, prefix)
