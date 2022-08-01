@@ -42,6 +42,7 @@ Known limitations are:
 4. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
 5. At the moment Scala 3 port does not support Path-Dependent Types, and Structural Refinements. This will be fixed in the future.
 6. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
+7. Some Scala 3 projects [may have to enable](https://github.com/zio/izumi-reflect/issues/307) `scalacOptions += "-Yretain-trees"` compiler option. 
 
 ## Debugging
 
