@@ -74,19 +74,13 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   private def tpeBases(tpe0: TypeRepr): List[TypeRepr] = {
     val tpef = tpe0.dealias.simplified._resultType
     val higherBases = tpef.baseClasses
-    val onlyParameterizedBases = {
+    val onlyParameterizedBases =
       higherBases
-        .filterNot {
-          s =>
-            !s.isType || (s.tree match {
-              case tt: TypeTree => tt.tpe =:= tpef
-              case _ => false
-            })
-        }
+        .filter(s => s.isType)
         .map(s => tpef.baseType(s))
-    }
 
     val allbases = onlyParameterizedBases.filterNot(_ =:= tpef)
+
     allbases
   }
 
