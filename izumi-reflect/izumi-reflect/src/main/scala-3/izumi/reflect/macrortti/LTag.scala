@@ -26,13 +26,12 @@ final case class LTag[T <: AnyKind](tag: LightTypeTag)
 object LTag {
   def apply[T <: AnyKind: LTag]: LTag[T] = implicitly
 
-  inline implicit def materialize[T <: AnyKind]: LTag[T] = LTag(izumi.reflect.dottyreflection.Inspect.inspect[T])
+  inline implicit def materialize[T <: AnyKind]: LTag[T] = LTag(izumi.reflect.dottyreflection.Inspect.inspectStrong[T])
 
   final case class Weak[T <: AnyKind](tag: LightTypeTag)
   object Weak {
     def apply[T <: AnyKind: LTag.Weak]: LTag.Weak[T] = implicitly
 
-    // FIXME: weaken (disable allPartsStrong check for weak tag)
     inline implicit def materialize[T <: AnyKind]: LTag.Weak[T] = LTag.Weak(izumi.reflect.dottyreflection.Inspect.inspect[T])
   }
 

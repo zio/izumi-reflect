@@ -346,14 +346,15 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: `strong summons test` doesn't work on Dotty (LTag isn't checked for strength)" in {
+    "progression test: `strong summons test` doesn't work on Dotty (type members aren't inspected on Dotty yet)" in {
       doesntWorkYetOnDotty {
-        assertTypeError("def x1[T] = LTag[Array[T]]")
         assertTypeError("def x1[T] = LTag[Array[Int] { type X = T }]")
-        assertTypeError("def x1[T <: { type Array }] = LTag[T#Array]")
-        assertTypeError("def x1[T] = LTag[Array[Int] with List[T]]")
-        assertTypeError("def x1[F[_]] = LTag[F[Int]]")
       }
+
+      assertTypeError("def x1[T] = LTag[Array[T]]")
+      assertTypeError("def x1[T <: { type Array }] = LTag[T#Array]")
+      assertTypeError("def x1[T] = LTag[Array[Int] with List[T]]")
+      assertTypeError("def x1[F[_]] = LTag[F[Int]]")
 
       assertCompiles("def x1 = { object x { type T }; def x1 = LTag[Array[x.T]]; () }")
       assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] { type X = x.T }]; () }")

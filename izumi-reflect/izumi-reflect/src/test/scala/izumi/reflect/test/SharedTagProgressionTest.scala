@@ -113,18 +113,10 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       if (LTT[B.singleton1.type] != LTT[String] && !IsDotty) {
         assertDifferent(Tag[A#S1].tag, LTT[String])
       }
-      doesntWorkYetOnDotty {
-        assertSame(Tag[A#S1].tag, B.s1a)
-      }
-      doesntWorkYetOnDotty {
-        assertSame(Tag[A#S1].tag, B.s1a1)
-      }
-      doesntWorkYetOnDotty {
-        assertSame(Tag[A#S1].tag, B.s1b)
-      }
-      doesntWorkYetOnDotty {
-        assertSame(Tag[A#S1].tag, B.s1b1)
-      }
+      assertSame(Tag[A#S1].tag, B.s1a)
+      assertSame(Tag[A#S1].tag, B.s1a1)
+      assertSame(Tag[A#S1].tag, B.s1b)
+      assertSame(Tag[A#S1].tag, B.s1b1)
 
       // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
       //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled

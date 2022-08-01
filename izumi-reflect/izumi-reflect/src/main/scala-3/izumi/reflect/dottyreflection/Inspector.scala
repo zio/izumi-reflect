@@ -91,7 +91,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def constToNameRef(constant: ConstantType) = {
+  private def constToNameRef(constant: ConstantType): NameReference = {
     val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
     NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi))
   }
@@ -134,30 +134,22 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         log(s"inspectSymbol: Found ValDef symbol $s")
         NameReference(SymName.SymTermName(symbol.fullName))
 
-      // case s if s.isTypeDef =>
-      //   next().inspectTypeRepr(, outerTypeRef)
+      case s if s.isTypeDef =>
+        log(s"inspectSymbol: Found TypeDef symbol $s")
+        val rhs = s._typeRef._underlying
+        next().inspectTypeRepr(rhs, outerTypeRef)
 
-      // case s if s.isDefDef =>
-      //   next().inspectTypeRepr(, outerTypeRef)
+      case s if s.isDefDef =>
+        // We don't support method types, but if we do in the future,
+        // Something like `s.typeRef.translucentSuperType match { case MethodType(_, params, resultType) => (params, resultType) }`
+        // should get the result type & params
+        log(s"UNEXPECTED METHOD TYPE, METHOD TYPES UNSUPPORTED: $symbol / ${symbol.tree} / ${s.getClass}")
+        throw new RuntimeException(s"UNEXPECTED METHOD TYPE, METHOD TYPES UNSUPPORTED: $symbol / ${symbol.tree} / ${s.getClass}")
+
       case o => // Should not happen according to documentation of `.tree` method
         // still no access to relevant types
-        /*
-        val m = qctx.reflect.SymbolMethods
-        val mm = m.getClass.getMethods.collect { case m if m.getName == "typeRef" => m }.head
-        next().inspectTypeRepr(mm.invoke(m, symbol).asInstanceOf[TypeRef], outerTypeRef)
-         */
-        symbol.tree match {
-          case t: TypeDef =>
-            // FIXME: does not work for parameterized type aliases or non-alias abstract types (wrong kindedness)
-            log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
-            next().inspectTypeRepr(t.rhs.asInstanceOf[TypeTree].tpe, outerTypeRef)
-          case d: DefDef =>
-            log(s"inspectSymbol: Found DefDef symbol ${d.show}")
-            next().inspectTypeRepr(d.returnTpt.tpe)
-          case o => // Should not happen according to documentation of `.tree` method
-            log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
-            throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
-        }
+        log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
+        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
     }
   }
 
@@ -212,14 +204,14 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case term: TermRef =>
         makeNameReferenceFromSymbol(term.termSymbol)
       case t: ParamRef =>
-        NameReference(tpeName = t.binder.asInstanceOf[{ def paramNames: List[Object] }].paramNames(t.paramNum).toString)
+        NameReference(tpeName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString)
       case ref =>
         makeNameReferenceFromSymbol(ref.typeSymbol)
     }
   }
 
   private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
-    val default = {
+    def default = {
       val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
       val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
       NameReference(symName, Boundaries.Empty, prefix)
@@ -227,17 +219,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
     symbol match {
       case s if s.isValDef =>
-        symbol.tree match {
-          case d: ValDef =>
-            d.rhs.map(_.tpe) match {
-              case Some(rhs: ConstantType) =>
-                constToNameRef(rhs)
-              case _ =>
-                default
-
-            }
-          case _ =>
-            default
+        s._typeRef._underlying match {
+          case constant: ConstantType =>
+            constToNameRef(constant)
+          case _ => default
         }
       case _ =>
         default

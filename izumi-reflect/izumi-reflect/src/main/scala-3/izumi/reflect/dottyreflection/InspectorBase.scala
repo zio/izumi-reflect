@@ -13,25 +13,39 @@ trait InspectorBase extends ReflectionUtil {
   protected final def ignored(tpe: TypeRepr): Boolean = ignoredSyms(tpe.typeSymbol)
 
   // FIXME reimplement TrivialMacroLogger on Scala 3
-  inline val debug = false
-  final type debug = debug.type
+  inline def debug: debug = valueOf[debug]
+  final type debug = false
 
   inline final protected def logStart(inline s: String): Unit = {
-    if (debug) println(" " * shift + s)
+    inline if (debug) println(" " * shift + s)
   }
 
   inline final protected def log(inline s: String): Unit = {
-    if (debug) println(" " * shift + " -> " + s)
+    inline if (debug) println(" " * shift + " -> " + s)
   }
 
   inline final protected def logTpeAttrs[T](inline uns: TypeTree): Unit = {
-    if (debug) {
+    inline if (debug) {
       val tree = uns
       val symbol = tree.symbol
       println(
         s"Attrs[${tree.show}]: type=${symbol.isType}, term=${symbol.isTerm}, packageDef=${symbol.isPackageDef}, classDef=${symbol.isClassDef}, typeDef=${symbol.isValDef}, defdef=${symbol.isDefDef}, bind=${symbol.isBind}, nosymbol=${symbol.isNoSymbol}"
       )
     }
+  }
+
+}
+
+object InspectorBase {
+
+  private[reflect] inline def ifDebug[A](inline f: => Unit): Unit = {
+    inline if (valueOf[InspectorBase#debug]) {
+      f
+    }
+  }
+
+  private[reflect] inline def log(inline shift: Int, s: String): Unit = {
+    inline if (valueOf[InspectorBase#debug]) println(" " * shift + " -> " + s)
   }
 
 }
