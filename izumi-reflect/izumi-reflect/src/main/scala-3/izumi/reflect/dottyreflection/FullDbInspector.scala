@@ -40,21 +40,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           Nil
 
         case a: AppliedType =>
-          val baseTypes = a.baseClasses.iterator.map(a.baseType).filterNot(ignored).filterNot(termination).toList
-          log(s"For `$tpe` found base types $baseTypes")
-
-          val main = (selfRef, selfRef) +: baseTypes.map {
-            bt =>
-              val parentRef = inspector.inspectTypeRepr(bt)
-              (selfRef, parentRef)
-          }
-
-          val args = a.args.filterNot(termination.contains).flatMap {
-            x =>
-              termination.add(x)
-              inspectToBToFull(x)
-          }
-          (main ++ args).distinct
+          extractBase(tpe, selfRef, recurseIntoBases = false)
 
         case l: TypeLambda =>
           val parents = inspectToBToFull(l.resType)
@@ -76,9 +62,15 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           inspectTypeReprToFullBases(o.left) ++ inspectTypeReprToFullBases(o.right)
 
         case r: TypeRef =>
-          // inspectTypeReprToFullBases(r.qualifier.memberType(r.typeSymbol))
-          // FIXME below still required for non `subtype check fails when child type has absorbed a covariant type parameter of the supertype`
-          inspectSymbolToFull(r.typeSymbol)
+          val sym = r.typeSymbol
+          sym match {
+            case s if s.isClassDef =>
+              extractBase(r, selfRef, recurseIntoBases = true)
+            case _ =>
+              // inspectTypeReprToFullBases(r.qualifier.memberType(r.typeSymbol))
+              // FIXME below still required for non `subtype check fails when child type has absorbed a covariant type parameter of the supertype`
+              inspectSymbolToFull(r.typeSymbol)
+          }
 
         case r: ParamRef =>
           inspectSymbolToFull(r.typeSymbol)
@@ -95,11 +87,47 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
     }
 
+    private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, recurseIntoBases: Boolean) = {
+      val baseTypes = tpe.baseClasses.iterator.map(tpe.baseType).filterNot(ignored).filterNot(termination).toList
+      log(s"For `$tpe` found base types $baseTypes")
+
+      val rec = if (recurseIntoBases) {
+        baseTypes.filterNot(_ == tpe).flatMap {
+          t =>
+            inspectTypeReprToFullBases(t)
+        }
+      } else {
+        List.empty
+      }
+      val main = List((selfRef, selfRef)) ++ rec ++ baseTypes.map {
+        bt =>
+          val parentRef = inspector.inspectTypeRepr(bt)
+          (selfRef, parentRef)
+      }
+
+      val args: List[TypeRepr] = tpe match {
+        case a: AppliedType =>
+          a.args
+        case _ =>
+          val m = qctx.reflect.TypeReprMethods
+          val mm = m.getClass.getMethods.collect { case m if m.getName == "typeArgs" => m }.head
+          val out = mm.invoke(m, tpe).asInstanceOf[List[TypeRepr]]
+          out
+      }
+
+      val argInheritance = args.filterNot(termination.contains).flatMap {
+        x =>
+          termination.add(x)
+          inspectToBToFull(x)
+      }
+
+      (main ++ argInheritance).distinct
+    }
+
     // FIXME reimplement using `baseClasses`
     private def inspectSymbolToFull(symbol: Symbol): List[(AbstractReference, AbstractReference)] = {
       symbol.tree match {
         case c: ClassDef =>
-//          val parentSymbols = c.parents.map(_.symbol).filterNot(_.isNoSymbol)
           val trees = c.parents.collect { case tt: TypeTree => tt }
           if (trees.nonEmpty) log(s"Found parent trees for symbol ${symbol.tree.show}: $trees")
 

@@ -117,25 +117,42 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private[dottyreflection] def inspectSymbolTree(symbol: Symbol, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    symbol.tree match {
-      case c: ClassDef =>
+    symbol match {
+      case s if s.isClassDef =>
         makeNameReferenceFromSymbol(symbol)
-      case t: TypeDef =>
-        // FIXME: does not work for parameterized type aliases or non-alias abstract types (wrong kindedness)
-        log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
-        next().inspectTypeRepr(t.rhs.asInstanceOf[TypeTree].tpe, outerTypeRef)
-      case d: DefDef =>
-        log(s"inspectSymbol: Found DefDef symbol ${d.show}")
-        next().inspectTypeRepr(d.returnTpt.tpe)
-      case v: ValDef =>
-        log(s"inspectSymbol: Found ValDef symbol ${v.show}")
+
+      case s if s.isBind =>
+        log(s"inspectSymbol: Found Bind symbol $s")
         NameReference(SymName.SymTermName(symbol.fullName))
-      case b: Bind =>
-        log(s"inspectSymbol: Found Bind symbol ${b.show}")
+
+      case s if s.isValDef =>
+        log(s"inspectSymbol: Found ValDef symbol $s")
         NameReference(SymName.SymTermName(symbol.fullName))
+
+      // case s if s.isTypeDef =>
+      //   next().inspectTypeRepr(, outerTypeRef)
+
+      // case s if s.isDefDef =>
+      //   next().inspectTypeRepr(, outerTypeRef)
       case o => // Should not happen according to documentation of `.tree` method
-        log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
-        throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
+        // still no access to relevant types
+        /*
+        val m = qctx.reflect.SymbolMethods
+        val mm = m.getClass.getMethods.collect { case m if m.getName == "typeRef" => m }.head
+        next().inspectTypeRepr(mm.invoke(m, symbol).asInstanceOf[TypeRef], outerTypeRef)
+         */
+        symbol.tree match {
+          case t: TypeDef =>
+            // FIXME: does not work for parameterized type aliases or non-alias abstract types (wrong kindedness)
+            log(s"inspectSymbol: Found TypeDef symbol ${t.show}")
+            next().inspectTypeRepr(t.rhs.asInstanceOf[TypeTree].tpe, outerTypeRef)
+          case d: DefDef =>
+            log(s"inspectSymbol: Found DefDef symbol ${d.show}")
+            next().inspectTypeRepr(d.returnTpt.tpe)
+          case o => // Should not happen according to documentation of `.tree` method
+            log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
+            throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
+        }
     }
   }
 

@@ -78,9 +78,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val subStrTR = subStrALTT.ref.asInstanceOf[AppliedReference]
       val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedReference]
 
-      doesntWorkYetOnDotty {
-        assert(strUnpacker.bases.keySet == Set(strTR))
-      }
+      // doesntWorkYetOnDotty {
+      assert(strUnpacker.bases.keySet == Set(strTR))
+      // }
 
       doesntWorkYetOnDotty {
         assert(subStrALTT.repr == "izumi.reflect.test.TestModel::SubStrA|<scala.Nothing..java.lang.String>")
@@ -96,14 +96,14 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
         assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR); case p => p })
       }
       observableIncorrectBehaviorOnDottyButNotOnScala2 {
-        assert(substrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+        assert(substrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
       }
 
       doesntWorkYetOnDotty {
         assert(subsubstrUnpacker.bases == strUnpacker.bases.map { case (strTR, v) => subSubStrTR -> (v + strTR) })
       }
       observableIncorrectBehaviorOnDottyButNotOnScala2 {
-        assert(subsubstrUnpacker.bases == strUnpacker.bases + (nothingRef -> Set(anyRef)))
+        assert(subsubstrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
       }
     }
 
@@ -194,6 +194,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertChild(tagF3, tagF2)
 
       doesntWorkYetOnScala2 {
+        assertChild(tagF3, LTT[F2[Any]])
         assertChild(tagF3, LTT[F2[AnyVal]])
       }
     }
