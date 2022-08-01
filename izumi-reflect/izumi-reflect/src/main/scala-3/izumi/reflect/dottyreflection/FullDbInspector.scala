@@ -62,18 +62,10 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           inspectTypeReprToFullBases(o.left) ++ inspectTypeReprToFullBases(o.right)
 
         case r: TypeRef =>
-          val sym = r.typeSymbol
-          sym match {
-            case s if s.isClassDef =>
-              extractBase(r, selfRef, recurseIntoBases = true)
-            case _ =>
-              // inspectTypeReprToFullBases(r.qualifier.memberType(r.typeSymbol))
-              // FIXME below still required for non `subtype check fails when child type has absorbed a covariant type parameter of the supertype`
-              inspectSymbolToFull(r.typeSymbol)
-          }
+          processSymbol(r, selfRef)
 
         case r: ParamRef =>
-          inspectSymbolToFull(r.typeSymbol)
+          processSymbol(r, selfRef)
 
         case b: TypeBounds =>
           inspectToBToFull(b)
@@ -84,6 +76,17 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case o =>
           log(s"FullDbInspector: UNSUPPORTED: $o")
           Nil
+      }
+    }
+
+    private def processSymbol(r: TypeRepr, selfRef: AbstractReference) = {
+      r.typeSymbol match {
+        case s if s.isClassDef =>
+          extractBase(r, selfRef, recurseIntoBases = true)
+        case _ =>
+          // inspectTypeReprToFullBases(r.qualifier.memberType(r.typeSymbol))
+          // FIXME below still required for non `subtype check fails when child type has absorbed a covariant type parameter of the supertype`
+          inspectSymbolToFull(r.typeSymbol)
       }
     }
 
@@ -127,6 +130,15 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     // FIXME reimplement using `baseClasses`
     private def inspectSymbolToFull(symbol: Symbol): List[(AbstractReference, AbstractReference)] = {
       symbol.tree match {
+        case c: ClassDef =>
+          val trees = c.parents.collect { case tt: TypeTree => tt }
+          if (trees.nonEmpty) log(s"Found parent trees for symbol ${symbol.tree.show}: $trees")
+
+          val o = trees.flatMap(inspectTreeToFull)
+          val selfRef = inspector.inspectSymbolTree(symbol)
+          val p = trees.flatMap(t => List((selfRef, inspector.inspectTypeRepr(t.tpe))))
+          (p ++ o).distinct
+
         case t: TypeDef =>
           log(s"FullDbInspector: Found TypeDef symbol ${t.show}")
           inspectTreeToFull(t.rhs.asInstanceOf[TypeTree])
