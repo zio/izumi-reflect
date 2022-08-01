@@ -127,15 +127,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     // FIXME reimplement using `baseClasses`
     private def inspectSymbolToFull(symbol: Symbol): List[(AbstractReference, AbstractReference)] = {
       symbol.tree match {
-        case c: ClassDef =>
-          val trees = c.parents.collect { case tt: TypeTree => tt }
-          if (trees.nonEmpty) log(s"Found parent trees for symbol ${symbol.tree.show}: $trees")
-
-          val o = trees.flatMap(inspectTreeToFull)
-          val selfRef = inspector.inspectSymbolTree(symbol)
-          val p = trees.flatMap(t => List((selfRef, inspector.inspectTypeRepr(t.tpe))))
-          (p ++ o).distinct
-
         case t: TypeDef =>
           log(s"FullDbInspector: Found TypeDef symbol ${t.show}")
           inspectTreeToFull(t.rhs.asInstanceOf[TypeTree])
