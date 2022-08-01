@@ -6,12 +6,13 @@
 /config
 .agg
 .bsp
+project/project/project
+project/project/metals.sbt
 
 # we cannot exclude build.sbt - scala steward wouldn't work without it
 #build.sbt
 #project/plugins.sbt
 #project/build.properties
-
 
 secrets.tar
 build/project
@@ -112,6 +113,5 @@ project/plugins/project/
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
-
 
 .vscode
