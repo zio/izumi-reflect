@@ -19,17 +19,15 @@ class Scala213Plus_LightTypeTagTest extends AnyWordSpec with TagAssertions with 
       val v: "a" = "a"
       type vt = v.type
 
-      doesntWorkYetOnDotty {
-        assertChild(Tag["a"].tag, Tag[vt].tag)
-        assertChild(Tag[vt].tag, Tag["a"].tag)
-        assertSame(Tag[vt].tag, Tag["a"].tag)
-        assertSame(Tag["a"].tag, Tag["a"].tag)
-        assertSame(Tag[vt].tag, Tag[vt].tag)
-        assertChild(Tag["a"].tag, Tag[String].tag)
-        assertChild(Tag[vt].tag, Tag[String].tag)
-        assertNotChild(Tag[String].tag, Tag["a"].tag)
-        assertNotChild(Tag[String].tag, Tag[vt].tag)
-      }
+      assertChild(Tag["a"].tag, Tag[vt].tag)
+      assertChild(Tag[vt].tag, Tag["a"].tag)
+      assertSame(Tag[vt].tag, Tag["a"].tag)
+      assertSame(Tag["a"].tag, Tag["a"].tag)
+      assertSame(Tag[vt].tag, Tag[vt].tag)
+      assertChild(Tag["a"].tag, Tag[String].tag)
+      assertChild(Tag[vt].tag, Tag[String].tag)
+      assertNotChild(Tag[String].tag, Tag["a"].tag)
+      assertNotChild(Tag[String].tag, Tag[vt].tag)
     }
   }
 

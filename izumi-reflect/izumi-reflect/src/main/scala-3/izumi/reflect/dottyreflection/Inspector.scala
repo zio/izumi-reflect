@@ -22,6 +22,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     val tpe = tpe0.dealias.simplified
+
     tpe match {
       case a: AnnotatedType =>
         inspectTypeRepr(a.underlying)
@@ -73,8 +74,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         inspectBounds(outerTypeRef, tb, isParam = false)
 
       case constant: ConstantType =>
-        val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
-        NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi))
+        constToNameRef(constant)
 
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
@@ -89,6 +89,11 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         throw new RuntimeException(s"TYPEREPR, UNSUPPORTED: ${o.getClass} - $o")
 
     }
+  }
+
+  private def constToNameRef(constant: ConstantType) = {
+    val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
+    NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi))
   }
 
   private def inspectBounds(outerTypeRef: Option[qctx.reflect.TypeRef], tb: TypeBounds, isParam: Boolean) = {
@@ -214,9 +219,29 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
-    val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
-    val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
-    NameReference(symName, Boundaries.Empty, prefix)
+    val default = {
+      val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
+      val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
+      NameReference(symName, Boundaries.Empty, prefix)
+    }
+
+    symbol match {
+      case s if s.isValDef =>
+        symbol.tree match {
+          case d: ValDef =>
+            d.rhs.map(_.tpe) match {
+              case Some(rhs: ConstantType) =>
+                constToNameRef(rhs)
+              case _ =>
+                default
+
+            }
+          case _ =>
+            default
+        }
+      case _ =>
+        default
+    }
   }
 
   private def getPrefixFromQualifier(t: TypeRepr) = {
