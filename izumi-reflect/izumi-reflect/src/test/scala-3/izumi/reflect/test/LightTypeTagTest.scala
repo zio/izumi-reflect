@@ -50,5 +50,11 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])
     }
 
+    "support top-level abstract types" in {
+      assertDeepChild(LTT[LightTypeTagTestT], LTT[String])
+    }
+
   }
 }
+
+type LightTypeTagTestT <: String

@@ -79,18 +79,20 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
     }
 
-    private def processSymbol(r: TypeRepr, selfRef: AbstractReference) = {
+    private def processSymbol(r: TypeRef | ParamRef, selfRef: AbstractReference): List[(AbstractReference, AbstractReference)] = {
       r.typeSymbol match {
         case s if s.isClassDef =>
           extractBase(r, selfRef, recurseIntoBases = true)
-        case _ =>
-          // inspectTypeReprToFullBases(r.qualifier.memberType(r.typeSymbol))
-          // FIXME below still required for non `subtype check fails when child type has absorbed a covariant type parameter of the supertype`
-          inspectSymbolToFull(r.typeSymbol)
+
+        case s if s.isTypeDef =>
+          inspectTypeReprToFullBases(r._underlying)
+
+        case o =>
+          throw new RuntimeException(s"Shit tree: $o ${o.tree}")
       }
     }
 
-    private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, recurseIntoBases: Boolean) = {
+    private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, recurseIntoBases: Boolean): List[(AbstractReference, AbstractReference)] = {
       val baseTypes = tpe.baseClasses.iterator.map(tpe.baseType).filterNot(ignored).filterNot(termination).toList
       log(s"For `$tpe` found base types $baseTypes")
 
@@ -125,28 +127,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
 
       (main ++ argInheritance).distinct
-    }
-
-    // FIXME reimplement using `baseClasses`
-    private def inspectSymbolToFull(symbol: Symbol): List[(AbstractReference, AbstractReference)] = {
-      symbol.tree match {
-        case c: ClassDef =>
-          val trees = c.parents.collect { case tt: TypeTree => tt }
-          if (trees.nonEmpty) log(s"Found parent trees for symbol ${symbol.tree.show}: $trees")
-
-          val o = trees.flatMap(inspectTreeToFull)
-          val selfRef = inspector.inspectSymbolTree(symbol)
-          val p = trees.flatMap(t => List((selfRef, inspector.inspectTypeRepr(t.tpe))))
-          (p ++ o).distinct
-
-        case t: TypeDef =>
-          log(s"FullDbInspector: Found TypeDef symbol ${t.show}")
-          inspectTreeToFull(t.rhs.asInstanceOf[TypeTree])
-
-        case o =>
-          throw new RuntimeException(s"Shit tree: $o")
-          List.empty
-      }
     }
 
     private def inspectToBToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {

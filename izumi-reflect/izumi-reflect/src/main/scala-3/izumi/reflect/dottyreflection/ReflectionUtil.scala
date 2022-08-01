@@ -22,6 +22,30 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     ReflectionUtil.allPartsStrong(using qctx)(shift, typeRepr)
   }
 
+  extension (symbol: Symbol) {
+    protected def _typeRef: TypeRef = {
+      val m = qctx.reflect.SymbolMethods
+      val mm = m.getClass.getMethods.collect { case m if m.getName == "typeRef" => m }.head
+      val typeRef = mm.invoke(m, symbol)
+      typeRef.asInstanceOf[TypeRef]
+    }
+  }
+
+  extension (typeRef: TypeRef | ParamRef) {
+    protected def _underlying: TypeRepr = {
+//      val underlying = typeRef
+//        .getClass.getMethods.collect { case m if m.getName == "underlying" => m }.head.invoke(
+//          typeRef,
+//          qctx.getClass.getMethods.collect { case m if m.getName == "ctx" => m }.head.invoke(qctx)
+//        )
+//      underlying.asInstanceOf[TypeRepr]
+
+      // This works as a substitution for `TypeRef#underlying` call,
+      // but I'm not sure if it's a reliable substitution.
+      typeRef.typeSymbol.owner._typeRef.memberType(typeRef.typeSymbol)
+    }
+  }
+
 }
 
 object ReflectionUtil {
