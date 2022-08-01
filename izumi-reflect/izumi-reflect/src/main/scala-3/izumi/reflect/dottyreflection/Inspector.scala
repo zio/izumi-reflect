@@ -91,7 +91,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def constToNameRef(constant: ConstantType) = {
+  private def constToNameRef(constant: ConstantType): NameReference = {
     val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
     NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi))
   }
@@ -211,7 +211,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
-    val default = {
+    def default = {
       val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
       val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
       NameReference(symName, Boundaries.Empty, prefix)
@@ -219,17 +219,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
     symbol match {
       case s if s.isValDef =>
-        symbol.tree match {
-          case d: ValDef =>
-            d.rhs.map(_.tpe) match {
-              case Some(rhs: ConstantType) =>
-                constToNameRef(rhs)
-              case _ =>
-                default
-
-            }
-          case _ =>
-            default
+        s._typeRef._underlying match {
+          case constant: ConstantType =>
+            constToNameRef(constant)
+          case _ => default
         }
       case _ =>
         default

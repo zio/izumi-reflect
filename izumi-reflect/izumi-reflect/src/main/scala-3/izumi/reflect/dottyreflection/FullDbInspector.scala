@@ -88,7 +88,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           inspectTypeReprToFullBases(r._underlying)
 
         case o =>
-          throw new RuntimeException(s"Shit tree: $o ${o.tree}")
+          throw new RuntimeException(s"Shit tree: ${o.getClass} $o $r ${o.tree}")
       }
     }
 
