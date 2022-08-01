@@ -87,26 +87,4 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         Expr.summon[Tag[a]].getOrElse(report.errorAndAbort(message)).asInstanceOf[Expr[Tag[A]]]
     }
 
-  /**
-    * Returns true if the given type contains no type parameters
-    * (this means the type is not "weak" https://stackoverflow.com/questions/29435985/weaktypetag-v-typetag)
-    */
-  private def allPartsStrong(typeRepr: TypeRepr): Boolean =
-    typeRepr.dealias match {
-      case x if x.typeSymbol.isTypeParam => false
-      case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => false
-      case AppliedType(tpe, args) => allPartsStrong(tpe) && args.forall(allPartsStrong)
-      case AndType(lhs, rhs) => allPartsStrong(lhs) && allPartsStrong(rhs)
-      case OrType(lhs, rhs) => allPartsStrong(lhs) && allPartsStrong(rhs)
-      case TypeRef(tpe, name) => allPartsStrong(tpe)
-      case TermRef(tpe, name) => allPartsStrong(tpe)
-      case ThisType(tpe) => allPartsStrong(tpe)
-      case NoPrefix() => true
-      case TypeBounds(lo, hi) => allPartsStrong(lo) && allPartsStrong(hi)
-      case TypeLambda(_, _, body) => allPartsStrong(body)
-      case strange =>
-        log(s"Got unknown type component when checking strength: $strange")
-        true
-    }
-
 }
