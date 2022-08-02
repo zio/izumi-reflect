@@ -460,6 +460,10 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     assertCompiles("TagK[java.util.Collection]")
   }
 
+  "regression test: https://github.com/zio/izumi-reflect/issues/76 derive tag for a parametric trait inside object" in {
+    assertDeepSame(X76.x.tag, Tag[X76.T[Int]].tag)
+  }
+
 }
 
 trait SomeTrait {
@@ -474,4 +478,9 @@ object SomeObject {
 final case class testTag3[F[_]: TagK]() {
   type X = OptionT[F, Int]
   val res = Tag[X].tag
+}
+
+object X76 {
+  sealed trait T[A]
+  val x = implicitly[Tag[T[Int]]]
 }
