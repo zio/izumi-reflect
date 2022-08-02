@@ -189,9 +189,9 @@ class TagTest extends SharedTagTest {
       val tagEitherThrowable = getTag[Either].tag
       val tag = TagK[Either[Throwable, *]].tag
 
-      assertDeepSame(tagEitherThrowable, tag)
-      assertDeepChild(tagEitherThrowable, TagK[Either[Any, *]].tag)
-      assertDeepChild(TagK[Either[Nothing, *]].tag, tagEitherThrowable)
+      assertSameStrict(tagEitherThrowable, tag)
+      assertChildStrict(tagEitherThrowable, TagK[Either[Any, *]].tag)
+      assertChildStrict(TagK[Either[Nothing, *]].tag, tagEitherThrowable)
     }
 
     "can materialize TagK for type lambdas that close on a generic parameter with available Tag" in {
