@@ -16,6 +16,14 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
+    "progression test: regression test 2.1.0-M1: IntegrationCheck[F] should not be related to IntegrationCheck[Identity]" in {
+      loud {
+        doesntWorkYet {
+          assertDeepNotChild(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
+        }
+      }
+    }
+
     "properly dealias and assign prefixes to existential types and wildcards" in {
       val withNothing = LTT[With[Nothing]]
       val with_ = LTT[With[_]]

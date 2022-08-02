@@ -162,4 +162,6 @@ object TestModel extends TestModelKindProjector {
   }
   trait SrcProcessor
   trait ContextProcessor[F[_]]
+
+  trait IntegrationCheck[+F[_]]
 }
