@@ -155,4 +155,11 @@ object TestModel extends TestModelKindProjector {
   final case class VarArgsAnyVal(args: String*) extends AnyVal
 
   trait BIO3[F[-_, +_, +_]]
+
+  trait CIO[+A]
+  object x {
+    type SrcContextProcessor[F[_]] = SrcProcessor with ContextProcessor[F]
+  }
+  trait SrcProcessor
+  trait ContextProcessor[F[_]]
 }

@@ -4,6 +4,7 @@ import izumi.reflect.macrortti._
 import izumi.reflect.test.TestModel._
 import izumi.reflect._
 import izumi.reflect.test.PlatformSpecific.fromRuntime
+import izumi.reflect.test.TestModel.x.SrcContextProcessor
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -20,6 +21,22 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
       doesntWorkYetOnScala2 {
         assert(t2[Int].tag == Tag[{ val x: Int }].tag)
+      }
+    }
+
+    "progression test: reported in https://github.com/zio/izumi-reflect/issues/189, parameterized type alias with intersection produces incorrect output" in {
+      def elementTag[F[_]: TagK]: Tag[SrcContextProcessor[F]] = Tag[TestModel.x.SrcContextProcessor[F]]
+      assert(elementTag[CIO].tag == Tag[TestModel.x.SrcContextProcessor[CIO]].tag)
+
+      doesntWorkYetOnScala2 {
+        type K[F[_]] = Set[TestModel.x.SrcContextProcessor[F]]
+        assert(TagT[K].tag.combine(TagK[CIO].tag) == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
+
+        def aliasedTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[K[F]]
+        assert(aliasedTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
+
+        def directTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[Set[TestModel.x.SrcContextProcessor[F]]]
+        assert(directTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
       }
     }
 
