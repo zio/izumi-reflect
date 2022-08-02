@@ -44,12 +44,11 @@ as a replacement for `TypeTag` in reaction to a lack of confirmed information ab
 
 Known limitations are:
 
-1. Checking of bounds for type parameters may produce unexpected results because of a [problematic behavior](https://github.com/scala/bug/issues/11673) of Scala 2.13 compiler,
-2. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
-3. Existential types, both written with wildcards and `forSome` may produce unexpected results, the support is limited,
-4. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
-5. At the moment Scala 3 port does not support Path-Dependent Types, and Structural Refinements. This will be fixed in the future.
-6. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
+1. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
+2. Existential types, both written with wildcards and `forSome` may produce unexpected results, the support is limited,
+3. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
+4. At the moment Scala 3 port does not support Path-Dependent Types, and Structural Refinements. This will be fixed in the future.
+5. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
 
 ## Debugging
 
