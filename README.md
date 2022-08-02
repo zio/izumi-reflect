@@ -2,6 +2,14 @@
 ![Build](https://github.com/zio/izumi-reflect/workflows/Build/badge.svg)
 [![javadoc](https://javadoc.io/badge2/dev.zio/izumi-reflect_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13)
 
+---
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/7mind"><img src="https://bmc-cdn.nyc3.digitaloceanspaces.com/BMC-button-images/custom_images/orange_img.png" alt="Izumi"/></a>
+</p>
+
+---
+
 # izumi-reflect
 
 > @quote: Looks a bit similar to TypeTag
