@@ -33,8 +33,8 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     "support string constant types (Scala 2.13+ syntax)" in {
       assertDifferent(LTT["abc"], LTT[String])
       assertDifferent(LTT["abc"], LTT["cba"])
-      assertDeepSame(LTT["abc"], LTT["abc"])
-      assertDeepChild(LTT["abc"], LTT[String])
+      assertSameStrict(LTT["abc"], LTT["abc"])
+      assertChildStrict(LTT["abc"], LTT[String])
     }
 
     "support typetag combination (Dotty syntax)" in {
@@ -46,12 +46,12 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     }
 
     "tautological intersections with Matchable are discarded from internal structure" in {
-      assertDeepSame(LTT[Matchable with Option[String]], LTT[Option[String]])
+      assertSameStrict(LTT[Matchable with Option[String]], LTT[Option[String]])
       assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])
     }
 
     "support top-level abstract types" in {
-      assertDeepChild(LTT[LightTypeTagTestT], LTT[String])
+      assertChildStrict(LTT[LightTypeTagTestT], LTT[String])
     }
 
   }

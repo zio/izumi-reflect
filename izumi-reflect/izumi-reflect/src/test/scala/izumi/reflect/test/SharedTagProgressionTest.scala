@@ -168,7 +168,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       val collection = TagK[java.util.Collection]
       val javaIterable = TagK[java.lang.Iterable]
       doesntWorkYetOnDotty {
-        assertDeepChild(collection.tag, javaIterable.tag)
+        assertChildStrict(collection.tag, javaIterable.tag)
       }
     }
 
@@ -176,7 +176,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       val mutableSet = TagK[scala.collection.mutable.Set]
       val collectionSet = TagK[scala.collection.Set]
       doesntWorkYetOnDotty {
-        assertDeepChild(mutableSet.tag, collectionSet.tag)
+        assertChildStrict(mutableSet.tag, collectionSet.tag)
       }
     }
 

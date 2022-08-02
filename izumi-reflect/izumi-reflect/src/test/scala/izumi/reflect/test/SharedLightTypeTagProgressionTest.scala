@@ -12,14 +12,14 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     "progression test: Dotty fails to `support contravariance in refinement method comparisons`" in {
       doesntWorkYetOnDotty {
-        assertDeepChild(LTT[{ def compare(a: AnyVal): Int }], LTT[{ def compare(b: Int): Int }])
+        assertChildStrict(LTT[{ def compare(a: AnyVal): Int }], LTT[{ def compare(b: Int): Int }])
       }
     }
 
     "progression test: regression test 2.1.0-M1: IntegrationCheck[F] should not be related to IntegrationCheck[Identity]" in {
       loud {
         doesntWorkYet {
-          assertDeepNotChild(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
+          assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
         }
       }
     }
@@ -299,30 +299,30 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     "progression test: `support structural & refinement type subtype checks` doesn't work on Dotty" in {
       doesntWorkYetOnDotty {
         type C1 = C
-        assertDeepSame(LTT[{ def a: Int }], LTT[{ val a: Int }])
-        assertDeepSame(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
+        assertSameStrict(LTT[{ def a: Int }], LTT[{ val a: Int }])
+        assertSameStrict(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
 
-        assertDeepChild(LTT[C { def a: Int }], LTT[C])
-        assertDeepChild(LTT[C { type A = Int }], LTT[C])
-        assertDeepChild(LTT[C { type A <: Int }], LTT[C])
+        assertChildStrict(LTT[C { def a: Int }], LTT[C])
+        assertChildStrict(LTT[C { type A = Int }], LTT[C])
+        assertChildStrict(LTT[C { type A <: Int }], LTT[C])
 
-        assertDeepChild(LTT[C { def a: Int; def b: Int }], LTT[C { def a: Int }])
+        assertChildStrict(LTT[C { def a: Int; def b: Int }], LTT[C { def a: Int }])
 
-        assertDeepChild(LTT[C { def a: Int }], LTT[{ def a: Int }])
+        assertChildStrict(LTT[C { def a: Int }], LTT[{ def a: Int }])
       }
     }
 
     "progression test: `support structural subtype checks` doesn't work on Dotty" in {
       doesntWorkYetOnDotty {
-        assertDeepChild(LTT[{ type T = List[Int] }], LTT[{ type T <: List[Any] }])
-        assertDeepChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
-        assertDeepChild(LTT[{ type T = Int }], LTT[{ type T <: Any }])
-        assertDeepChild(LTT[{ type T = String }], LTT[{ type T <: CharSequence }])
-        assertDeepChild(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
-        assertDeepChild(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+        assertChildStrict(LTT[{ type T = List[Int] }], LTT[{ type T <: List[Any] }])
+        assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+        assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: Any }])
+        assertChildStrict(LTT[{ type T = String }], LTT[{ type T <: CharSequence }])
+        assertChildStrict(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
+        assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
 
         assertNotChild(LTT[{ type T = Int }], LTT[{ type T <: CharSequence }])
-        assertDeepNotChild(LTT[{ def T: Int }], LTT[{ type T }])
+        assertNotChildStrict(LTT[{ def T: Int }], LTT[{ type T }])
       }
     }
 
@@ -331,7 +331,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
         assertDifferent(LTT[{ type A }], LTT[Object])
       }
       doesntWorkYetOnScala2 {
-        assertDeepChild(LTT[C], LTT[{ type A }])
+        assertChildStrict(LTT[C], LTT[{ type A }])
       }
     }
 

@@ -99,20 +99,20 @@ trait TagAssertions extends AnyWordSpec with TagLogging {
     ()
   }
 
-  def assertDeepSame(t: LightTypeTag, expected: LightTypeTag): Unit = {
+  def assertSameStrict(t: LightTypeTag, expected: LightTypeTag): Unit = {
     assertChild(t, expected)
     assertChild(expected, t)
     assertSame(t, expected)
     assertSameRef(t, expected)
   }
 
-  def assertDeepChild(t: LightTypeTag, expected: LightTypeTag): Unit = {
+  def assertChildStrict(t: LightTypeTag, expected: LightTypeTag): Unit = {
     assertChild(t, expected)
     assertNotChild(expected, t)
     assertDifferent(expected, t)
   }
 
-  def assertDeepNotChild(t: LightTypeTag, expected: LightTypeTag): Unit = {
+  def assertNotChildStrict(t: LightTypeTag, expected: LightTypeTag): Unit = {
     assertNotChild(t, expected)
     assertNotChild(expected, t)
     assertDifferent(expected, t)

@@ -327,8 +327,8 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     locally {
       implicit val implicitTag: Tag[Abstract] = Tag[Abstract](Tag[Int].closestClass, Tag[Int].tag)
       val tag = Tag[Option[Abstract]]
-      assertDeepSame(tag.tag.typeArgs.head, implicitTag.tag)
-      assertDeepSame(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+      assertSameStrict(tag.tag.typeArgs.head, implicitTag.tag)
+      assertSameStrict(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
     }
   }
 
@@ -339,7 +339,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       val tag = Tag[Option[SomeObject.Abstract]]
       assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
       assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
-      assertDeepSame(realTag.tag, tag.tag)
+      assertSameStrict(realTag.tag, tag.tag)
     }
   }
 
@@ -350,7 +350,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       val tag = Tag[Option[SomeTrait#Abstract]]
       assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
       assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
-      assertDeepSame(realTag.tag, tag.tag)
+      assertSameStrict(realTag.tag, tag.tag)
     }
   }
 
@@ -362,7 +362,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       val tag = Tag[Option[x.Abstract]]
       assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
       assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
-      assertDeepSame(realTag.tag, tag.tag)
+      assertSameStrict(realTag.tag, tag.tag)
     }
   }
 
@@ -443,17 +443,17 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
   "regression test: https://github.com/zio/izumi-reflect/issues/293 assemble tag for Builder[B, Collection[B]]" in {
     def tag[B: Tag](implicit tag: Tag[java.util.Collection[B]]) = Tag[mutable.Builder[B, java.util.Collection[B]]]
 
-    assertDeepSame(tag[Int].tag, Tag[mutable.Builder[Int, java.util.Collection[Int]]].tag)
+    assertSameStrict(tag[Int].tag, Tag[mutable.Builder[Int, java.util.Collection[Int]]].tag)
   }
 
   "combine intersection types" in {
     def t1[A: Tag] = Tag[String with A]
     def t2[A: Tag, B: Tag] = Tag[A with B]
 
-    assertDeepSame(t1[Int].tag, Tag[Int with String].tag)
-    assertDeepSame(t2[Int, String].tag, Tag[String with Int].tag)
-    assertDeepSame(t1[String].tag, Tag[String].tag)
-    assertDeepSame(t2[String, String].tag, Tag[String].tag)
+    assertSameStrict(t1[Int].tag, Tag[Int with String].tag)
+    assertSameStrict(t2[Int, String].tag, Tag[String with Int].tag)
+    assertSameStrict(t1[String].tag, Tag[String].tag)
+    assertSameStrict(t2[String, String].tag, Tag[String].tag)
   }
 
   "summon HKT Tag for a Java type" in {
@@ -461,7 +461,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
   }
 
   "regression test: https://github.com/zio/izumi-reflect/issues/76 derive tag for a parametric trait inside object" in {
-    assertDeepSame(X76.x.tag, Tag[X76.T[Int]].tag)
+    assertSameStrict(X76.x.tag, Tag[X76.T[Int]].tag)
   }
 
 }

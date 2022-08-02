@@ -38,12 +38,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
         case p => p
       })
 
-      assertDeepChild(subStrALTT, strLTT)
-      assertDeepChild(subSubStrLTT, strLTT)
-      assertDeepChild(subSubStrLTT, subStrALTT)
-      assertDeepNotChild(subSubStrLTT, subStrBLTT)
+      assertChildStrict(subStrALTT, strLTT)
+      assertChildStrict(subSubStrLTT, strLTT)
+      assertChildStrict(subSubStrLTT, subStrALTT)
+      assertNotChildStrict(subSubStrLTT, subStrBLTT)
 
-      assertDeepSame(subStrCLTT, strLTT)
+      assertSameStrict(subStrCLTT, strLTT)
 
       assertNotChild(subStrALTT, subStrBLTT)
       assertSame(subStrALTT, subStrDLTT)
@@ -54,13 +54,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "eradicate tautologies with Any/Object" in {
-      assertDeepSame(LTT[Object with Option[String]], LTT[Option[String]])
-      assertDeepSame(LTT[Any with Option[String]], LTT[Option[String]])
-      assertDeepSame(LTT[AnyRef with Option[String]], LTT[Option[String]])
+      assertSameStrict(LTT[Object with Option[String]], LTT[Option[String]])
+      assertSameStrict(LTT[Any with Option[String]], LTT[Option[String]])
+      assertSameStrict(LTT[AnyRef with Option[String]], LTT[Option[String]])
     }
 
     "eradicate self-intersection (X with X)" in {
-      assertDeepSame(`LTT`[String with String], `LTT`[String])
+      assertSameStrict(`LTT`[String with String], `LTT`[String])
     }
 
     "support subtype checks" in {
@@ -160,8 +160,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       type T1[A] = (W3[A] with W1) with I1
       type T2[A] = W3[A] with (W1 with I1)
 
-      assertDeepSame(LTT[F1], LTT[F2])
-      assertDeepSame(`LTT[_]`[T1], `LTT[_]`[T2])
+      assertSameStrict(LTT[F1], LTT[F2])
+      assertSameStrict(`LTT[_]`[T1], `LTT[_]`[T2])
     }
 
     "runtime-combined intersections are associative" in {
@@ -183,15 +183,15 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "support type alias and refinement subtype checks" in {
-      assertDeepChild(LTT[XS], LTT[WithX])
-      assertDeepChild(LTT[XS], LTT[{ type X }])
+      assertChildStrict(LTT[XS], LTT[WithX])
+      assertChildStrict(LTT[XS], LTT[{ type X }])
     }
 
     "support literal types" in {
       assertSame(literalLtt("str2"), literalLtt("str2"))
       assertDifferent(literalLtt("str1"), literalLtt("str2"))
 
-      assertDeepChild(literalLtt("str"), LTT[String])
+      assertChildStrict(literalLtt("str"), LTT[String])
       assertNotChild(literalLtt("str"), LTT[Int])
     }
 
@@ -293,7 +293,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "support contravariance" in {
-      assertDeepChild(LTT[Any => Int], LTT[Int => Int])
+      assertChildStrict(LTT[Any => Int], LTT[Int => Int])
     }
 
     "support typetag combination" in {
@@ -312,9 +312,9 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "tautological intersections with Any/Object are discarded from internal structure" in {
-      assertDeepSame(LTT[(Object {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
-      assertDeepSame(LTT[(Any {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
-      assertDeepSame(LTT[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
+      assertSameStrict(LTT[(Object {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
+      assertSameStrict(LTT[(Any {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
+      assertSameStrict(LTT[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
 
       assertDebugSame(LTT[(Object {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
       assertDebugSame(LTT[(Any {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
