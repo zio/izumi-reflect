@@ -64,6 +64,5 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       val res = tag.combine(`LTT[_,_]`[IO])
       assertSame(res, LTT[BlockingIO[IO]])
     }
-
   }
 }

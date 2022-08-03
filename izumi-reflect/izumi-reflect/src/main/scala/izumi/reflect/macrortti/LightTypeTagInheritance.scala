@@ -109,14 +109,16 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         || compareParameterizedRefs(ctx)(s, t))
 
       case (s: FullReference, t: NameReference) =>
-        oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t) || {
-          val boundIsOk = compareBounds(ctx)(s, t.boundaries)
-
-          boundIsOk && (
-            outerLambdaParams.map(_.name).contains(t.ref.name) // lambda parameter may accept anything within bounds
-            || outerDecls.map(_.name).contains(t.ref.name) // refinement type decl may accept anything within bounds
+        any(
+          oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t),
+          all(
+            compareBounds(ctx)(s, t.boundaries),
+            any(
+//              outerLambdaParams.map(_.name).contains(t.ref.name), // lambda parameter may accept anything within bounds      // UNSOUND-LAMBDA-COMPARISON
+              outerDecls.map(_.name).contains(t.ref.name) // refinement type decl may accept anything within bounds
+            )
           )
-        }
+        )
 
       case (s: NameReference, t: FullReference) =>
         oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
@@ -128,7 +130,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         any(
           all(boundIsOk, parameterizedParentsOf(s).exists(ctx.isChild(_, t))),
           all(boundIsOk, unparameterizedParentsOf(s).exists(ctx.isChild(_, t))),
-          all(boundIsOk, outerLambdaParams.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything within bounds
+//          all(boundIsOk, outerLambdaParams.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything within bounds       // UNSOUND-LAMBDA-COMPARISON
           all(boundIsOk, outerDecls.map(_.name).contains(t.ref.name)), // refinement decl may accept anything within bounds
           s.boundaries match {
             case Boundaries.Defined(_, sUp) =>

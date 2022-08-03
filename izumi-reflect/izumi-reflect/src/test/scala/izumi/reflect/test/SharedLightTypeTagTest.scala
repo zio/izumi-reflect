@@ -87,10 +87,20 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "support unsound subtype checks" in {
-      assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
-      assertChild(LTT[List[Int]], `LTT[_]`[List])
+      // UNSOUND-LAMBDA-COMPARISON
+      // it's hard to say how should we compare propers with lambdas...
+
+      // these two may be inverted by uncommenting corresponding lines in inheritance checks
+      assertNotChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
+      assertNotChild(LTT[List[Int]], `LTT[_]`[List])
+
+      // this one should be always false
       assertNotChild(LTT[Set[Int]], `LTT[_]`[Set])
 
+      // I consider this stuff practically useless
+      type X[A >: H4 <: H2] = Option[A]
+      assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      assertNotChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
     }
 
     "support swapped parents" in {

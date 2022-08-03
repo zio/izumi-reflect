@@ -16,12 +16,8 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: https://github.com/zio/izumi-reflect/issues/315 regression test 2.1.0-M1: IntegrationCheck[F] should not be related to IntegrationCheck[Identity]" in {
-      loud {
-        doesntWorkYet {
-          assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
-        }
-      }
+    "https://github.com/zio/izumi-reflect/issues/315 regression test 2.1.0-M1: IntegrationCheck[F] should not be related to IntegrationCheck[Identity]" in {
+      assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
     }
 
     "properly dealias and assign prefixes to existential types and wildcards" in {
@@ -237,18 +233,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       doesntWorkYetOnDotty {
         assertChild(LTT[None.type], LTT[Option[Int]])
       }
-    }
-
-    "progression test: Dotty fails some bounds-based subtype checks" in {
-      // I consider this stuff practically useless
-      type X[A >: H4 <: H2] = Option[A]
-      doesntWorkYetOnDotty {
-        assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
-      }
-//      // allTypeReferences: we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
-//      doesntWorkYetOnScala2 {
-      assertChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
-//      }
     }
 
     "progression test: a portion of `support swapped parents` fails on Dotty" in {
