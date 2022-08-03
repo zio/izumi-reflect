@@ -15,10 +15,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "https://github.com/zio/izumi-reflect/issues/315 regression test 2.1.0-M1: IntegrationCheck[F] should not be related to IntegrationCheck[Identity]" in {
-      assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
-    }
-
     "properly dealias and assign prefixes to existential types and wildcards" in {
       val withNothing = LTT[With[Nothing]]
       val with_ = LTT[With[_]]
@@ -232,6 +228,25 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       doesntWorkYetOnDotty {
         assertChild(LTT[None.type], LTT[Option[Int]])
       }
+    }
+
+    "progression test: bounds-based subtype checks for lambdas do not work properly (LambdaParameter must contain bounds and NameReferences shouldn't for this to work)" in withDebugOutput {
+      // I consider this stuff practically useless
+      type X[A >: H4 <: H2] = Set[A]
+      type X1[A >: H3 <: H3] = Set[A]
+      type X2[A >: H5 <: H5] = Set[A]
+
+//      def compare[a >: c <: b, b <: d, c <: d, d, A[x >: a <: b] <: B[x], B[_ >: c <: d], x >: a <: b](s: A[x], t: B[_ >: c <: d]) = null
+
+      doesntWorkYet {
+////      compare[H5, H5, H4, H2, X2, X, H5](null: Set[H5], null) // error
+////      (null: Set[H5]): Set[_ >: H4 <: H2] // error
+        assertNotChild(`LTT[A,B,_>:B<:A]`[H5, H5, X2], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      }
+
+//      compare[H3, H3, H4, H2, X1, X, H3](null: Set[H3], null)
+//      (null: Set[H3]): Set[_ >: H4 <: H2]
+      assertChild(`LTT[A,B,_>:B<:A]`[H3, H3, X1], `LTT[A,B,_>:B<:A]`[H2, H4, X])
     }
 
     "progression test: a portion of `support swapped parents` fails on Dotty" in {

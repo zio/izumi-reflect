@@ -244,7 +244,14 @@ object LightTypeTagRef {
       normalizedOutput.hashCode()
     }
 
-    lazy val paramRefs: Set[NameReference] = input.iterator.map(n => NameReference(n.name)).toSet
+    lazy val paramRefs: Set[NameReference] = input
+      .iterator.map {
+        n =>
+          // No boundary on paramRefs
+          // FIXME LambdaParameter should contain bounds and NameReference shouldn't
+          //       (Except possibly lower bound of an abstract/opaque type member)
+          NameReference(n.name)
+      }.toSet
     lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
     lazy val someArgumentsReferenced: Boolean = paramRefs.diff(referenced).size < referenced.size

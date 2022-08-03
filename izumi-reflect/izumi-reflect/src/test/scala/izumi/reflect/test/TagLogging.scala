@@ -8,7 +8,7 @@ import org.scalatest.wordspec.AnyWordSpec
 trait TagLogging extends AnyWordSpec {
 
   // enable subtype comparison / .fromRuntime construction logging in tests
-  final def loud(f: => Any): Unit = TagLogging.loud { f; () }
+  final def withDebugOutput(f: => Any): Unit = TagLogging.withDebugOutput { f; () }
   final def withSanityChecks(f: => Any): Unit = TagLogging.withSanityChecks { f; () }
 
   final def println(o: Any): Unit = info(o.toString)
@@ -17,7 +17,7 @@ trait TagLogging extends AnyWordSpec {
 }
 
 object TagLogging {
-  def loud[T](f: => T): T = {
+  def withDebugOutput[T](f: => T): T = {
     synchronized {
       val enabledBefore = TrivialLogger.statusLogs()
 

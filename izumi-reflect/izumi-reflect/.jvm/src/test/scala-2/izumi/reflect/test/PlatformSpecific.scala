@@ -31,7 +31,7 @@ object PlatformSpecific {
   def fromRuntime(tpe: ru.Type, loud: Boolean): LightTypeTag = {
     def makeTag() = LightTypeTagImpl.makeLightTypeTag(ru)(tpe)
     synchronized {
-      if (loud) TagLogging.withSanityChecks(TagLogging.loud(makeTag())) else makeTag()
+      if (loud) TagLogging.withSanityChecks(TagLogging.withDebugOutput(makeTag())) else makeTag()
     }
   }
 }

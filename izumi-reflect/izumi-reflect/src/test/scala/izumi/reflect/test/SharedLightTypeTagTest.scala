@@ -95,11 +95,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       // this one should be always false
       assertNotChild(LTT[Set[Int]], `LTT[_]`[Set])
-
-      // I consider this stuff practically useless
-      type X[A >: H4 <: H2] = Option[A]
-      assertNotChild(LTT[Option[H5]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
-      assertNotChild(LTT[Option[H3]], `LTT[A,B,_>:B<:A]`[H2, H4, X])
     }
 
     "support swapped parents" in {
@@ -334,7 +329,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDebugSame(LTT[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]], LTT[Option[String]])
     }
 
-    "progression test: wildcards are not supported (wildcard=Any, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
+    "wildcards are supported" in {
       assertDifferent(LTT[Set[_]], LTT[Set[Any]])
       assertDifferent(LTT[List[_]], LTT[List[Any]])
       assertChild(LTT[Set[Int]], LTT[Set[_]])
@@ -344,13 +339,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[Int => Int], LTT[_ => Int])
     }
 
-    "progression test: wildcards with bounds are not supported (upper bound is the type, historically due to behavior of .dealias on 2.12/13, see scala.reflect.internal.tpe.TypeMaps#ExistentialExtrapolation)" in {
+    "wildcards with bounds are supported" in {
       assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
       assertDifferent(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
       assertDifferent(LTT[Option[Any]], LTT[Option[_ >: H4]])
     }
 
-    "generate tags for wildcards with type boundaries (unsound, see `progression test: wildcards with bounds are not supported (upper bound is the type)`)" in {
+    "generate tags for wildcards with type boundaries" in {
       assertDifferent(LTT[Option[W1]], LTT[Option[_ <: W1]])
       assertChild(LTT[Option[W1]], LTT[Option[_ <: W1]])
       assertChild(LTT[Option[W2]], LTT[Option[_ <: W1]])
@@ -376,6 +371,10 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[Option[H2]], LTT[Option[_ >: H4 <: H2]])
       // this is counterintuitive but that's how Scala works, it ignores lower boundary in contravariant position
       assertChild(LTT[Option[H5]], LTT[Option[_ >: H4 <: H2]])
+    }
+
+    "https://github.com/zio/izumi-reflect/issues/315 regression test 2.1.0-M1: IntegrationCheck[F] should not be related to IntegrationCheck[Identity]" in {
+      assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
     }
 
   }
