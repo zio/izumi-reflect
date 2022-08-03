@@ -1,6 +1,7 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti.*
+import izumi.reflect.test.TestModel.*
 
 class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
@@ -22,6 +23,16 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
       val res = tag.combine(`LTT[_,_]`[IO])
       doesntWorkYetOnDotty {
         assertSame(res, LTT[BlockingIO[IO]])
+      }
+    }
+
+    "fails to compile conversion of trifunctor to bifunctor" in {
+      doesntWorkYetOnDotty {
+        assertCompiles(
+          """
+          def tag[F[-_, +_, +_]: TagK3] = Tag[BIO2[F[Any, +*, +*]]]
+          """
+        )
       }
     }
 
