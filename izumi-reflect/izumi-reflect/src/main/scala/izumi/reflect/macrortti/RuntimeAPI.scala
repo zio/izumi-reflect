@@ -67,16 +67,24 @@ object RuntimeAPI {
   }
 
   def applyLambda(lambda: Lambda, parameters: Seq[(String, AbstractReference)]): AbstractReference = {
+
     val paramMap = parameters.toMap
 
-    val replaced = parameters.foldLeft(lambda.output) {
-      case (acc, p) =>
-        val rewriter = new Rewriter(Map(p))
-        rewriter.replaceRefs(acc)
-    }
+    val rewriter = new Rewriter(paramMap)
+    val replaced = rewriter.replaceRefs(lambda.output)
+
+    // fix for #82, #83
+    // the old logic was ill, it was causing incorrect replacements when names from substitutions were clashing with replacement map
+    // in fact that was a broken workaround for the lack of recursion in Rewriter
+
+    //    val replaced = parameters.foldLeft(lambda.output) {
+    //      case (acc, p) =>
+    //        val rewriter = new Rewriter(Map(p))
+    //        rewriter.replaceRefs(acc)
+    //    }
 
     val newParams = lambda.input.filterNot(paramMap contains _.name)
-    if (newParams.isEmpty) {
+    val res = if (newParams.isEmpty) {
       replaced
     } else {
       val out = Lambda(newParams, replaced)
@@ -84,6 +92,8 @@ object RuntimeAPI {
       // such lambdas are legal: see "regression test: combine Const Lambda to TagK"
       out
     }
+
+    res
   }
 
   final class Rewriter(rules: Map[String, AbstractReference]) {
@@ -165,7 +175,8 @@ object RuntimeAPI {
               complete(f, value) match {
                 case out: Lambda =>
                   val refs = parameters.map(_.ref)
-                  out.applySeq(refs)
+                  val res = replaceRefs(out.applySeq(refs)) // fix for #82, #83
+                  res
 
                 case n: NameReference =>
                   // we need this to support fakes only (see LightTypeTagRef#makeFakeParams)
