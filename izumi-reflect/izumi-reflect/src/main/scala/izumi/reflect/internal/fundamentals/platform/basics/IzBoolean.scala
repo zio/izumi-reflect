@@ -19,22 +19,34 @@
 package izumi.reflect.internal.fundamentals.platform.basics
 
 import scala.language.implicitConversions
-import IzBoolean.LazyBool
 
-private[reflect] trait IzBoolean {
+private[reflect] object IzBoolean {
+  @inline private[reflect] final implicit class LazyBool(private val b: () => Boolean) extends AnyVal {
+    @inline def value: Boolean = b()
+  }
+
   @inline implicit final def toLazyBool(b: => Boolean): LazyBool = new LazyBool(() => b)
 
+  @inline final def all(b1: Boolean, b2: => Boolean): Boolean = {
+    b1 && b2
+  }
   @inline final def all(b1: Boolean, b: LazyBool*): Boolean = {
     b1 && b.forall(_.value)
   }
 
+  @inline final def any(b1: Boolean): Boolean = {
+    b1
+  }
+  @inline final def any(b1: Boolean, b2: => Boolean): Boolean = {
+    b1 || b2
+  }
+  @inline final def any(b1: Boolean, b2: => Boolean, b3: => Boolean): Boolean = {
+    b1 || b2 || b3
+  }
+  @inline final def any(b1: Boolean, b2: => Boolean, b3: => Boolean, b4: => Boolean): Boolean = {
+    b1 || b2 || b3 || b4
+  }
   @inline final def any(b1: Boolean, b: LazyBool*): Boolean = {
     b1 || b.exists(_.value)
-  }
-}
-
-private[reflect] object IzBoolean extends IzBoolean {
-  @inline private[reflect] final implicit class LazyBool(private val b: () => Boolean) extends AnyVal {
-    @inline def value: Boolean = b()
   }
 }
