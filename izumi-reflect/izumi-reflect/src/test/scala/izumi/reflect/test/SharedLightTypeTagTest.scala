@@ -1,9 +1,8 @@
 package izumi.reflect.test
 
+import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries}
 import izumi.reflect.macrortti._
-import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, AppliedReference, Boundaries}
 
-import scala.annotation.StaticAnnotation
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
