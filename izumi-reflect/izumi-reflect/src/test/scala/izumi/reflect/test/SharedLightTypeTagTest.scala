@@ -73,11 +73,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[F2[I2]], LTT[F1[I1]])
       assertChild(LTT[FT2[IT2]], LTT[FT1[IT2]])
 
-      assertChild(LTT[List[Int]], `LTT[_]`[List])
-      assertNotChild(LTT[Set[Int]], `LTT[_]`[Set])
-
       assertChild(LTT[FM2[I2]], LTT[FM1[I1, Unit]])
-      assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
+
       assertChild(LTT[Option[Nothing]], LTT[Option[Int]])
 
       assertChild(`LTT[_[_],_[_]]`[P1].combine(`LTT[_]`[X1], `LTT[_]`[X2]), LTT[P0[X2, X1]])
@@ -87,6 +84,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X2]])
       assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X2, X1]])
       assertNotChild(`LTT[_[_]]`[XP1].combine(`LTT[_]`[X2]), LTT[P0[X1, X2]])
+    }
+
+    "support unsound subtype checks" in {
+      assertChild(LTT[FM2[I2]], `LTT[_,_]`[FM1])
+      assertChild(LTT[List[Int]], `LTT[_]`[List])
+      assertNotChild(LTT[Set[Int]], `LTT[_]`[Set])
+
     }
 
     "support swapped parents" in {
