@@ -3,6 +3,7 @@ package izumi.reflect
 import scala.quoted.{Expr, Quotes, Type}
 
 import izumi.reflect.macrortti.LightTypeTag
+import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase}
 
 object TagMacro {
@@ -53,13 +54,31 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       }
     }
 
+    def summonIfNotParameter[A](typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
+      typeRepr match {
+        case ref: ParamRef if ref.binder == lam  =>
+          '{ None }
+        case _ =>
+          val tag = summonLttIfTypeParam(typeRepr)
+          '{ Some ($tag) }
+      }
+    }
+
     typeRepr.dealias match {
       case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef =>
         summonTag(x)
 
-// FIXME type lambda support pending
-//      case TypeLambda(_, _, body) =>
-//        summonTag(body)
+
+      case lam: TypeLambda =>
+        lam.resType match {
+          case AppliedType(ctor, args) =>
+            val ctorTag = summonTagIfTypeParam(ctor)
+            val argsTags = Expr.ofList(args.map(a => summonIfNotParameter(a, lam)))
+            '{ Tag.appliedTagNonPos[T]($ctorTag, $argsTags ) }
+
+          case r =>
+            throw new Exception(s"TODO: Pathological lambda being reconstructed: $typeRepr")
+        }
 
       case AppliedType(ctor, args) =>
         val ctorTag = summonTagIfTypeParam(ctor)
@@ -79,6 +98,12 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         throw new Exception(s"Unsupported type: $typeRepr")
     }
   }
+
+  private def summonTagTest[A <: AnyKind](typeRepr: TypeRepr) =
+    typeRepr.asType match {
+      case given Type[a] =>
+        Expr.summon[Tag[a]]
+    }
 
   private def summonTag[A <: AnyKind](typeRepr: TypeRepr): Expr[Tag[A]] =
     typeRepr.asType match {

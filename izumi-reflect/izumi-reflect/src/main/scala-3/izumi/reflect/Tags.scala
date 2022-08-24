@@ -19,7 +19,8 @@
 package izumi.reflect
 
 import izumi.reflect.dottyreflection.Inspect
-import izumi.reflect.macrortti.{LTag, LightTypeTag}
+import izumi.reflect.macrortti.LightTypeTagRef.LambdaParameter
+import izumi.reflect.macrortti.{LTag, LightTypeTag, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
 
@@ -124,6 +125,10 @@ object Tag {
     */
   def appliedTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = {
     Tag(tag.closestClass, tag.tag.combine(args: _*))
+  }
+
+  def appliedTagNonPos[R <: AnyKind](tag: Tag[_], args: List[Option[LightTypeTag]]): Tag[R] = {
+    Tag(tag.closestClass, tag.tag.combineNonPos(args: _*))
   }
 
   def unionTag[R <: AnyKind](lubClass: Class[_], union: List[LightTypeTag]): Tag[R] = {
