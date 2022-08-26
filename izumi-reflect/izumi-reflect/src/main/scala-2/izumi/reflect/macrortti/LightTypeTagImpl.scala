@@ -227,6 +227,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               (componentRef, parentRef)
           }
       }
+      .filterNot {
+        case (t, parent) =>
+          // IzAssert(parent != t, parent -> t) // 2.11/2.12 fail this
+          parent == t
+      }
     logger.log(s"Computed applied bases for tpe=$mainTpe appliedBases=${appliedBases.toMultimap.niceList()}")
     appliedBases
   }
@@ -322,7 +327,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             }
             .filterNot {
               parent =>
-                IzAssert(parent != t, parent -> t) // 2.11/2.12 fail this
+                // IzAssert(parent != t, parent -> t) // 2.11/2.12 fail this
                 parent == t
             }
       }

@@ -380,9 +380,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     "normalize stable PDTs (https://github.com/zio/zio/issues/3390)" in {
       val t1 = LTT[PDTNormA.Service]
       val t2 = LTT[PDTNormB.Service]
-      assertSame(t2, t1)
-      assertChild(t2, t1)
-      assertChild(t1, t2)
+      assertSameStrict(t2, t1)
+      assertDebugSame(t2, t1)
 
       val PDTAlias1 = PDTNormB
       val PDTAlias2 = PDTAlias1
@@ -390,9 +389,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val PDTAlias4 = PDTAlias3
       val PDTAlias5 = PDTAlias4
       val t3 = LTT[PDTAlias5.Service]
-      assertSame(t3, t1)
-      assertChild(t3, t1)
-      assertChild(t1, t3)
+      assertSameStrict(t3, t1)
+      assertDebugSame(t3, t1)
 
       val t4 = LTT[PDTNormA.type]
       val t5 = LTT[PDTAlias5.type]
