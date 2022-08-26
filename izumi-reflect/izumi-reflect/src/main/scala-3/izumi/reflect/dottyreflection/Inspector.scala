@@ -31,7 +31,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         a.args match {
           case Nil =>
             makeNameReferenceFromType(a.tycon)
-          case o =>
+          case _ =>
             // https://github.com/lampepfl/dotty/issues/8520
             val params = a.tycon.typeSymbol.typeMembers
             val zargs = a.args.zip(params)
@@ -49,6 +49,13 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         makeNameReferenceFromType(p)
 
       case t: ThisType =>
+        println(
+          s"this type $t module=${t.typeSymbol.flags.is(Flags.Module)} module=${t.typeSymbol.companionModule} termSymbol=${t.typeSymbol.companionModule.isTerm}"
+        )
+        println(s"this type tref ${t.tref} ${t.tref.getClass} ${t.tref.termSymbol}")
+        println(
+          s"this type tref underlying ${t.tref.asInstanceOf[TypeRef]._underlying} ${t.tref.asInstanceOf[TypeRef]._underlying.getClass} ${t.tref.asInstanceOf[TypeRef]._underlying.termSymbol}"
+        )
         next().inspectTypeRepr(t.tref)
 
       case a: AndType =>
@@ -71,7 +78,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         makeNameReferenceFromType(term)
 
       case r: TypeRef =>
-        next().inspectSymbolTree(r.typeSymbol, Some(r))
+        next().inspectSymbol(r.typeSymbol, Some(r))
 
       case tb: TypeBounds =>
         inspectBounds(outerTypeRef, tb, isParam = false)
@@ -96,7 +103,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private def constToNameRef(constant: ConstantType): NameReference = {
     val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
-    NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi))
+    NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi), prefix = None)
   }
 
   private def inspectBounds(outerTypeRef: Option[qctx.reflect.TypeRef], tb: TypeBounds, isParam: Boolean) = {
@@ -124,18 +131,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private[dottyreflection] def inspectSymbolTree(symbol: Symbol, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
+  private[dottyreflection] def inspectSymbol(symbol: Symbol, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     symbol match {
-      case s if s.isClassDef =>
+      case s if s.isClassDef || s.isValDef || s.isBind =>
         makeNameReferenceFromSymbol(symbol)
-
-      case s if s.isBind =>
-        log(s"inspectSymbol: Found Bind symbol $s")
-        NameReference(SymName.SymTermName(symbol.fullName))
-
-      case s if s.isValDef =>
-        log(s"inspectSymbol: Found ValDef symbol $s")
-        NameReference(SymName.SymTermName(symbol.fullName))
 
       case s if s.isTypeDef =>
         log(s"inspectSymbol: Found TypeDef symbol $s")
@@ -153,20 +152,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         // still no access to relevant types
         log(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
         throw new RuntimeException(s"SYMBOL TREE, UNSUPPORTED: $symbol / $o / ${o.getClass}")
-    }
-  }
-
-  private def getPrefixFromDefinitionOwner(symbol: Symbol): Option[AppliedReference] = {
-    val maybeOwner = symbol.maybeOwner
-    if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef || maybeOwner.isDefDef || maybeOwner.isTypeDef) {
-      None
-    } else {
-      inspectSymbolTree(maybeOwner) match {
-        case a: AppliedReference =>
-          Some(a)
-        case _ =>
-          None
-      }
     }
   }
 
@@ -203,50 +188,81 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
+        println(s"make name reference from type $ref ${ref.termSymbol}")
         makeNameReferenceFromSymbol(ref.typeSymbol)
       case term: TermRef =>
+        println(s"make name reference from term $term")
         makeNameReferenceFromSymbol(term.termSymbol)
       case t: ParamRef =>
         NameReference(tpeName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString)
       case ref =>
+        println(s"make name reference from what? $ref ${ref.getClass} ${ref.termSymbol}")
         makeNameReferenceFromSymbol(ref.typeSymbol)
     }
   }
 
   private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
-    def default = {
-      val symName = if (symbol.isTerm) SymName.SymTermName(symbol.fullName) else SymName.SymTypeName(symbol.fullName)
-      val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
+    def default: NameReference = {
+      val (symName, s) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
+        SymName.SymTermName(symbol.fullName) -> symbol
+      } else if (symbol.flags.is(Flags.Module)) { // Handle ModuleClasses (can creep in from ThisType)
+        SymName.SymTermName(symbol.companionModule.fullName) -> symbol.companionModule
+      } else {
+        SymName.SymTypeName(symbol.fullName) -> symbol
+      }
+      val prefix = getPrefixFromDefinitionOwner(s) // FIXME: should get prefix from type qualifier (prefix), not from owner
       NameReference(symName, Boundaries.Empty, prefix)
     }
 
-    symbol match {
-      case s if s.isValDef =>
-        s._typeRef._underlying match {
-          case constant: ConstantType =>
-            constToNameRef(constant)
-          case _ => default
-        }
-      case _ =>
-        default
+    if (symbol.isBind) { log(s"inspectSymbol: Found Bind symbol $symbol") }
+
+    if (symbol.isValDef) {
+      log(s"inspectSymbol: Found ValDef symbol $symbol")
+      symbol._typeRef._underlying match {
+        case constant: ConstantType => // constant type vals are aliases to constant types
+          constToNameRef(constant)
+        case t: TermRef => // singleton type vals are aliases to their singleton
+          makeNameReferenceFromSymbol(t.termSymbol)
+        case other =>
+          println(s"ValDefSymbol was other=$other")
+          default
+      }
+    } else {
+      default
     }
   }
 
-  private def getPrefixFromQualifier(t: TypeRepr) = {
-    @tailrec def unpack(tpe: TypeRepr): Option[TypeRepr] = tpe match {
-      case t: ThisType => unpack(t.tref)
-      case _: NoPrefix => None
-      case t =>
-        val typeSymbol = t.typeSymbol
-        if (!typeSymbol.exists || typeSymbol.isNoSymbol || typeSymbol.isPackageDef || typeSymbol.isDefDef) {
+  // FIXME: should get prefix from type qualifier (prefix), not from owner
+  private def getPrefixFromDefinitionOwner(symbol: Symbol): Option[AppliedReference] = {
+    val maybeOwner = symbol.maybeOwner
+    if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef || maybeOwner.isDefDef || maybeOwner.isTypeDef) {
+      None
+    } else {
+      inspectSymbol(maybeOwner) match {
+        case a: AppliedReference =>
+          log(s"Constructed prefix=$a from owner=$maybeOwner")
+          Some(a)
+        case _ =>
           None
-        } else {
-          Some(t)
-        }
+      }
     }
-    unpack(t).flatMap(inspectTypeRepr(_) match {
-      case reference: AppliedReference => Some(reference)
-      case _ => None
-    })
   }
+//  private def getPrefixFromQualifier(t: TypeRepr): Option[AppliedReference] = {
+//    @tailrec def unpack(tpe: TypeRepr): Option[TypeRepr] = tpe match {
+//      case t: ThisType => unpack(t.tref)
+//      case _: NoPrefix => None
+//      case t =>
+//        ??? // nonsense below
+//        val typeSymbol = t.typeSymbol
+//        if (!typeSymbol.exists || typeSymbol.isNoSymbol || typeSymbol.isPackageDef || typeSymbol.isDefDef) {
+//          None
+//        } else {
+//          Some(t)
+//        }
+//    }
+//    unpack(t).flatMap(inspectTypeRepr(_) match {
+//      case reference: AppliedReference => Some(reference)
+//      case _ => None
+//    })
+//  }
 }

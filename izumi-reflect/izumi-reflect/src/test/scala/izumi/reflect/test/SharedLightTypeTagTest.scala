@@ -377,11 +377,53 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
     }
 
-    "support tags for inner classes" in {
-      val a = new InnerTagFixture()
-      val b = new a.InnerTagIssue()
-      assert(b.a.tag != null)
+    "normalize stable PDTs (https://github.com/zio/zio/issues/3390)" in {
+      val t1 = LTT[PDTNormA.Service]
+      val t2 = LTT[PDTNormB.Service]
+      assertSameStrict(t2, t1)
+      assertDebugSame(t2, t1)
+
+      val PDTAlias1 = PDTNormB
+      val PDTAlias2 = PDTAlias1
+      val PDTAlias3 = PDTAlias2
+      val PDTAlias4 = PDTAlias3
+      val PDTAlias5 = PDTAlias4
+      val t3 = LTT[PDTAlias5.Service]
+      assertSameStrict(t3, t1)
+      assertDebugSame(t3, t1)
+
+      val t4 = LTT[PDTNormA.type]
+      val t5 = LTT[PDTAlias5.type]
+
+      assertSameStrict(t5, t4)
+      assertDebugSame(t5, t4)
+
+      val literal = "x"
+      val aliasLiteral: literal.type = literal
+      val t6 = LTag[literal.type].tag
+      val t7 = LTag[aliasLiteral.type].tag
+
+      assertSameStrict(t6, t7)
+      assertDebugSame(t6, t7)
     }
+
+    "properly dealias and assign prefixes to existential types and wildcards" in {
+      val withNothing = LTT[TestModel.With[Nothing]]
+      val with_ = LTT[TestModel.With[_]]
+      assert(withNothing.debug().contains(": izumi.reflect.test.TestModel::With[=scala.Nothing]"))
+      assert(withNothing.debug().contains("- izumi.reflect.test.TestModel::With[=scala.Nothing]"))
+      assert(with_.debug().contains(": izumi.reflect.test.TestModel::With[=?]"))
+      assert(with_.debug().contains("- izumi.reflect.test.TestModel::With[=?]"))
+
+      val list_ = LTT[List[_]]
+      val immutableList_ = LTT[List[_]]
+      assertChild(LTT[List[Int]], immutableList_)
+      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
+      assertChild(list_, immutableList_)
+      assertChild(immutableList_, list_)
+      assertDebugSame(list_, immutableList_)
+    }
+
   }
 
 }
