@@ -59,7 +59,7 @@ final case class testTag2[T: Tag]() {
 
 trait T2[A, B, C[_[_], _], D[_], E]
 
-abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions with InheritedModelKindProjector {
+abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions with InheritedModel {
 
   type Abstract
   type Swap[A, B] = Either[B, A]

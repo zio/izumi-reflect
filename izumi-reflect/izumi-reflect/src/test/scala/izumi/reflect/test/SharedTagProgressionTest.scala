@@ -8,7 +8,7 @@ import izumi.reflect.test.TestModel.x.SrcContextProcessor
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
-abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModelKindProjector {
+abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModel {
 
   "[progression] Tag (all versions)" should {
 
