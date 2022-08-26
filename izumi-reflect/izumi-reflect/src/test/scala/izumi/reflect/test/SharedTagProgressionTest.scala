@@ -8,6 +8,8 @@ import izumi.reflect.test.TestModel.x.SrcContextProcessor
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.util.Try
+
 abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModel {
 
   "[progression] Tag (all versions)" should {
@@ -40,23 +42,27 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda" in {
-      val t = intercept[TestFailedException] {
+    "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda on Scala 2" in {
+      val t = Try(intercept[TestFailedException] {
         assertCompiles(
           """
-      def mk[F[+_, +_]: TagKK] = TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
-      val tag = mk[Either]
+    def mk[F[+_, +_]: TagKK] = TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
+    val tag = mk[Either]
 
-      assert(tag.tag == LTagKK[Lambda[(E, A) => BIOService[Lambda[(X, Y) => Either[A, E]]]]].tag)
-      """
+    assert(tag.tag == LTagKK[({ type l[E, A] = BIOService[ ({ type l[X, Y] = Either[A, E] })#l ] })#l].tag)
+    """
+        )
+      })
+      doesntWorkYetOnScala2 {
+        assert(t.isFailure)
+      }
+      succeedsOnScala2ButShouldnt {
+        assert(t.isSuccess)
+        assert(
+          t.get.message.get.contains("could not find implicit value") ||
+          t.get.message.get.contains("diverging implicit") /*2.11*/
         )
       }
-      assert(
-        t.message.get.contains("could not find implicit value") ||
-        t.message.get.contains("diverging implicit") || /*2.11*/
-        t.message.get.contains("no implicit argument of type") || /*Dotty*/
-        t.message.get.contains("no given instance of type") /*Dotty 3.1.3+*/
-      )
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in an anonymous deeply-nested type lambda" in {
@@ -66,7 +72,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       def mk[F[+_, +_]: TagKK] = TagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = F[A, E] })#l ] })#l ]
       val tag = mk[Either]
 
-      assert(tag.tag == LTagKK[Lambda[(E, A) => BIOService[Lambda[(X, Y) => Either[A, E]]]]].tag)
+      assert(tag.tag == LTagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = Either[A, E] })#l ] })#l ].tag)
       """
         )
       }
@@ -74,7 +80,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         t.message.get.contains("could not find implicit value") ||
         t.message.get.contains("diverging implicit") || /*2.11*/
         t.message.get.contains("no implicit argument of type") || /*Dotty*/
-        t.message.get.contains("no given instance of type") /*Dotty 3.1.3+*/
+        t.message.get.contains("Cannot find implicit Tag") /*Dotty 3.1.3+*/
       )
     }
 
@@ -177,6 +183,63 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       val collectionSet = TagK[scala.collection.Set]
       doesntWorkYetOnDotty {
         assertChildStrict(mutableSet.tag, collectionSet.tag)
+      }
+    }
+
+    "progression test: Dotty fails regression test: https://github.com/zio/izumi-reflect/issues/82, convert trifunctor hkt to bifunctor when combining tags" in {
+      import TestModel._
+      def tag[F[-_, +_, +_]: TagK3] = Tag[BIO2[F[Any, +*, +*]]]
+      doesntWorkYetOnDotty {
+        assertChild(tag[ZIO].tag, Tag[BIO2[IO]].tag)
+      }
+      doesntWorkYetOnDotty {
+        assertChild(Tag[BIO2[IO]].tag, tag[ZIO].tag)
+      }
+      doesntWorkYetOnDotty {
+        assertSame(tag[ZIO].tag, Tag[BIO2[IO]].tag)
+      }
+    }
+
+    "progression test: Dotty fails combine higher-kinded type lambdas without losing ignored type arguments" in {
+      val tag = `LTT[_[+_,+_]]`[({ type l[F[+_, +_]] = BlockingIO3[λ[(`-R`, `+E`, `+A`) => F[E, A]]] })#l]
+      val res = tag.combine(`LTT[_,_]`[IO])
+      doesntWorkYetOnDotty {
+        assertSame(res, LTT[BlockingIO[IO]])
+      }
+    }
+
+    "progression test: Dotty fails resolve a higher-kinded type inside a named type lambda with ignored type arguments" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, *, *, *]]]
+      val tag = mk[IO]
+
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BlockingIO[IO]].tag)
+      }
+    }
+
+    "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
+      type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
+//      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
+
+      doesntWorkYetOnScala2 {
+        assertCompiles(
+          """
+      def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+         """
+        )
+      }
+      def testTagX[F[_, _, _[_[_], _], _[_], _]: Tag.auto.T, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+
+      val value = testTagX[TXU, Int, String, OptionT, List, Boolean]
+      assert(value.tag == fromRuntime[TXU[Int, String, OptionT, List, Boolean]])
+    }
+
+    "progression test: Dotty fails to combine higher-kinded types without losing ignored type arguments" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO[F]]
+      val tag = mk[IO]
+
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BlockingIO[IO]].tag)
       }
     }
 

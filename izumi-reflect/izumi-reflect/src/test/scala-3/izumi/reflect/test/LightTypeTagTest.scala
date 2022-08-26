@@ -37,14 +37,6 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertChildStrict(LTT["abc"], LTT[String])
     }
 
-    "support typetag combination (Dotty syntax)" in {
-      assertCombine(`LTT[_[_]]`[[K[_]] =>> T0[Id, K]], `LTT[_]`[FP], LTT[T0[Id, FP]])
-    }
-
-    "`typeArgs` works (Dotty syntax)" in {
-      assert(`LTT[_[_]]`[[T[_]] =>> T0[List, T]].typeArgs == List(`LTT[_]`[List]))
-    }
-
     "tautological intersections with Matchable are discarded from internal structure" in {
       assertSameStrict(LTT[Matchable with Option[String]], LTT[Option[String]])
       assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])

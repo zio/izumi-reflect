@@ -17,5 +17,8 @@ trait TagProgressions { this: TagAssertions =>
   final def succeedsOnDottyButShouldnt(f: => Any): Unit = {
     doesntWorkYetOnScala2(f)
   }
+  final def succeedsOnScala2ButShouldnt(f: => Any): Unit = {
+    doesntWorkYetOnDotty(f)
+  }
 
 }

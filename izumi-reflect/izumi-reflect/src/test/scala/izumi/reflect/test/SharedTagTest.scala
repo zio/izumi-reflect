@@ -2,9 +2,9 @@ package izumi.reflect.test
 
 import izumi.reflect._
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
-import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
+import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag, `LTT[_,_]`, `LTT[_[+_,+_]]`}
 import izumi.reflect.test.ID._
-import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation, ThisPrefixTest}
+import izumi.reflect.test.TestModel.{ApplePaymentProvider, BlockingIO, BlockingIO3, H1, IO, IdAnnotation, ThisPrefixTest}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
@@ -55,7 +55,7 @@ final case class testTag2[T: Tag]() {
   val res = Tag[X]
 }
 
-trait T2[A, B, C[_[_], _], D[_], E]
+trait TXU[A, B, C[_[_], _], D[_], E]
 
 abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions with InheritedModel {
 
@@ -101,6 +101,12 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(Tag[Int with String].tag == fromRuntime[Int with String])
 
       assert(Tag[str.type].tag == fromRuntime[str.type])
+    }
+
+    "Support identity lambda type equality" in {
+      val idTpeLTT = TagK[Identity].tag
+      val idLambdaLTT = TagK[λ[A => A]].tag
+      assert(idTpeLTT == idLambdaLTT)
     }
 
     "regression test for https://github.com/zio/izumi-reflect/issues/98" in {
@@ -190,7 +196,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       val b1 = x[Option].tag =:= TagK[Option].tag
       val b2 = x2[Either].tag =:= TagKK[Either].tag
       val b3 = implicitly[Tag.auto.T[OptionT]].tag =:= TagTK[OptionT].tag
-      val b4 = x3[T2].tag.withoutArgs =:= LTag[T2[Nothing, Nothing, Nothing, Nothing, Nothing]].tag.withoutArgs
+      val b4 = x3[TXU].tag.withoutArgs =:= LTag[TXU[Nothing, Nothing, Nothing, Nothing, Nothing]].tag.withoutArgs
 
       assert(b1)
       assert(b2)
@@ -491,6 +497,13 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     assert(classTag.ref.getPrefix == objectTag.ref.getPrefix)
     assert(classTag.ref.getPrefix == classThisTag.ref.getPrefix)
     assert(classTag.ref.getPrefix == objectThisTag.ref.getPrefix)
+  }
+
+  "regression test: https://github.com/zio/izumi-reflect/issues/83, convert trifunctor tag to bifunctor tag" in {
+    import TestModel._
+    def direct[F[+_, +_]: TagKK] = Tag[BIO2[F]]
+    def indirectFrom3[F[-_, +_, +_]: TagK3] = direct[F[Any, +*, +*]]
+    assertSame(direct[ZIO[Any, +*, +*]].tag, indirectFrom3[ZIO].tag)
   }
 
 }

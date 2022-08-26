@@ -40,8 +40,6 @@ class TagTest extends SharedTagTest {
   type EitherR[-_, +L, +R] = Either[L, R]
   type EitherRSwap[-_, +L, +R] = Either[R, L]
 
-  type F2To3[F[_, _], R, E, A] = F[E, A]
-
   trait BlockingIO3[F[_, _, _]]
   type BlockingIO[F[_, _]] = BlockingIO3[Lambda[(R, E, A) => F[E, A]]]
 
@@ -88,19 +86,13 @@ class TagTest extends SharedTagTest {
       assertDifferent(Tag[zy.y.type].tag, fromLTag[zx.x.type])
     }
 
-    "Support identity lambda type equality" in {
-      val idTpeLTT = TagK[Identity].tag
-      val idLambdaLTT = TagK[Lambda[A => A]].tag
-      assert(idTpeLTT == idLambdaLTT)
-    }
-
     "Work for any abstract type with available Tag while preserving additional refinement" in {
       def testTag[T: Tag] = Tag[T { def x: Int }]
 
       assert(testTag[String].tag == fromRuntime[String { def x: Int }])
     }
 
-    "Work for an abstract type with available TagK when TagK is requested through an explicit implicit (Scala 2 Syntax)" in {
+    "Work for an abstract type with available TagK when TagK is requested through an explicit implicit (Scala 2 HKTag Syntax)" in {
       def testTagK[F[_], T: Tag](implicit ev: HKTag[{ type Arg[C] = F[C] }]) = {
         val _ = ev
         Tag[F[T {}] {}]
@@ -109,7 +101,7 @@ class TagTest extends SharedTagTest {
       assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
     }
 
-    "Handle Tags outside of a predefined set (Scala 2 Syntax)" in {
+    "Handle Tags outside of a predefined set (Scala 2 HKTag Syntax)" in {
       type TagX[T[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[A, B, C[_[_], _], D[_], E] = T[A, B, C, D, E] }]
 
       def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag] = Tag[F[A, B, C, D, E]]
@@ -155,7 +147,7 @@ class TagTest extends SharedTagTest {
       assert(t1.x.tag == fromRuntime[OptionT[List, Either[Int, Byte]]])
     }
 
-    "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK (Scala 2 Syntax)" in {
+    "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK (Scala 2 HKTag Syntax)" in {
       type `TagK<:Dep`[K[_ <: Dep]] = HKTag[{ type Arg[A <: Dep] = K[A] }]
 
       implicitly[`TagK<:Dep`[Trait3]].tag.withoutArgs =:= LTag[Trait3[Nothing]].tag.withoutArgs
@@ -273,20 +265,6 @@ class TagTest extends SharedTagTest {
       assert(tagEitherSwap <:< expectedTagSwap)
       assert(tagEitherSwap <:< TagKK[EitherRSwap[*, *, Any]].tag)
       assert(TagKK[EitherRSwap[*, *, Nothing]].tag <:< tagEitherSwap)
-    }
-
-    "combine higher-kinded types without losing ignored type arguments" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO[F]]
-      val tag = mk[IO]
-
-      assert(tag.tag == Tag[BlockingIO[IO]].tag)
-    }
-
-    "resolve a higher-kinded type inside a named type lambda with ignored type arguments" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, *, *, *]]]
-      val tag = mk[IO]
-
-      assert(tag.tag == Tag[BlockingIO[IO]].tag)
     }
 
     "resolve a higher-kinded type inside an anonymous type lambda with ignored & higher-kinded type arguments" in {

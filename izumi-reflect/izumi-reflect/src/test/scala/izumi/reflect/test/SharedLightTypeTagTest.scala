@@ -232,6 +232,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assert(`LTT[_,_]`[Either].typeArgs.isEmpty)
       assert(`LTT[_]`[Either[String, *]].typeArgs == List(LTT[String]))
+
+      val tag = `LTT[_[_]]`[({ type l[F[_]] = T0[List, F] })#l]
+      val tagApplied = tag.combine(`LTT[_]`[Option])
+      assertSame(tagApplied, LTT[T0[List, Option]])
+      assert(tag.typeArgs == List(`LTT[_]`[List]))
+      assert(tagApplied.typeArgs == List(`LTT[_]`[List], `LTT[_]`[Option]))
     }
 
     "support subtyping of a simple combined type" in {
@@ -317,6 +323,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       type ComplexRef[T] = W1 with T { def a(p: T): T; type M = T }
       assertCombine(`LTT[_]`[ComplexRef], LTT[Int], LTT[W1 with Int { def a(p: Int): Int; type M = Int }])
+
+      assertCombine(`LTT[_[_]]`[({ type l[K[_]] = T0[Id, K] })#l], `LTT[_]`[FP], LTT[T0[Id, FP]])
     }
 
     "tautological intersections with Any/Object are discarded from internal structure" in {

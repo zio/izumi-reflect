@@ -581,6 +581,19 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertDebugSame(alias, direct)
     }
 
+    "progression test: Dotty fails to support complex type lambdas" in {
+      doesntWorkYetOnDotty {
+        assertSame(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[λ[(A, B) => FM2[(B, A)]]])
+      }
+      doesntWorkYetOnDotty {
+        assertSame(
+          `LTT[_[_]]`[({ type l[F[_]] = NestedTL2[W1, W2, F] })#l],
+          `LTT[_[_]]`[({ type l[G[_]] = FM2[G[S[W2, W1]]] })#l]
+        )
+      }
+      assertChild(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[λ[(A, B) => FM2[(B, A)]]])
+    }
+
   }
 
 }

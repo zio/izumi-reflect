@@ -18,13 +18,7 @@ class TagTest extends SharedTagTest with TagAssertions {
 
   "Tag (Dotty)" should {
 
-    "Support identity lambda type equality" in {
-      val idTpeLTT = TagK[Identity].tag
-      val idLambdaLTT = TagK[[A] =>> A].tag
-      assertSame(idTpeLTT, idLambdaLTT)
-    }
-
-    "Support union subtyping" in {
+    "Support union subtyping (Scala 3 specific, union types)" in {
       trait Animal
       trait Dog extends Animal
       assertChild(Tag[Dog].tag, Tag[Animal].tag)
@@ -32,7 +26,7 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertNotChild(Tag[Animal | String].tag, Tag[Dog | String].tag)
     }
 
-    "Support HKTag for unapplied type lambdas with type bounds" in {
+    "Support HKTag for unapplied type lambdas with type bounds (Scala 3 specific, union types)" in {
       trait X
       trait XAble[A <: X]
       class Y extends X
@@ -42,22 +36,13 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSame(getTag[XAble].tag, Tag[XAble[Y]].tag)
     }
 
-    "Handle Tags outside of a predefined set (Scala 3 Syntax, BUT!! This should work on Scala 2 as written - something is wrong with Scala 2 Tag.auto.T)" in {
-      type TagX[T[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[T]
-
-      def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag] = Tag[F[A, B, C, D, E]]
-
-      val value = testTagX[T2, Int, String, OptionT, List, Boolean]
-      assert(value.tag == fromRuntime[T2[Int, String, OptionT, List, Boolean]])
-    }
-
-    "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK (Scala 3 Syntax)" in {
+    "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK (Scala 3 HKTag Syntax)" in {
       type `TagK<:Dep`[K[_ <: Dep]] = Tag[K]
 
       implicitly[`TagK<:Dep`[Trait3]].tag.withoutArgs =:= LTag[Trait3[Nothing]].tag.withoutArgs
     }
 
-    "combine union types" in {
+    "combine union types (Scala 3 specific, union types)" in {
       def t1[A: Tag] = Tag[String | A]
       def t2[A: Tag, B: Tag] = Tag[A | B]
 

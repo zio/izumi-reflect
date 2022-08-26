@@ -18,7 +18,6 @@
 
 package izumi.reflect.test
 
-import izumi.reflect.{Tag, TagK3, TagKK}
 import izumi.reflect.macrortti._
 
 class LightTypeTagTest extends SharedLightTypeTagTest {
@@ -26,17 +25,8 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
   import TestModel._
 
   "lightweight type tags (Scala 2)" should {
-    "support typetag combination (Scala 2 syntax)" in {
-      assertCombine(`LTT[_[_]]`[T0[Id, *[_]]], `LTT[_]`[FP], LTT[T0[Id, FP]])
-    }
 
-    "support complex type lambdas (Scala 2 syntax)" in {
-      assertSame(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
-      assertSame(`LTT[_[_]]`[NestedTL2[W1, W2, *[_]]], `LTT[_[_]]`[Lambda[G[_] => FM2[G[S[W2, W1]]]]])
-      assertChild(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[Lambda[(A, B) => FM2[(B, A)]]])
-    }
-
-    "support structural & refinement type equality (Scala 2 specific)" in {
+    "support structural & refinement type equality (Scala 2 specific, generic type projection)" in {
       val a1 = new C {
         override type A = Int
       }
@@ -48,35 +38,8 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertSame(LTT[a1.A], LTT[Z.X#A])
     }
 
-    "strong summons test (Scala 2 specific)" in {
+    "strong summons test (Scala 2 specific, generic type projection)" in {
       assertCompiles("def x1 = { object x { type T <: { type Array } }; LTag[x.T#Array]; () }")
-    }
-
-    "`typeArgs` works (Scala 2 syntax)" in {
-      val tag = `LTT[_[_]]`[T0[List, *[_]]]
-      val tagApplied = tag.combine(`LTT[_]`[Option])
-      assertSame(tagApplied, LTT[T0[List, Option]])
-      assert(tag.typeArgs == List(`LTT[_]`[List]))
-      assert(tagApplied.typeArgs == List(`LTT[_]`[List], `LTT[_]`[Option]))
-    }
-
-    "combine higher-kinded type lambdas without losing ignored type arguments (Scala 2 syntax)" in {
-      val tag = `LTT[_[+_,+_]]`[Lambda[`F[+_, +_]` => BlockingIO3[Lambda[(`-R`, `+E`, `+A`) => F[E, A]]]]]
-      val res = tag.combine(`LTT[_,_]`[IO])
-      assertSame(res, LTT[BlockingIO[IO]])
-    }
-
-    "regression test: https://github.com/zio/izumi-reflect/issues/82, convert trifunctor hkt to bifunctor when combining tags (Correct syntax, but Dotty fails to compile)" in {
-      def tag[F[-_, +_, +_]: TagK3] = Tag[BIO2[F[Any, +*, +*]]]
-      assertChild(tag[ZIO].tag, Tag[BIO2[IO]].tag)
-      assertChild(Tag[BIO2[IO]].tag, tag[ZIO].tag)
-      assertSame(tag[ZIO].tag, Tag[BIO2[IO]].tag)
-    }
-
-    "regression test: https://github.com/zio/izumi-reflect/issues/83, convert trifunctor tag to bifunctor tag (Correct syntax, but Dotty fails to compile)" in {
-      def direct[F[+_, +_]: TagKK] = Tag[BIO2[F]]
-      def indirectFrom3[F[-_, +_, +_]: TagK3] = direct[F[Any, +*, +*]]
-      assertSame(direct[ZIO[Any, +*, +*]].tag, indirectFrom3[ZIO].tag)
     }
 
   }
