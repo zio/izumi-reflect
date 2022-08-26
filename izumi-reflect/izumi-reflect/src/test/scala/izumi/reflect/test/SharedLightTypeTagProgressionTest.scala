@@ -343,49 +343,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertCompiles("def x1 = { object x { type F[_[_]]; type Id[A] = A }; LTag[x.F[x.Id]]; () }")
     }
 
-    "progression test: part of `normalize stable PDTs (https://github.com/zio/zio/issues/3390)` doesn't work on Dotty" in {
-      val t1 = LTT[PDTNormA.Service]
-      val t2 = LTT[PDTNormB.Service]
-      assertSame(t2, t1)
-      assertChild(t2, t1)
-      assertChild(t1, t2)
-
-      val PDTAlias1 = PDTNormB
-      val PDTAlias2 = PDTAlias1
-      val PDTAlias3 = PDTAlias2
-      val PDTAlias4 = PDTAlias3
-      val PDTAlias5 = PDTAlias4
-      val t3 = LTT[PDTAlias5.Service]
-      assertSame(t3, t1)
-      assertChild(t3, t1)
-      assertChild(t1, t3)
-
-      val t4 = LTT[PDTNormA.type]
-      val t5 = LTT[PDTAlias5.type]
-      doesntWorkYetOnDotty {
-        assertSame(t5, t4)
-      }
-      doesntWorkYetOnDotty {
-        assertChild(t5, t4)
-      }
-      doesntWorkYetOnDotty {
-        assertChild(t4, t5)
-      }
-      val literal = "x"
-      val aliasLiteral: literal.type = literal
-      val t6 = LTag[literal.type].tag
-      val t7 = LTag[aliasLiteral.type].tag
-      doesntWorkYetOnDotty {
-        assertSame(t6, t7)
-      }
-      doesntWorkYetOnDotty {
-        assertChild(t6, t7)
-      }
-      doesntWorkYetOnDotty {
-        assertChild(t7, t6)
-      }
-    }
-
     "progression test: `support higher-kinded intersection type combination` isn't supported on Dotty" in {
       val tCtor = `LTT[_,_]`[T3]
 

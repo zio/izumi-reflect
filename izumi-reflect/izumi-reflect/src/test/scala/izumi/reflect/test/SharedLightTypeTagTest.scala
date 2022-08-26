@@ -377,6 +377,38 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
     }
 
+    "normalize stable PDTs (https://github.com/zio/zio/issues/3390)" in {
+      val t1 = LTT[PDTNormA.Service]
+      val t2 = LTT[PDTNormB.Service]
+      assertSame(t2, t1)
+      assertChild(t2, t1)
+      assertChild(t1, t2)
+
+      val PDTAlias1 = PDTNormB
+      val PDTAlias2 = PDTAlias1
+      val PDTAlias3 = PDTAlias2
+      val PDTAlias4 = PDTAlias3
+      val PDTAlias5 = PDTAlias4
+      val t3 = LTT[PDTAlias5.Service]
+      assertSame(t3, t1)
+      assertChild(t3, t1)
+      assertChild(t1, t3)
+
+      val t4 = LTT[PDTNormA.type]
+      val t5 = LTT[PDTAlias5.type]
+
+      assertSameStrict(t5, t4)
+      assertDebugSame(t5, t4)
+
+      val literal = "x"
+      val aliasLiteral: literal.type = literal
+      val t6 = LTag[literal.type].tag
+      val t7 = LTag[aliasLiteral.type].tag
+
+      assertSameStrict(t6, t7)
+      assertDebugSame(t6, t7)
+    }
+
   }
 
 }

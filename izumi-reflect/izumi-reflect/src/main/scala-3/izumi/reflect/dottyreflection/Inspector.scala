@@ -203,14 +203,14 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
     def default: NameReference = {
-      val symName = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
-        SymName.SymTermName(symbol.fullName)
-      } else if (symbol.flags.is(Flags.Module)) { // Handle ModuleClasses
-        SymName.SymTermName(symbol.companionModule.fullName)
+      val (symName, s) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
+        SymName.SymTermName(symbol.fullName) -> symbol
+      } else if (symbol.flags.is(Flags.Module)) { // Handle ModuleClasses (can creep in from ThisType)
+        SymName.SymTermName(symbol.companionModule.fullName) -> symbol.companionModule
       } else {
-        SymName.SymTypeName(symbol.fullName)
+        SymName.SymTypeName(symbol.fullName) -> symbol
       }
-      val prefix = getPrefixFromDefinitionOwner(symbol) // FIXME: should get prefix from type qualifier (prefix), not from owner
+      val prefix = getPrefixFromDefinitionOwner(s) // FIXME: should get prefix from type qualifier (prefix), not from owner
       NameReference(symName, Boundaries.Empty, prefix)
     }
 
@@ -219,9 +219,12 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     if (symbol.isValDef) {
       log(s"inspectSymbol: Found ValDef symbol $symbol")
       symbol._typeRef._underlying match {
-        case constant: ConstantType =>
+        case constant: ConstantType => // constant type vals are aliases to constant types
           constToNameRef(constant)
-        case _ =>
+        case t: TermRef => // singleton type vals are aliases to their singleton
+          makeNameReferenceFromSymbol(t.termSymbol)
+        case other =>
+          println(s"ValDefSymbol was other=$other")
           default
       }
     } else {
