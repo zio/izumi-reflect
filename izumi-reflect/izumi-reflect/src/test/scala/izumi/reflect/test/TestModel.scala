@@ -18,11 +18,17 @@
 
 package izumi.reflect.test
 
+import izumi.reflect.Tag
+
 import scala.annotation.StaticAnnotation
+import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 
-import izumi.reflect.macrortti.LTag
+object TestModel {
 
-object TestModel extends TestModelKindProjector {
+  type BlockingIO[F[_, _]] = BlockingIO3[λ[(R, E, A) => F[E, A]]]
+
+  type BIO2[F[+_, +_]] = BIO3[λ[(`-R`, `+E`, `+A`) => F[E, A]]]
+
   final class With[T] extends StaticAnnotation
 
   final class IdAnnotation(val name: String) extends StaticAnnotation
@@ -164,4 +170,14 @@ object TestModel extends TestModelKindProjector {
   trait ContextProcessor[F[_]]
 
   trait IntegrationCheck[+F[_]]
+
+  object ThisPrefixTest {
+    class ThisPrefix {
+      val tag: LightTypeTag = Tag[this.type].tag
+    }
+    object ThisPrefix {
+      val tag: LightTypeTag = Tag[this.type].tag
+    }
+  }
+
 }
