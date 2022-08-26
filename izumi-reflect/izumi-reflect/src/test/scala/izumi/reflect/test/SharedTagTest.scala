@@ -4,14 +4,12 @@ import izumi.reflect._
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 import izumi.reflect.test.ID._
-import izumi.reflect.test.PlatformSpecific.fromRuntime
-import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation, T1, ThisPrefixTest}
+import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation, ThisPrefixTest}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util
 import scala.annotation.StaticAnnotation
 import scala.collection.mutable
 import scala.util.Try
