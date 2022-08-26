@@ -495,6 +495,23 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     assert(classTag.ref.getPrefix == objectThisTag.ref.getPrefix)
   }
 
+  "properly dealias and assign prefixes to existential types and wildcards" in {
+    val withNothing = LTT[TestModel.With[Nothing]]
+    val with_ = LTT[TestModel.With[_]]
+    assert(withNothing.debug().contains(": izumi.reflect.test.TestModel::With[=scala.Nothing]"))
+    assert(withNothing.debug().contains("- izumi.reflect.test.TestModel::With[=scala.Nothing]"))
+    assert(with_.debug().contains(": izumi.reflect.test.TestModel::With[=?]"))
+    assert(with_.debug().contains("- izumi.reflect.test.TestModel::With[=?]"))
+
+    val list_ = LTT[List[_]]
+    val immutableList_ = LTT[List[_]]
+    assertChild(LTT[List[Int]], immutableList_)
+    assertChild(LTT[scala.collection.immutable.List[Int]], list_)
+    assertChild(list_, immutableList_)
+    assertChild(immutableList_, list_)
+    assertDebugSame(list_, immutableList_)
+  }
+
 }
 
 trait SomeTrait {

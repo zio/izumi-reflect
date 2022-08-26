@@ -14,7 +14,7 @@ trait TagProgressions { this: TagAssertions =>
     intercept[TestFailedException](f); ()
   }
 
-  final def observableIncorrectBehaviorOnDottyButNotOnScala2(f: => Any): Unit = {
+  final def succeedsOnDottyButShouldnt(f: => Any): Unit = {
     doesntWorkYetOnScala2(f)
   }
 

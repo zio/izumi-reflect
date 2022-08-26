@@ -15,23 +15,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "properly dealias and assign prefixes to existential types and wildcards" in {
-      val withNothing = LTT[With[Nothing]]
-      val with_ = LTT[With[_]]
-      doesntWorkYetOnDotty(assert(withNothing.debug().contains(": izumi.reflect.test.TestModel::With[=scala.Nothing]")))
-      doesntWorkYetOnDotty(assert(withNothing.debug().contains("- izumi.reflect.test.TestModel::With[=scala.Nothing]")))
-      doesntWorkYetOnDotty(assert(with_.debug().contains(": izumi.reflect.test.TestModel::With[=?]")))
-      doesntWorkYetOnDotty(assert(with_.debug().contains("- izumi.reflect.test.TestModel::With[=?]")))
-
-      val list_ = LTT[List[_]]
-      val immutableList_ = LTT[List[_]]
-      assertChild(LTT[List[Int]], immutableList_)
-      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
-      assertChild(list_, immutableList_)
-      assertChild(immutableList_, list_)
-      assertDebugSame(list_, immutableList_)
-    }
-
     "progression test: `support higher-kinded intersection type subtyping` isn't fully supported on Dotty" in {
       type F1 = W3[Int] with W1
       type F2 = W4[Int] with W2
@@ -77,16 +60,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val subStrTR = subStrALTT.ref.asInstanceOf[AppliedReference]
       val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedReference]
 
-      // doesntWorkYetOnDotty {
       assert(strUnpacker.bases.keySet == Set(strTR))
-      // }
-
-      doesntWorkYetOnDotty {
-        assert(subStrALTT.repr == "izumi.reflect.test.TestModel::SubStrA|<scala.Nothing..java.lang.String>")
-      }
-      observableIncorrectBehaviorOnDottyButNotOnScala2 {
-        assert(subStrALTT.repr == "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
-      }
+      assert(subStrALTT.repr == "izumi.reflect.test.TestModel::SubStrA|<scala.Nothing..java.lang.String>")
+      assert(subStrALTT.repr != "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
 
       val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
       val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
@@ -94,14 +70,14 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       doesntWorkYetOnDotty {
         assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR); case p => p })
       }
-      observableIncorrectBehaviorOnDottyButNotOnScala2 {
+      succeedsOnDottyButShouldnt {
         assert(substrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
       }
 
       doesntWorkYetOnDotty {
         assert(subsubstrUnpacker.bases == strUnpacker.bases.map { case (strTR, v) => subSubStrTR -> (v + strTR) })
       }
-      observableIncorrectBehaviorOnDottyButNotOnScala2 {
+      succeedsOnDottyButShouldnt {
         assert(subsubstrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
       }
     }
@@ -126,9 +102,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
           "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})"
         )
       }
-      doesntWorkYetOnDotty {
-        assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
-      }
+      assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
       doesntWorkYetOnDotty {
         assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
       }
