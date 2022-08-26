@@ -48,6 +48,9 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       case p: ParamRef =>
         makeNameReferenceFromType(p)
 
+      case t: ThisType =>
+        next().inspectTypeRepr(t.tref)
+
       case a: AndType =>
         val elements = flattenInspectAnd(a)
         if (elements.sizeIs == 1) {
