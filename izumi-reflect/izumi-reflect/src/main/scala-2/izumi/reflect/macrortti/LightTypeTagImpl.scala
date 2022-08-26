@@ -582,6 +582,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         case t: TypeRefApi => Some(t.pre).filterNot(_ == NoPrefix)
         case t: SingleTypeApi => Some(t.pre).filterNot(_ == NoPrefix)
         case t: ExistentialTypeApi => extractPrefix(t.underlying)
+        case t: ThisTypeApi => extractPrefix(if (t.sym.isType) t.sym.asType.toType else t.sym.asTerm.typeSignature)
         case _ => None
       }
     }

@@ -73,6 +73,9 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case c: ConstantType =>
           inspectTypeReprToFullBases(c.widen)
 
+        case t: ThisType =>
+          inspectTypeReprToFullBases(t.tref)
+
         case o =>
           log(s"FullDbInspector: UNSUPPORTED: $o")
           Nil

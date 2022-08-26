@@ -5,7 +5,7 @@ import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
 import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
 import izumi.reflect.test.ID._
 import izumi.reflect.test.PlatformSpecific.fromRuntime
-import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation, T1}
+import izumi.reflect.test.TestModel.{ApplePaymentProvider, H1, IdAnnotation, T1, ThisPrefixTest}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
@@ -462,6 +462,37 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
   "regression test: https://github.com/zio/izumi-reflect/issues/76 derive tag for a parametric trait inside object" in {
     assertSameStrict(X76.x.tag, Tag[X76.T[Int]].tag)
+  }
+
+  "this.type tags should be generated, but are identical with their class / object tag" in {
+    val classTag = Tag[ThisPrefixTest.ThisPrefix].tag
+    val objectTag = Tag[ThisPrefixTest.ThisPrefix.type].tag
+    val classThisTag = new ThisPrefixTest.ThisPrefix().tag
+    val objectThisTag = ThisPrefixTest.ThisPrefix.tag
+
+    assertDebugSame(classThisTag, classTag)
+    assertDebugSame(objectThisTag, objectTag)
+
+    assertNotChildStrict(classTag, objectTag)
+    assertNotChildStrict(classTag, objectThisTag)
+    assertNotChildStrict(classThisTag, objectTag)
+    assertNotChildStrict(classThisTag, objectThisTag)
+  }
+
+  "this.type should have correct prefix" in {
+    val classTag = Tag[ThisPrefixTest.ThisPrefix].tag
+    val objectTag = Tag[ThisPrefixTest.ThisPrefix.type].tag
+    val classThisTag = new ThisPrefixTest.ThisPrefix().tag
+    val objectThisTag = ThisPrefixTest.ThisPrefix.tag
+
+    assert(classTag.ref.getPrefix.isDefined)
+    assert(objectTag.ref.getPrefix.isDefined)
+    assert(classThisTag.ref.getPrefix.isDefined)
+    assert(objectThisTag.ref.getPrefix.isDefined)
+
+    assert(classTag.ref.getPrefix == objectTag.ref.getPrefix)
+    assert(classTag.ref.getPrefix == classThisTag.ref.getPrefix)
+    assert(classTag.ref.getPrefix == objectThisTag.ref.getPrefix)
   }
 
 }

@@ -377,11 +377,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChildStrict(LTT[IntegrationCheck[Option]], LTT[IntegrationCheck[Id]])
     }
 
-    "support tags for inner classes" in {
-      val a = new InnerTagFixture()
-      val b = new a.InnerTagIssue()
-      assert(b.a.tag != null)
-    }
   }
 
 }
