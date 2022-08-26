@@ -49,13 +49,6 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         makeNameReferenceFromType(p)
 
       case t: ThisType =>
-        println(
-          s"this type $t module=${t.typeSymbol.flags.is(Flags.Module)} module=${t.typeSymbol.companionModule} termSymbol=${t.typeSymbol.companionModule.isTerm}"
-        )
-        println(s"this type tref ${t.tref} ${t.tref.getClass} ${t.tref.termSymbol}")
-        println(
-          s"this type tref underlying ${t.tref.asInstanceOf[TypeRef]._underlying} ${t.tref.asInstanceOf[TypeRef]._underlying.getClass} ${t.tref.asInstanceOf[TypeRef]._underlying.termSymbol}"
-        )
         next().inspectTypeRepr(t.tref)
 
       case a: AndType =>
@@ -188,15 +181,15 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
-        println(s"make name reference from type $ref ${ref.termSymbol}")
+        log(s"make name reference from type $ref termSymbol=${ref.termSymbol}")
         makeNameReferenceFromSymbol(ref.typeSymbol)
       case term: TermRef =>
-        println(s"make name reference from term $term")
+        log(s"make name reference from term $term")
         makeNameReferenceFromSymbol(term.termSymbol)
       case t: ParamRef =>
         NameReference(tpeName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString)
       case ref =>
-        println(s"make name reference from what? $ref ${ref.getClass} ${ref.termSymbol}")
+        log(s"make name reference from what? $ref ${ref.getClass} ${ref.termSymbol}")
         makeNameReferenceFromSymbol(ref.typeSymbol)
     }
   }
@@ -224,7 +217,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         case t: TermRef => // singleton type vals are aliases to their singleton
           makeNameReferenceFromSymbol(t.termSymbol)
         case other =>
-          println(s"ValDefSymbol was other=$other")
+          log(s"inspectSymbol: found UNKNOWN symbol in ValDef $other")
           default
       }
     } else {
