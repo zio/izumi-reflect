@@ -30,19 +30,12 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
 
   "lightweight type tags (Dotty)" should {
 
-    "support string constant types (Scala 2.13+ syntax)" in {
-      assertDifferent(LTT["abc"], LTT[String])
-      assertDifferent(LTT["abc"], LTT["cba"])
-      assertSameStrict(LTT["abc"], LTT["abc"])
-      assertChildStrict(LTT["abc"], LTT[String])
-    }
-
-    "tautological intersections with Matchable are discarded from internal structure" in {
+    "tautological intersections with Matchable are discarded from internal structure (Scala 3 specific, Matchable)" in {
       assertSameStrict(LTT[Matchable with Option[String]], LTT[Option[String]])
       assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])
     }
 
-    "support top-level abstract types" in {
+    "support top-level abstract types (Scala 3 specific, top level type aliases)" in {
       assertChildStrict(LTT[LightTypeTagTestT], LTT[String])
     }
 

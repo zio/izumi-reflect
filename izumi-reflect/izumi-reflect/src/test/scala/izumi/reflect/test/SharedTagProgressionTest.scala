@@ -12,6 +12,16 @@ import scala.util.Try
 
 abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModel {
 
+  trait DockerContainer[T]
+  trait ContainerDef {
+    type T
+
+    def make(implicit t: Tag[T]) = {
+      val _ = t
+      Tag[DockerContainer[T]]
+    }
+  }
+
   "[progression] Tag (all versions)" should {
 
     "progression test: can't handle parameters in defs/vals in structural types" in {
@@ -160,7 +170,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "Work for structural concrete types doesn't work on Dotty" in {
+    "progression test: Work for structural concrete types doesn't work on Dotty" in {
       assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
       assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
 
@@ -243,6 +253,227 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
+    "progression test: Dotty fails to return expected class tag" in {
+      doesntWorkYetOnDotty {
+        assert(Tag[List[_] with Set[_]].closestClass eq classOf[scala.collection.immutable.Iterable[_]])
+      }
+      assert(!Tag[List[_] with Set[_]].hasPreciseClass)
+
+      assert(Tag[AnyVal].closestClass eq classOf[AnyVal])
+      assert(!Tag[AnyVal].hasPreciseClass)
+
+      doesntWorkYetOnDotty {
+        assert(Tag[String].closestClass ne classOf[AnyVal])
+      }
+      assert(!Tag[String with Int].hasPreciseClass)
+
+      doesntWorkYetOnDotty {
+        assert(Tag[List[Int]].closestClass eq classOf[List[_]])
+      }
+      doesntWorkYetOnDotty {
+        assert(Tag[List[Int]].hasPreciseClass)
+      }
+      doesntWorkYetOnDotty {
+        assert(Tag[H1].hasPreciseClass)
+      }
+
+      assert(Tag[ZY#T].closestClass eq classOf[Any])
+      assert(!Tag[ZY#T].hasPreciseClass)
+    }
+
+    "progression test: Dotty fails to regression test: resolve correct closestClass for Scala vararg AnyVal (https://github.com/zio/izumi-reflect/issues/224)" in {
+      doesntWorkYetOnDotty {
+        assert(Tag[VarArgsAnyVal].closestClass == classOf[scala.Seq[Any]])
+      }
+    }
+
+    "progression test: Dotty fails to resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters (low-level)" in {
+      type Lt[F[_, _, _], _1, _2, _3] = F[_2, _3, _1]
+
+      val ctorTag: LightTypeTag = implicitly[Tag.auto.T[Lt]].tag
+      val eitherRSwapTag = LTagK3[EitherRSwap].tag
+      val throwableTag = LTag[Throwable].tag
+
+      val combinedTag = HKTag
+        .appliedTagNonPosAux(
+          classOf[Any],
+          ctor = ctorTag,
+          args = List(
+            Some(eitherRSwapTag),
+            Some(throwableTag),
+            None,
+            None
+          )
+        ).tag
+      val expectedTag = TagKK[Lt[EitherRSwap, Throwable, *, *]].tag
+      doesntWorkYetOnDotty {
+        assertSame(combinedTag, expectedTag)
+      }
+    }
+
+    "progression test: Dotty fails to correctly resolve abstract types inside traits when summoned inside trait" in {
+      val a = new ContainerDef {}
+      val b = new ContainerDef {}
+
+      assert(a.make.tag == Tag[DockerContainer[a.T]].tag)
+      doesntWorkYetOnDotty {
+        assertDifferent(a.make.tag, Tag[DockerContainer[b.T]].tag)
+      }
+      assert(Tag[DockerContainer[a.T]].tag == Tag[DockerContainer[a.T]].tag)
+
+      val zy = new ZY {}
+      assert(zy.tagT.getMessage contains "could not find implicit value")
+      assert(zy.tagU.getMessage contains "could not find implicit value")
+      assert(zy.tagV.getMessage contains "could not find implicit value")
+      assert(zy.tagA.isSuccess)
+    }
+
+    "progression test: Dotty fails to can resolve parameters in structural types" in {
+      def t[X: Tag]: Tag[{ type T = X }] = Tag[{ type T = X }]
+
+      assertSame(t[Int].tag, Tag[{ type T = Int }].tag)
+      doesntWorkYetOnDotty {
+        assertDifferent(t[Int].tag, Tag[{ type T = String }].tag)
+      }
+    }
+
+    "progression test: Dotty fails to resolve a higher-kinded type inside an anonymous type lambda with ignored & higher-kinded type arguments" in {
+      def mk[F[_[_], _]: TagTK] = Tag[BlockingIO3T[({ type l[R, E[_], A] = F[E, A] })#l]]
+      val tag = mk[OptionT]
+
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BlockingIOT[OptionT]].tag)
+      }
+    }
+
+    "progression test: Dotty fails to correctly resolve a higher-kinded nested type inside a named swap type lambda" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BIOService[SwapF2[F, *, *]]]
+      val tag = mk[Either]
+
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BIOService[SwapF2[Either, *, *]]].tag)
+      }
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BIOService[Swap]].tag)
+      }
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BIOService[λ[(E, A) => Either[A, E]]]].tag)
+      }
+    }
+
+    "progression test: Dotty fails to correctly resolve a higher-kinded nested type inside an anonymous swap type lambda" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BIOService[λ[(E, A) => F[A, E]]]]
+      val tag = mk[Either]
+
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BIOService[SwapF2[Either, *, *]]].tag)
+      }
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BIOService[Swap]].tag)
+      }
+      doesntWorkYetOnDotty {
+        assert(tag.tag == Tag[BIOService[λ[(E, A) => Either[A, E]]]].tag)
+      }
+    }
+
+    "progression test: Dotty fails to Handle abstract types instead of parameters" in {
+      trait T1 {
+        type F[F0[_], A0] = OptionT[F0, A0]
+        type C[_, _]
+        type G[_]
+        type A
+        type B
+
+        def x: Tag[F[G, Either[A, B]]]
+      }
+
+      val t1: T1 {
+        type G[T] = List[T]
+        type C[A0, B0] = Either[A0, B0]
+        type A = Int
+        type B = Byte
+      } = new T1 {
+        type G[T] = List[T]
+        type C[A0, B0] = Either[A0, B0]
+        type A = Int
+        type B = Byte
+
+        // Inconsistent handling of type aliases by scalac...
+        // No TagK for G, but if G is inside an object or enclosing class
+        // then there is a TagK
+        val g: TagK[G] = TagK[List]
+
+        final val x: Tag[F[G, Either[A, B]]] = {
+          implicit val g0: TagK[G] = g
+          val _ = g0
+          Tag[F[G, C[A, B]]]
+        }
+      }
+
+      withDebugOutput {
+        doesntWorkYetOnDotty {
+          assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
+        }
+      }
+    }
+
+    "Work with term type prefixes" in {
+      val zy = new ZY {}
+      val zx = new ZY {}
+
+      assertSameStrict(Tag[zy.T].tag, fromLTag[zy.T])
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(Tag[zy.T].tag, fromLTag[zx.T])
+      }
+      assertSameStrict(Tag[zy.x.type].tag, fromLTag[zy.x.type])
+      assertChild(Tag[zy.x.type].tag, fromLTag[String])
+      assertChild(Tag[zy.x.type].tag, fromLTag[java.io.Serializable])
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(Tag[zy.x.type].tag, fromLTag[zx.x.type])
+      }
+      assertSameStrict(Tag[zy.y.type].tag, fromLTag[zy.y.type])
+      assertChild(Tag[zy.y.type].tag, fromLTag[java.lang.Object])
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(Tag[zy.y.type].tag, fromLTag[zx.y.type])
+      }
+      assertNotChildStrict(Tag[zy.y.type].tag, fromLTag[zx.x.type])
+    }
+
+    "Work for any abstract type with available Tag while preserving additional type refinement" in {
+      def testTag[T: Tag] = Tag[T { type X = Int; type Y = String }]
+
+      assertSameStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = String }])
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = String; type Y = Boolean }])
+      }
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = String; type Y = Boolean }])
+      }
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = Boolean }])
+      }
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = Boolean; type Y = String }])
+      }
+    }
+
+    "Work for any abstract type with available Tag while preserving additional method refinement" in {
+      def testTag[T: Tag] = Tag[T { def x: Int; val y: String }]
+
+      assertSameStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: String }])
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: String; val y: Boolean }])
+      }
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: Boolean }])
+      }
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: Boolean; val y: String }])
+      }
+    }
+
   }
+
+  def fromLTag[T: LTag]: LightTypeTag = LTag[T].tag
 
 }

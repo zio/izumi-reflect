@@ -6,8 +6,6 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
   import TestModel._
 
-  "[progression] lightweight type tag (Dotty)" should {
-
-  }
+  "[progression] lightweight type tag (Dotty)" should {}
 
 }

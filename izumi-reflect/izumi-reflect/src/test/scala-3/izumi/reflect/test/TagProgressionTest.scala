@@ -4,7 +4,7 @@ import izumi.reflect.Tag
 
 class TagProgressionTest extends SharedTagProgressionTest {
 
-  "[progression] Tag (Scala 2)" should {
+  "[progression] Tag (Dotty)" should {
 
     "progression test: combine intersection path-dependent intersection types with inner tags doesn't work yet (Scala 3)" in {
       trait PDT {

@@ -24,7 +24,7 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
   "[progression] lightweight type tags (Scala 2)" should {
 
-    "progression test: there should be no unexpected lambdas in bases db produced from nested existential types" in {
+    "progression test: there should be no unexpected lambdas in bases db produced from nested existential types (Scala 2 specific, unreducible application of higher-kinded type to wildcard arguments)" in {
       trait L[ARRG0]
 
       trait Test0[+ARRG1]

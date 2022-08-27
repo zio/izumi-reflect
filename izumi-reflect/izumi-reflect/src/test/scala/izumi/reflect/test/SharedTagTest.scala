@@ -1,10 +1,10 @@
 package izumi.reflect.test
 
-import izumi.reflect._
+import izumi.reflect.{Tag, TagK3, _}
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
-import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag, `LTT[_,_]`, `LTT[_[+_,+_]]`}
+import izumi.reflect.macrortti.{LTT, LTag, LTagK3, LightTypeTag}
 import izumi.reflect.test.ID._
-import izumi.reflect.test.TestModel.{ApplePaymentProvider, BlockingIO, BlockingIO3, H1, IO, IdAnnotation, ThisPrefixTest}
+import izumi.reflect.test.TestModel.{ApplePaymentProvider, Const, H1, IO, IdAnnotation, ThisPrefixTest, VarArgsAnyVal}
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
@@ -30,10 +30,10 @@ trait ZY extends Assertions {
   val x: String = "5"
   object y
 
-  val tagT = intercept[TestFailedException](assertCompiles("Tag[T]"))
-  val tagU = intercept[TestFailedException](assertCompiles("Tag[U]"))
-  val tagV = intercept[TestFailedException](assertCompiles("Tag[V]"))
-  val tagA = Try(assertCompiles("Tag[A]"))
+  val tagT = intercept[TestFailedException](assertCompiles("izumi.reflect.Tag[T]"))
+  val tagU = intercept[TestFailedException](assertCompiles("izumi.reflect.Tag[U]"))
+  val tagV = intercept[TestFailedException](assertCompiles("izumi.reflect.Tag[V]"))
+  val tagA = Try(assertCompiles("izumi.reflect.Tag[A]"))
 }
 
 trait XY[Y] {
@@ -60,14 +60,10 @@ trait TXU[A, B, C[_[_], _], D[_], E]
 abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAssertions with InheritedModel {
 
   type Abstract
-  type Swap[A, B] = Either[B, A]
-  type SwapF2[F[_, _], A, B] = F[B, A]
   type Id[A] = A
   type Id1[F[_], A] = F[A]
 
   import izumi.reflect.test.PlatformSpecific.fromRuntime
-
-  def fromLTag[T: LTag]: LightTypeTag = LTag[T].tag
 
   final val str = "str"
 
@@ -184,6 +180,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     "Can dealias transparent type members with class type parameters inside them when a tag is summoned _inside_ the class, because LightTypeTags are not affected by https://github.com/scala/bug/issues/11139" in {
       assert(testTag[String]().res.tag == fromRuntime[Either[Int, String]])
       assert(testTag2[String]().res.tag == fromRuntime[List[String]])
+      assert(testTag3[List]().res == fromRuntime[OptionT[List, Int]])
     }
 
     "Tag.auto.T kind inference macro works for known cases" in {
@@ -323,187 +320,306 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSame(B.s1b, B.s1b1)
     }
 
-  }
-
-  "Does NOT synthesize Tags for abstract types, but recursively summons Tag[this.Abstract]" in {
-    // no tag synthesized, there's no Tag[Abstract] unless defined
-    assertDoesNotCompile("Tag[Abstract]")
-    locally {
-      implicit val implicitTag: Tag[Abstract] = Tag[Abstract](Tag[Int].closestClass, Tag[Int].tag)
-      val tag = Tag[Option[Abstract]]
-      assertSameStrict(tag.tag.typeArgs.head, implicitTag.tag)
-      assertSameStrict(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
-    }
-  }
-
-  "DOES synthesize Tags for abstract types (object X; X.T), does not summon Tag[X.T]" in {
-    val realTag = Tag[Option[SomeObject.Abstract]]
-    locally {
-      implicit val implicitTag: Tag[SomeObject.Abstract] = Tag[SomeObject.Abstract](Tag[Int].closestClass, Tag[Int].tag)
-      val tag = Tag[Option[SomeObject.Abstract]]
-      assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
-      assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
-      assertSameStrict(realTag.tag, tag.tag)
-    }
-  }
-
-  "DOES synthesize Tags for abstract types (trait X; X#T), does not summon Tag[X#T]" in {
-    val realTag = Tag[Option[SomeTrait#Abstract]]
-    locally {
-      implicit val implicitTag: Tag[SomeTrait#Abstract] = Tag[SomeTrait#Abstract](Tag[Int].closestClass, Tag[Int].tag)
-      val tag = Tag[Option[SomeTrait#Abstract]]
-      assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
-      assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
-      assertSameStrict(realTag.tag, tag.tag)
-    }
-  }
-
-  "DOES synthesize Tags for abstract types (val x; x.T), does not summon Tag[x.T]" in {
-    val x = new SomeTrait {}
-    val realTag = Tag[Option[x.Abstract]]
-    locally {
-      implicit val implicitTag: Tag[x.Abstract] = Tag[x.Abstract](Tag[Int].closestClass, Tag[Int].tag)
-      val tag = Tag[Option[x.Abstract]]
-      assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
-      assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
-      assertSameStrict(realTag.tag, tag.tag)
-    }
-  }
-
-  "handle function local type aliases" in {
-    def testTag3[F[_]: TagK] = {
-      type X = OptionT[F, Int]
-
-      Tag[X]
+    "Does NOT synthesize Tags for abstract types, but recursively summons Tag[this.Abstract]" in {
+      // no tag synthesized, there's no Tag[Abstract] unless defined
+      assertDoesNotCompile("Tag[Abstract]")
+      locally {
+        implicit val implicitTag: Tag[Abstract] = Tag[Abstract](Tag[Int].closestClass, Tag[Int].tag)
+        val tag = Tag[Option[Abstract]]
+        assertSameStrict(tag.tag.typeArgs.head, implicitTag.tag)
+        assertSameStrict(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+      }
     }
 
-    assert(testTag3[List].tag == fromRuntime[OptionT[List, Int]])
-  }
-
-  "Can dealias transparent type members with class type parameters inside them when a tag is summoned _inside_ the class, because LightTypeTags are not affected by https://github.com/scala/bug/issues/11139" in {
-    assert(testTag3[List]().res == fromRuntime[OptionT[List, Int]])
-  }
-
-  "Work for an abstract type with available TagK when obscured by empty refinement" in {
-    def testTagK[F[_]: TagK, T: Tag] = Tag[F[T {}] {}]
-
-    assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
-  }
-
-  "Work for an abstract type with available TagK when TagK is requested through an explicit implicit" in {
-    def testTagK[F[_], T: Tag](implicit ev: Tag.auto.T[F]) = {
-      val _ = ev
-      Tag[F[T {}] {}]
+    "DOES synthesize Tags for abstract types (object X; X.T), does not summon Tag[X.T]" in {
+      val realTag = Tag[Option[SomeObject.Abstract]]
+      locally {
+        implicit val implicitTag: Tag[SomeObject.Abstract] = Tag[SomeObject.Abstract](Tag[Int].closestClass, Tag[Int].tag)
+        val tag = Tag[Option[SomeObject.Abstract]]
+        assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
+        assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+        assertSameStrict(realTag.tag, tag.tag)
+      }
     }
 
-    assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
-  }
+    "DOES synthesize Tags for abstract types (trait X; X#T), does not summon Tag[X#T]" in {
+      val realTag = Tag[Option[SomeTrait#Abstract]]
+      locally {
+        implicit val implicitTag: Tag[SomeTrait#Abstract] = Tag[SomeTrait#Abstract](Tag[Int].closestClass, Tag[Int].tag)
+        val tag = Tag[Option[SomeTrait#Abstract]]
+        assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
+        assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+        assertSameStrict(realTag.tag, tag.tag)
+      }
+    }
 
-  "Work for an abstract type with available TagKK" in {
-    def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
+    "DOES synthesize Tags for abstract types (val x; x.T), does not summon Tag[x.T]" in {
+      val x = new SomeTrait {}
+      val realTag = Tag[Option[x.Abstract]]
+      locally {
+        implicit val implicitTag: Tag[x.Abstract] = Tag[x.Abstract](Tag[Int].closestClass, Tag[Int].tag)
+        val tag = Tag[Option[x.Abstract]]
+        assertDifferent(tag.tag.typeArgs.head, implicitTag.tag)
+        assertDifferent(tag.tag, TagK[Option].tag.combine(implicitTag.tag))
+        assertSameStrict(realTag.tag, tag.tag)
+      }
+    }
 
-    assert(t1[ZOBA[Int, *, *], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
-  }
+    "Work for an abstract type with available TagK when obscured by empty refinement" in {
+      def testTagK[F[_]: TagK, T: Tag] = Tag[F[T {}] {}]
 
-  "Work for any configuration of parameters" in {
-    def t1[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F[_]: TagK]: Tag[T1[A, B, C, D, E, F]] = Tag[T1[A, B, C, D, E, F]]
+      assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
+    }
 
-    type ZOB[A, B, C] = Either[B, C]
+    "Work for an abstract type with available TagK when TagK is requested through an explicit implicit" in {
+      def testTagK[F[_], T: Tag](implicit ev: Tag.auto.T[F]) = {
+        val _ = ev
+        Tag[F[T {}] {}]
+      }
 
-    assert(
-      t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, *]].tag
-      == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, *]]]
-    )
+      assert(testTagK[Set, Int].tag == fromRuntime[Set[Int]])
+    }
 
-    def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
-      : Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]] =
-      Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]]
+    "Work for an abstract type with available TagKK" in {
+      def t1[F[_, _]: TagKK, T: Tag, G: Tag] = Tag[F[T, G]]
 
-    assert(
-      t2[SharedTagTest.this.Z, SharedTagTest.this.Z, T1[
-        ZOB[String, Int, Byte],
-        String,
-        String,
-        String,
-        String,
-        List
-      ], SharedTagTest.this.Z, XY, SharedTagTest.this.Z, YX, Either, SharedTagTest.this.Z, SharedTagTest.this.Z, SharedTagTest.this.Z].tag
-      == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
-    )
-  }
+      assert(t1[ZOBA[Int, *, *], Int, String].tag == fromRuntime[ZOBA[Int, Int, String]])
+    }
 
-  "handle Swap type lambda" in {
-    def t1[F[_, _]: TagKK, A: Tag, B: Tag] = Tag[F[A, B]]
+    "Work for any configuration of parameters" in {
+      def t1[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F[_]: TagK]: Tag[T1[A, B, C, D, E, F]] = Tag[T1[A, B, C, D, E, F]]
 
-    assert(t1[Swap, Int, String].tag == fromRuntime[Either[String, Int]])
-  }
+      type ZOB[A, B, C] = Either[B, C]
 
-  "Assemble from higher than TagKK tags" in {
-    def tag[T[_[_], _]: TagTK, F[_]: TagK, A: Tag] = Tag[T[F, A]]
+      assert(
+        t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, *]].tag
+        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, *]]]
+      )
 
-    assert(tag[OptionT, Option, Int].tag == fromRuntime[OptionT[Option, Int]])
-  }
+      def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
+        : Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]] =
+        Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]]
 
-  "regression test: https://github.com/zio/izumi-reflect/issues/293 assemble tag for Builder[B, Collection[B]]" in {
-    def tag[B: Tag](implicit tag: Tag[java.util.Collection[B]]) = Tag[mutable.Builder[B, java.util.Collection[B]]]
+      assert(
+        t2[SharedTagTest.this.Z, SharedTagTest.this.Z, T1[
+          ZOB[String, Int, Byte],
+          String,
+          String,
+          String,
+          String,
+          List
+        ], SharedTagTest.this.Z, XY, SharedTagTest.this.Z, YX, Either, SharedTagTest.this.Z, SharedTagTest.this.Z, SharedTagTest.this.Z].tag
+        == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
+      )
+    }
 
-    assertSameStrict(tag[Int].tag, Tag[mutable.Builder[Int, java.util.Collection[Int]]].tag)
-  }
+    "handle Swap type lambda" in {
+      def t1[F[_, _]: TagKK, A: Tag, B: Tag] = Tag[F[A, B]]
 
-  "combine intersection types" in {
-    def t1[A: Tag] = Tag[String with A]
-    def t2[A: Tag, B: Tag] = Tag[A with B]
+      assert(t1[Swap, Int, String].tag == fromRuntime[Either[String, Int]])
+    }
 
-    assertSameStrict(t1[Int].tag, Tag[Int with String].tag)
-    assertSameStrict(t2[Int, String].tag, Tag[String with Int].tag)
-    assertSameStrict(t1[String].tag, Tag[String].tag)
-    assertSameStrict(t2[String, String].tag, Tag[String].tag)
-  }
+    "Assemble from higher than TagKK tags" in {
+      def tag[T[_[_], _]: TagTK, F[_]: TagK, A: Tag] = Tag[T[F, A]]
 
-  "summon HKT Tag for a Java type" in {
-    assertCompiles("TagK[java.util.Collection]")
-  }
+      assert(tag[OptionT, Option, Int].tag == fromRuntime[OptionT[Option, Int]])
+    }
 
-  "regression test: https://github.com/zio/izumi-reflect/issues/76 derive tag for a parametric trait inside object" in {
-    assertSameStrict(X76.x.tag, Tag[X76.T[Int]].tag)
-  }
+    "regression test: https://github.com/zio/izumi-reflect/issues/293 assemble tag for Builder[B, Collection[B]]" in {
+      def tag[B: Tag](implicit tag: Tag[java.util.Collection[B]]) = Tag[mutable.Builder[B, java.util.Collection[B]]]
 
-  "this.type tags should be generated, but are identical with their class / object tag" in {
-    val classTag = Tag[ThisPrefixTest.ThisPrefix].tag
-    val objectTag = Tag[ThisPrefixTest.ThisPrefix.type].tag
-    val classThisTag = new ThisPrefixTest.ThisPrefix().tag
-    val objectThisTag = ThisPrefixTest.ThisPrefix.tag
+      assertSameStrict(tag[Int].tag, Tag[mutable.Builder[Int, java.util.Collection[Int]]].tag)
+    }
 
-    assertDebugSame(classThisTag, classTag)
-    assertDebugSame(objectThisTag, objectTag)
+    "combine intersection types" in {
+      def t1[A: Tag] = Tag[String with A]
+      def t2[A: Tag, B: Tag] = Tag[A with B]
 
-    assertNotChildStrict(classTag, objectTag)
-    assertNotChildStrict(classTag, objectThisTag)
-    assertNotChildStrict(classThisTag, objectTag)
-    assertNotChildStrict(classThisTag, objectThisTag)
-  }
+      assertSameStrict(t1[Int].tag, Tag[Int with String].tag)
+      assertSameStrict(t2[Int, String].tag, Tag[String with Int].tag)
+      assertSameStrict(t1[String].tag, Tag[String].tag)
+      assertSameStrict(t2[String, String].tag, Tag[String].tag)
+    }
 
-  "this.type should have correct prefix" in {
-    val classTag = Tag[ThisPrefixTest.ThisPrefix].tag
-    val objectTag = Tag[ThisPrefixTest.ThisPrefix.type].tag
-    val classThisTag = new ThisPrefixTest.ThisPrefix().tag
-    val objectThisTag = ThisPrefixTest.ThisPrefix.tag
+    "summon HKT Tag for a Java type" in {
+      assertCompiles("TagK[java.util.Collection]")
+    }
 
-    assert(classTag.ref.getPrefix.isDefined)
-    assert(objectTag.ref.getPrefix.isDefined)
-    assert(classThisTag.ref.getPrefix.isDefined)
-    assert(objectThisTag.ref.getPrefix.isDefined)
+    "regression test: https://github.com/zio/izumi-reflect/issues/76 derive tag for a parametric trait inside object" in {
+      assertSameStrict(X76.x.tag, Tag[X76.T[Int]].tag)
+    }
 
-    assert(classTag.ref.getPrefix == objectTag.ref.getPrefix)
-    assert(classTag.ref.getPrefix == classThisTag.ref.getPrefix)
-    assert(classTag.ref.getPrefix == objectThisTag.ref.getPrefix)
-  }
+    "this.type tags should be generated, but are identical with their class / object tag" in {
+      val classTag = Tag[ThisPrefixTest.ThisPrefix].tag
+      val objectTag = Tag[ThisPrefixTest.ThisPrefix.type].tag
+      val classThisTag = new ThisPrefixTest.ThisPrefix().tag
+      val objectThisTag = ThisPrefixTest.ThisPrefix.tag
 
-  "regression test: https://github.com/zio/izumi-reflect/issues/83, convert trifunctor tag to bifunctor tag" in {
-    import TestModel._
-    def direct[F[+_, +_]: TagKK] = Tag[BIO2[F]]
-    def indirectFrom3[F[-_, +_, +_]: TagK3] = direct[F[Any, +*, +*]]
-    assertSame(direct[ZIO[Any, +*, +*]].tag, indirectFrom3[ZIO].tag)
+      assertDebugSame(classThisTag, classTag)
+      assertDebugSame(objectThisTag, objectTag)
+
+      assertNotChildStrict(classTag, objectTag)
+      assertNotChildStrict(classTag, objectThisTag)
+      assertNotChildStrict(classThisTag, objectTag)
+      assertNotChildStrict(classThisTag, objectThisTag)
+    }
+
+    "this.type should have correct prefix" in {
+      val classTag = Tag[ThisPrefixTest.ThisPrefix].tag
+      val objectTag = Tag[ThisPrefixTest.ThisPrefix.type].tag
+      val classThisTag = new ThisPrefixTest.ThisPrefix().tag
+      val objectThisTag = ThisPrefixTest.ThisPrefix.tag
+
+      assert(classTag.ref.getPrefix.isDefined)
+      assert(objectTag.ref.getPrefix.isDefined)
+      assert(classThisTag.ref.getPrefix.isDefined)
+      assert(objectThisTag.ref.getPrefix.isDefined)
+
+      assert(classTag.ref.getPrefix == objectTag.ref.getPrefix)
+      assert(classTag.ref.getPrefix == classThisTag.ref.getPrefix)
+      assert(classTag.ref.getPrefix == objectThisTag.ref.getPrefix)
+    }
+
+    "regression test: https://github.com/zio/izumi-reflect/issues/83, convert trifunctor tag to bifunctor tag" in {
+      import TestModel._
+      def direct[F[+_, +_]: TagKK] = Tag[BIO2[F]]
+      def indirectFrom3[F[-_, +_, +_]: TagK3] = direct[F[Any, +*, +*]]
+      assertSame(direct[ZIO[Any, +*, +*]].tag, indirectFrom3[ZIO].tag)
+    }
+
+    "resolve TagK from TagKK" in {
+      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, *]]
+      val tagEitherThrowable = getTag[Either].tag
+      val tag = TagK[Either[Throwable, *]].tag
+
+      assertSameStrict(tagEitherThrowable, tag)
+      assertChildStrict(tagEitherThrowable, TagK[Either[Any, *]].tag)
+      assertChildStrict(TagK[Either[Nothing, *]].tag, tagEitherThrowable)
+    }
+
+    "can materialize TagK for type lambdas that close on a generic parameter with available Tag" in {
+      def partialEitherTagK[A: Tag] = TagK[Either[A, *]]
+
+      val tag = partialEitherTagK[Int].tag
+      val expectedTag = TagK[Either[Int, *]].tag
+
+      assert(tag =:= expectedTag)
+    }
+
+    "can materialize TagK for type lambdas that close on a generic parameter with available Tag when the constructor is a type parameter" in {
+      def partialFTagK[F[_, _]: TagKK, A: Tag] = TagK[F[A, *]]
+
+      val tag = partialFTagK[Either, Int].tag
+      val expectedTag = TagK[Either[Int, *]].tag
+
+      assert(tag =:= expectedTag)
+    }
+
+    "type parameter covariance works after combine" in {
+      def getTag[F[+_, +_]: TagKK] = TagK[F[Throwable, *]]
+      val tagEitherThrowable = getTag[Either].tag
+      val tagEitherSerializable = TagK[Either[java.io.Serializable, *]]
+      assert(tagEitherThrowable <:< tagEitherSerializable.tag)
+    }
+
+    "combine Const Lambda to TagK" in {
+      def get[F[_, _]: TagKK] = TagK[F[Int, *]]
+      val tag = get[Const]
+
+      assert(tag.tag =:= TagK[Const[Int, *]].tag)
+      assert(tag.tag <:< TagK[Const[AnyVal, *]].tag)
+      assert(tag.tag.hashCode() == TagK[Const[Int, *]].tag.hashCode())
+    }
+
+    "combined TagK 3 & 2 parameter coherence" in {
+      def get[F[+_, +_]: TagKK] = TagK[F[Throwable, *]]
+      val tag = get[IO]
+
+      assert(tag.tag =:= TagK[IO[Throwable, *]].tag)
+      assert(tag.tag <:< TagK[IO[Throwable, *]].tag)
+      assert(tag.tag <:< TagK[IO[Any, *]].tag)
+    }
+
+    "resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters" in {
+      def getTag[F[-_, +_, +_]: TagK3] = TagKK[F[*, *, Throwable]]
+      val tagEitherSwap = getTag[EitherRSwap].tag
+      val tagEitherThrowable = getTag[EitherR].tag
+
+      val expectedTagSwap = TagKK[EitherRSwap[*, *, Throwable]].tag
+      val expectedTagEitherThrowable = TagKK[EitherR[*, *, Throwable]].tag
+
+      assert(!(tagEitherSwap =:= expectedTagEitherThrowable))
+      assert(tagEitherSwap =:= expectedTagSwap)
+      assert(tagEitherThrowable =:= expectedTagEitherThrowable)
+      assert(tagEitherSwap <:< expectedTagSwap)
+      assert(tagEitherSwap <:< TagKK[EitherRSwap[*, *, Any]].tag)
+      assert(TagKK[EitherRSwap[*, *, Nothing]].tag <:< tagEitherSwap)
+    }
+
+    "can resolve Tags of TagK's themselves correctly" in {
+      trait X[A, B, C]
+
+      def tagk[F[_]: TagK]: Tag[TagK[F]] = Tag[TagK[F]]
+      def tagkk[F[_, _]: TagKK]: Tag[TagKK[F]] = Tag[TagKK[F]]
+      def tagk3[F[_, _, _]: TagK3]: Tag[TagK3[F]] = Tag[TagK3[F]]
+      def tagtk[F[_[_], _]: TagTK]: Tag[TagTK[F]] = Tag[TagTK[F]]
+
+      assertChild(tagk[List].tag, Tag[TagK[List]].tag)
+      assertSame(tagkk[Either].tag, Tag[TagKK[Either]].tag)
+      assertSame(tagk3[X].tag, Tag[TagK3[X]].tag)
+      assertSame(tagtk[OptionT].tag, Tag[TagTK[OptionT]].tag)
+    }
+
+    "regression test: ignore function-local anonymous classes (https://github.com/zio/zio/issues/4285)" in {
+      class ZIO[-R, +E, +A](val a: Any) {
+        def map[B](f: A => B): ZIO[R, E, B] = new ZIO(f)
+        def toLayer[A1 >: A: Tag]: ZLayer[R, E, Has[A1]] = new ZLayer(Tag[Has[A1]])
+      }
+      class ZLayer[-R, +E, +A](val t: Tag[_ <: A])
+      final class Has[X]
+
+      type UIO[T] = ZIO[Any, Nothing, T]
+      def f[T]: UIO[T] = new ZIO(1)
+      trait S[T] {
+        val param: T
+      }
+
+      def reproduce[T: Tag]: ZLayer[Any, Nothing, Has[S[T]]] = {
+        f[T]
+          .map(
+            p =>
+              new S[T] {
+                override val param: T = p
+              }
+          ).toLayer
+      }
+
+      assert(reproduce[Unit].t.tag == Tag[Has[S[Unit]]].tag)
+    }
+
+    "equal path-dependent tags for singleton types are expected to be equal" in {
+      // see https://github.com/zio/izumi-reflect/issues/192
+      object Foo {
+        val bar = "bar"
+        object Bar
+
+        val t1 = Tag[bar.type]
+        val t2 = Tag[Foo.bar.type]
+        val t3 = Tag[Foo.this.bar.type]
+
+        val T1 = Tag[Bar.type]
+        val T2 = Tag[Foo.Bar.type]
+        val T3 = Tag[Foo.this.Bar.type]
+      }
+
+      import Foo._
+      assert(t1.tag =:= t3.tag)
+      assert(t2.tag =:= t3.tag)
+
+      assert(T1.tag =:= T3.tag)
+      assert(T2.tag =:= T3.tag)
+    }
+
   }
 
 }

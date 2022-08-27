@@ -56,11 +56,11 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
     def summonIfNotParameter[A](typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
       typeRepr match {
-        case ref: ParamRef if ref.binder == lam  =>
+        case ref: ParamRef if ref.binder == lam =>
           '{ None }
         case _ =>
           val tag = summonLttIfTypeParam(typeRepr)
-          '{ Some ($tag) }
+          '{ Some($tag) }
       }
     }
 
@@ -68,13 +68,12 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef =>
         summonTag(x)
 
-
       case lam: TypeLambda =>
         lam.resType match {
           case AppliedType(ctor, args) =>
             val ctorTag = summonTagIfTypeParam(ctor)
             val argsTags = Expr.ofList(args.map(a => summonIfNotParameter(a, lam)))
-            '{ Tag.appliedTagNonPos[T]($ctorTag, $argsTags ) }
+            '{ Tag.appliedTagNonPos[T]($ctorTag, $argsTags) }
 
           case r =>
             throw new Exception(s"TODO: Pathological lambda being reconstructed: $typeRepr")
@@ -94,22 +93,27 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(flattenOr(orType).map(summonLttIfTypeParam))
         '{ Tag.unionTag[T](classOf[Any], $ltts) }
 
+      case refinement: Refinement =>
+        log(
+          s"""Unsupported refinement $refinement
+             |parent=${refinement.parent} name=${refinement.name} info=${refinement.info}""".stripMargin
+        )
+        val tag = summonTag(refinement.parent)
+        '{ $tag.asInstanceOf[Tag[T]] }
+
       case _ =>
         throw new Exception(s"Unsupported type: $typeRepr")
     }
   }
 
-  private def summonTagTest[A <: AnyKind](typeRepr: TypeRepr) =
+  private def summonTag[A <: AnyKind](typeRepr: TypeRepr): Expr[Tag[A]] = {
     typeRepr.asType match {
       case given Type[a] =>
-        Expr.summon[Tag[a]]
-    }
-
-  private def summonTag[A <: AnyKind](typeRepr: TypeRepr): Expr[Tag[A]] =
-    typeRepr.asType match {
-      case given Type[a] =>
-        val message = s"Cannot find implicit Tag[${Type.show[a]}]"
+        val message = defaultImplicitError.replace("${T}", Type.show[a])
         Expr.summon[Tag[a]].getOrElse(report.errorAndAbort(message)).asInstanceOf[Expr[Tag[A]]]
     }
+  }
 
+  private inline val defaultImplicitError =
+    "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
 }

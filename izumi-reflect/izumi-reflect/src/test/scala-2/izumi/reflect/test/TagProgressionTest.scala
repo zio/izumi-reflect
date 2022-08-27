@@ -6,7 +6,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
 
   "[progression] Tag (Scala 2)" should {
 
-    "progression test: we may accidentally materialize tags for type parameters that are prefixes of type projections (situation is not expressible in dotty)" in {
+    "progression test: we may accidentally materialize tags for type parameters that are prefixes of type projections (Scala 2 specific, generic type projection)" in {
       class Path {
         type Child
       }
@@ -25,7 +25,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
       assert(indirectChildTag.toString == "A|<Nothing..Path>::Child")
     }
 
-    "progression test: combine intersection path-dependent intersection types with inner tags doesn't work yet (Scala 2)" in {
+    "progression test: combine intersection path-dependent intersection types with inner tags doesn't work yet (Scala 2 specific, generic type projection)" in {
       trait PDT {
         type T
         implicit def tag: Tag[T]

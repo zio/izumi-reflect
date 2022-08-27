@@ -131,6 +131,10 @@ object Tag {
     Tag(tag.closestClass, tag.tag.combineNonPos(args: _*))
   }
 
+  def appliedTagNonPosAux[R](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): Tag[R] = {
+    Tag(cls, ctor.combineNonPos(args: _*))
+  }
+
   def unionTag[R <: AnyKind](lubClass: Class[_], union: List[LightTypeTag]): Tag[R] = {
     Tag(lubClass, LightTypeTag.unionType(union))
   }
@@ -161,6 +165,16 @@ object Tag {
   * NOTE: On Scala 3+ it's the same as `Tag[T]`
   */
 type HKTag[T <: AnyKind] = Tag[T]
+
+object HKTag {
+  def apply[T](cls: Class[_], lightTypeTag: LightTypeTag): Tag[T] = Tag(cls, lightTypeTag)
+
+  def appliedTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = Tag.appliedTag(tag, args)
+
+  def appliedTagNonPos[R <: AnyKind](tag: Tag[_], args: List[Option[LightTypeTag]]): Tag[R] = Tag.appliedTagNonPos(tag, args)
+
+  def appliedTagNonPosAux[R](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): Tag[R] = Tag.appliedTagNonPosAux(cls, ctor, args)
+}
 
 /**
   * `TagK` is like a [[scala.reflect.api.TypeTags.TypeTag]] but for higher-kinded types.
