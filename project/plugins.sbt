@@ -5,7 +5,7 @@ addSbtPlugin("org.scala-js" % "sbt-scalajs" % PV.scala_js_version)
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % PV.sbt_crossproject_version)
 
 // https://scalacenter.github.io/scalajs-bundler/
-addSbtPlugin("ch.epfl.scala" % "sbt-scalajs-bundler" % "0.20.0")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalajs-bundler" % "0.21.0")
 
 // https://github.com/scala-js/jsdependencies
 addSbtPlugin("org.scala-js" % "sbt-jsdependencies" % "1.0.2")
