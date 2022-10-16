@@ -253,34 +253,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: Dotty fails to return expected class tag" in {
-      doesntWorkYetOnDotty {
-        assert(Tag[List[_] with Set[_]].closestClass eq classOf[scala.collection.immutable.Iterable[_]])
-      }
-      assert(!Tag[List[_] with Set[_]].hasPreciseClass)
-
-      assert(Tag[AnyVal].closestClass eq classOf[AnyVal])
-      assert(!Tag[AnyVal].hasPreciseClass)
-
-      doesntWorkYetOnDotty {
-        assert(Tag[String].closestClass ne classOf[AnyVal])
-      }
-      assert(!Tag[String with Int].hasPreciseClass)
-
-      doesntWorkYetOnDotty {
-        assert(Tag[List[Int]].closestClass eq classOf[List[_]])
-      }
-      doesntWorkYetOnDotty {
-        assert(Tag[List[Int]].hasPreciseClass)
-      }
-      doesntWorkYetOnDotty {
-        assert(Tag[H1].hasPreciseClass)
-      }
-
-      assert(Tag[ZY#T].closestClass eq classOf[Any])
-      assert(!Tag[ZY#T].hasPreciseClass)
-    }
-
     "progression test: Dotty fails to regression test: resolve correct closestClass for Scala vararg AnyVal (https://github.com/zio/izumi-reflect/issues/224)" in {
       doesntWorkYetOnDotty {
         assert(Tag[VarArgsAnyVal].closestClass == classOf[scala.Seq[Any]])

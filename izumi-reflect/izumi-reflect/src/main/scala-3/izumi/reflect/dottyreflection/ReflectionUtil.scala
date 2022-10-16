@@ -18,6 +18,19 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       case _ => List(tpe)
     }
 
+  protected def intersectionUnionClassPartsOf(tpe: TypeRepr): List[TypeRepr] = {
+    tpe.dealias match {
+      case AndType(lhs, rhs) =>
+        intersectionUnionClassPartsOf(lhs) ++ intersectionUnionClassPartsOf(rhs)
+      case OrType(lhs, rhs) =>
+        intersectionUnionClassPartsOf(lhs) ++ intersectionUnionClassPartsOf(rhs)
+      case refinement: Refinement =>
+        intersectionUnionClassPartsOf(refinement.parent)
+      case _ =>
+        List(tpe)
+    }
+  }
+
   protected def allPartsStrong(typeRepr: TypeRepr): Boolean = {
     ReflectionUtil.allPartsStrong(using qctx)(shift, typeRepr)
   }

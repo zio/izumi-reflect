@@ -11,6 +11,7 @@ import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.annotation.StaticAnnotation
+import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.util.Try
 
@@ -618,6 +619,24 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       assert(T1.tag =:= T3.tag)
       assert(T2.tag =:= T3.tag)
+    }
+
+    "return expected class tag" in {
+      assert(Tag[List[_] with Set[_]].closestClass eq classOf[scala.collection.immutable.Iterable[_]])
+      assert(!Tag[List[_] with Set[_]].hasPreciseClass)
+
+      assert(Tag[AnyVal].closestClass eq classOf[AnyVal])
+      assert(!Tag[AnyVal].hasPreciseClass)
+
+      assert(Tag[String].closestClass ne classOf[AnyVal])
+      assert(!Tag[String with Int].hasPreciseClass)
+
+      assert(Tag[List[Int]].closestClass eq classOf[List[_]])
+      assert(Tag[List[Int]].hasPreciseClass)
+      assert(Tag[H1].hasPreciseClass)
+
+      assert(Tag[ZY#T].closestClass eq classOf[Any])
+      assert(!Tag[ZY#T].hasPreciseClass)
     }
 
   }
