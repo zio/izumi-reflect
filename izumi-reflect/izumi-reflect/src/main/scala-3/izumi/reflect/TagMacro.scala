@@ -6,6 +6,8 @@ import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase}
 
+import scala.collection.mutable
+
 object TagMacro {
   def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
     new TagMacro().createTagExpr[A]
@@ -30,7 +32,8 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     // There's probably a missing case where a higher-kinded type is not a type lambda, with splicing inbetween causing fixup by the compiler
     //   val ltt = Inspect.inspectAny[A]
     val ltt = '{ Inspect.inspect[A] }
-    '{ Tag[A](classOf[Any], $ltt) }.asInstanceOf[Expr[Tag[B]]]
+    val cls = Literal(ClassOfConstant(lubClassOf(intersectionUnionClassPartsOf(TypeRepr.of[A])))).asExprOf[Class[?]]
+    '{ Tag[A]($cls, $ltt) }.asInstanceOf[Expr[Tag[B]]]
   }
 
   private def summonCombinedTag[T <: AnyKind: Type](typeRepr: TypeRepr): Expr[Tag[T]] = {
@@ -54,7 +57,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       }
     }
 
-    def summonIfNotParameter[A](typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
+    def summonIfNotParameter(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
       typeRepr match {
         case ref: ParamRef if ref.binder == lam =>
           '{ None }
@@ -85,13 +88,17 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         '{ Tag.appliedTag[T]($ctorTag, $argsTags) }
 
       case andType: AndType =>
-        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(flattenAnd(andType).map(summonLttIfTypeParam))
+        val tpes = flattenAnd(andType)
+        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLttIfTypeParam))
+        val cls = Literal(ClassOfConstant(lubClassOf(tpes))).asExprOf[Class[?]]
         val structLtt = Inspect.inspectAny(using andType.asType, qctx)
-        '{ Tag.refinedTag[T](classOf[Any], $ltts, $structLtt, Map.empty) }
+        '{ Tag.refinedTag[T]($cls, $ltts, $structLtt, Map.empty) }
 
       case orType: OrType =>
-        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(flattenOr(orType).map(summonLttIfTypeParam))
-        '{ Tag.unionTag[T](classOf[Any], $ltts) }
+        val tpes = flattenOr(orType)
+        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLttIfTypeParam))
+        val cls = Literal(ClassOfConstant(lubClassOf(tpes))).asExprOf[Class[?]]
+        '{ Tag.unionTag[T]($cls, $ltts) }
 
       case refinement: Refinement =>
         log(
@@ -103,6 +110,18 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
       case _ =>
         throw new Exception(s"Unsupported type: $typeRepr")
+    }
+  }
+
+  private def lubClassOf(tpes: List[TypeRepr]): TypeRepr = {
+    tpes.map(_.baseClasses) match {
+      case h :: t =>
+        val bases = h.to(mutable.LinkedHashSet)
+        t.foreach(b => bases.filterInPlace(b.to(mutable.HashSet)))
+        // rely on the fact that .baseClasses returns classes in order from most specific to list, therefore most specific class should be first.
+        bases.headOption.getOrElse(defn.AnyClass)._typeRef
+      case Nil =>
+        defn.AnyClass._typeRef
     }
   }
 

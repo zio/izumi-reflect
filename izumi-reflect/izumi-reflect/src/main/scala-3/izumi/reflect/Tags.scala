@@ -270,6 +270,5 @@ object WeakTag extends WeakTagInstances1 {
   implicit def weakTagFromTag[T <: AnyKind](implicit t: Tag[T]): WeakTag[T] = WeakTag(t.closestClass, t.tag)
 }
 trait WeakTagInstances1 {
-  // FIXME: weaken (disable allPartsStrong check for weak tag)
   implicit final def weakTagFromWeakTypeTag[T <: AnyKind](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
 }
