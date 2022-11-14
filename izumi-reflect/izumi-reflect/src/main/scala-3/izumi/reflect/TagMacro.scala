@@ -4,7 +4,7 @@ import scala.quoted.{Expr, Quotes, Type}
 
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTagRef
-import izumi.reflect.dottyreflection.{Inspect, InspectorBase}
+import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
 
 import scala.collection.mutable
 
@@ -21,19 +21,22 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val typeRepr = TypeRepr.of[A].dealias
     if (allPartsStrong(typeRepr)) {
-      createTag(typeRepr.asType)
+      createTag[A](typeRepr)
     } else {
       summonCombinedTag[A](typeRepr)
     }
   }
 
-  private def createTag[A <: AnyKind: Type, B <: AnyKind]: Expr[Tag[B]] = {
-    // NB: this should always work, but currently causes `TestModel$::ApplePaymentProvider is not a type lambda, it cannot be parameterized` test failure
-    // There's probably a missing case where a higher-kinded type is not a type lambda, with splicing inbetween causing fixup by the compiler
-    //   val ltt = Inspect.inspectAny[A]
-    val ltt = '{ Inspect.inspect[A] }
-    val cls = Literal(ClassOfConstant(lubClassOf(intersectionUnionClassPartsOf(TypeRepr.of[A])))).asExprOf[Class[?]]
-    '{ Tag[A]($cls, $ltt) }.asInstanceOf[Expr[Tag[B]]]
+  private def createTag[A <: AnyKind](typeRepr: TypeRepr): Expr[Tag[A]] = {
+    typeRepr.asType match {
+      case given Type[a] =>
+        // NB: this should always work, but currently causes `TestModel$::ApplePaymentProvider is not a type lambda, it cannot be parameterized` test failure
+        // There's probably a missing case where a higher-kinded type is not a type lambda, with splicing inbetween causing fixup by the compiler
+        //   val ltt = Inspect.inspectAny[A]
+        val ltt = '{ Inspect.inspect[a] }
+        val cls = Literal(ClassOfConstant(lubClassOf(intersectionUnionClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+        '{ Tag[a]($cls, $ltt) }.asInstanceOf[Expr[Tag[A]]]
+    }
   }
 
   private def summonCombinedTag[T <: AnyKind: Type](typeRepr: TypeRepr): Expr[Tag[T]] = {
@@ -44,16 +47,16 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           case given Type[a] => '{ Inspect.inspect[a] }
         }
       } else {
-        val result = summonTag(typeRepr)
+        val result = summonTag[T, Any](typeRepr)
         '{ $result.tag }
       }
     }
 
     def summonTagIfTypeParam[A](typeRepr: TypeRepr): Expr[Tag[A]] = {
       if (allPartsStrong(typeRepr)) {
-        createTag(typeRepr.asType)
+        createTag[A](typeRepr)
       } else {
-        summonTag(typeRepr)
+        summonTag[T, A](typeRepr)
       }
     }
 
@@ -68,9 +71,6 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
 
     typeRepr.dealias match {
-      case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef =>
-        summonTag(x)
-
       case lam: TypeLambda =>
         lam.resType match {
           case AppliedType(ctor, args) =>
@@ -105,11 +105,20 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           s"""Unsupported refinement $refinement
              |parent=${refinement.parent} name=${refinement.name} info=${refinement.info}""".stripMargin
         )
-        val tag = summonTag(refinement.parent)
+        val tag = summonTag[T, Any](refinement.parent)
         '{ $tag.asInstanceOf[Tag[T]] }
 
+      // error: the entire type is just a proper type parameter with no type arguments
+      // it cannot be resolved further
+      case x if ReflectionUtil.topLevelWeakType(x) =>
+        val tStr = x.show
+        val implicitMessage = defaultImplicitError.replace("${T}", tStr)
+        report.errorAndAbort(s"""$tStr is a type parameter without an implicit Tag!
+                                |  $implicitMessage
+                                |""".stripMargin)
+
       case _ =>
-        throw new Exception(s"Unsupported type: $typeRepr")
+        throw new Exception(s"Unsupported type in TagMacro.summonCombinedTag: $typeRepr")
     }
   }
 
@@ -125,10 +134,14 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
-  private def summonTag[A <: AnyKind](typeRepr: TypeRepr): Expr[Tag[A]] = {
+  private def summonTag[T <: AnyKind, A <: AnyKind](typeRepr: TypeRepr)(using Type[T]): Expr[Tag[A]] = {
     typeRepr.asType match {
       case given Type[a] =>
-        val message = defaultImplicitError.replace("${T}", Type.show[a])
+        val aStr = Type.show[a]
+        val implicitMessage = defaultImplicitError.replace("${T}", aStr)
+        val message = s"""Error when creating a combined tag for ${Type.show[T]} (${TypeRepr.of[T]}), when summoning Tag for part of that type $aStr:
+                         |  $implicitMessage
+                         |""".stripMargin
         Expr.summon[Tag[a]].getOrElse(report.errorAndAbort(message)).asInstanceOf[Expr[Tag[A]]]
     }
   }
