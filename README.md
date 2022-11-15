@@ -1,5 +1,5 @@
 [![Project stage][Stage]][Stage-Page]
-![Build](https://github.com/zio/izumi-reflect/workflows/Build/badge.svg)
+[![Build](https://github.com/zio/izumi-reflect/workflows/Build/badge.svg)](https://github.com/zio/izumi-reflect/actions/workflows/build.yml)
 [![javadoc](https://javadoc.io/badge2/dev.zio/izumi-reflect_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13)
 [![Latest Release](https://img.shields.io/github/tag/zio/izumi-reflect.svg)](https://github.com/zio/izumi-reflect/releases)
 [![Maven Central](https://img.shields.io/maven-central/v/dev.zio/izumi-reflect_2.13.svg)](https://search.maven.org/search?q=g%3Adev.zio+a%3Aizumi-reflect)
