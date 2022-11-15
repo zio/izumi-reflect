@@ -28,18 +28,3 @@ as a replacement for `TypeTag` in reaction to a lack of confirmed information ab
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
 
-# See also
-
-## [`gzoller/scala-reflection`](https://github.com/gzoller/scala-reflection)
-
-* Scala 3 only
-* No support for subtype checks
-* Requires compiler plugin
-* Type lambdas are not supported
-* Preserves field information
-
-## [`airframe-surface`](https://wvlet.org/airframe/docs/airframe-surface)
-
-* Scala 2 and Scala 3
-* No support for subtype checks
-* Preserves field information

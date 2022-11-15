@@ -82,3 +82,19 @@ Likewise with Scala 3:
 ```
 
 In Intellij, you may also set Scala version by changing the option `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
+
+## See also
+
+### [`gzoller/scala-reflection`](https://github.com/gzoller/scala-reflection)
+
+* Scala 3 only
+* No support for subtype checks
+* Requires compiler plugin
+* Type lambdas are not supported
+* Preserves field information
+
+### [`airframe-surface`](https://wvlet.org/airframe/docs/airframe-surface)
+
+* Scala 2 and Scala 3
+* No support for subtype checks
+* Preserves field information
