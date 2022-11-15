@@ -10,7 +10,8 @@
 
 ---
 
-# Documentation
+## Documentation
+
 [izumi-reflect Homepage](https://zio.dev/izumi-reflect/)
 
 ## Credits
