@@ -20,3 +20,6 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % PV.sbt_scoverage)
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % PV.sbt_mima_version)
 
+addSbtPlugin("dev.zio" % "zio-sbt-website" % "0.0.0+83-40726325-SNAPSHOT")
+
+resolvers += Resolver.sonatypeRepo("public")
