@@ -1,17 +1,9 @@
-[![Project stage][Stage]][Stage-Page]
-[![Build](https://github.com/zio/izumi-reflect/workflows/Build/badge.svg)](https://github.com/zio/izumi-reflect/actions/workflows/build.yml)
-[![javadoc](https://javadoc.io/badge2/dev.zio/izumi-reflect_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13)
-[![Latest Release](https://img.shields.io/github/tag/zio/izumi-reflect.svg)](https://github.com/zio/izumi-reflect/releases)
-[![Maven Central](https://img.shields.io/maven-central/v/dev.zio/izumi-reflect_2.13.svg)](https://search.maven.org/search?q=g%3Adev.zio+a%3Aizumi-reflect)
-[![Latest version](https://index.scala-lang.org/zio/izumi-reflect/latest.svg?color=orange)](https://index.scala-lang.org/zio/izumi-reflect)
-
+---
+id: index
+title: "Introduction to izumi-reflect"
+sidebar_label: "izmumi-reflect"
 ---
 
-<p align="center">
-  <a href="https://www.buymeacoffee.com/7mind"><img src="https://bmc-cdn.nyc3.digitaloceanspaces.com/BMC-button-images/custom_images/orange_img.png" alt="Izumi"/></a>
-</p>
-
----
 
 # izumi-reflect
 
@@ -28,18 +20,6 @@
 3. `izumi-reflect` supports Scala.js and Scala Native,
 4. `izumi-reflect` works well with [GraalVM Native Image](https://www.graalvm.org/reference-manual/native-image/),
 5. `izumi-reflect` allows you to obtain tags for unapplied type constructors (`F[_]`) and combine them at runtime.
-
-## Credits
-
-`izumi-reflect` has been created by [Septimal Mind](https://7mind.io) to power [Izumi Project](https://github.com/7mind/izumi),
-as a replacement for `TypeTag` in reaction to a lack of confirmed information about the future of `scala-reflect`/`TypeTag` in Scala 3 ([Motivation](https://blog.7mind.io/lightweight-reflection.html)), and donated to ZIO.
-
-<p align="center">
-  <a href="https://izumi.7mind.io/">
-  <img width="40%" src="https://github.com/7mind/izumi/blob/develop/doc/microsite/src/main/tut/media/izumi-logo-full-purple.png?raw=true" alt="Izumi"/>
-  </a>
-</p>
-
 
 ## Limitations
 
@@ -103,9 +83,9 @@ Likewise with Scala 3:
 
 In Intellij, you may also set Scala version by changing the option `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
 
-# See also
+## See also
 
-## [`gzoller/scala-reflection`](https://github.com/gzoller/scala-reflection)
+### [`gzoller/scala-reflection`](https://github.com/gzoller/scala-reflection)
 
 * Scala 3 only
 * No support for subtype checks
@@ -113,11 +93,8 @@ In Intellij, you may also set Scala version by changing the option `sbt -> sbt s
 * Type lambdas are not supported
 * Preserves field information
 
-## [`airframe-surface`](https://wvlet.org/airframe/docs/airframe-surface)
+### [`airframe-surface`](https://wvlet.org/airframe/docs/airframe-surface)
 
 * Scala 2 and Scala 3
 * No support for subtype checks
 * Preserves field information
-
-[Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
-[Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages

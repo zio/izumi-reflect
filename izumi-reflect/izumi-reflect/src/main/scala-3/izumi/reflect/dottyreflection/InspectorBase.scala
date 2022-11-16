@@ -24,9 +24,9 @@ trait InspectorBase extends ReflectionUtil {
     inline if (debug) println(" " * shift + " -> " + s)
   }
 
-  inline final protected def logTpeAttrs[T](inline uns: TypeTree): Unit = {
+  inline final protected def logTpeAttrs[T](inline typeRepr: TypeRepr): Unit = {
     inline if (debug) {
-      val tree = uns
+      val tree = TypeTree.of(using typeRepr.asType)
       val symbol = tree.symbol
       println(
         s"Attrs[${tree.show}]: type=${symbol.isType}, term=${symbol.isTerm}, packageDef=${symbol.isPackageDef}, classDef=${symbol.isClassDef}, typeDef=${symbol.isValDef}, defdef=${symbol.isDefDef}, bind=${symbol.isBind}, nosymbol=${symbol.isNoSymbol}"

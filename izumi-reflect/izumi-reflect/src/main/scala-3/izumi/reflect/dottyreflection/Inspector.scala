@@ -13,10 +13,10 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   private def next() = new Inspector(shift + 1) { val qctx: Inspector.this.qctx.type = Inspector.this.qctx }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
-    val uns = TypeTree.of[T]
-    log(s" -------- about to inspect ${uns.show} --------")
-    val res = inspectTypeRepr(uns.tpe)
-    log(s" -------- done inspecting ${uns.show} --------")
+    val tpeTree = TypeTree.of[T]
+    log(s" -------- about to inspect ${tpeTree.show} --------")
+    val res = inspectTypeRepr(TypeRepr.of[T])
+    log(s" -------- done inspecting ${tpeTree.show} --------")
     res
   }
 
@@ -77,7 +77,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         inspectBounds(outerTypeRef, tb, isParam = false)
 
       case constant: ConstantType =>
-        constToNameRef(constant)
+        makeNameReferenceFromType(constant)
 
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
@@ -94,12 +94,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def constToNameRef(constant: ConstantType): NameReference = {
-    val hi = next().inspectTypeRepr(constant.widen) // fixme: shouldn't be necessary, as in Scala 2, but bases comparison fails for some reason
-    NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Defined(hi, hi), prefix = None)
-  }
-
-  private def inspectBounds(outerTypeRef: Option[qctx.reflect.TypeRef], tb: TypeBounds, isParam: Boolean) = {
+  private def inspectBounds(outerTypeRef: Option[qctx.reflect.TypeRef], tb: TypeBounds, isParam: Boolean): AbstractReference = {
     val hi = next().inspectTypeRepr(tb.hi)
     val low = next().inspectTypeRepr(tb.low)
     if (hi == low) {
@@ -188,6 +183,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         makeNameReferenceFromSymbol(term.termSymbol)
       case t: ParamRef =>
         NameReference(tpeName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString)
+      case constant: ConstantType =>
+        NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
       case ref =>
         log(s"make name reference from what? $ref ${ref.getClass} ${ref.termSymbol}")
         makeNameReferenceFromSymbol(ref.typeSymbol)
@@ -213,7 +210,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       log(s"inspectSymbol: Found ValDef symbol $symbol")
       symbol._typeRef._underlying match {
         case constant: ConstantType => // constant type vals are aliases to constant types
-          constToNameRef(constant)
+          makeNameReferenceFromType(constant)
         case t: TermRef => // singleton type vals are aliases to their singleton
           makeNameReferenceFromSymbol(t.termSymbol)
         case other =>
