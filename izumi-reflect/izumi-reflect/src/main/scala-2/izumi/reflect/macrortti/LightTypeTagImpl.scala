@@ -181,7 +181,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       /**
         * Don't do this:
-        *  Iterator.single(tpePolyTypeResultType) -- produces trash sybmold out of skolems
+        *  Iterator.single(tpePolyTypeResultType) -- produces trash symbols out of skolems
         *  tpePolyTypeResultType.typeArgs.iterator -- just redundant, included in `tparamTypeBoundsAndTypeArgs`
         */
       val out = Iterator.single(tpeUnexpanded) ++

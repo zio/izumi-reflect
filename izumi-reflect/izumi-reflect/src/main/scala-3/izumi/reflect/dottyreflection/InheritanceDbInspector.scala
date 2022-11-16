@@ -12,17 +12,15 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   private lazy val inspector = new Inspector(0) { val qctx: InheritanceDbInspector.this.qctx.type = InheritanceDbInspector.this.qctx }
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
-    val tpe = TypeRepr.of[T].dealias
+    val tpe0 = TypeRepr.of[T].dealias
 
-    val allReferenceComponents = allTypeReferences(tpe)
+    val allReferenceComponents = allTypeReferences(tpe0)
 
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
+        val tpef = i.dealias.simplified._resultType
+        val targetRef = inspector.makeNameReferenceFromType(tpef)
         val allbases = tpeBases(i).filter(!_._takesTypeArgs)
-        val targetRef = {
-          val tpef = i.dealias.simplified._resultType
-          inspector.makeNameReferenceFromType(tpef)
-        }
         allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
     }
 
@@ -38,21 +36,23 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   private def allTypeReferences(tpe0: TypeRepr): collection.Set[TypeRepr] = {
     val inh = mutable.HashSet.empty[TypeRepr]
 
-    def extractComponents(tpeRaw0: TypeRepr): Unit = {
-      val intersectionUnionMembers = breakRefinement(tpeRaw0.dealias.simplified._resultType)
+    def goExtractComponents(tpeRaw0: TypeRepr): Unit = {
+      val tpeRes = tpeRaw0.dealias.simplified._resultType
+      val intersectionUnionMembers = breakRefinement(tpeRes)
 
       if (intersectionUnionMembers.sizeIs == 1) {
         inh += intersectionUnionMembers.head
       }
 
       (
-//        tpeRaw0._typeArgs.iterator ++
+        tpeRes._typeArgs.iterator ++
         intersectionUnionMembers.iterator.flatMap(_._typeArgs) ++
         intersectionUnionMembers
-      ).foreach(t => if (!inh(t) && !ignored(t)) extractComponents(t))
+      ).foreach(t => if (!inh(t) && !ignored(t)) goExtractComponents(t))
     }
 
-    extractComponents(tpe0)
+    goExtractComponents(tpe0)
+
     inh
   }
 
@@ -71,11 +71,10 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     tpes
   }
 
-  private def tpeBases(tpe0: TypeRepr): List[TypeRepr] = {
-    val tpef = tpe0.dealias.simplified._resultType
-    val higherBases = tpef.baseClasses
+  private def tpeBases(tpef: TypeRepr): List[TypeRepr] = {
     val onlyParameterizedBases =
-      higherBases
+      tpef
+        .baseClasses
         .filter(s => s.isType)
         .map(s => tpef.baseType(s))
 

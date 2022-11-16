@@ -525,5 +525,15 @@ lazy val `izumi-reflect-root` = (project in file("."))
     libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.92" % Provided
   )
   .aggregate(
-    `izumi-reflect-aggregate`
+    `izumi-reflect-aggregate`, docs
   )
+
+lazy val docs = project
+  .in(file("izumi-docs"))
+  .settings(
+    publish / skip := true,
+    moduleName := "izumi-docs",
+    scalacOptions -= "-Yno-imports",
+    scalacOptions -= "-Xfatal-warnings"
+  )
+  .enablePlugins(WebsitePlugin)

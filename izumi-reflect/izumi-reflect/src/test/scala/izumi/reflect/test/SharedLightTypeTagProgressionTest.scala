@@ -263,9 +263,8 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     }
 
     "progression test: in `support literal types` literal encoding in Dotty version doesn't match Scala 2" in {
-      doesntWorkYetOnDotty {
-        assertRepr(literalLtt("str"), "\"str\"")
-      }
+      val tag = literalLtt("str")
+      assertRepr(tag, "\"str\"")
     }
 
     "progression test: `support structural & refinement type subtype checks` doesn't work on Dotty" in {

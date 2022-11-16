@@ -13,9 +13,9 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   private lazy val inspector = new Inspector(0) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
 
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
-    val uns = TypeTree.of[T]
     new Run()
-      .inspectTreeToFull(uns)
+      .inspectTypeReprToFullBases(TypeRepr.of[T])
+      .distinct
       .toMultimap
       .map {
         case (t, parents) =>
@@ -27,23 +27,19 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   class Run() {
     private val termination = mutable.HashSet.empty[TypeRepr]
 
-    def inspectTreeToFull(tpeTree: TypeTree): List[(AbstractReference, AbstractReference)] = {
-      inspectTypeReprToFullBases(tpeTree.tpe).distinct
-    }
-
-    private def inspectTypeReprToFullBases(tpe0: TypeRepr): List[(AbstractReference, AbstractReference)] = {
+    def inspectTypeReprToFullBases(tpe0: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0.dealias
-      lazy val selfRef = inspector.inspectTypeRepr(tpe)
+      lazy val selfRef = inspector.inspectTypeRepr(tpe) // FIXME duplicate work for top-level type
 
       tpe match {
         case t if ignored(t) =>
           Nil
 
         case a: AppliedType =>
-          extractBase(tpe, selfRef, recurseIntoBases = false)
+          extractBase(a, selfRef, recurseIntoBases = false)
 
         case l: TypeLambda =>
-          val parents = inspectToBToFull(l.resType)
+          val parents = inspectTypeBoundsToFull(l.resType)
           val selfL = selfRef.asInstanceOf[LightTypeTagRef.Lambda]
           val out = parents.map {
             case (c, p) =>
@@ -68,10 +64,10 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           processSymbol(r, selfRef)
 
         case b: TypeBounds =>
-          inspectToBToFull(b)
+          inspectTypeBoundsToFull(b)
 
         case c: ConstantType =>
-          inspectTypeReprToFullBases(c.widen)
+          extractBase(c, selfRef, true)
 
         case t: ThisType =>
           inspectTypeReprToFullBases(t.tref)
@@ -107,7 +103,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       } else {
         List.empty
       }
-      val main = List((selfRef, selfRef)) ++ rec ++ baseTypes.map {
+      val main = rec ++ baseTypes.map {
         bt =>
           val parentRef = inspector.inspectTypeRepr(bt)
           (selfRef, parentRef)
@@ -126,13 +122,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       val argInheritance = args.filterNot(termination.contains).flatMap {
         x =>
           termination.add(x)
-          inspectToBToFull(x)
+          inspectTypeBoundsToFull(x)
       }
 
       (main ++ argInheritance).distinct
     }
 
-    private def inspectToBToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
+    private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       tpe.dealias match {
         case t: TypeBounds =>
           inspectTypeReprToFullBases(t.hi) ++ inspectTypeReprToFullBases(t.low)
