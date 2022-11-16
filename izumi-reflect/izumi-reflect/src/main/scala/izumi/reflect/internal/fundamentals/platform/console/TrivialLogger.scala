@@ -19,8 +19,7 @@
 package izumi.reflect.internal.fundamentals.platform.console
 
 import java.util.concurrent.atomic.AtomicBoolean
-
-import scala.annotation.nowarn
+import scala.annotation.{nowarn, tailrec}
 import izumi.reflect.DebugProperties
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
@@ -86,20 +85,20 @@ private[reflect] object TrivialLogger {
       val sysProperty = DebugProperties.`izumi.reflect.debug.macro.rtti` // this is the only debug logging property supported in the library
       val default = false
 
-      val parts = sysProperty.split('.')
-      var current = parts.head
-      def cond: Boolean = {
-        System.getProperty(current).asBoolean().getOrElse(default)
-      }
-      parts.tail.foreach {
-        p =>
-          if (cond) {
-            return true
-          } else {
-            current = s"$current.$p"
+      val parts = sysProperty.split('.').toList
+
+      @tailrec
+      def check(current: String, tail: List[String]): Boolean = {
+        if (System.getProperty(current).asBoolean().getOrElse(default)) {
+          true
+        } else {
+          tail match {
+            case ::(head, next) => check(s"$current.$head", next)
+            case Nil => default
           }
+        }
       }
-      cond
+      check(parts.head, parts.tail)
     }
     new AtomicBoolean(prop())
   }

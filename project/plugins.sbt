@@ -5,14 +5,17 @@ addSbtPlugin("org.scala-js" % "sbt-scalajs" % PV.scala_js_version)
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % PV.sbt_crossproject_version)
 
 // https://scalacenter.github.io/scalajs-bundler/
-addSbtPlugin("ch.epfl.scala" % "sbt-scalajs-bundler" % "0.21.1")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalajs-bundler" % "0.20.0")
 
 // https://github.com/scala-js/jsdependencies
 addSbtPlugin("org.scala-js" % "sbt-jsdependencies" % "1.0.2")
+addSbtPlugin("org.portable-scala" % "sbt-scala-native-crossproject" % PV.sbt_crossproject_version)
+
+addSbtPlugin("org.scala-native"   % "sbt-scala-native"              % PV.scala_native_version)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.96")
+addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.92")
 
 addSbtPlugin("com.jsuereth" % "sbt-pgp" % PV.sbt_pgp)
 
@@ -20,6 +23,3 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % PV.sbt_scoverage)
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % PV.sbt_mima_version)
 
-addSbtPlugin("dev.zio" % "zio-sbt-website" % "0.0.0+83-40726325-SNAPSHOT")
-
-resolvers += Resolver.sonatypeRepo("public")
