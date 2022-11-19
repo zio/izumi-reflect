@@ -340,7 +340,11 @@ object LightTypeTagRef {
     def asName: NameReference
   }
 
-  final case class NameReference(ref: SymName, boundaries: Boundaries = Boundaries.Empty, prefix: Option[AppliedReference] = None) extends AppliedNamedReference {
+  final case class NameReference(
+    ref: SymName,
+    boundaries: Boundaries = Boundaries.Empty, // Quirk, we only need it to use NameReferences as Lambda parameters
+    prefix: Option[AppliedReference] = None
+  ) extends AppliedNamedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = this
@@ -349,13 +353,20 @@ object LightTypeTagRef {
     def apply(tpeName: String): NameReference = NameReference(SymTypeName(tpeName))
   }
 
-  final case class FullReference(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference] = None) extends AppliedNamedReference {
+  final case class FullReference(
+    ref: String,
+    parameters: List[TypeParam],
+    prefix: Option[AppliedReference] = None
+  ) extends AppliedNamedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = NameReference(SymTypeName(ref), prefix = prefix)
   }
 
-  final case class TypeParam(ref: AbstractReference, variance: Variance) {
+  final case class TypeParam(
+    ref: AbstractReference,
+    variance: Variance // Quirk, we only need it to simplify/speedup inheritance checks
+  ) {
     override def toString: String = this.render()
   }
 
