@@ -146,6 +146,11 @@ object Izumi {
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.r_Wildcard")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.prefixSplitter")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.longNameWithPrefix")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.longNameInternalSymbol")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.symName")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.prefix")""".raw,
           // compile-time only
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*")""".raw,
