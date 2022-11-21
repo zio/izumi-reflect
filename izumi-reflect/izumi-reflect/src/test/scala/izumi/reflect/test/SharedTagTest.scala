@@ -77,6 +77,16 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
   trait T1[A, B, C, D, E, F[_]]
   trait YX[V] extends XY[V]
 
+  trait DockerContainer[T]
+  trait ContainerDef {
+    type T
+
+    def make(implicit t: Tag[T]) = {
+      val _ = t
+      Tag[DockerContainer[T]]
+    }
+  }
+
   "Tag (all versions)" should {
 
     "Work for any concrete type" in {
@@ -309,17 +319,17 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       object B extends B
 
-      assertSame(B.xa, B.xb)
-      assertSame(B.s1a, B.s1b)
-      assertSame(B.s1a1, B.s1b1)
-      assertSame(B.s2a, B.s2b)
-      assertSame(B.s2a1, B.s2b1)
+      assertSameStrict(B.xa, B.xb)
+      assertSameStrict(B.s1a, B.s1b)
+      assertSameStrict(B.s1a1, B.s1b1)
+      assertSameStrict(B.s2a, B.s2b)
+      assertSameStrict(B.s2a1, B.s2b1)
 
-      assertSame(Tag[A#X].tag, B.xa)
+      assertSameStrict(Tag[A#X].tag, B.xa)
 
-      assertSame(B.s1b, B.s1a)
-      assertSame(B.s1a, B.s1a1)
-      assertSame(B.s1b, B.s1b1)
+      assertSameStrict(B.s1b, B.s1a)
+      assertSameStrict(B.s1a, B.s1a1)
+      assertSameStrict(B.s1b, B.s1b1)
     }
 
     "Does NOT synthesize Tags for abstract types, but recursively summons Tag[this.Abstract]" in {
@@ -640,6 +650,38 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(!Tag[ZY#T].hasPreciseClass)
 
       assert(Tag[ZY#Y].hasPreciseClass)
+    }
+
+    "Work with term type prefixes" in {
+      val zy = new ZY {}
+      val zx = new ZY {}
+
+      assertSameStrict(Tag[zy.T].tag, LTT[zy.T])
+      assertNotChildStrict(Tag[zy.T].tag, LTT[zx.T])
+      assertSameStrict(Tag[zy.x.type].tag, LTT[zy.x.type])
+      assertChild(Tag[zy.x.type].tag, LTT[String])
+      assertChild(Tag[zy.x.type].tag, LTT[java.io.Serializable])
+      assertNotChildStrict(Tag[zy.x.type].tag, LTT[zx.x.type])
+      assertSameStrict(Tag[zy.y.type].tag, LTT[zy.y.type])
+      assertChild(Tag[zy.y.type].tag, LTT[java.lang.Object])
+      assertNotChildStrict(Tag[zy.y.type].tag, LTT[zx.y.type])
+      assertNotChildStrict(Tag[zy.y.type].tag, LTT[zx.x.type])
+    }
+
+    "correctly resolve abstract types inside traits when summoned inside trait" in {
+      val a = new ContainerDef {}
+      val b = new ContainerDef {}
+
+      assert(a.make.tag == Tag[DockerContainer[a.T]].tag)
+      assertDifferent(a.make.tag, Tag[DockerContainer[b.T]].tag)
+      assertSameStrict(Tag[DockerContainer[a.T]].tag, Tag[DockerContainer[a.T]].tag)
+      assertDifferent(Tag[DockerContainer[a.T]].tag, Tag[DockerContainer[b.T]].tag)
+
+      val zy = new ZY {}
+      assert(zy.tagT.getMessage contains "could not find implicit value")
+      assert(zy.tagU.getMessage contains "could not find implicit value")
+      assert(zy.tagV.getMessage contains "could not find implicit value")
+      assert(zy.tagA.isSuccess)
     }
 
   }
