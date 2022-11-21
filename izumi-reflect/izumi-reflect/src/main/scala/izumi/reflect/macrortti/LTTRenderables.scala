@@ -26,6 +26,7 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
+  def prefixSplitter: String = "::"
 
   implicit lazy val r_LightTypeTag: Renderable[LightTypeTagRef] = new Renderable[LightTypeTagRef] {
     override def render(value: LightTypeTagRef): String = value match {
@@ -119,7 +120,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
       value.prefix match {
         case Some(p) =>
-          s"${p.render()}::$rr"
+          s"${p.render()}$prefixSplitter$rr"
         case None =>
           rr
       }
@@ -174,7 +175,7 @@ object LTTRenderables {
 
   // omit package names
   object Short extends LTTRenderables {
-    def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
+    override def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
       sym match {
         case SymLiteral(c) => c
         case _ => sym.name.split('.').last
@@ -184,8 +185,12 @@ object LTTRenderables {
 
   // print package names
   object Long extends LTTRenderables {
-    def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
-      if (!hasPrefix) sym.name else Short.r_SymName(sym, hasPrefix)
+    override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
+      if (hasPrefix) {
+        Short.r_SymName(sym, hasPrefix)
+      } else {
+        sym.name
+      }
     }
 
     private[macrortti] def renderDb(db: Map[_ <: AbstractReference, Set[_ <: AbstractReference]]): String = {
@@ -194,6 +199,13 @@ object LTTRenderables {
           case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
         }.niceList()
     }
+  }
+
+  object LongPrefixDot extends LTTRenderables {
+    override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
+      Long.r_SymName(sym, hasPrefix)
+    }
+    override def prefixSplitter: String = "."
   }
 
 }

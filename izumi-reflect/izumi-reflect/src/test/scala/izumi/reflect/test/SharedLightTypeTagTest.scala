@@ -432,6 +432,17 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDebugSame(list_, immutableList_)
     }
 
+    "no redundant $ in object names" in {
+      val ltt = LTT[TestModel.BasicCases.BasicCase2.TestImpl0Good]
+      assert(!ltt.debug().contains("BasicCase2$"))
+      assert(!ltt.debug().contains("BasicCases$"))
+      assert(!ltt.repr.contains("BasicCase2$"))
+      assert(!ltt.repr.contains("BasicCases$"))
+      assert(!ltt.toString.contains("BasicCase2$"))
+      assert(!ltt.toString.contains("BasicCases$"))
+      assert(ltt.longNameWithPrefix == "izumi.reflect.test.TestModel.BasicCases.BasicCase2.TestImpl0Good")
+    }
+
   }
 
 }
