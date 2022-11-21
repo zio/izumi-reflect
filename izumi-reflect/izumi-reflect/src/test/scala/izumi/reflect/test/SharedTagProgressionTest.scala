@@ -12,16 +12,6 @@ import scala.util.Try
 
 abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModel {
 
-  trait DockerContainer[T]
-  trait ContainerDef {
-    type T
-
-    def make(implicit t: Tag[T]) = {
-      val _ = t
-      Tag[DockerContainer[T]]
-    }
-  }
-
   "[progression] Tag (all versions)" should {
 
     "progression test: can't handle parameters in defs/vals in structural types" in {
@@ -110,7 +100,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       )
     }
 
-    "progression test: projections into singletons are not handled properly" in {
+    "progression test: projections into singletons are not handled properly (on Scala 2)" in {
       trait A {
         class X
 
@@ -152,10 +142,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       assertSame(Tag[A#S1].tag, B.s1b1)
 
       // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
-      //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled
-      doesntWorkYetOnDotty {
-        assert(!Tag[A#S2].tag.debug().contains("::_$A::singleton2"))
-      }
+      //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled on Scala 2
       doesntWorkYetOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2a)
       }
@@ -283,23 +270,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: Dotty fails to correctly resolve abstract types inside traits when summoned inside trait" in {
-      val a = new ContainerDef {}
-      val b = new ContainerDef {}
-
-      assert(a.make.tag == Tag[DockerContainer[a.T]].tag)
-      doesntWorkYetOnDotty {
-        assertDifferent(a.make.tag, Tag[DockerContainer[b.T]].tag)
-      }
-      assert(Tag[DockerContainer[a.T]].tag == Tag[DockerContainer[a.T]].tag)
-
-      val zy = new ZY {}
-      assert(zy.tagT.getMessage contains "could not find implicit value")
-      assert(zy.tagU.getMessage contains "could not find implicit value")
-      assert(zy.tagV.getMessage contains "could not find implicit value")
-      assert(zy.tagA.isSuccess)
-    }
-
     "progression test: Dotty fails to can resolve parameters in structural types" in {
       def t[X: Tag]: Tag[{ type T = X }] = Tag[{ type T = X }]
 
@@ -389,28 +359,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "Work with term type prefixes" in {
-      val zy = new ZY {}
-      val zx = new ZY {}
-
-      assertSameStrict(Tag[zy.T].tag, fromLTag[zy.T])
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(Tag[zy.T].tag, fromLTag[zx.T])
-      }
-      assertSameStrict(Tag[zy.x.type].tag, fromLTag[zy.x.type])
-      assertChild(Tag[zy.x.type].tag, fromLTag[String])
-      assertChild(Tag[zy.x.type].tag, fromLTag[java.io.Serializable])
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(Tag[zy.x.type].tag, fromLTag[zx.x.type])
-      }
-      assertSameStrict(Tag[zy.y.type].tag, fromLTag[zy.y.type])
-      assertChild(Tag[zy.y.type].tag, fromLTag[java.lang.Object])
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(Tag[zy.y.type].tag, fromLTag[zx.y.type])
-      }
-      assertNotChildStrict(Tag[zy.y.type].tag, fromLTag[zx.x.type])
-    }
-
     "Work for any abstract type with available Tag while preserving additional type refinement" in {
       def testTag[T: Tag] = Tag[T { type X = Int; type Y = String }]
 
@@ -445,7 +393,5 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     }
 
   }
-
-  def fromLTag[T: LTag]: LightTypeTag = LTag[T].tag
 
 }

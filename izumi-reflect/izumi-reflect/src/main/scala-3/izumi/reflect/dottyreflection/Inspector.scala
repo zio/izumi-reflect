@@ -71,7 +71,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         makeNameReferenceFromType(term)
 
       case r: TypeRef =>
-        next().inspectSymbol(r.typeSymbol, Some(r))
+        next().inspectSymbol(r.typeSymbol, Some(r), Some(r))
 
       case tb: TypeBounds =>
         inspectBounds(outerTypeRef, tb, isParam = false)
@@ -94,7 +94,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def inspectBounds(outerTypeRef: Option[qctx.reflect.TypeRef], tb: TypeBounds, isParam: Boolean): AbstractReference = {
+  private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds, isParam: Boolean): AbstractReference = {
     val hi = next().inspectTypeRepr(tb.hi)
     val low = next().inspectTypeRepr(tb.low)
     if (hi == low) {
@@ -112,17 +112,17 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       } else {
         // Boundaries which are not parameters are named types (e.g. type members) and are NOT wildcards
         // if hi and low boundaries are defined and distinct, type is not reducible to one of them
-        val typeSymbol = outerTypeRef.getOrElse(tb).typeSymbol
-        val symref = makeNameReferenceFromSymbol(typeSymbol).copy(boundaries = boundaries)
+        val typeRepr = outerTypeRef.getOrElse(tb)
+        val symref = makeNameReferenceFromType(typeRepr).copy(boundaries = boundaries)
         symref
       }
     }
   }
 
-  private[dottyreflection] def inspectSymbol(symbol: Symbol, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
+  private[dottyreflection] def inspectSymbol(symbol: Symbol, outerTypeRef: Option[TypeRef], prefixSource: Option[NamedType]): AbstractReference = {
     symbol match {
       case s if s.isClassDef || s.isValDef || s.isBind =>
-        makeNameReferenceFromSymbol(symbol)
+        makeNameReferenceFromSymbol(symbol, prefixSource)
 
       case s if s.isTypeDef =>
         log(s"inspectSymbol: Found TypeDef symbol $s")
@@ -177,30 +177,30 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     t match {
       case ref: TypeRef =>
         log(s"make name reference from type $ref termSymbol=${ref.termSymbol}")
-        makeNameReferenceFromSymbol(ref.typeSymbol)
+        makeNameReferenceFromSymbol(ref.typeSymbol, Some(ref))
       case term: TermRef =>
         log(s"make name reference from term $term")
-        makeNameReferenceFromSymbol(term.termSymbol)
+        makeNameReferenceFromSymbol(term.termSymbol, Some(term))
       case t: ParamRef =>
         NameReference(tpeName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString)
       case constant: ConstantType =>
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
       case ref =>
         log(s"make name reference from what? $ref ${ref.getClass} ${ref.termSymbol}")
-        makeNameReferenceFromSymbol(ref.typeSymbol)
+        makeNameReferenceFromSymbol(ref.typeSymbol, None)
     }
   }
 
-  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol): NameReference = {
+  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol, prefixSource1: Option[NamedType]): NameReference = {
     def default: NameReference = {
-      val (symName, s) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
-        SymName.SymTermName(symbol.fullName) -> symbol
+      val (symName, s, prefixSource2) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
+        (SymName.SymTermName(symbol.fullName), symbol, symbol.termRef)
       } else if (symbol.flags.is(Flags.Module)) { // Handle ModuleClasses (can creep in from ThisType)
-        SymName.SymTermName(symbol.companionModule.fullName) -> symbol.companionModule
+        (SymName.SymTermName(symbol.companionModule.fullName), symbol.companionModule, symbol.companionModule.termRef)
       } else {
-        SymName.SymTypeName(symbol.fullName) -> symbol
+        (SymName.SymTypeName(symbol.fullName), symbol, symbol.termRef)
       }
-      val prefix = getPrefixFromDefinitionOwner(s) // FIXME: should get prefix from type qualifier (prefix), not from owner
+      val prefix = getPrefixFromQualifier(prefixSource1.getOrElse(prefixSource2))
       NameReference(symName, Boundaries.Empty, prefix)
     }
 
@@ -212,7 +212,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         case constant: ConstantType => // constant type vals are aliases to constant types
           makeNameReferenceFromType(constant)
         case t: TermRef => // singleton type vals are aliases to their singleton
-          makeNameReferenceFromSymbol(t.termSymbol)
+          makeNameReferenceFromSymbol(t.termSymbol, Some(t))
         case other =>
           log(s"inspectSymbol: found UNKNOWN symbol in ValDef $other")
           default
@@ -222,37 +222,43 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  // FIXME: should get prefix from type qualifier (prefix), not from owner
-  private def getPrefixFromDefinitionOwner(symbol: Symbol): Option[AppliedReference] = {
-    val maybeOwner = symbol.maybeOwner
-    if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef || maybeOwner.isDefDef || maybeOwner.isTypeDef) {
-      None
-    } else {
-      inspectSymbol(maybeOwner) match {
-        case a: AppliedReference =>
-          log(s"Constructed prefix=$a from owner=$maybeOwner")
-          Some(a)
-        case _ =>
+  private def getPrefixFromQualifier(tpe: NamedType): Option[AppliedReference] = {
+    tpe.qualifier match {
+      // Support https://github.com/zio/izumi-reflect/issues/35
+      // consider class member's this-prefix to be the defining template, not the most specific prefix from where the call is happening
+      case _: ThisType | _: SuperType | _: RecursiveThis =>
+        val s = if (!tpe.termSymbol.isNoSymbol) {
+          tpe.termSymbol
+        } else {
+          tpe.typeSymbol
+        }
+
+        val maybeOwner = s.maybeOwner
+        if (!maybeOwner.exists || maybeOwner.isNoSymbol || maybeOwner.isPackageDef || maybeOwner.isDefDef || maybeOwner.isTypeDef || maybeOwner.isLocalDummy) {
           None
-      }
+        } else {
+          inspectSymbol(maybeOwner, None, None) match {
+            case a: AppliedReference =>
+              log(s"Constructed prefix=$a from owner=$maybeOwner")
+              Some(a)
+            case _ =>
+              None
+          }
+        }
+
+      case prefix =>
+        val typeSymbol = prefix.typeSymbol
+        if (!typeSymbol.exists || typeSymbol.isNoSymbol || typeSymbol.isPackageDef || typeSymbol.isDefDef || typeSymbol.isTypeDef || typeSymbol.isLocalDummy) {
+          None
+        } else {
+          inspectTypeRepr(prefix) match {
+            case reference: AppliedReference =>
+              log(s"Constructed prefix=$reference from prefix=$prefix")
+              Some(reference)
+            case _ => None
+          }
+        }
     }
   }
-//  private def getPrefixFromQualifier(t: TypeRepr): Option[AppliedReference] = {
-//    @tailrec def unpack(tpe: TypeRepr): Option[TypeRepr] = tpe match {
-//      case t: ThisType => unpack(t.tref)
-//      case _: NoPrefix => None
-//      case t =>
-//        ??? // nonsense below
-//        val typeSymbol = t.typeSymbol
-//        if (!typeSymbol.exists || typeSymbol.isNoSymbol || typeSymbol.isPackageDef || typeSymbol.isDefDef) {
-//          None
-//        } else {
-//          Some(t)
-//        }
-//    }
-//    unpack(t).flatMap(inspectTypeRepr(_) match {
-//      case reference: AppliedReference => Some(reference)
-//      case _ => None
-//    })
-//  }
+
 }

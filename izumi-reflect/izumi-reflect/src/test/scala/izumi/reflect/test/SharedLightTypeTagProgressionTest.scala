@@ -124,21 +124,25 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     "progression test: what about non-empty refinements with intersections" in {
       val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
-      println(ltt.debug())
-      assert(!ltt.debug().contains("<refinement>"))
-      assert(!ltt.debug().contains("* String"))
+      val debug = ltt.debug()
+      assert(!debug.contains("<refinement>"))
+      doesntWorkYetOnDotty {
+        assert(!debug.contains("<none>"))
+      }
+      assert(!debug.contains("* String"))
+      doesntWorkYetOnDotty {
+        assert(debug.contains("- java.lang.String"))
+      }
     }
 
     "progression test: can't support subtyping of type prefixes" in {
       val a = new C {}
 
-      doesntWorkYetOnScala2 {
+      doesntWorkYet {
         assertChild(LTT[a.A], LTT[C#A])
       }
-      doesntWorkYetOnDotty {
-        assertDifferent(LTT[a.A], LTT[C#A])
-        assertNotChild(LTT[C#A], LTT[a.A])
-      }
+      assertDifferent(LTT[a.A], LTT[C#A])
+      assertNotChild(LTT[C#A], LTT[a.A])
     }
 
     "progression test: can't support subtyping of concrete type projections" in {
@@ -151,10 +155,8 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val tagB = LTT[B#T]
 
       assertSame(LTT[A#T], LTT[A#T])
-      doesntWorkYetOnDotty {
-        assertDifferent(LTT[B#T], LTT[A#T])
-      }
-      doesntWorkYetOnScala2 {
+      assertDifferent(LTT[B#T], LTT[A#T])
+      doesntWorkYet {
         assertChild(tagB, tagA)
       }
     }
