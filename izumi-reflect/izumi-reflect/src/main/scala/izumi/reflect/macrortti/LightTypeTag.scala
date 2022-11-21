@@ -159,7 +159,8 @@ abstract class LightTypeTag private[reflect] (
     ref.toString
   }
 
-  /** Fully-qualified rendering of a type, including packages and prefix types.
+  /**
+    * Fully-qualified rendering of a type, including packages and prefix types.
     * Use [[toString]] for a rendering that omits package names
     */
   def repr: String = {
@@ -171,7 +172,21 @@ abstract class LightTypeTag private[reflect] (
     ref.shortName
   }
 
-  /** Class or type-constructor name of this type, WITH package name, but without prefix names */
+  /** Class or type-constructor name of this type, with package and prefix names */
+  def longNameWithPrefix: String = {
+    ref.longNameWithPrefix
+  }
+
+  /** Internal symbol name of type-constructor of this type, with package and containing definition names */
+  def longNameInternalSymbol: String = {
+    ref.longNameInternalSymbol
+  }
+
+  @deprecated(
+    "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
+    "2.2.2"
+  )
+  /** @deprecated Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior */
   def longName: String = {
     ref.longName
   }

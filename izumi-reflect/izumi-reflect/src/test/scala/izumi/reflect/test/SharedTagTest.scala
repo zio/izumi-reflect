@@ -30,6 +30,7 @@ trait ZY extends Assertions {
   type A = List[Option[Int]]
   val x: String = "5"
   object y
+  trait Y
 
   val tagT = intercept[TestFailedException](assertCompiles("izumi.reflect.Tag[T]"))
   val tagU = intercept[TestFailedException](assertCompiles("izumi.reflect.Tag[U]"))
@@ -637,6 +638,8 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       assert(Tag[ZY#T].closestClass eq classOf[Any])
       assert(!Tag[ZY#T].hasPreciseClass)
+
+      assert(Tag[ZY#Y].hasPreciseClass)
     }
 
   }

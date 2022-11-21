@@ -60,13 +60,14 @@ sealed trait LightTypeTagRef extends Serializable {
     def appliedNamedReference(reference: AppliedNamedReference) = {
       reference match {
         case LightTypeTagRef.NameReference(_, _, _) => reference
-        case LightTypeTagRef.FullReference(ref, parameters @ _, prefix) => NameReference(SymTypeName(ref), Boundaries.Empty, prefix)
+        case r @ LightTypeTagRef.FullReference(_, parameters @ _, prefix) => NameReference(r.symName, Boundaries.Empty, prefix)
       }
     }
 
     def appliedReference(reference: AppliedReference): AppliedReference = {
       reference match {
-        case reference: AppliedNamedReference => appliedNamedReference(reference)
+        case reference: AppliedNamedReference =>
+          appliedNamedReference(reference)
         case LightTypeTagRef.IntersectionReference(refs) =>
           LightTypeTagRef.maybeIntersection(refs.map(appliedReference))
         case LightTypeTagRef.UnionReference(refs) =>
@@ -106,11 +107,23 @@ sealed trait LightTypeTagRef extends Serializable {
   }
 
   final def shortName: String = {
-    getName(LTTRenderables.Short.r_SymName(_, hasPrefix = false), this)
+    getName(r => LTTRenderables.Short.r_SymName(r.symName, hasPrefix = false))
   }
 
+  final def longNameWithPrefix: String = {
+    getName(r => LTTRenderables.LongPrefixDot.r_NameRefRenderer.render(NameReference(r.symName, Boundaries.Empty, r.prefix)))
+  }
+
+  final def longNameInternalSymbol: String = {
+    getName(r => LTTRenderables.Long.r_SymName(r.symName, hasPrefix = false))
+  }
+
+  @deprecated(
+    "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
+    "2.2.2"
+  )
   final def longName: String = {
-    getName(LTTRenderables.Long.r_SymName(_, hasPrefix = false), this)
+    longNameInternalSymbol
   }
 
   final def getPrefix: Option[LightTypeTagRef] = {
@@ -164,6 +177,7 @@ sealed trait LightTypeTagRef extends Serializable {
     }
   }
 
+  /** decompose intersection type */
   final def decompose: Set[AppliedReference] = {
     this match {
       case IntersectionReference(refs) =>
@@ -217,18 +231,23 @@ sealed trait LightTypeTagRef extends Serializable {
     }
   }
 
-  @tailrec
   @inline
-  private[this] final def getName(render: SymName => String, self: LightTypeTagRef): String = {
-    self match {
-      case Lambda(_, output) => getName(render, output)
-      case NameReference(ref, _, _) => render(ref)
-      case FullReference(ref, _, _) => render(SymTypeName(ref))
-      case IntersectionReference(refs) => refs.map(_.shortName).mkString(" & ")
-      case UnionReference(refs) => refs.map(_.shortName).mkString(" | ")
-      case Refinement(reference, _) => getName(render, reference)
+  private[this] final def getName(render: AppliedNamedReference => String): String = {
+    @tailrec
+    @inline
+    def go(r: LightTypeTagRef): String = r match {
+      case Lambda(_, output) => go(output)
+      case ref: NameReference => render(ref)
+      case ref: FullReference => render(ref)
+      case IntersectionReference(refs) => refs.map(goDeep).mkString(" & ")
+      case UnionReference(refs) => refs.map(goDeep).mkString(" | ")
+      case Refinement(reference, _) => go(reference)
       case WildcardReference(_) => "?"
     }
+
+    def goDeep(r: LightTypeTagRef): String = go(r)
+
+    go(this)
   }
 
 }
@@ -338,6 +357,8 @@ object LightTypeTagRef {
 
   sealed trait AppliedNamedReference extends AppliedReference {
     def asName: NameReference
+    def symName: SymName
+    def prefix: Option[AppliedReference]
   }
 
   final case class NameReference(
@@ -348,6 +369,7 @@ object LightTypeTagRef {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = this
+    override def symName: SymName = ref
   }
   object NameReference {
     def apply(tpeName: String): NameReference = NameReference(SymTypeName(tpeName))
@@ -360,7 +382,8 @@ object LightTypeTagRef {
   ) extends AppliedNamedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
-    override def asName: NameReference = NameReference(SymTypeName(ref), prefix = prefix)
+    override def asName: NameReference = NameReference(symName, prefix = prefix)
+    override def symName: SymName = SymTypeName(ref)
   }
 
   final case class TypeParam(

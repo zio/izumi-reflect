@@ -180,4 +180,10 @@ object TestModel {
     }
   }
 
+  object BasicCases {
+    object BasicCase2 {
+      class TestImpl0Good
+    }
+  }
+
 }
