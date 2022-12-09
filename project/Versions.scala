@@ -18,6 +18,6 @@
 
 object V {
   val kind_projector = "0.13.2"
-  val collection_compat = "2.8.1"
+  val collection_compat = "2.9.0"
   val scalatest = "3.2.14"
 }
