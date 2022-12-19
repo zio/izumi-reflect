@@ -19,8 +19,8 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
         val tpef = i.dealias.simplified._resultType
+        val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
         val targetRef = inspector.makeNameReferenceFromType(tpef)
-        val allbases = tpeBases(i).filter(!_._takesTypeArgs)
         allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
     }
 
@@ -71,14 +71,14 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     tpes
   }
 
-  private def tpeBases(tpef: TypeRepr): List[TypeRepr] = {
+  private def tpeBases(typeRepr: TypeRepr): List[TypeRepr] = {
     val onlyParameterizedBases =
-      tpef
+      typeRepr
         .baseClasses
         .filter(s => s.isType)
-        .map(s => tpef.baseType(s))
+        .map(s => typeRepr.baseType(s))
 
-    val allbases = onlyParameterizedBases.filterNot(_ =:= tpef)
+    val allbases = onlyParameterizedBases.filterNot(_ =:= typeRepr)
 
     allbases
   }
