@@ -18,7 +18,7 @@ addSbtPlugin("org.scala-native"   % "sbt-scala-native"              % PV.scala_n
 
 ////////////////////////////////////////////////////////////////////////////////
 
-addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.98")
+addSbtPlugin("io.7mind.izumi.sbt" % "sbt-izumi" % "0.0.97")
 
 addSbtPlugin("com.jsuereth" % "sbt-pgp" % PV.sbt_pgp)
 
