@@ -449,6 +449,10 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(ltt.longNameWithPrefix == "izumi.reflect.test.TestModel.BasicCases.BasicCase2.TestImpl0Good")
     }
 
+    "support basic None.type subtype check" in {
+      assertChild(LTT[None.type], LTT[Option[Int]])
+    }
+
   }
 
 }
