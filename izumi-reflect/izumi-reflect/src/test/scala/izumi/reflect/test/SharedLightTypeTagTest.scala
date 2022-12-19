@@ -399,20 +399,26 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val t3 = LTT[PDTAlias5.Service]
       assertSameStrict(t3, t1)
       assertDebugSame(t3, t1)
+      object xa {
+        val PDTAlias6 = PDTAlias5
+      }
 
       val t4 = LTT[PDTNormA.type]
       val t5 = LTT[PDTAlias5.type]
+      val t6 = LTT[xa.PDTAlias6.type]
 
       assertSameStrict(t5, t4)
       assertDebugSame(t5, t4)
+      assertSameStrict(t6, t4)
+      assertDebugSame(t6, t4)
 
       val literal = "x"
       val aliasLiteral: literal.type = literal
-      val t6 = LTag[literal.type].tag
-      val t7 = LTag[aliasLiteral.type].tag
+      val t7 = LTag[literal.type].tag
+      val t8 = LTag[aliasLiteral.type].tag
 
-      assertSameStrict(t6, t7)
-      assertDebugSame(t6, t7)
+      assertSameStrict(t7, t8)
+      assertDebugSame(t7, t8)
     }
 
     "properly dealias and assign prefixes to existential types and wildcards" in {
@@ -441,6 +447,10 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!ltt.toString.contains("BasicCase2$"))
       assert(!ltt.toString.contains("BasicCases$"))
       assert(ltt.longNameWithPrefix == "izumi.reflect.test.TestModel.BasicCases.BasicCase2.TestImpl0Good")
+    }
+
+    "support basic None.type subtype check" in {
+      assertChild(LTT[None.type], LTT[Option[Int]])
     }
 
   }

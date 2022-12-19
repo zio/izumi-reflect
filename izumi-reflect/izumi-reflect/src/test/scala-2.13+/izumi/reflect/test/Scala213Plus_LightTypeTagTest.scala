@@ -10,17 +10,23 @@ class Scala213Plus_LightTypeTagTest extends AnyWordSpec with TagAssertions with 
       import izumi.reflect._
 
       val v: "a" = "a"
-      type vt = v.type
 
-      assertChild(Tag["a"].tag, Tag[vt].tag)
-      assertChild(Tag[vt].tag, Tag["a"].tag)
-      assertSame(Tag[vt].tag, Tag["a"].tag)
-      assertSame(Tag["a"].tag, Tag["a"].tag)
-      assertSame(Tag[vt].tag, Tag[vt].tag)
-      assertChild(Tag["a"].tag, Tag[String].tag)
-      assertChild(Tag[vt].tag, Tag[String].tag)
-      assertNotChild(Tag[String].tag, Tag["a"].tag)
-      assertNotChild(Tag[String].tag, Tag[vt].tag)
+      type vt = v.type
+      object xa {
+        final val x = v
+        final val y = x
+      }
+
+      assertSameStrict(Tag["a"].tag, Tag[vt].tag)
+      assertSameStrict(Tag[xa.x.type].tag, Tag["a"].tag)
+      assertSameStrict(Tag[xa.y.type].tag, Tag["a"].tag)
+      assertDebugSame(Tag["a"].tag, Tag[vt].tag)
+      assertDebugSame(Tag[xa.x.type].tag, Tag["a"].tag)
+      assertDebugSame(Tag[xa.y.type].tag, Tag["a"].tag)
+      assertChildStrict(Tag["a"].tag, Tag[String].tag)
+      assertChildStrict(Tag[vt].tag, Tag[String].tag)
+      assertChildStrict(Tag[xa.x.type].tag, Tag[String].tag)
+      assertChildStrict(Tag[xa.y.type].tag, Tag[String].tag)
     }
 
     "support string constant types (Scala 2.13+ syntax)" in {

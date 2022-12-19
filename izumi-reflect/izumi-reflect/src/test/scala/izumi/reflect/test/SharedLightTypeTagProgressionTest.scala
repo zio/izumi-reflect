@@ -200,12 +200,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: Dotty fails basic None.type subtype check" in {
-      doesntWorkYetOnDotty {
-        assertChild(LTT[None.type], LTT[Option[Int]])
-      }
-    }
-
     "progression test: bounds-based subtype checks for lambdas do not work properly (LambdaParameter must contain bounds and NameReferences shouldn't for this to work)" in withDebugOutput {
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Set[A]
