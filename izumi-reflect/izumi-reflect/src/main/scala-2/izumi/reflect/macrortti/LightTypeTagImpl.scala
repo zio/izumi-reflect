@@ -421,7 +421,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         )
       }
 
-      thisLevel.log(s"✳️ Restored λ $t => ${out.longName}")
+      thisLevel.log(s"✳️ Restored λ $t => ${out.longNameWithPrefix}")
       out
     }
 
@@ -561,12 +561,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   private[this] def makeNameReference(originalType: Type, typeSymbol: Symbol, boundaries: Boundaries, prefix: Option[AppliedReference]): NameReference = {
     originalType match {
       case c: ConstantTypeApi =>
-        NameReference(SymLiteral(c.value.value), boundaries, prefix)
+        NameReference(SymLiteral(c.value.value), boundaries, None)
 
       case s: SingleTypeApi if s.sym != NoSymbol =>
-        s.sym.info match {
+        s.sym.info.finalResultType match { // finalResultType necessary to dereference NullaryMethodType (from vals in 2.13.10+)
           case c: ConstantTypeApi =>
-            NameReference(SymLiteral(c.value.value), boundaries, prefix)
+            NameReference(SymLiteral(c.value.value), boundaries, None)
 
           case _ =>
             val sym = Dealias.dealiasSingletons(s.termSymbol)
