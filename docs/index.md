@@ -4,16 +4,21 @@ title: "Introduction to izumi-reflect"
 sidebar_label: "izmumi-reflect"
 ---
 
+---
 
-# izumi-reflect
+<p align="center">
+  <a href="https://www.buymeacoffee.com/7mind"><img src="https://bmc-cdn.nyc3.digitaloceanspaces.com/BMC-button-images/custom_images/orange_img.png" alt="Izumi"/></a>
+</p>
+
+---
 
 > @quote: Looks a bit similar to TypeTag
 
-`izumi-reflect` is a fast, lightweight, portable and efficient alternative for `TypeTag` from `scala-reflect`.
+`izumi-reflect` is a fast, lightweight, portable and efficient alternative for `TypeTag` from `scala-reflect`. `izumi-reflect` is a lightweight model of Scala type system and provides a simulator of the important parts of the Scala typechecker.
 
-`izumi-reflect` is a lightweight model of Scala type system and provides a simulator of the important parts of the Scala typechecker.
+@PROJECT_BADGES@
 
-## Why `izumi-reflect`
+## Why `izumi-reflect`?
 
 1. `izumi-reflect` compiles faster, runs a lot faster than `scala-reflect` and is fully immutable and [thread-safe](https://github.com/scala/bug/issues/10766),
 2. `izumi-reflect` supports Scala 2.11, 2.12, 2.13 and **Scala 3**,
@@ -31,7 +36,7 @@ Known limitations are:
 2. Existential types, both written with wildcards and `forSome` may produce unexpected results, the support is limited,
 3. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
 4. This-Types such as `X.this.type` are ignored and identical to `X`
-5. At the moment Scala 3 port does not support Path-Dependent Types, and Structural Refinements. This will be fixed in the future.
+5. At the moment Scala 3 port does not support Structural Refinements. This will be fixed in the future.
 6. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
 
 ## Debugging
