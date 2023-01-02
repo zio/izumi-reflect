@@ -103,6 +103,10 @@ Likewise with Scala 3:
 
 In Intellij, you may also set Scala version by changing the option `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
 
+# Talks
+
+* [Kit Langton — Scala 3 Macro Fun (Open Source Hackery)](https://www.youtube.com/watch?v=wsLhjqCKZuU)
+
 # See also
 
 ## [`gzoller/scala-reflection`](https://github.com/gzoller/scala-reflection)
