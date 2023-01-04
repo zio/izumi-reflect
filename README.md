@@ -106,6 +106,7 @@ In Intellij, you may also set Scala version by changing the option `sbt -> sbt s
 # Talks
 
 * [Kit Langton — Scala 3 Macro Fun (Open Source Hackery)](https://www.youtube.com/watch?v=wsLhjqCKZuU)
+* [Pavel Shirshov — Izumi Reflect: Scala Type System Model](https://www.youtube.com/watch?v=ShRfzVz58OY)
 
 # See also
 
