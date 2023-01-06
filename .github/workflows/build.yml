@@ -16,7 +16,7 @@ jobs:
       - name: Build and Test
         run: |
           bash sbtgen.sc --js --native
-          sbt "++ ${{ matrix.scala }}! -v" clean test mimaReportBinaryIssues
+          sbt "++ ${{ matrix.scala }} -v" clean test mimaReportBinaryIssues
       - uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
