@@ -19,7 +19,7 @@ jobs:
       - uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Test reports
+          name: Test reports (JDK ${{ matrix.java }})
           path: '**/target/test-reports/TEST-*.xml'
           reporter: java-junit
   checksecret:
