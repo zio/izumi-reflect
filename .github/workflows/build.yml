@@ -5,35 +5,55 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ '11', '17' ]
     steps:
-      - uses: actions/checkout@v2
-      - uses: rlespinasse/github-slug-action@v3.x
-      - name: Cache SBT ivy cache
-        uses: actions/cache@v1
+      - uses: 7mind/github-env@main
         with:
-          path: ~/.ivy2/cache
-          key: ${{ runner.os }}-ivy
-      - name: Cache SBT
-        uses: actions/cache@v1
-        with:
-          path: ~/.sbt
-          key: ${{ runner.os }}-sbt
-      - name: Cache Coursier
-        uses: actions/cache@v1
-        with:
-          path: ~/.cache/coursier
-          key: ${{ runner.os }}-coursier
+          java-version: ${{ matrix.java }}
       - name: Build and Test
+        run: |
+          bash sbtgen.sc --js --native
+          sbt +clean +test +mimaReportBinaryIssues
+      - uses: dorny/test-reporter@v1
+        if: success() || failure()    # run this step even if previous step failed
+        with:
+          name: Test reports
+          path: '**/target/test-reports/TEST-*.xml'
+          reporter: java-junit
+  checksecret:
+    runs-on: ubuntu-latest
+    outputs:
+      HAVE_SECRETS: ${{ steps.checksecret_job.outputs.HAVE_SECRETS }}
+    steps:
+      - id: checksecret_job
         env:
           OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
         run: |
-          env
-          sudo curl -Lo /usr/local/bin/cs  https://git.io/coursier-cli-linux && sudo chmod +x /usr/local/bin/cs
+          echo "HAVE_SECRETS=${{ env.OPENSSL_IV != '' && env.OPENSSL_KEY != '' }}" >> $GITHUB_OUTPUT
+  publish-artifacts:
+    runs-on: ubuntu-latest
+    needs: [ 'build', 'checksecret' ]
+    if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
+    strategy:
+      matrix:
+        java: [ '11' ]
+    steps:
+      - uses: 7mind/github-env@main
+        with:
+          java-version: ${{ matrix.java }}
+      - name: Build and Publish to Sonatype
+        env:
+          OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
+          OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
+        run: |
           bash sbtgen.sc --js --native
+          
+          
           COMMAND="sbt +clean +test +mimaReportBinaryIssues"
-          BRANCH_TAG="$(git describe --contains | grep v | grep -v '~' | head -n 1 || true)"
-          if [[ "$GITHUB_REF" == refs/heads/develop || "$BRANCH_TAG" =~ ^v.*$ ]] ; then
+          if [[ "$GITHUB_REF" == refs/heads/develop || "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
             openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
             tar xvf secrets.tar
             ln -s .secrets/local.sbt local.sbt
@@ -41,12 +61,7 @@ jobs:
             if [[ "$BRANCH_TAG" =~ ^v.*$ ]] ; then
               COMMAND="$COMMAND sonatypeBundleRelease"
             fi
+          
+            echo $COMMAND
+            eval $COMMAND
           fi
-          echo $COMMAND
-          eval $COMMAND
-      - uses: dorny/test-reporter@v1
-        if: success() || failure()    # run this step even if previous step failed
-        with:
-          name: Test reports
-          path: TEST-*.xml    # Path to test results
-          reporter: java-junit
