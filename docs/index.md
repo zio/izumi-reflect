@@ -1,7 +1,7 @@
 ---
 id: index
 title: "Introduction to izumi-reflect"
-sidebar_label: "izmumi-reflect"
+sidebar_label: "izumi-reflect"
 ---
 
 ---
