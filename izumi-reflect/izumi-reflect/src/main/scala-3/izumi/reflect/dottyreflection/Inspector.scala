@@ -126,7 +126,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case s if s.isTypeDef =>
         log(s"inspectSymbol: Found TypeDef symbol $s")
-        val rhs = s._typeRef._underlying
+        val rhs = s.typeRef._underlying
         next().inspectTypeRepr(rhs, outerTypeRef)
 
       case s if s.isDefDef =>
@@ -208,7 +208,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
     if (symbol.isValDef) {
       log(s"inspectSymbol: Found ValDef symbol $symbol")
-      symbol._typeRef._underlying match {
+      symbol.typeRef._underlying match {
         case constant: ConstantType => // constant type vals are aliases to constant types
           makeNameReferenceFromType(constant)
         case t: TermRef => // singleton type vals are aliases to their singleton

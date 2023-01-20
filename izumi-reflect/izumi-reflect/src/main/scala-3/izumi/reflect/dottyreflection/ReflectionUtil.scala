@@ -35,15 +35,6 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     ReflectionUtil.allPartsStrong(using qctx)(shift, typeRepr)
   }
 
-  extension (symbol: Symbol) {
-    protected def _typeRef: TypeRef = {
-      val m = qctx.reflect.SymbolMethods
-      val mm = m.getClass.getMethods.collect { case m if m.getName == "typeRef" => m }.head
-      val typeRef = mm.invoke(m, symbol)
-      typeRef.asInstanceOf[TypeRef]
-    }
-  }
-
   extension (typeRef: TypeRef | ParamRef) {
     protected def _underlying: TypeRepr = {
 //      val underlying = typeRef
