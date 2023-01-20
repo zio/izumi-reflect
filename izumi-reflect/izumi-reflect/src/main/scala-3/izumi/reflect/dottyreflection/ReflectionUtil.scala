@@ -37,16 +37,27 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 
   extension (typeRef: TypeRef | ParamRef) {
     protected def _underlying: TypeRepr = {
-//      val underlying = typeRef
-//        .getClass.getMethods.collect { case m if m.getName == "underlying" => m }.head.invoke(
-//          typeRef,
-//          qctx.getClass.getMethods.collect { case m if m.getName == "ctx" => m }.head.invoke(qctx)
-//        )
-//      underlying.asInstanceOf[TypeRepr]
-
       // This works as a substitution for `TypeRef#underlying` call,
       // but I'm not sure if it's a reliable substitution.
-      typeRef.typeSymbol.owner._typeRef.memberType(typeRef.typeSymbol)
+
+//      typeRef.typeSymbol.owner._typeRef.memberType(typeRef.typeSymbol)
+
+      // No, It's not a reliable substitution. When used on a TypeParamRef it returns Any instead of the underlying TypeBounds
+      // https://github.com/lampepfl/dotty/issues/15799
+
+      val underlying = typeRef
+        .getClass.getMethods.collect { case m if m.getName == "underlying" => m }.head.invoke(
+          typeRef,
+          qctx.getClass.getMethods.collect { case m if m.getName == "ctx" => m }.head.invoke(qctx)
+        )
+      underlying.asInstanceOf[TypeRepr]
+    }
+  }
+
+  extension (typeRepr: TypeRepr) {
+    protected def _declaredVariancesIfHKTypeLambda: Option[List[Flags]] = {
+      val maybeMethod = typeRepr.getClass.getMethods.collectFirst { case m if m.getName == "declaredVariances" => m }
+      maybeMethod.map(_.invoke(typeRepr).asInstanceOf[List[Flags]])
     }
   }
 

@@ -3,7 +3,7 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
-import scala.annotation.tailrec
+import scala.annotation.{tailrec, targetName}
 import scala.quoted.Type
 import scala.reflect.Selectable.reflectiveSelectable
 
@@ -32,12 +32,27 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
           case Nil =>
             makeNameReferenceFromType(a.tycon)
           case _ =>
-            // https://github.com/lampepfl/dotty/issues/8520
-            val params = a.tycon.typeSymbol.typeMembers
-            val zargs = a.args.zip(params)
-            val args = zargs.map(next().inspectTypeParam)
-            val nameref = makeNameReferenceFromType(a.tycon)
-            FullReference(nameref.ref.name, args, prefix = nameref.prefix)
+            val symbolVariances = a.tycon.typeSymbol.typeMembers.map(extractVariance)
+            val variances = if (symbolVariances.sizeCompare(a.args) < 0) {
+              a.tycon match {
+                case typeParamRef: ParamRef =>
+                  typeParamRef._underlying match {
+                    case TypeBounds(_, hi) =>
+                      hi._declaredVariancesIfHKTypeLambda.fold(Nil)(_.map(extractVariance))
+                    case _ =>
+                      Nil
+                  }
+                case _ =>
+                  Nil
+              }
+            } else {
+              symbolVariances
+            }
+            val nameRef = makeNameReferenceFromType(a.tycon)
+            val args = a
+              .args.iterator.zipAll(variances, null.asInstanceOf[TypeRepr], Variance.Invariant).takeWhile(_._1 != null)
+              .map(next().inspectTypeParam).toList
+            FullReference(ref = nameRef.ref.name, parameters = args, prefix = nameRef.prefix)
         }
 
       case l: TypeLambda =>
@@ -143,10 +158,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def inspectTypeParam(tpe: TypeRepr, td: Symbol): TypeParam = {
-    val variance = extractVariance(td)
-//    TypeParam(inspectTypeRepr(tpe), variance)
-
+  private def inspectTypeParam(tpe: TypeRepr, variance: Variance): TypeParam = {
     tpe match {
       case t: TypeBounds =>
         TypeParam(inspectBounds(None, t, isParam = true), variance)
@@ -157,9 +169,14 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
   }
 
   private def extractVariance(t: Symbol): Variance = {
-    if (t.flags.is(Flags.Covariant)) {
+    extractVariance(t.flags)
+  }
+
+  @targetName("extractVarianceFlags")
+  private def extractVariance(flags: Flags): Variance = {
+    if (flags.is(Flags.Covariant)) {
       Variance.Covariant
-    } else if (t.flags.is(Flags.Contravariant)) {
+    } else if (flags.is(Flags.Contravariant)) {
       Variance.Contravariant
     } else {
       Variance.Invariant

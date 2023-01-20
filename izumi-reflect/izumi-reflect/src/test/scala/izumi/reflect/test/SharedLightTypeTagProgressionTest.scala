@@ -228,36 +228,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: a portion of `support subtyping of parents parameterized with type lambdas in combined tags` fails on Dotty" in {
-      val childBase = `LTT[_[_,_]]`[RoleChild]
-      val childArg = `LTT[_,_]`[Either]
-      val combinedTag = childBase.combine(childArg)
-      val parentTag = LTT[RoleParent[Either[Throwable, *]]]
-      val childTag = LTT[RoleChild[Either]]
-
-      assertChild(combinedTag, childTag)
-      assertSame(combinedTag, childTag)
-
-      doesntWorkYetOnDotty {
-        assertChild(combinedTag, parentTag)
-        assertNotChild(parentTag, combinedTag)
-      }
-    }
-
-    "progression test: a portion of `support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters` fails on Dotty" in {
-      val childBase = `LTT[_[+_,+_],_,_]`[RoleChild2]
-      val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
-      val combinedTag = childBase.combine(childArgs: _*)
-      val expectedTag = LTT[RoleParent[Either[Throwable, *]]]
-      val noncombinedTag = LTT[RoleChild2[Either, Int, String]]
-
-      assertSame(combinedTag, noncombinedTag)
-      assertChild(noncombinedTag, expectedTag)
-      doesntWorkYetOnDotty {
-        assertChild(combinedTag, expectedTag)
-      }
-    }
-
     "progression test: in `support literal types` literal encoding in Dotty version doesn't match Scala 2" in {
       val tag = literalLtt("str")
       assertRepr(tag, "\"str\"")
