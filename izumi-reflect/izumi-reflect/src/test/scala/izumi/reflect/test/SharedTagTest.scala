@@ -1,11 +1,11 @@
 package izumi.reflect.test
 
-import izumi.reflect.{Tag, TagK3, _}
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
-import izumi.reflect.macrortti.{LTT, LTag, LTagK3, LightTypeTag}
+import izumi.reflect.macrortti._
 import izumi.reflect.test.ID._
-import izumi.reflect.test.TestModel.{ApplePaymentProvider, Const, H1, IO, IdAnnotation, ThisPrefixTest, VarArgsAnyVal}
+import izumi.reflect.test.TestModel._
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
+import izumi.reflect._
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
@@ -682,6 +682,76 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(zy.tagU.getMessage contains "could not find implicit value")
       assert(zy.tagV.getMessage contains "could not find implicit value")
       assert(zy.tagA.isSuccess)
+    }
+
+    "combine higher-kinded type lambdas without losing ignored type arguments" in {
+      val tag = `LTT[_[+_,+_]]`[({ type l[F[+_, +_]] = BlockingIO3[λ[(`-R`, `+E`, `+A`) => F[E, A]]] })#l]
+      val res = tag.combine(`LTT[_,_]`[IO])
+      assertSameStrict(res, LTT[BlockingIO[IO]])
+    }
+
+    "resolve a higher-kinded type inside a named type lambda with ignored type arguments" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, *, *, *]]]
+      val tag = mk[IO]
+      assertSameStrict(tag.tag, Tag[BlockingIO[IO]].tag)
+    }
+
+    "resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters (low-level)" in {
+      type Lt[F[_, _, _], _1, _2, _3] = F[_2, _3, _1]
+
+      val ctorTag: LightTypeTag = implicitly[Tag.auto.T[Lt]].tag
+      val eitherRSwapTag = LTagK3[EitherRSwap].tag
+      val throwableTag = LTag[Throwable].tag
+
+      val combinedTag = HKTag
+        .appliedTagNonPosAux(
+          classOf[Any],
+          ctor = ctorTag,
+          args = List(
+            Some(eitherRSwapTag),
+            Some(throwableTag),
+            None,
+            None
+          )
+        ).tag
+      val expectedTag = TagKK[Lt[EitherRSwap, Throwable, *, *]].tag
+      assertSameStrict(combinedTag, expectedTag)
+    }
+
+    "correctly resolve a higher-kinded nested type inside a named swap type lambda" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BIOService[SwapF2[F, *, *]]]
+
+      val tag = mk[Either]
+
+      assertSameStrict(tag.tag, Tag[BIOService[SwapF2[Either, *, *]]].tag)
+      assertSameStrict(tag.tag, Tag[BIOService[Swap]].tag)
+      assertSameStrict(tag.tag, Tag[BIOService[λ[(E, A) => Either[A, E]]]].tag)
+    }
+
+    "support subtyping of parents parameterized with type lambdas in combined tags" in {
+      val childBase = `LTT[_[_,_]]`[RoleChild]
+      val childArg = `LTT[_,_]`[Either]
+      val combinedTag = childBase.combine(childArg)
+      val parentTag = LTT[RoleParent[Either[Throwable, *]]]
+      val childTag = LTT[RoleChild[Either]]
+
+      assertChild(combinedTag, childTag)
+      assertSame(combinedTag, childTag)
+
+      assertChild(combinedTag, parentTag)
+      assertNotChild(parentTag, combinedTag)
+    }
+
+    "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
+      val childBase = `LTT[_[+_,+_],_,_]`[RoleChild2]
+      val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
+      val combinedTag = childBase.combine(childArgs: _*)
+      val expectedTag = LTT[RoleParent[Either[Throwable, *]]]
+      val noncombinedTag = LTT[RoleChild2[Either, Int, String]]
+
+      assertSame(combinedTag, noncombinedTag)
+      assertChild(noncombinedTag, expectedTag)
+      assertChild(combinedTag, expectedTag)
     }
 
   }

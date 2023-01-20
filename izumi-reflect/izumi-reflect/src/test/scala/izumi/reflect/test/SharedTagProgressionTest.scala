@@ -197,23 +197,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: Dotty fails combine higher-kinded type lambdas without losing ignored type arguments" in {
-      val tag = `LTT[_[+_,+_]]`[({ type l[F[+_, +_]] = BlockingIO3[λ[(`-R`, `+E`, `+A`) => F[E, A]]] })#l]
-      val res = tag.combine(`LTT[_,_]`[IO])
-      doesntWorkYetOnDotty {
-        assertSame(res, LTT[BlockingIO[IO]])
-      }
-    }
-
-    "progression test: Dotty fails resolve a higher-kinded type inside a named type lambda with ignored type arguments" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, *, *, *]]]
-      val tag = mk[IO]
-
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BlockingIO[IO]].tag)
-      }
-    }
-
     "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
 //      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
@@ -246,30 +229,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: Dotty fails to resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters (low-level)" in {
-      type Lt[F[_, _, _], _1, _2, _3] = F[_2, _3, _1]
-
-      val ctorTag: LightTypeTag = implicitly[Tag.auto.T[Lt]].tag
-      val eitherRSwapTag = LTagK3[EitherRSwap].tag
-      val throwableTag = LTag[Throwable].tag
-
-      val combinedTag = HKTag
-        .appliedTagNonPosAux(
-          classOf[Any],
-          ctor = ctorTag,
-          args = List(
-            Some(eitherRSwapTag),
-            Some(throwableTag),
-            None,
-            None
-          )
-        ).tag
-      val expectedTag = TagKK[Lt[EitherRSwap, Throwable, *, *]].tag
-      doesntWorkYetOnDotty {
-        assertSame(combinedTag, expectedTag)
-      }
-    }
-
     "progression test: Dotty fails to can resolve parameters in structural types" in {
       def t[X: Tag]: Tag[{ type T = X }] = Tag[{ type T = X }]
 
@@ -285,21 +244,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       doesntWorkYetOnDotty {
         assert(tag.tag == Tag[BlockingIOT[OptionT]].tag)
-      }
-    }
-
-    "progression test: Dotty fails to correctly resolve a higher-kinded nested type inside a named swap type lambda" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BIOService[SwapF2[F, *, *]]]
-      val tag = mk[Either]
-
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BIOService[SwapF2[Either, *, *]]].tag)
-      }
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BIOService[Swap]].tag)
-      }
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BIOService[λ[(E, A) => Either[A, E]]]].tag)
       }
     }
 
