@@ -66,7 +66,7 @@ jobs:
             tar xvf secrets.tar
             ln -s .secrets/local.sbt local.sbt
             COMMAND="$COMMAND +publishSigned"
-            if [[ "$BRANCH_TAG" =~ ^v.*$ ]] ; then
+            if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
               COMMAND="$COMMAND sonatypeBundleRelease"
             fi
           
