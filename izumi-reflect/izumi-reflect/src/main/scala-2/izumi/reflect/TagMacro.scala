@@ -129,60 +129,58 @@ class TagMacro(val c: blackbox.Context) {
           HKTag.appliedTagNonPos[ArgStruct](constructorTag.splice, argTags.splice)
         }
       } else {
-        (outerLambda: @unchecked) match {
-          case PolyType(params, _) =>
-            // FIXME: kindOf repeated again
-            val ctorTyParam = mkTypeParameter(outerLambda.typeSymbol, kindOf(lambdaResult.typeConstructor))
-            val origOrderingArgs = lambdaResult.typeArgs.map {
-              arg =>
-                arg -> mkTypeParameter(outerLambda.typeSymbol, kindOf(arg))
-            }
-            val (paramArgs0, nonParamArgs) = origOrderingArgs.partition(t => isLambdaParam(t._1))
-            val lambdaParams = {
-              val paramArgsMap = paramArgs0.iterator.map { case (t, s) => t.typeSymbol -> s }.toMap
-              params.map {
-                symbol =>
-                  paramArgsMap
-                    .getOrElse(symbol, mkTypeParameter(outerLambda.typeSymbol, kindOf(symbol.typeSignature)))
-              }
-            }
+        val PolyType(params, _) = outerLambda: @unchecked
+        // FIXME: kindOf repeated again
+        val ctorTyParam = mkTypeParameter(outerLambda.typeSymbol, kindOf(lambdaResult.typeConstructor))
+        val origOrderingArgs = lambdaResult.typeArgs.map {
+          arg =>
+            arg -> mkTypeParameter(outerLambda.typeSymbol, kindOf(arg))
+        }
+        val (paramArgs0, nonParamArgs) = origOrderingArgs.partition(t => isLambdaParam(t._1))
+        val lambdaParams = {
+          val paramArgsMap = paramArgs0.iterator.map { case (t, s) => t.typeSymbol -> s }.toMap
+          params.map {
+            symbol =>
+              paramArgsMap
+                .getOrElse(symbol, mkTypeParameter(outerLambda.typeSymbol, kindOf(symbol.typeSignature)))
+          }
+        }
 
-            val appliedLambdaRes = appliedType(
-              ctorTyParam,
-              origOrderingArgs.map {
-                case (_, argSym) =>
-                  // WELL, EH...
-                  c.internal.typeRef(NoPrefix, argSym, Nil)
-              }
-            )
-            val res = c.internal.polyType(ctorTyParam :: (nonParamArgs.map(_._2) ++ lambdaParams), appliedLambdaRes)
-            logger.log(s"""HK non-trivial lambda construction
-                          |ctorTyParam: ${showRaw(ctorTyParam.typeSignature)}
-                          |ctorTyParam.typeParams: ${showRaw(ctorTyParam.typeSignature.typeParams)}
-                          |origOrderingArgs: ${showRaw(origOrderingArgs)}
-                          |origOrderingArgs typeSignatures: ${showRaw(origOrderingArgs.map(_._2.typeSignature))}
-                          |paramArgs0: ${showRaw(paramArgs0)}
-                          |nonParamArgs: ${showRaw(nonParamArgs)}
-                          |lambdaParams: ${showRaw(lambdaParams)}
-                          |appliedLambdaRes args symbols: ${showRaw(appliedLambdaRes.typeArgs.map(_.typeSymbol))}
-                          |appliedLambdaRes args: ${showRaw(appliedLambdaRes.typeArgs)}
-                          |appliedLambdaRes: ${showRaw(appliedLambdaRes)}
-                          |res: ${showRaw(res)}
-                          |""".stripMargin)
-            val argTagsExceptCtor = {
-              val args = nonParamArgs.map { case (t, _) => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias) }
-              logger.log(s"HK COMPLEX Now summoning tags for args=$args")
+        val appliedLambdaRes = appliedType(
+          ctorTyParam,
+          origOrderingArgs.map {
+            case (_, argSym) =>
+              // WELL, EH...
+              c.internal.typeRef(NoPrefix, argSym, Nil)
+          }
+        )
+        val res = c.internal.polyType(ctorTyParam :: (nonParamArgs.map(_._2) ++ lambdaParams), appliedLambdaRes)
+        logger.log(s"""HK non-trivial lambda construction
+                      |ctorTyParam: ${showRaw(ctorTyParam.typeSignature)}
+                      |ctorTyParam.typeParams: ${showRaw(ctorTyParam.typeSignature.typeParams)}
+                      |origOrderingArgs: ${showRaw(origOrderingArgs)}
+                      |origOrderingArgs typeSignatures: ${showRaw(origOrderingArgs.map(_._2.typeSignature))}
+                      |paramArgs0: ${showRaw(paramArgs0)}
+                      |nonParamArgs: ${showRaw(nonParamArgs)}
+                      |lambdaParams: ${showRaw(lambdaParams)}
+                      |appliedLambdaRes args symbols: ${showRaw(appliedLambdaRes.typeArgs.map(_.typeSymbol))}
+                      |appliedLambdaRes args: ${showRaw(appliedLambdaRes.typeArgs)}
+                      |appliedLambdaRes: ${showRaw(appliedLambdaRes)}
+                      |res: ${showRaw(res)}
+                      |""".stripMargin)
+        val argTagsExceptCtor = {
+          val args = nonParamArgs.map { case (t, _) => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias) }
+          logger.log(s"HK COMPLEX Now summoning tags for args=$args")
 
-              c.Expr[List[Option[LightTypeTag]]] {
-                q"${args.map(t => Some(summonLightTypeTagOfAppropriateKind(t))) ++ lambdaParams.map(_ => None)}"
-              }
-            }
+          c.Expr[List[Option[LightTypeTag]]] {
+            q"${args.map(t => Some(summonLightTypeTagOfAppropriateKind(t))) ++ lambdaParams.map(_ => None)}"
+          }
+        }
 
-            val outerLambdaReprTag = ltagMacro.makeParsedLightTypeTagImpl(res)
-            reify {
-              val t = constructorTag.splice
-              HKTag.appliedTagNonPosAux[ArgStruct](t.closestClass, outerLambdaReprTag.splice, Some(t.tag) :: argTagsExceptCtor.splice)
-            }
+        val outerLambdaReprTag = ltagMacro.makeParsedLightTypeTagImpl(res)
+        reify {
+          val t = constructorTag.splice
+          HKTag.appliedTagNonPosAux[ArgStruct](t.closestClass, outerLambdaReprTag.splice, Some(t.tag) :: argTagsExceptCtor.splice)
         }
       }
     }
