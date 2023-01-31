@@ -687,13 +687,15 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     "combine higher-kinded type lambdas without losing ignored type arguments" in {
       val tag = `LTT[_[+_,+_]]`[({ type l[F[+_, +_]] = BlockingIO3[λ[(`-R`, `+E`, `+A`) => F[E, A]]] })#l]
       val res = tag.combine(`LTT[_,_]`[IO])
-      assertSameStrict(res, LTT[BlockingIO[IO]])
+      val tagMono = LTT[BlockingIO[IO]]
+      assertSameStrict(res, tagMono)
     }
 
     "resolve a higher-kinded type inside a named type lambda with ignored type arguments" in {
       def mk[F[+_, +_]: TagKK] = Tag[BlockingIO3[F2To3[F, *, *, *]]]
       val tag = mk[IO]
-      assertSameStrict(tag.tag, Tag[BlockingIO[IO]].tag)
+      val tagMono = Tag[BlockingIO[IO]]
+      assertSameStrict(tag.tag, tagMono.tag)
     }
 
     "resolve TagKK from an odd higher-kinded Tag with swapped & ignored parameters (low-level)" in {
@@ -752,6 +754,42 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSame(combinedTag, noncombinedTag)
       assertChild(noncombinedTag, expectedTag)
       assertChild(combinedTag, expectedTag)
+    }
+
+    "combine inside type lambdas with repeated usages of a type lambda type parameter" in {
+      def mk[F[+_, +_]: TagKK] = Tag[RepeatedBlockingIO[F]]
+
+      val tag = mk[IO]
+      val tagMono = Tag[RepeatedBlockingIO[IO]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
+    }
+
+    "combine inside type lambdas with repeated usages of an outer type" in {
+      def mk[F[+_, +_]: TagKK] = Tag[RepeatedNonLambdaBlockingIO[F]]
+
+      val tag = mk[IO]
+      val tagMono = Tag[RepeatedNonLambdaBlockingIO[IO]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
+    }
+
+    "combine inside type lambdas with repeated usages of an outer distinct type with the same type symbol" in {
+      def mk[F[+_, +_]: TagKK] = Tag[RepeatedSymbolNonLambdaBlockingIO[F]]
+
+      val tag = mk[IO]
+      val tagMono = Tag[RepeatedSymbolNonLambdaBlockingIO[IO]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
+    }
+
+    "combine inside type lambdas where the type constructor of the type lambda result is a type lambda type parameter" in {
+      def mk[T: Tag] = Tag[LambdaParamCtorBlockingIOT[Int]]
+
+      val tag = mk[Int]
+      val tagMono = Tag[LambdaParamCtorBlockingIOT[Int]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
     }
 
   }

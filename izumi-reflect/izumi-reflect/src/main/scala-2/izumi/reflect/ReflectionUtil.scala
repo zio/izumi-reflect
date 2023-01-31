@@ -54,8 +54,15 @@ private[reflect] object ReflectionUtil {
           true
       }
     }
+    val dealiased = tpe.dealias
+    def typeCtorStrong = {
+      val resType = dealiased.finalResultType
+      val ctor = resType.typeConstructor
+      (resType == dealiased) || (ctor == resType) || (ctor == tpe) ||
+      tpe.typeParams.contains(ctor.typeSymbol) || allPartsStrong(ctor)
+    }
     def argsStrong = {
-      tpe.dealias.finalResultType.typeArgs.forall {
+      dealiased.finalResultType.typeArgs.forall {
         arg =>
           tpe.typeParams.contains(arg.typeSymbol) ||
           allPartsStrong(arg)
@@ -75,11 +82,20 @@ private[reflect] object ReflectionUtil {
   }
 
   def isSelfStrong(tpe: Universe#Type): Boolean = {
+    // FIXME: strengthening check to capture `IntersectionBlockingIO` test case causes StackOverflow during implicit search
+//    def intersectionMembersStrong = {
+//      tpe match {
+//        case t: Universe#RefinedTypeApi =>
+//          t.parents.forall(isSelfStrong)
+//        case _ => true
+//      }
+//    }
+
     !(tpe.typeSymbol.isParameter || (
       tpe.isInstanceOf[Universe#TypeRefApi] &&
       tpe.asInstanceOf[Universe#TypeRefApi].pre.isInstanceOf[Universe#ThisTypeApi] &&
       tpe.typeSymbol.isAbstract && !tpe.typeSymbol.isClass && isNotDealiasedFurther(tpe)
-    )) ||
+    )) /*&& intersectionMembersStrong*/ ||
     tpe.typeParams.exists {
       t =>
         t == tpe.typeSymbol ||

@@ -217,9 +217,20 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     "progression test: Dotty fails to combine higher-kinded types without losing ignored type arguments" in {
       def mk[F[+_, +_]: TagKK] = Tag[BlockingIO[F]]
       val tag = mk[IO]
+      val tagMono = Tag[BlockingIO[IO]]
 
       doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BlockingIO[IO]].tag)
+        assertSameStrict(tag.tag, tagMono.tag)
+      }
+    }
+
+    "progression test: fails to combine higher-kinded intersection types without losing ignored type arguments" in {
+      def mk[F[+_, +_]: TagKK, G[+_, +_]: TagKK] = Tag[IntersectionBlockingIO[F, G]]
+      val tag = mk[Either, IO]
+      val tagMono = Tag[IntersectionBlockingIO[Either, IO]]
+
+      doesntWorkYet {
+        assertSameStrict(tag.tag, tagMono.tag)
       }
     }
 
@@ -296,11 +307,11 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         }
       }
 
-      withDebugOutput {
-        doesntWorkYetOnDotty {
-          assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
-        }
+//      withDebugOutput {
+      doesntWorkYetOnDotty {
+        assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
       }
+//      }
     }
 
     "Work for any abstract type with available Tag while preserving additional type refinement" in {

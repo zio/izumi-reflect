@@ -22,10 +22,12 @@ import scala.annotation.nowarn
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.ReflectionUtil.{Kind, kindOf}
 import izumi.reflect.TagMacro._
-import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0}
+import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, TypeParam, Variance}
+import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
 import scala.collection.immutable.ListMap
+import scala.collection.mutable
 import scala.reflect.api.Universe
 import scala.reflect.macros.{TypecheckException, blackbox, whitebox}
 
@@ -45,6 +47,7 @@ class TagMacro(val c: blackbox.Context) {
   final def makeTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
     if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
+      logger.log(s"Got strong tag, generating LTT right away: ${weakTypeOf[T]}")
       val ltag = ltagMacro.makeParsedLightTypeTagImpl(tpe)
       val cls = closestClass(tpe)
       c.Expr[Tag[T]] {
@@ -74,35 +77,34 @@ class TagMacro(val c: blackbox.Context) {
   private[this] def makeHKTagImpl[ArgStruct: c.WeakTypeTag](outerLambda: Type): c.Expr[HKTag[ArgStruct]] = {
     logger.log(s"Got unresolved HKTag summon: ${tagFormat(outerLambda)} from ArgStruct: ${weakTypeOf[ArgStruct]}")
 
-    def isLambdaParam(arg: c.universe.Type): Boolean = {
-      outerLambda.typeParams.contains(arg.typeSymbol)
+    def isLambdaParamOf(arg: Type, lam: Type): Boolean = {
+      lam.typeParams.contains(arg.typeSymbol)
     }
 
     val lambdaResult = outerLambda.finalResultType
-    val embeddedMaybeNonParamTypeArgs = lambdaResult.typeArgs.map {
-      arg => if (!isLambdaParam(arg)) Some(arg) else None
-    }
+    val ctorTpe = lambdaResult.typeConstructor
+    val typeArgsTpes = lambdaResult.typeArgs
+
     val isSimplePartialApplication = {
-      lambdaResult
-        .typeArgs
-        .takeRight(outerLambda.typeParams.size)
-        .map(_.typeSymbol) == outerLambda.typeParams
+      // all parameters are consumed exactly once, in left-to-right order
+      typeArgsTpes
+        .map(_.typeSymbol)
+        .filter(outerLambda.typeParams.contains) == outerLambda.typeParams
     }
 
     val constructorTag: c.Expr[HKTag[_]] = {
-      val ctor = lambdaResult.typeConstructor
-      getCtorKindIfCtorIsTypeParameter(ctor) match {
+      getCtorKindIfCtorIsTypeParameter(ctorTpe) match {
         // type constructor of this type is not a type parameter
         // AND not an intersection type
         // some of its arguments are type parameters that we should resolve
         case None =>
-          logger.log(s"HK type A $ctor ${ctor.typeSymbol}")
-          makeHKTagFromStrongTpe(ctor)
+          logger.log(s"HK type A ctor=$ctorTpe sym=${ctorTpe.typeSymbol}")
+          makeHKTagFromStrongTpe(ctorTpe)
 
         // error: the entire type is just a proper type parameter with no type arguments
         // it cannot be resolved further
         case Some(k) if k == kindOf(outerLambda) && isSimplePartialApplication =>
-          logger.log(s"HK type B $ctor ${ctor.typeSymbol}")
+          logger.log(s"HK type B $ctorTpe ${ctorTpe.typeSymbol}")
           val msg = s"  could not find implicit value for ${tagFormat(lambdaResult)}: $lambdaResult is a type parameter without an implicit Tag!"
           addImplicitError(msg)
           abortWithImplicitError()
@@ -110,14 +112,16 @@ class TagMacro(val c: blackbox.Context) {
         // type constructor is a type parameter AND has type arguments
         // we should resolve type constructor separately from an HKTag
         case Some(hktKind) =>
-          logger.log(s"HK type C $ctor ${ctor.typeSymbol}")
-          summonHKTag(ctor, hktKind)
+          logger.log(s"HK type C $ctorTpe ${ctorTpe.typeSymbol}")
+          summonHKTag(ctorTpe, hktKind)
       }
     }
 
     val res = {
       if (isSimplePartialApplication) {
-        // FIXME: unused in complex type lambda ???
+        val embeddedMaybeNonParamTypeArgs = typeArgsTpes.map {
+          arg => if (!isLambdaParamOf(arg, outerLambda)) Some(arg) else None
+        }
         val argTags = {
           // FIXME: fast-path optimize if typeArg is Strong
           val args = embeddedMaybeNonParamTypeArgs.map(_.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)))
@@ -129,58 +133,68 @@ class TagMacro(val c: blackbox.Context) {
           HKTag.appliedTagNonPos[ArgStruct](constructorTag.splice, argTags.splice)
         }
       } else {
-        val PolyType(params, _) = outerLambda: @unchecked
-        // FIXME: kindOf repeated again
-        val ctorTyParam = mkTypeParameter(outerLambda.typeSymbol, kindOf(lambdaResult.typeConstructor))
-        val origOrderingArgs = lambdaResult.typeArgs.map {
-          arg =>
-            arg -> mkTypeParameter(outerLambda.typeSymbol, kindOf(arg))
-        }
-        val (paramArgs0, nonParamArgs) = origOrderingArgs.partition(t => isLambdaParam(t._1))
-        val lambdaParams = {
-          val paramArgsMap = paramArgs0.iterator.map { case (t, s) => t.typeSymbol -> s }.toMap
-          params.map {
-            symbol =>
-              paramArgsMap
-                .getOrElse(symbol, mkTypeParameter(outerLambda.typeSymbol, kindOf(symbol.typeSignature)))
-          }
+        val PolyType(outerLambdaParamArgsSyms, _) = outerLambda: @unchecked
+
+        val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
+
+        // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
+        val ctorLambdaParameter = LambdaParameter("0")
+        val typeArgToLambdaParameterMap =
+          // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
+          // it's very confusing.
+          (distinctNonParamArgsTypes.map(Left(_)) ::: outerLambdaParamArgsSyms.map(Right(_)))
+            .iterator.distinct.zipWithIndex.map {
+              case (argTpeOrSym, idx) =>
+                val idxPlusOne = idx + 1
+                val lambdaParameter = LambdaParameter(s"$idxPlusOne")
+                argTpeOrSym -> lambdaParameter
+            }.toMap
+
+        def getFromMap(k1: Either[Type, Symbol], k2: Either[Type, Symbol]): LambdaParameter = {
+          typeArgToLambdaParameterMap.getOrElse(
+            k1,
+            typeArgToLambdaParameterMap.getOrElse(
+              k2, {
+                val msg = s"Problem: couldn't get a lambda parameter idx for k1=$k1 k2=$k2 in $typeArgToLambdaParameterMap"
+                logger.log(msg)
+                c.abort(c.enclosingPosition, msg)
+              }
+            )
+          )
         }
 
-        val appliedLambdaRes = appliedType(
-          ctorTyParam,
-          origOrderingArgs.map {
-            case (_, argSym) =>
-              // WELL, EH...
-              c.internal.typeRef(NoPrefix, argSym, Nil)
-          }
-        )
-        val res = c.internal.polyType(ctorTyParam :: (nonParamArgs.map(_._2) ++ lambdaParams), appliedLambdaRes)
-        logger.log(s"""HK non-trivial lambda construction
-                      |ctorTyParam: ${showRaw(ctorTyParam.typeSignature)}
-                      |ctorTyParam.typeParams: ${showRaw(ctorTyParam.typeSignature.typeParams)}
-                      |origOrderingArgs: ${showRaw(origOrderingArgs)}
-                      |origOrderingArgs typeSignatures: ${showRaw(origOrderingArgs.map(_._2.typeSignature))}
-                      |paramArgs0: ${showRaw(paramArgs0)}
-                      |nonParamArgs: ${showRaw(nonParamArgs)}
-                      |lambdaParams: ${showRaw(lambdaParams)}
-                      |appliedLambdaRes args symbols: ${showRaw(appliedLambdaRes.typeArgs.map(_.typeSymbol))}
-                      |appliedLambdaRes args: ${showRaw(appliedLambdaRes.typeArgs)}
-                      |appliedLambdaRes: ${showRaw(appliedLambdaRes)}
-                      |res: ${showRaw(res)}
+        val usageOrderDistinctNonLambdaArgs = distinctNonParamArgsTypes.map(t => getFromMap(Left(t), Right(t.typeSymbol)))
+        val declarationOrderLambdaParamArgs = outerLambdaParamArgsSyms.map(sym => getFromMap(Right(sym), Left(sym.typeSignature)))
+
+        val usages = typeArgsTpes.map(t => TypeParam(NameReference(getFromMap(Left(t), Right(t.typeSymbol)).name), Variance.Invariant))
+
+        val resRebuild = {
+          // conflict with repeated non-lambda args
+          LightTypeTagRef.Lambda(
+            ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
+            FullReference(ctorLambdaParameter.name, usages)
+          )
+        }
+
+        logger.log(s"""HK non-trivial lambda construction:
+                      |resRebuild=$resRebuild
+                      |usageOrderNonLambdaArgs=$usageOrderDistinctNonLambdaArgs
+                      |declarationOrderLambdaParamArgs=$declarationOrderLambdaParamArgs
                       |""".stripMargin)
+
         val argTagsExceptCtor = {
-          val args = nonParamArgs.map { case (t, _) => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias) }
-          logger.log(s"HK COMPLEX Now summoning tags for args=$args")
+          val nonParamArgsDealiased = distinctNonParamArgsTypes.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
+          logger.log(s"HK COMPLEX Now summoning tags for args=$nonParamArgsDealiased outerLambdaParams=$outerLambdaParamArgsSyms")
 
           c.Expr[List[Option[LightTypeTag]]] {
-            q"${args.map(t => Some(summonLightTypeTagOfAppropriateKind(t))) ++ lambdaParams.map(_ => None)}"
+            q"${nonParamArgsDealiased.map(t => Some(summonLightTypeTagOfAppropriateKind(t))) ++ outerLambdaParamArgsSyms.map(_ => None)}"
           }
         }
 
-        val outerLambdaReprTag = ltagMacro.makeParsedLightTypeTagImpl(res)
+        val outerLambdaReprTag = ltagMacro.makeParsedLightTypeTagImpl(LightTypeTag(resRebuild, Map.empty, Map.empty))
         reify {
-          val t = constructorTag.splice
-          HKTag.appliedTagNonPosAux[ArgStruct](t.closestClass, outerLambdaReprTag.splice, Some(t.tag) :: argTagsExceptCtor.splice)
+          val ctorTag = constructorTag.splice
+          HKTag.appliedTagNonPosAux[ArgStruct](ctorTag.closestClass, outerLambdaReprTag.splice, Some(ctorTag.tag) :: argTagsExceptCtor.splice)
         }
       }
     }
@@ -199,7 +213,7 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   def makeTagImpl[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
-    logger.log(s"Got compile tag: ${weakTypeOf[T]}")
+    logger.log(s"Got non-strong tag: ${weakTypeOf[T]}")
 
     if (getImplicitError().endsWith(":")) { // yep
       logger.log(s"Got continuation implicit error: ${getImplicitError()}")
