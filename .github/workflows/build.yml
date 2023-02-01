@@ -10,6 +10,17 @@ on:
     branches: [ "develop" ]
 
 jobs:
+  checksecret:
+    runs-on: ubuntu-latest
+    outputs:
+      HAVE_SECRETS: ${{ steps.checksecret_job.outputs.HAVE_SECRETS }}
+    steps:
+      - id: checksecret_job
+        env:
+          OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
+          OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
+        run: |
+          echo "HAVE_SECRETS=${{ env.OPENSSL_IV != '' && env.OPENSSL_KEY != '' }}" >> $GITHUB_OUTPUT
   build:
     runs-on: ubuntu-latest
     needs: [ 'checksecret' ]
@@ -31,17 +42,6 @@ jobs:
           name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
           path: '**/target/test-reports/TEST-*.xml'
           reporter: java-junit
-  checksecret:
-    runs-on: ubuntu-latest
-    outputs:
-      HAVE_SECRETS: ${{ steps.checksecret_job.outputs.HAVE_SECRETS }}
-    steps:
-      - id: checksecret_job
-        env:
-          OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
-          OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
-        run: |
-          echo "HAVE_SECRETS=${{ env.OPENSSL_IV != '' && env.OPENSSL_KEY != '' }}" >> $GITHUB_OUTPUT
   publish-artifacts:
     runs-on: ubuntu-latest
     needs: [ 'build', 'checksecret' ]
