@@ -12,6 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    needs: [ 'checksecret' ]
     strategy:
       matrix:
         java: [ '11', '17' ]
@@ -25,7 +26,7 @@ jobs:
           bash sbtgen.sc --js --native
           sbt "++ ${{ matrix.scala }} -v" clean test mimaReportBinaryIssues
       - uses: dorny/test-reporter@v1
-        if: success() || failure()    # run this step even if previous step failed
+        if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
           name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
           path: '**/target/test-reports/TEST-*.xml'
