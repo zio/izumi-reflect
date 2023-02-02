@@ -78,7 +78,7 @@ private[reflect] object ReflectionUtil {
       }
     }
 
-    selfStrong && prefixStrong && argsStrong && intersectionStructStrong
+    selfStrong && prefixStrong && typeCtorStrong && argsStrong && intersectionStructStrong
   }
 
   def isSelfStrong(tpe: Universe#Type): Boolean = {

@@ -21,7 +21,7 @@ package izumi.reflect.test
 import izumi.reflect.Tag
 
 import scala.annotation.StaticAnnotation
-import izumi.reflect.macrortti.{LTT, LTag, LightTypeTag}
+import izumi.reflect.macrortti.{LTag, LightTypeTag}
 
 object TestModel {
 
