@@ -92,6 +92,9 @@ private[reflect] object ReflectionUtil {
 //    }
 
     !(tpe.typeSymbol.isParameter || (
+      // we regard abstract types like T in trait X { type T; Tag[this.T] } - when we are _inside_ the definition template
+      // as 'type parameters' too. So that you could define `implicit def tagForT: Tag[this.T]` and the tag would be resolved
+      // to this implicit correctly, instead of generating a useless `X::this.type::T` tag.
       tpe.isInstanceOf[Universe#TypeRefApi] &&
       tpe.asInstanceOf[Universe#TypeRefApi].pre.isInstanceOf[Universe#ThisTypeApi] &&
       tpe.typeSymbol.isAbstract && !tpe.typeSymbol.isClass && isNotDealiasedFurther(tpe)

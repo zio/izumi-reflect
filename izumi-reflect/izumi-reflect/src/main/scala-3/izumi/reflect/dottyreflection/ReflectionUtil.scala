@@ -120,6 +120,9 @@ object ReflectionUtil {
           case t: ParamRef if lambdas.contains(t.binder) => false
           case _ => true
         }
+      // we regard abstract types like T in trait X { type T; Tag[this.T] } - when we are _inside_ the definition template
+      // as 'type parameters' too. So that you could define `implicit def tagForT: Tag[this.T]` and the tag would be resolved
+      // to this implicit correctly, instead of generating a useless `X::this.type::T` tag.
       case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => true
       case _ => false
     }
