@@ -156,11 +156,11 @@ class TagMacro(val c: blackbox.Context) {
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
         val ctorLambdaParameter = LambdaParameter("0")
 
-        val typeArgToLambdaParameterMap =
+        val typeArgToLambdaParameterMap: Map[Either[Type, Symbol], LambdaParameter] =
           // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
           // it's very confusing.
           (distinctNonParamArgsTypes.map(Left(_)) ++ outerLambdaParamArgsSyms.map(Right(_)))
-            .iterator.distinct.zipWithIndex.map {
+            .distinct.iterator.zipWithIndex.map {
               case (argTpeOrSym, idx) =>
                 val idxPlusOne = idx + 1
                 val lambdaParameter = LambdaParameter(s"$idxPlusOne")
