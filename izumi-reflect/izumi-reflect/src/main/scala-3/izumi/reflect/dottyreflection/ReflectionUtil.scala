@@ -33,7 +33,7 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   protected def allPartsStrong(typeRepr: TypeRepr): Boolean = {
-    ReflectionUtil.allPartsStrong(using qctx)(shift, typeRepr)
+    ReflectionUtil.allPartsStrong(using qctx)(shift, Set.empty, typeRepr)
   }
 
   import ReflectionUtil.reflectiveUncheckedNonOverloadedSelectable
@@ -93,29 +93,33 @@ object ReflectionUtil {
     * Returns true if the given type contains no type parameters
     * (this means the type is not "weak" https://stackoverflow.com/questions/29435985/weaktypetag-v-typetag)
     */
-  private[reflect] def allPartsStrong(using qctx: Quotes)(shift: Int, typeRepr: qctx.reflect.TypeRepr): Boolean = {
+  private[reflect] def allPartsStrong(using qctx: Quotes)(shift: Int, lambdas: Set[qctx.reflect.TypeRepr], typeRepr: qctx.reflect.TypeRepr): Boolean = {
     import qctx.reflect.*
     typeRepr.dealias match {
-      case x if topLevelWeakType(x) => false
-      case AppliedType(tpe, args) => allPartsStrong(shift, tpe) && args.forall(allPartsStrong(shift, _))
-      case AndType(lhs, rhs) => allPartsStrong(shift, lhs) && allPartsStrong(shift, rhs)
-      case OrType(lhs, rhs) => allPartsStrong(shift, lhs) && allPartsStrong(shift, rhs)
-      case TypeRef(tpe, _) => allPartsStrong(shift, tpe)
-      case TermRef(tpe, _) => allPartsStrong(shift, tpe)
-      case ThisType(tpe) => allPartsStrong(shift, tpe)
+      case x if topLevelWeakType(lambdas, x) => false
+      case AppliedType(tpe, args) => allPartsStrong(shift, lambdas, tpe) && args.forall(allPartsStrong(shift, lambdas, _))
+      case AndType(lhs, rhs) => allPartsStrong(shift, lambdas, lhs) && allPartsStrong(shift, lambdas, rhs)
+      case OrType(lhs, rhs) => allPartsStrong(shift, lambdas, lhs) && allPartsStrong(shift, lambdas, rhs)
+      case TypeRef(tpe, _) => allPartsStrong(shift, lambdas, tpe)
+      case TermRef(tpe, _) => allPartsStrong(shift, lambdas, tpe)
+      case ThisType(tpe) => allPartsStrong(shift, lambdas, tpe)
       case NoPrefix() => true
-      case TypeBounds(lo, hi) => allPartsStrong(shift, lo) && allPartsStrong(shift, hi)
-      case TypeLambda(_, _, body) => allPartsStrong(shift, body)
+      case TypeBounds(lo, hi) => allPartsStrong(shift, lambdas, lo) && allPartsStrong(shift, lambdas, hi)
+      case lam @ TypeLambda(_, _, body) => allPartsStrong(shift, lambdas + lam, body)
       case strange =>
         InspectorBase.log(shift, s"Got unknown type component when checking strength: $strange")
         true
     }
   }
 
-  private[reflect] def topLevelWeakType(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Boolean = {
+  private[reflect] def topLevelWeakType(using qctx: Quotes)(lambdas: Set[qctx.reflect.TypeRepr], typeRepr: qctx.reflect.TypeRepr): Boolean = {
     import qctx.reflect.*
     typeRepr match {
-      case x if x.typeSymbol.isTypeParam => true
+      case x if x.typeSymbol.isTypeParam =>
+        x match {
+          case t: ParamRef if lambdas.contains(t.binder) => false
+          case _ => true
+        }
       case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => true
       case _ => false
     }
