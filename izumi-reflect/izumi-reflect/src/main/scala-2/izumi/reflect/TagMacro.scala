@@ -27,7 +27,6 @@ import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0, LightTypeTagRe
 
 import scala.annotation.implicitNotFound
 import scala.collection.immutable.ListMap
-import scala.collection.mutable
 import scala.reflect.api.Universe
 import scala.reflect.macros.{TypecheckException, blackbox, whitebox}
 
@@ -95,7 +94,7 @@ class TagMacro(val c: blackbox.Context) {
     val constructorTag: c.Expr[HKTag[_]] = {
       getCtorKindIfCtorIsTypeParameter(ctorTpe) match {
         // type constructor of this type is not a type parameter
-        // AND not an intersection type
+        // BUT can be an intersection type
         // some of its arguments are type parameters that we should resolve
         case None =>
           logger.log(s"HK type A ctor=$ctorTpe sym=${ctorTpe.typeSymbol}")
@@ -123,26 +122,44 @@ class TagMacro(val c: blackbox.Context) {
           arg => if (!isLambdaParamOf(arg, outerLambda)) Some(arg) else None
         }
         val argTags = {
-          // FIXME: fast-path optimize if typeArg is Strong
-          val args = embeddedMaybeNonParamTypeArgs.map(_.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)))
-          logger.log(s"HK Now summoning tags for args=$args")
-          c.Expr[List[Option[LightTypeTag]]](q"${args.map(_.map(summonLightTypeTagOfAppropriateKind))}")
+          // FIXME: create LTT in-place instead of summoning Tag if typeArg is Strong
+          logger.log(s"HK Now summoning tags for args=$embeddedMaybeNonParamTypeArgs")
+          val argExprs = embeddedMaybeNonParamTypeArgs.map(_.map {
+            t =>
+              val dealiased = ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)
+              summonLightTypeTagOfAppropriateKind(dealiased)
+          })
+          c.Expr[List[Option[LightTypeTag]]](q"$argExprs")
         }
 
         reify {
           HKTag.appliedTagNonPos[ArgStruct](constructorTag.splice, argTags.splice)
         }
       } else {
+        // warn if constructor is an intersection type, as they don't work properly in this position right now
+        lambdaResult match {
+          case t: RefinedTypeApi if t.parents.size > 1 =>
+            // info instead of warning because warnings are suppressed by Scala 2 inside implicit macros for some reason
+            c.info(
+              c.enclosingPosition,
+              s"""TODO: Pathological intersection refinement result in lambda being reconstructed result=`$lambdaResult` in the rhs of type lambda lam=`$outerLambda`
+                 |Only simple applied types of form F[A] are supported in results of type lambdas. The generated tag may not work correctly.""".stripMargin,
+              force = true
+            )
+          case _ =>
+        }
+
         val PolyType(outerLambdaParamArgsSyms, _) = outerLambda: @unchecked
 
         val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
 
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
         val ctorLambdaParameter = LambdaParameter("0")
+
         val typeArgToLambdaParameterMap =
           // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
           // it's very confusing.
-          (distinctNonParamArgsTypes.map(Left(_)) ::: outerLambdaParamArgsSyms.map(Right(_)))
+          (distinctNonParamArgsTypes.map(Left(_)) ++ outerLambdaParamArgsSyms.map(Right(_)))
             .iterator.distinct.zipWithIndex.map {
               case (argTpeOrSym, idx) =>
                 val idxPlusOne = idx + 1
@@ -168,16 +185,13 @@ class TagMacro(val c: blackbox.Context) {
 
         val usages = typeArgsTpes.map(t => TypeParam(NameReference(getFromMap(Left(t), Right(t.typeSymbol)).name), Variance.Invariant))
 
-        val resRebuild = {
-          // conflict with repeated non-lambda args
-          LightTypeTagRef.Lambda(
-            ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
-            FullReference(ctorLambdaParameter.name, usages)
-          )
-        }
+        val ctorApplyingLambda = LightTypeTagRef.Lambda(
+          ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
+          FullReference(ctorLambdaParameter.name, usages)
+        )
 
         logger.log(s"""HK non-trivial lambda construction:
-                      |resRebuild=$resRebuild
+                      |ctorApplyingLambda=$ctorApplyingLambda
                       |usageOrderNonLambdaArgs=$usageOrderDistinctNonLambdaArgs
                       |declarationOrderLambdaParamArgs=$declarationOrderLambdaParamArgs
                       |""".stripMargin)
@@ -191,7 +205,7 @@ class TagMacro(val c: blackbox.Context) {
           }
         }
 
-        val outerLambdaReprTag = ltagMacro.makeParsedLightTypeTagImpl(LightTypeTag(resRebuild, Map.empty, Map.empty))
+        val outerLambdaReprTag = ltagMacro.makeParsedLightTypeTagImpl(LightTypeTag(ctorApplyingLambda, Map.empty, Map.empty))
         reify {
           val ctorTag = constructorTag.splice
           HKTag.appliedTagNonPosAux[ArgStruct](ctorTag.closestClass, outerLambdaReprTag.splice, Some(ctorTag.tag) :: argTagsExceptCtor.splice)
