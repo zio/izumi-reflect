@@ -792,6 +792,39 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSameStrict(tag.tag, tagMono.tag)
     }
 
+    "regression test: https://github.com/zio/izumi-reflect/issues/82, convert trifunctor hkt to bifunctor when combining tags" in {
+      def tag[F[-_, +_, +_]: TagK3] = Tag[BIO2[F[Any, +*, +*]]]
+
+      assertSameStrict(tag[ZIO].tag, Tag[BIO2[IO]].tag)
+    }
+
+    "combine higher-kinded types without losing ignored type arguments" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO[F]]
+
+      val tag = mk[IO]
+      val tagMono = Tag[BlockingIO[IO]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
+    }
+
+    "resolve a higher-kinded type inside an anonymous type lambda with ignored & higher-kinded type arguments" in {
+      def mk[F[_[_], _]: TagTK] = Tag[BlockingIO3T[({ type l[R, E[_], A] = F[E, A] })#l]]
+
+      val tag = mk[OptionT]
+
+      assertSameStrict(tag.tag, Tag[BlockingIOT[OptionT]].tag)
+    }
+
+    "correctly resolve a higher-kinded nested type inside an anonymous swap type lambda" in {
+      def mk[F[+_, +_]: TagKK] = Tag[BIOService[λ[(E, A) => F[A, E]]]]
+
+      val tag = mk[Either]
+
+      assertSameStrict(tag.tag, Tag[BIOService[SwapF2[Either, *, *]]].tag)
+      assertSameStrict(tag.tag, Tag[BIOService[Swap]].tag)
+      assertSameStrict(tag.tag, Tag[BIOService[λ[(E, A) => Either[A, E]]]].tag)
+    }
+
   }
 
 }
