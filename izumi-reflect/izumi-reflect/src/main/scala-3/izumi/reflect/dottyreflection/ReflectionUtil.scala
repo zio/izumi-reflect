@@ -1,5 +1,6 @@
 package izumi.reflect.dottyreflection
 
+import scala.annotation.unused
 import scala.quoted.Quotes
 
 private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
@@ -35,6 +36,8 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     ReflectionUtil.allPartsStrong(using qctx)(shift, typeRepr)
   }
 
+  import ReflectionUtil.reflectiveUncheckedNonOverloadedSelectable
+
   extension (typeRef: TypeRef | ParamRef) {
     protected def _underlying: TypeRepr = {
       // This works as a substitution for `TypeRef#underlying` call,
@@ -45,25 +48,46 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       // No, It's not a reliable substitution. When used on a TypeParamRef it returns Any instead of the underlying TypeBounds
       // https://github.com/lampepfl/dotty/issues/15799
 
-      val underlying = typeRef
-        .getClass.getMethods.collect { case m if m.getName == "underlying" => m }.head.invoke(
-          typeRef,
-          qctx.getClass.getMethods.collect { case m if m.getName == "ctx" => m }.head.invoke(qctx)
-        )
-      underlying.asInstanceOf[TypeRepr]
+//      val underlying = typeRef
+//        .getClass.getMethods.collect { case m if m.getName == "underlying" => m }.head.invoke(
+//          typeRef,
+//          qctx.getClass.getMethods.collect { case m if m.getName == "ctx" => m }.head.invoke(qctx)
+//        )
+//      underlying.asInstanceOf[TypeRepr]
+
+      typeRef.asInstanceOf[InternalTypeRefOrParamRef].underlying(using qctx._ctx)
     }
   }
 
   extension (typeRepr: TypeRepr) {
     protected def _declaredVariancesIfHKTypeLambda: Option[List[Flags]] = {
-      val maybeMethod = typeRepr.getClass.getMethods.collectFirst { case m if m.getName == "declaredVariances" => m }
-      maybeMethod.map(_.invoke(typeRepr).asInstanceOf[List[Flags]])
+      try {
+        Some(typeRepr.asInstanceOf[InternalHKTypeLambda].declaredVariances)
+      } catch {
+        case _: NoSuchMethodException => None
+      }
     }
   }
+
+  extension (qctx: Quotes) {
+    def _ctx: InternalContext = qctx.asInstanceOf[{ def ctx: InternalContext }].ctx
+  }
+
+  type InternalTypeRefOrParamRef = {
+    def underlying(using InternalContext): TypeRepr
+  }
+
+  type InternalHKTypeLambda = {
+    def declaredVariances: List[Flags]
+  }
+
+  opaque type InternalContext = Any
 
 }
 
 object ReflectionUtil {
+
+  inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
 
   /**
     * Returns true if the given type contains no type parameters
@@ -95,6 +119,29 @@ object ReflectionUtil {
       case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => true
       case _ => false
     }
+  }
+
+  final class UncheckedNonOverloadedSelectable(private val selectable: Any) extends AnyVal with Selectable {
+
+    inline def selectDynamic(name: String): Any = {
+      applyDynamic(name)()
+    }
+
+    def applyDynamic(name: String, @unused paramTypes: Class[_]*)(args: Any*): Any = {
+      val cls = selectable.getClass
+      val method = {
+        if (args.isEmpty) {
+          cls.getMethod(name)
+        } else {
+          cls.getMethods.collectFirst { case m if m.getName == name => m } match {
+            case Some(m) => m
+            case None => throw new NoSuchMethodException(s"No method named `$name` found in class `$cls`")
+          }
+        }
+      }
+      method.invoke(selectable, args*)
+    }
+
   }
 
 }
