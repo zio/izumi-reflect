@@ -17,7 +17,15 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
-    ) else Seq.empty }
+    ) else Seq.empty },
+    libraryDependencies ++= {
+      val version = scalaVersion.value
+      if (version.startsWith("0.") || version.startsWith("3.")) {
+        Seq(
+          "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Provided
+        )
+      } else Seq.empty
+    }
   )
   .settings(
     organization := "dev.zio",
@@ -229,7 +237,15 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
-    ) else Seq.empty }
+    ) else Seq.empty },
+    libraryDependencies ++= {
+      val version = scalaVersion.value
+      if (version.startsWith("0.") || version.startsWith("3.")) {
+        Seq(
+          "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Provided
+        )
+      } else Seq.empty
+    }
   )
   .settings(
     organization := "dev.zio",

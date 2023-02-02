@@ -66,6 +66,7 @@ object Izumi {
     final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto)
 
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
+    final val scala3_compiler = Library("org.scala-lang", "scala3-compiler", Version.VExpr("scalaVersion.value"), LibraryType.AutoJvm)
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
@@ -298,6 +299,7 @@ object Izumi {
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
+      scala3_compiler in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3),
       scalatest in Scope.Test.all
     ),
     rootPlugins = Projects.root.plugins,
