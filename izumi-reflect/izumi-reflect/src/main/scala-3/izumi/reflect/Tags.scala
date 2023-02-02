@@ -131,7 +131,7 @@ object Tag {
     Tag(tag.closestClass, tag.tag.combineNonPos(args: _*))
   }
 
-  def appliedTagNonPosAux[R](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): Tag[R] = {
+  def appliedTagNonPosAux[R <: AnyKind](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): Tag[R] = {
     Tag(cls, ctor.combineNonPos(args: _*))
   }
 

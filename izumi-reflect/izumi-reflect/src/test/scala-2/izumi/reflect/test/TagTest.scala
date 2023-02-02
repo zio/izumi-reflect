@@ -20,7 +20,6 @@ package izumi.reflect.test
 
 import izumi.reflect._
 import izumi.reflect.macrortti._
-import izumi.reflect.test.TestModel.VarArgsAnyVal
 
 class TagTest extends SharedTagTest {
 

@@ -54,8 +54,15 @@ private[reflect] object ReflectionUtil {
           true
       }
     }
+    val dealiased = tpe.dealias
+    def typeCtorStrong = {
+      val resType = dealiased.finalResultType
+      val ctor = resType.typeConstructor
+      (resType == dealiased) || (ctor == resType) || (ctor == tpe) ||
+      tpe.typeParams.contains(ctor.typeSymbol) || allPartsStrong(ctor)
+    }
     def argsStrong = {
-      tpe.dealias.finalResultType.typeArgs.forall {
+      dealiased.finalResultType.typeArgs.forall {
         arg =>
           tpe.typeParams.contains(arg.typeSymbol) ||
           allPartsStrong(arg)
@@ -71,15 +78,27 @@ private[reflect] object ReflectionUtil {
       }
     }
 
-    selfStrong && prefixStrong && argsStrong && intersectionStructStrong
+    selfStrong && prefixStrong && typeCtorStrong && argsStrong && intersectionStructStrong
   }
 
   def isSelfStrong(tpe: Universe#Type): Boolean = {
+    // FIXME: strengthening check to capture `IntersectionBlockingIO` test case causes StackOverflow during implicit search
+//    def intersectionMembersStrong = {
+//      tpe match {
+//        case t: Universe#RefinedTypeApi =>
+//          t.parents.forall(isSelfStrong)
+//        case _ => true
+//      }
+//    }
+
     !(tpe.typeSymbol.isParameter || (
+      // we regard abstract types like T in trait X { type T; Tag[this.T] } - when we are _inside_ the definition template
+      // as 'type parameters' too. So that you could define `implicit def tagForT: Tag[this.T]` and the tag would be resolved
+      // to this implicit correctly, instead of generating a useless `X::this.type::T` tag.
       tpe.isInstanceOf[Universe#TypeRefApi] &&
       tpe.asInstanceOf[Universe#TypeRefApi].pre.isInstanceOf[Universe#ThisTypeApi] &&
       tpe.typeSymbol.isAbstract && !tpe.typeSymbol.isClass && isNotDealiasedFurther(tpe)
-    )) ||
+    )) /*&& intersectionMembersStrong*/ ||
     tpe.typeParams.exists {
       t =>
         t == tpe.typeSymbol ||

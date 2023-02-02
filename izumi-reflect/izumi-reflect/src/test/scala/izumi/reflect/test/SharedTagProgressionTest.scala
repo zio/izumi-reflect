@@ -183,20 +183,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: Dotty fails regression test: https://github.com/zio/izumi-reflect/issues/82, convert trifunctor hkt to bifunctor when combining tags" in {
-      import TestModel._
-      def tag[F[-_, +_, +_]: TagK3] = Tag[BIO2[F[Any, +*, +*]]]
-      doesntWorkYetOnDotty {
-        assertChild(tag[ZIO].tag, Tag[BIO2[IO]].tag)
-      }
-      doesntWorkYetOnDotty {
-        assertChild(Tag[BIO2[IO]].tag, tag[ZIO].tag)
-      }
-      doesntWorkYetOnDotty {
-        assertSame(tag[ZIO].tag, Tag[BIO2[IO]].tag)
-      }
-    }
-
     "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
 //      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
@@ -214,12 +200,13 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       assert(value.tag == fromRuntime[TXU[Int, String, OptionT, List, Boolean]])
     }
 
-    "progression test: Dotty fails to combine higher-kinded types without losing ignored type arguments" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BlockingIO[F]]
-      val tag = mk[IO]
+    "progression test: fails to combine higher-kinded intersection types without losing ignored type arguments" in {
+      def mk[F[+_, +_]: TagKK, G[+_, +_]: TagKK] = Tag[IntersectionBlockingIO[F, G]]
+      val tag = mk[Either, IO]
+      val tagMono = Tag[IntersectionBlockingIO[Either, IO]]
 
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BlockingIO[IO]].tag)
+      doesntWorkYet {
+        assertSameStrict(tag.tag, tagMono.tag)
       }
     }
 
@@ -235,30 +222,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       assertSame(t[Int].tag, Tag[{ type T = Int }].tag)
       doesntWorkYetOnDotty {
         assertDifferent(t[Int].tag, Tag[{ type T = String }].tag)
-      }
-    }
-
-    "progression test: Dotty fails to resolve a higher-kinded type inside an anonymous type lambda with ignored & higher-kinded type arguments" in {
-      def mk[F[_[_], _]: TagTK] = Tag[BlockingIO3T[({ type l[R, E[_], A] = F[E, A] })#l]]
-      val tag = mk[OptionT]
-
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BlockingIOT[OptionT]].tag)
-      }
-    }
-
-    "progression test: Dotty fails to correctly resolve a higher-kinded nested type inside an anonymous swap type lambda" in {
-      def mk[F[+_, +_]: TagKK] = Tag[BIOService[λ[(E, A) => F[A, E]]]]
-      val tag = mk[Either]
-
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BIOService[SwapF2[Either, *, *]]].tag)
-      }
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BIOService[Swap]].tag)
-      }
-      doesntWorkYetOnDotty {
-        assert(tag.tag == Tag[BIOService[λ[(E, A) => Either[A, E]]]].tag)
       }
     }
 
@@ -296,11 +259,11 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         }
       }
 
-      withDebugOutput {
-        doesntWorkYetOnDotty {
-          assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
-        }
+//      withDebugOutput {
+      doesntWorkYetOnDotty {
+        assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
       }
+//      }
     }
 
     "Work for any abstract type with available Tag while preserving additional type refinement" in {
