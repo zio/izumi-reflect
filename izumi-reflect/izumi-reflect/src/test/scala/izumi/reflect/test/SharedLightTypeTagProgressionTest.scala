@@ -200,7 +200,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: bounds-based subtype checks for lambdas do not work properly (LambdaParameter must contain bounds and NameReferences shouldn't for this to work)" in withDebugOutput {
+    "progression test: bounds-based subtype checks for lambdas do not work properly (LambdaParameter must contain bounds and NameReferences shouldn't for this to work)" in {
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Set[A]
       type X1[A >: H3 <: H3] = Set[A]
