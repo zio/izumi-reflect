@@ -26,7 +26,7 @@ object Izumi {
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.17")
   final val scala213 = ScalaVersion("2.13.10")
-  final val scala300 = ScalaVersion("3.2.1")
+  final val scala300 = ScalaVersion("3.2.2")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
   var targetScala = Seq(scala300, scala213, scala212, scala211)
