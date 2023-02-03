@@ -85,9 +85,9 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 
 }
 
-object ReflectionUtil {
+private[reflect] object ReflectionUtil {
 
-  inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
+  private[reflect] inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
 
   /**
     * Returns true if the given type contains no type parameters
@@ -128,7 +128,7 @@ object ReflectionUtil {
     }
   }
 
-  final class UncheckedNonOverloadedSelectable(private val selectable: Any) extends AnyVal with Selectable {
+  private[reflect] final class UncheckedNonOverloadedSelectable(private val selectable: Any) extends AnyVal with Selectable {
 
     inline def selectDynamic(name: String): Any = {
       applyDynamic(name)()
