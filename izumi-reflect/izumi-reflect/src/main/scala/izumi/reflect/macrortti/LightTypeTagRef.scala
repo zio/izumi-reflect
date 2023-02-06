@@ -118,6 +118,11 @@ sealed trait LightTypeTagRef extends Serializable {
     getName(r => LTTRenderables.Long.r_SymName(r.symName, hasPrefix = false))
   }
 
+  final def scalaStyledName: String = {
+    import izumi.reflect.macrortti.LTTRenderables.ScalaStyledLambdas._
+    (this: LightTypeTagRef).render()
+  }
+
   @deprecated(
     "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
     "2.2.2"

@@ -208,4 +208,31 @@ object LTTRenderables {
     override def prefixSplitter: String = "."
   }
 
+  object ScalaStyledLambdas extends LTTRenderables {
+    override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
+      Long.r_SymName(sym, hasPrefix)
+    }
+
+   override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
+      override def render(value: Lambda): String = {
+        s"${value.output.render()}"
+      }
+    }
+
+    override implicit lazy val r_LambdaParameter: Renderable[LambdaParameter] = new Renderable[LambdaParameter] {
+      override def render(value: LambdaParameter): String = {
+        s"_"
+      }
+    }
+
+    override implicit lazy val r_TypeParam: Renderable[TypeParam] = new Renderable[TypeParam] {
+      override def render(value: TypeParam): String =
+        value.ref match {
+          case n: NameReference if n.symName.name.forall(_.isDigit) =>
+            s"${value.variance.render()}_"
+          case other =>
+            other.render()
+        }
+    }
+  }
 }

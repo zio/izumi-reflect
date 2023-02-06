@@ -182,6 +182,14 @@ abstract class LightTypeTag private[reflect] (
     ref.longNameInternalSymbol
   }
 
+  /**
+    * Fully-qualified rendering of a type, including packages and prefix types.
+    * Traditional Scala notation for lambdas, e.g. scala.util.Either[Int,+_]
+    */
+  def scalaStyledName: String = {
+    ref.scalaStyledName
+  }
+
   @deprecated(
     "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
     "2.2.2"
