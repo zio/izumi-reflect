@@ -23,6 +23,7 @@ import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+import izumi.reflect.macrortti.LightTypeTag.LambdaParamNameMaker
 import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
 import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
@@ -548,12 +549,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     tparams.zipWithIndex.map {
       case (tparamSym, idx) =>
         val fullName = tparamSym.fullName
-        val idxStr = ctxIdx match {
-          case Some(ctx) =>
-            s"$ctx:$idx"
-          case None =>
-            idx.toString
-        }
+        val idxStr = LambdaParamNameMaker.makeParamName(ctxIdx, idx)
         fullName -> LambdaParameter(idxStr)
     }
   }

@@ -20,6 +20,7 @@ package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.functional.{Renderable, WithRenderableSyntax}
 import izumi.reflect.internal.fundamentals.platform.language.unused
+import izumi.reflect.macrortti.LightTypeTag.LambdaParamNameMaker
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izumi.reflect.macrortti.LightTypeTagRef._
 
@@ -213,7 +214,9 @@ object LTTRenderables {
       Long.r_SymName(sym, hasPrefix)
     }
 
-   override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
+    override def prefixSplitter: String = "."
+
+    override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
       override def render(value: Lambda): String = {
         s"${value.output.render()}"
       }
@@ -225,10 +228,28 @@ object LTTRenderables {
       }
     }
 
+    override implicit lazy val r_Variance: Renderable[Variance] = new Renderable[Variance] {
+      override def render(value: Variance): String = value match {
+        case Variance.Invariant => ""
+        case Variance.Contravariant => "-"
+        case Variance.Covariant => "+"
+      }
+    }
+
+    override implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
+      override def render(value: Boundaries): String = value match {
+        case Boundaries.Defined(bottom, top) =>
+          s"_ >:${bottom.render()} <: ${top.render()}"
+
+        case Boundaries.Empty =>
+          ""
+      }
+    }
+
     override implicit lazy val r_TypeParam: Renderable[TypeParam] = new Renderable[TypeParam] {
       override def render(value: TypeParam): String =
         value.ref match {
-          case n: NameReference if n.symName.name.forall(_.isDigit) =>
+          case n: NameReference if LambdaParamNameMaker.isParamName(n.symName.name) =>
             s"${value.variance.render()}_"
           case other =>
             other.render()

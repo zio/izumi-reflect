@@ -3,6 +3,7 @@ package izumi.reflect
 import scala.quoted.{Expr, Quotes, Type}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
+import izumi.reflect.macrortti.LightTypeTag.LambdaParamNameMaker
 import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, TypeParam, Variance}
 
 import scala.collection.mutable
@@ -93,13 +94,13 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               val outerLambdaParamArgsTypeParamRefs = paramsRange.map(outerLambda.param(_)).toList
 
               // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-              val ctorLambdaParameter = LambdaParameter("0")
+              val ctorLambdaParameter = LambdaParameter(LambdaParamNameMaker.makeParamName(None, 0))
 
               val typeArgToLambdaParameterMap = (distinctNonParamArgsTypes ++ outerLambdaParamArgsTypeParamRefs)
                 .iterator.distinct.zipWithIndex.map {
                   case (argTpe, idx) =>
                     val idxPlusOne = idx + 1
-                    val lambdaParameter = LambdaParameter(s"$idxPlusOne")
+                    val lambdaParameter = LambdaParameter(LambdaParamNameMaker.makeParamName(None, idxPlusOne))
                     argTpe -> lambdaParameter
                 }.toMap
 

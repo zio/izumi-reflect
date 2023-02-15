@@ -874,6 +874,21 @@ object LightTypeTag {
     (tagref, dbsSerializer)
   }
 
+  private[reflect] object LambdaParamNameMaker {
+    def makeParamName(ctxIdx: Option[Int], idx: Int): String = ctxIdx match {
+      case Some(ctx) =>
+        s"$ctx:$idx"
+      case None =>
+        idx.toString
+    }
+
+    def isParamName(paramName: String): Boolean = paramName.toIntOption.map(idx => makeParamName(None, idx) == paramName)
+      .getOrElse(paramName.split(":").toList.flatMap(_.toIntOption) match {
+        case ctx :: idx :: Nil => makeParamName(Some(ctx), idx) == paramName
+        case _ => false
+      })
+  }
+
   private[macrortti] def mergeIDBs[T](self: Map[T, Set[T]], other: Map[T, Set[T]]): Map[T, Set[T]] = {
     import izumi.reflect.internal.fundamentals.collections.IzCollections._
 
