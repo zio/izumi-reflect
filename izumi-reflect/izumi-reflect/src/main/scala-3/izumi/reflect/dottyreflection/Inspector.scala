@@ -4,18 +4,18 @@ import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.annotation.{tailrec, targetName}
-import scala.quoted.Type
+import scala.quoted.{Quotes, Type}
 import scala.reflect.Selectable.reflectiveSelectable
 
-//case class LamContext(names: List[LambdaParameter], tps: List[scala.quoted.Quotes.TypeRepr])
+object Inspector {
+  class LamParam(val qctx: Quotes)(val names: LambdaParameter, val tpe: qctx.reflect.TypeRepr, val index: Int)
+  class LamContext(val qctx: Quotes)(val params: List[LamParam])
+}
 
-abstract class Inspector(
-  protected val shift: Int,
-  context: List[Set[LambdaParameter]]
-) extends InspectorBase {
+abstract class Inspector(protected val shift: Int, context: List[Inspector.LamContext]) extends InspectorBase {
   import qctx.reflect._
 
-  private def next(newContext: List[Set[LambdaParameter]] = Nil) = new Inspector(shift + 1, this.context ++ newContext) {
+  private def next(newContext: List[Inspector.LamContext] = Nil) = new Inspector(shift + 1, this.context ++ newContext) {
     val qctx: Inspector.this.qctx.type = Inspector.this.qctx
   }
 
@@ -29,6 +29,16 @@ abstract class Inspector(
 
   private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     val tpe = tpe0.dealias.simplified
+
+    if (context.flatMap(_.params.map(_.tpe)).toSet.contains(tpe0)) {
+      assert(tpe == tpe0)
+      assert(tpe match {
+        case p: ParamRef =>
+          true
+        case _ =>
+          false
+      })
+    }
 
     tpe match {
       case a: AnnotatedType =>
@@ -64,9 +74,8 @@ abstract class Inspector(
 
       case l: TypeLambda =>
         val paramNames = l.paramNames.map(LambdaParameter(_))
-        val params = (0 until l.paramNames.length).map(idx => l.param(idx))
-        // println(s"will test ${l.resType} in $paramNames // $params")
-        val resType = next(List(paramNames.toSet)).inspectTypeRepr(l.resType)
+        val params = paramNames.zipWithIndex.map { case (nme, idx) => new Inspector.LamParam(qctx)(nme, l.param(idx), idx) }.toList
+        val resType = next(List(Inspector.LamContext(qctx)(params))).inspectTypeRepr(l.resType)
 
         LightTypeTagRef.Lambda(paramNames, resType)
 
@@ -209,7 +218,13 @@ abstract class Inspector(
         log(s"make name reference from term $term")
         makeNameReferenceFromSymbol(term.termSymbol, Some(term))
       case t: ParamRef =>
-        NameReference(tpeName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString)
+        val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
+
+        // this assertion is broken because of the calls from fulldbinspector
+        // assert(context.flatMap(_.params.map(_.tpe)).contains(t), s"${context.flatMap(_.params.map(_.tpe))} must contain $t")
+
+        NameReference(SymName.LambdaParamName(paramName), Boundaries.Empty, None)
+
       case constant: ConstantType =>
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
       case ref =>
@@ -225,15 +240,7 @@ abstract class Inspector(
       } else if (symbol.flags.is(Flags.Module)) { // Handle ModuleClasses (can creep in from ThisType)
         (SymName.SymTermName(symbol.companionModule.fullName), symbol.companionModule, symbol.companionModule.termRef)
       } else {
-        val a = context.flatten.toSet
-        if (a.nonEmpty && !symbol.fullName.contains("scala")) {
-          println((symbol.fullName, "vs", a))
-        }
-        if (context.flatten.toSet.exists(_.name == symbol.fullName)) {
-          (SymName.LambdaParamName(symbol.fullName), symbol, symbol.termRef)
-        } else {
-          (SymName.SymTypeName(symbol.fullName), symbol, symbol.termRef)
-        }
+        (SymName.SymTypeName(symbol.fullName), symbol, symbol.termRef)
       }
       val prefix = getPrefixFromQualifier(prefixSource1.getOrElse(prefixSource2))
       NameReference(symName, Boundaries.Empty, prefix)

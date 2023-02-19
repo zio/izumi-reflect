@@ -423,9 +423,7 @@ object LightTypeTagRef {
   }
   object SymName {
     final case class SymTermName(name: String) extends SymName
-    final case class LambdaParamName(name: String) extends SymName {
-      println(s"LAMPARAM $name")
-    }
+    final case class LambdaParamName(name: String) extends SymName
     final case class SymTypeName(name: String) extends SymName
     final case class SymLiteral(name: String) extends SymName
     object SymLiteral {
