@@ -25,7 +25,7 @@ import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
 import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
-import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
 
@@ -453,7 +453,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val nameRef = rules.get(typeSymbol.fullName) match {
         case Some(lambdaParameter) =>
           // this is a previously encountered type variable
-          NameReference(SymTypeName(lambdaParameter.name), boundaries, prefix)
+          NameReference(LambdaParamName(lambdaParameter.name), boundaries, prefix)
 
         case None =>
           makeNameReference(tpe, typeSymbol, boundaries, prefix)

@@ -22,7 +22,7 @@ import izumi.reflect.DebugProperties
 import izumi.reflect.internal.OrderingCompat.ArraySeqLike
 import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
 import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
@@ -440,6 +440,9 @@ object LightTypeTag {
             Tuple2Pickler[Int, String].pickle((1, name))
           case SymLiteral(name) =>
             Tuple2Pickler[Int, String].pickle((2, name))
+          case LambdaParamName(name) =>
+            Tuple2Pickler[Int, String].pickle((3, name))
+
         }
       }
 
@@ -450,6 +453,8 @@ object LightTypeTag {
           SymTypeName(name)
         case (2, name) =>
           SymLiteral(name)
+        case (3, name) =>
+          LambdaParamName(name)
         case o =>
           throw new IllegalArgumentException(s"Unexpected data: $o")
       }

@@ -9,7 +9,7 @@ import scala.quoted._
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  private lazy val inspector = new Inspector(0) { val qctx: InheritanceDbInspector.this.qctx.type = InheritanceDbInspector.this.qctx }
+  private lazy val inspector = new Inspector(0, List.empty) { val qctx: InheritanceDbInspector.this.qctx.type = InheritanceDbInspector.this.qctx }
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe0 = TypeRepr.of[T].dealias

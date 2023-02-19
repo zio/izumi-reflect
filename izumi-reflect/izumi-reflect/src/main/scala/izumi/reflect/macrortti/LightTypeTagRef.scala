@@ -19,7 +19,7 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.internal.OrderingCompat
-import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
@@ -423,6 +423,9 @@ object LightTypeTagRef {
   }
   object SymName {
     final case class SymTermName(name: String) extends SymName
+    final case class LambdaParamName(name: String) extends SymName {
+      println(s"LAMPARAM $name")
+    }
     final case class SymTypeName(name: String) extends SymName
     final case class SymLiteral(name: String) extends SymName
     object SymLiteral {
@@ -533,6 +536,7 @@ object LightTypeTagRef {
         case SymTermName(_) => 0
         case SymTypeName(_) => 1
         case SymLiteral(_) => 2
+        case LambdaParamName(_) => 3
       }
       val compare1 = Ordering.Int.compare(idx(x), idx(y))
       if (compare1 != 0) return compare1

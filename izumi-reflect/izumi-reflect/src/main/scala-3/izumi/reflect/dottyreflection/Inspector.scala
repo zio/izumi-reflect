@@ -7,10 +7,17 @@ import scala.annotation.{tailrec, targetName}
 import scala.quoted.Type
 import scala.reflect.Selectable.reflectiveSelectable
 
-abstract class Inspector(protected val shift: Int) extends InspectorBase {
+//case class LamContext(names: List[LambdaParameter], tps: List[scala.quoted.Quotes.TypeRepr])
+
+abstract class Inspector(
+  protected val shift: Int,
+  context: List[Set[LambdaParameter]]
+) extends InspectorBase {
   import qctx.reflect._
 
-  private def next() = new Inspector(shift + 1) { val qctx: Inspector.this.qctx.type = Inspector.this.qctx }
+  private def next(newContext: List[Set[LambdaParameter]] = Nil) = new Inspector(shift + 1, this.context ++ newContext) {
+    val qctx: Inspector.this.qctx.type = Inspector.this.qctx
+  }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
     val tpeTree = TypeTree.of[T]
@@ -56,8 +63,11 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         }
 
       case l: TypeLambda =>
-        val resType = next().inspectTypeRepr(l.resType)
         val paramNames = l.paramNames.map(LambdaParameter(_))
+        val params = (0 until l.paramNames.length).map(idx => l.param(idx))
+        // println(s"will test ${l.resType} in $paramNames // $params")
+        val resType = next(List(paramNames.toSet)).inspectTypeRepr(l.resType)
+
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case p: ParamRef =>
@@ -215,7 +225,15 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
       } else if (symbol.flags.is(Flags.Module)) { // Handle ModuleClasses (can creep in from ThisType)
         (SymName.SymTermName(symbol.companionModule.fullName), symbol.companionModule, symbol.companionModule.termRef)
       } else {
-        (SymName.SymTypeName(symbol.fullName), symbol, symbol.termRef)
+        val a = context.flatten.toSet
+        if (a.nonEmpty && !symbol.fullName.contains("scala")) {
+          println((symbol.fullName, "vs", a))
+        }
+        if (context.flatten.toSet.exists(_.name == symbol.fullName)) {
+          (SymName.LambdaParamName(symbol.fullName), symbol, symbol.termRef)
+        } else {
+          (SymName.SymTypeName(symbol.fullName), symbol, symbol.termRef)
+        }
       }
       val prefix = getPrefixFromQualifier(prefixSource1.getOrElse(prefixSource2))
       NameReference(symName, Boundaries.Empty, prefix)
