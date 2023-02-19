@@ -15,11 +15,11 @@ object Inspector {
 abstract class Inspector(protected val shift: Int, val context: List[Inspector.LamContext]) extends InspectorBase {
   import qctx.reflect._
 
-  def next(newContext: List[Inspector.LamContext] = Nil) = new Inspector(shift + 1, this.context ++ newContext) {
+  def next(newContext: List[Inspector.LamContext] = Nil): Inspector { val qctx: Inspector.this.qctx.type } = new Inspector(shift + 1, this.context ++ newContext) {
     val qctx: Inspector.this.qctx.type = Inspector.this.qctx
   }
 
-  def nextLam(l: TypeLambda) = {
+  def nextLam(l: TypeLambda): Inspector { val qctx: Inspector.this.qctx.type } = {
     val paramNames = l.paramNames.map(LambdaParameter(_))
     val params = paramNames.zipWithIndex.map { case (nme, idx) => new Inspector.LamParam(qctx)(nme, l.param(idx), idx) }.toList
     next(List(Inspector.LamContext(qctx)(params)))
