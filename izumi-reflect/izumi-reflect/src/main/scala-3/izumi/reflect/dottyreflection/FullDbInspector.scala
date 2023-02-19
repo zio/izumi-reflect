@@ -10,10 +10,10 @@ import scala.quoted._
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  private lazy val inspector = new Inspector(0, List.empty) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
+  private lazy val inspector0 = new Inspector(0, List.empty) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
 
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
-    new Run()
+    new Run(inspector0)
       .inspectTypeReprToFullBases(TypeRepr.of[T])
       .distinct
       .toMultimap
@@ -24,12 +24,12 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       .filterNot(_._2.isEmpty)
   }
 
-  class Run() {
+  class Run(i: Inspector { val qctx: FullDbInspector.this.qctx.type }) {
     private val termination = mutable.HashSet.empty[TypeRepr]
 
     def inspectTypeReprToFullBases(tpe0: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0.dealias.simplified
-      lazy val selfRef = inspector.inspectTypeRepr(tpe) // FIXME duplicate work for top-level type
+      lazy val selfRef = i.inspectTypeRepr(tpe) // FIXME duplicate work for top-level type
 
       tpe match {
         case t if ignored(t) =>
@@ -39,8 +39,9 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(a, selfRef, recurseIntoBases = false)
 
         case l: TypeLambda =>
-          val parents = inspectTypeBoundsToFull(l.resType)
-          val selfL = selfRef.asInstanceOf[LightTypeTagRef.Lambda]
+          val next = i.nextLam(l)
+          val parents = new Run(next).inspectTypeBoundsToFull(l.resType)
+          val selfL = next.inspectTypeRepr(tpe).asInstanceOf[LightTypeTagRef.Lambda]
           val out = parents.map {
             case (c, p) =>
               if (c == selfL.output) {
@@ -108,7 +109,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
       val main = recursiveParentBases ++ baseTypes.map {
         bt =>
-          val parentRef = inspector.inspectTypeRepr(bt)
+          val parentRef = i.inspectTypeRepr(bt)
           (selfRef, parentRef)
       }
 

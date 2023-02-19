@@ -20,8 +20,8 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
       i =>
         val tpef = i.dealias.simplified._resultType
         val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
-        val targetRef = inspector.makeNameReferenceFromType(tpef)
-        allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
+        val targetRef = inspector.makeNameReferenceFromType(tpef, assertContextCorrectness = false)
+        allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b, assertContextCorrectness = false)))
     }
 
     baseclassReferences

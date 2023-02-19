@@ -8,15 +8,21 @@ import scala.quoted.{Quotes, Type}
 import scala.reflect.Selectable.reflectiveSelectable
 
 object Inspector {
-  class LamParam(val qctx: Quotes)(val names: LambdaParameter, val tpe: qctx.reflect.TypeRepr, val index: Int)
+  class LamParam(val qctx: Quotes)(val name: LambdaParameter, val tpe: qctx.reflect.TypeRepr, val index: Int)
   class LamContext(val qctx: Quotes)(val params: List[LamParam])
 }
 
-abstract class Inspector(protected val shift: Int, context: List[Inspector.LamContext]) extends InspectorBase {
+abstract class Inspector(protected val shift: Int, val context: List[Inspector.LamContext]) extends InspectorBase {
   import qctx.reflect._
 
-  private def next(newContext: List[Inspector.LamContext] = Nil) = new Inspector(shift + 1, this.context ++ newContext) {
+  def next(newContext: List[Inspector.LamContext] = Nil) = new Inspector(shift + 1, this.context ++ newContext) {
     val qctx: Inspector.this.qctx.type = Inspector.this.qctx
+  }
+
+  def nextLam(l: TypeLambda) = {
+    val paramNames = l.paramNames.map(LambdaParameter(_))
+    val params = paramNames.zipWithIndex.map { case (nme, idx) => new Inspector.LamParam(qctx)(nme, l.param(idx), idx) }.toList
+    next(List(Inspector.LamContext(qctx)(params)))
   }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
@@ -73,10 +79,9 @@ abstract class Inspector(protected val shift: Int, context: List[Inspector.LamCo
         }
 
       case l: TypeLambda =>
-        val paramNames = l.paramNames.map(LambdaParameter(_))
-        val params = paramNames.zipWithIndex.map { case (nme, idx) => new Inspector.LamParam(qctx)(nme, l.param(idx), idx) }.toList
-        val resType = next(List(Inspector.LamContext(qctx)(params))).inspectTypeRepr(l.resType)
-
+        val inspector = nextLam(l)
+        val resType = inspector.inspectTypeRepr(l.resType)
+        val paramNames = inspector.context.last.params.map(_.name)
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case p: ParamRef =>
@@ -209,7 +214,7 @@ abstract class Inspector(protected val shift: Int, context: List[Inspector.LamCo
   private def flattenInspectOr(or: OrType): Set[AppliedReference] =
     flattenOr(or).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
 
-  private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
+  private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr, assertContextCorrectness: Boolean = true): NameReference = {
     t match {
       case ref: TypeRef =>
         log(s"make name reference from type $ref termSymbol=${ref.termSymbol}")
@@ -220,8 +225,9 @@ abstract class Inspector(protected val shift: Int, context: List[Inspector.LamCo
       case t: ParamRef =>
         val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
 
-        // this assertion is broken because of the calls from fulldbinspector
-        // assert(context.flatMap(_.params.map(_.tpe)).contains(t), s"${context.flatMap(_.params.map(_.tpe))} must contain $t")
+        if (assertContextCorrectness) {
+          assert(context.flatMap(_.params.map(_.tpe)).contains(t), s"${context.flatMap(_.params.map(_.tpe))} must contain $t")
+        }
 
         NameReference(SymName.LambdaParamName(paramName), Boundaries.Empty, None)
 
