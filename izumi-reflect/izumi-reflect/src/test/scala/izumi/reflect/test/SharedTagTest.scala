@@ -6,6 +6,7 @@ import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel._
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import izumi.reflect._
+import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, SymName, TypeParam}
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
@@ -861,6 +862,23 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
     }
+
+    "Generates lambda parents for lambda bases" in {
+      val childBase = `LTT[_[_,_]]`[RoleChild]
+
+      val fullDb = childBase.basesdb
+      fullDb.foreach {
+        (_, parents) =>
+          parents.foreach {
+            p =>
+              if (p.toString.contains("RoleParent")) {
+                assert(p.isInstanceOf[LightTypeTagRef.Lambda])
+                assert(p.asInstanceOf[LightTypeTagRef.Lambda].input.size == 1)
+              }
+          }
+      }
+    }
+
   }
 
 }

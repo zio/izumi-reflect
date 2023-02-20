@@ -42,17 +42,34 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case a: AppliedType =>
           extractBase(a, selfRef, recurseIntoBases = false)
 
-        case l: TypeLambda =>
-          val selfL = i.inspectTypeRepr(l).asInstanceOf[LightTypeTagRef.Lambda]
+        case typeLambda: TypeLambda =>
+          val selfL = i.inspectTypeRepr(typeLambda).asInstanceOf[LightTypeTagRef.Lambda]
 
-          val parents = new Run(i.nextLam(l)).inspectTypeBoundsToFull(l.resType)
+          val parents = new Run(i.nextLam(typeLambda)).inspectTypeBoundsToFull(typeLambda.resType)
+
           val out = parents.flatMap {
-            case (c, p) =>
-              if (c == selfL.output) {
-                Seq((selfL, p))
+            case (child0, parent0) =>
+              val child = if (child0 == selfL.output) { // if child == typeLambda.resType, use typeLambda itself
+                selfL
               } else {
-                Seq((c, p))
+                child0
               }
+
+              // For Scala 2: see LightTypeTagImpl.makeLambdaOnlyBases.makeLambdaParents
+              val parentMaybeAsLambda = parent0 match {
+                case l: Lambda =>
+                  l
+                case applied: AppliedReference =>
+                  val l = LightTypeTagRef.Lambda(selfL.input, applied)
+                  if (l.someArgumentsReferenced) l else applied
+              }
+
+              Seq(
+                (child, parentMaybeAsLambda)
+                // you may debug by inserting some debug trash into dbs:
+//                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} $child")) ->
+//                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
+              )
           }
           out.distinct
 
