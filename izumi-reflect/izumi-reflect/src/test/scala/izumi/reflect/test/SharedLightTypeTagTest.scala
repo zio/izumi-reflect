@@ -2,7 +2,6 @@ package izumi.reflect.test
 
 import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries}
 import izumi.reflect.macrortti.{LTT, _}
-import izumi.reflect.test.TestModel.{W1, W2}
 
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
