@@ -15,40 +15,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: `support higher-kinded intersection type subtyping` isn't fully supported on Dotty" in {
-      type F1 = W3[Int] with W1
-      type F2 = W4[Int] with W2
-
-      type T1[A] = W3[A] with W1
-      type T2[A] = W4[A] with W2
-
-      val f1 = LTT[F1]
-      val f2 = LTT[F2]
-
-      assertChild(f1, LTT[W3[Int]])
-      assertChild(f1, LTT[W1])
-      assertChild(f2, f1)
-
-      val t1 = `LTT[_]`[T1]
-      val t2 = `LTT[_]`[T2]
-      val w3 = `LTT[_]`[W3]
-      val w4 = `LTT[_]`[W4]
-
-      println(t1.debug("T1[_]"))
-      println(t2.debug("T2[_]"))
-      println(w3.debug("W3[_]"))
-      println(w4.debug("W4[_]"))
-
-      assertChild(t1, w3)
-      assertChild(t1, LTT[W1])
-      doesntWorkYetOnDotty {
-        assertChild(w4, w3)
-      }
-      doesntWorkYetOnDotty {
-        assertChild(t2, t1)
-      }
-    }
-
     "progression test: `support distinction between subtypes` doesn't work properly on Dotty" in {
       val strLTT = LTT[String]
       val subStrALTT = LTT[SubStrA]
@@ -293,47 +259,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] with List[x.T]]; () }")
       assertCompiles("def x1 = { object x { type F[_] }; LTag[x.F[Int]]; () }")
       assertCompiles("def x1 = { object x { type F[_[_]]; type Id[A] = A }; LTag[x.F[x.Id]]; () }")
-    }
-
-    "progression test: `support higher-kinded intersection type combination` isn't supported on Dotty" in {
-      val tCtor = `LTT[_,_]`[T3]
-
-      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
-      val alias = LTT[T3[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
-
-      assertChild(alias, direct)
-      assertChild(combined, alias)
-      assertChild(combined, direct)
-
-      assertSame(alias, direct)
-      assertSame(alias, combined)
-
-      assertDifferent(combined, LTT[Either[Int, Boolean]])
-      assertDifferent(combined, LTT[T3[Boolean, Int]])
-
-      assertNotChild(combined, LTT[Either[Int, Boolean]])
-      assertNotChild(combined, LTT[T3[Boolean, Int]])
-
-      assertChild(combined, LTT[W5[Int]])
-      assertChild(combined, LTT[W4[Boolean]])
-      doesntWorkYetOnDotty {
-        assertChild(combined, LTT[W3[Boolean]])
-      }
-      doesntWorkYetOnDotty {
-        assertChild(combined, LTT[W1])
-      }
-      doesntWorkYetOnDotty {
-        assertChild(combined, LTT[W2])
-      }
-      doesntWorkYetOnDotty {
-        assertChild(combined, LTT[W1 with W3[Boolean]])
-      }
-
-      assertNotChild(combined, LTT[W4[Int]])
-      assertNotChild(combined, LTT[W3[Int]])
-      assertNotChild(combined, LTT[W5[Boolean]])
-      assertNotChild(combined, LTT[W1 with W5[Boolean]])
     }
 
     "progression test: combined intersection lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {

@@ -56,7 +56,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
               }
 
               // For Scala 2: see LightTypeTagImpl.makeLambdaOnlyBases.makeLambdaParents
-              val parentMaybeAsLambda = parent0 match {
+              def lambdify(parentOrChild: LightTypeTagRef): AbstractReference = parentOrChild match {
                 case l: Lambda =>
                   l
                 case applied: AppliedReference =>
@@ -64,10 +64,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
                   if (l.someArgumentsReferenced) l else applied
               }
 
+              val childMaybeAsLambda = lambdify(child)
+              val parentMaybeAsLambda = lambdify(parent0)
+
               Seq(
-                (child, parentMaybeAsLambda)
+                (childMaybeAsLambda, parentMaybeAsLambda)
                 // you may debug by inserting some debug trash into dbs:
-//                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} $child")) ->
+//                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
 //                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
               )
           }

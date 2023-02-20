@@ -1,7 +1,8 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries, FullReference, LambdaParameter, NameReference, SymName, TypeParam}
-import izumi.reflect.macrortti.{LTT, _}
+import izumi.reflect.macrortti.{LTT, *}
+import izumi.reflect.test.TestModel.W3
 
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
@@ -516,7 +517,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       }
     }
 
-    "progression test: fails to check subtyping when higher-kinds are involved on Scala 3" in {
+    "check subtyping when higher-kinds are involved on Scala 3" in {
       assertChild(LTT[FT2[IT2]], LTT[FT1[IT1]])
       assertChild(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
       assertDifferent(`LTT[_[+_[_]]]`[FT2].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
@@ -525,6 +526,69 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
       assertDifferent(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT2]), LTT[FT1[IT1]])
       assertSame(`LTT[_[+_[_]]]`[FT1].combine(`LTT[_[+_]]`[IT1]), LTT[FT1[IT1]])
+    }
+
+    "support higher-kinded intersection type subtyping" in {
+      type F1 = W3[Int] with W1
+      type F2 = W4[Int] with W2
+
+      type T1[A] = W3[A] with W1
+      type T2[A] = W4[A] with W2
+
+      val f1 = LTT[F1]
+      val f2 = LTT[F2]
+
+      assertChild(f1, LTT[W3[Int]])
+      assertChild(f1, LTT[W1])
+      assertChild(f2, f1)
+
+      val t1 = `LTT[_]`[T1]
+      val t2 = `LTT[_]`[T2]
+      val w3 = `LTT[_]`[W3]
+      val w4 = `LTT[_]`[W4]
+
+      println(t1.debug("T1[_]"))
+      println(t2.debug("T2[_]"))
+      println(w3.debug("W3[_]"))
+      println(w4.debug("W4[_]"))
+
+      assertChild(t1, w3)
+      assertChild(t1, LTT[W1])
+      assertChild(w4, w3)
+      assertChild(t2, t1)
+    }
+
+    "support higher-kinded intersection type combination isn't supported on Dotty" in {
+      val tCtor = `LTT[_,_]`[T3]
+
+      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
+      val alias = LTT[T3[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
+
+      assertChild(alias, direct)
+      assertChild(combined, alias)
+      assertChild(combined, direct)
+
+      assertSame(alias, direct)
+      assertSame(alias, combined)
+
+      assertDifferent(combined, LTT[Either[Int, Boolean]])
+      assertDifferent(combined, LTT[T3[Boolean, Int]])
+
+      assertNotChild(combined, LTT[Either[Int, Boolean]])
+      assertNotChild(combined, LTT[T3[Boolean, Int]])
+
+      assertChild(combined, LTT[W5[Int]])
+      assertChild(combined, LTT[W4[Boolean]])
+      assertChild(combined, LTT[W3[Boolean]])
+      assertChild(combined, LTT[W1])
+      assertChild(combined, LTT[W2])
+      assertChild(combined, LTT[W1 with W3[Boolean]])
+
+      assertNotChild(combined, LTT[W4[Int]])
+      assertNotChild(combined, LTT[W3[Int]])
+      assertNotChild(combined, LTT[W5[Boolean]])
+      assertNotChild(combined, LTT[W1 with W5[Boolean]])
     }
 
   }

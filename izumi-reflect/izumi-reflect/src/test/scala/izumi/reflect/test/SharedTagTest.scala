@@ -879,13 +879,13 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       }
     }
 
-    "progression test: subtyping for Invariant Java HKT doesn't work on Dotty" in {
+    "subtyping for Invariant Java HKT" in {
       val collection = TagK[java.util.Collection]
       val javaIterable = TagK[java.lang.Iterable]
       assertChildStrict(collection.tag, javaIterable.tag)
     }
 
-    "progression test: subtyping for Invariant Scala HKT doesn't work on Dotty" in {
+    "subtyping for Invariant Scala HKT" in {
       val mutableSet = TagK[scala.collection.mutable.Set]
       val collectionSet = TagK[scala.collection.Set]
       assertChildStrict(mutableSet.tag, collectionSet.tag)
