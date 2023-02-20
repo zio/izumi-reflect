@@ -3,7 +3,7 @@ package izumi.reflect
 import scala.quoted.{Expr, Quotes, Type}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
-import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, TypeParam, Variance}
+import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, SymName, TypeParam, Variance}
 
 import scala.collection.mutable
 
@@ -106,12 +106,12 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               val usageOrderDistinctNonLambdaArgs = distinctNonParamArgsTypes.map(t => typeArgToLambdaParameterMap(t))
               val declarationOrderLambdaParamArgs = outerLambdaParamArgsTypeParamRefs.map(t => typeArgToLambdaParameterMap(t))
 
-              val usages = typeArgsTpes.map(t => TypeParam(NameReference(typeArgToLambdaParameterMap(t).name), Variance.Invariant))
+              val usages = typeArgsTpes.map(t => TypeParam(NameReference(SymName.LambdaParamName(typeArgToLambdaParameterMap(t).name)), Variance.Invariant))
 
               val ctorApplyingLambda =
                 LightTypeTagRef.Lambda(
                   ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
-                  FullReference(ctorLambdaParameter.name, usages)
+                  FullReference(SymName.LambdaParamName(ctorLambdaParameter.name), usages)
                 )
 
               log(s"""HK non-trivial lambda construction:
