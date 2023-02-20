@@ -325,7 +325,16 @@ object LightTypeTagRef {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
   }
 
-  private[this] val ignored = Set[AppliedReference](
+  def isIgnored[T <: AbstractReference](t: T): Boolean = {
+    t match {
+      case a: AppliedReference =>
+        ignored.contains(a)
+      case _: Lambda =>
+        false
+    }
+  }
+
+  private[reflect] val ignored = Set[AppliedReference](
     LightTypeTagInheritance.tpeAny,
     LightTypeTagInheritance.tpeAnyRef,
     LightTypeTagInheritance.tpeObject

@@ -330,6 +330,13 @@ object LightTypeTag {
   }
   private[reflect] object ParsedLightTypeTag {
     private[reflect] final case class SubtypeDBs(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]])
+
+    object SubtypeDBs {
+      def apply(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]) = new SubtypeDBs(
+        bases.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).toMap,
+        idb.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).toMap
+      )
+    }
   }
 
   /** `ParsedLightTypeTag` since 1.0.0-M8 */

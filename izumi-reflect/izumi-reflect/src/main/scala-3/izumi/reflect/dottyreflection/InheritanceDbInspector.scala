@@ -1,11 +1,12 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef
+import izumi.reflect.macrortti.LightTypeTagRef.*
+
 import scala.collection.mutable
 import scala.collection.immutable.Queue
-
-import scala.quoted._
+import scala.quoted.*
 
 object InheritanceDbInspector {
   def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
