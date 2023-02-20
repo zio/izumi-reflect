@@ -79,7 +79,7 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
 
     val hashCodeRef = ltt.hashCode()
     val strRef = PickleImpl.serializeIntoString(ltt.ref, LightTypeTag.lttRefSerializer)
-    val strDBs = PickleImpl.serializeIntoString(SubtypeDBs(ltt.basesdb, ltt.idb), LightTypeTag.subtypeDBsSerializer)
+    val strDBs = PickleImpl.serializeIntoString(SubtypeDBs.make(ltt.basesdb, ltt.idb), LightTypeTag.subtypeDBsSerializer)
 
     c.Expr[LightTypeTag](
       q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)"

@@ -35,13 +35,13 @@ object Inspect {
   def makeParsedLightTypeTagImpl(ltt: LightTypeTag)(using qctx: Quotes): Expr[LightTypeTag] = {
     val hashCodeRef = ltt.hashCode()
     val strRef = PickleImpl.serializeIntoString(ltt.ref, LightTypeTag.lttRefSerializer)
-    val strDbs = PickleImpl.serializeIntoString(SubtypeDBs(ltt.basesdb, ltt.idb), LightTypeTag.subtypeDBsSerializer)
+    val strDbs = PickleImpl.serializeIntoString(SubtypeDBs.make(ltt.basesdb, ltt.idb), LightTypeTag.subtypeDBsSerializer)
 
     InspectorBase.ifDebug {
       def string2hex(str: String): String = str.toList.map(_.toInt.toHexString).mkString
 
       println(s"${ltt.ref} => ${strRef.size} bytes, ${string2hex(strRef)}")
-      println(s"${SubtypeDBs(ltt.basesdb, ltt.idb)} => ${strDbs.size} bytes, ${string2hex(strDbs)}")
+      println(s"${SubtypeDBs.make(ltt.basesdb, ltt.idb)} => ${strDbs.size} bytes, ${string2hex(strDbs)}")
       println(strDbs)
     }
 

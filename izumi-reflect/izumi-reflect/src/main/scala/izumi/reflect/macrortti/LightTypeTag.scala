@@ -329,10 +329,16 @@ object LightTypeTag {
     }
   }
   private[reflect] object ParsedLightTypeTag {
-    private[reflect] final case class SubtypeDBs(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]])
+    private[reflect] final case class SubtypeDBs private (
+      bases: Map[AbstractReference, Set[AbstractReference]],
+      idb: Map[NameReference, Set[NameReference]]
+    )
 
     object SubtypeDBs {
-      def apply(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]) = new SubtypeDBs(
+
+      import scala.collection.compat._
+
+      def make(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]) = new SubtypeDBs(
         bases.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).toMap,
         idb.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).toMap
       )
@@ -859,7 +865,7 @@ object LightTypeTag {
         val ic = state.dec.readInt
         if (ic == 0) {
           val value = LightTypeTag
-            .ParsedLightTypeTag.SubtypeDBs(
+            .ParsedLightTypeTag.SubtypeDBs.make(
               state.unpickle[Map[LightTypeTagRef.AbstractReference, Set[LightTypeTagRef.AbstractReference]]],
               state.unpickle[Map[LightTypeTagRef.NameReference, Set[LightTypeTagRef.NameReference]]]
             )
