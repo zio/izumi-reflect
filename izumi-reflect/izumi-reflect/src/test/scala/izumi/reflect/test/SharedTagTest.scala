@@ -743,22 +743,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertChild(combinedTag, parentTag)
       assertNotChild(parentTag, combinedTag)
     }
-
-//    "KKKKK" in {
-//      val childBase = `LTT[_[_,_]]`[RoleChild]
-//      val childArg = `LTT[_,_]`[Either]
-//      val combinedTag = childBase.combine(childArg)
-//      val parentTag = LTT[RoleParent[Either[Throwable, *]]]
-//      val childTag = LTT[RoleChild[Either]]
-//
-////      assertChild(combinedTag, childTag)
-////      assertSame(combinedTag, childTag)
-//
-//      info(combinedTag.debug())
-//      // assertChild(combinedTag, parentTag)
-////      assertNotChild(parentTag, combinedTag)
-//    }
-
+    
     "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
       val childBase = `LTT[_[+_,+_],_,_]`[RoleChild2]
       val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])
