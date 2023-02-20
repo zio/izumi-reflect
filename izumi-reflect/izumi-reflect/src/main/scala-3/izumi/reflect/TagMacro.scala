@@ -93,7 +93,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               val outerLambdaParamArgsTypeParamRefs = paramsRange.map(outerLambda.param(_)).toList
 
               // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-              val ctorLambdaParameter = LambdaParameter("0")
+              val ctorLambdaParameter = LambdaParameter(SymName.scala3FirstLambdaParamName.name)
 
               val typeArgToLambdaParameterMap = (distinctNonParamArgsTypes ++ outerLambdaParamArgsTypeParamRefs)
                 .iterator.distinct.zipWithIndex.map {

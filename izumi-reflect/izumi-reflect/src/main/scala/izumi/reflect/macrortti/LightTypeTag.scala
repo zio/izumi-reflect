@@ -335,9 +335,10 @@ object LightTypeTag {
     )
 
     private[reflect] object SubtypeDBs {
+      @nowarn("msg=view.mapValues")
       private[reflect] def make(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]) = new SubtypeDBs(
-        bases.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap,
-        idb.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap
+        bases.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap,
+        idb.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap
       )
     }
   }

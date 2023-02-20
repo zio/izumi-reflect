@@ -490,7 +490,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               }
           }
 
-          val res = FullReference(nameRef.ref.name, refParams, prefix)
+          val res = FullReference(nameRef.ref, refParams, prefix)
           thisLevel.log(s"Assembled FullReference=$res from args=$args and tparams=$tparams")
           res
       }

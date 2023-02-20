@@ -154,7 +154,7 @@ class TagMacro(val c: blackbox.Context) {
         val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
 
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-        val ctorLambdaParameter = LambdaParameter("0")
+        val ctorLambdaParameter = LambdaParameter(SymName.scala2FirstLambdaParamName.name)
 
         val typeArgToLambdaParameterMap: Map[Either[Type, Symbol], LambdaParameter] =
           // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
@@ -187,7 +187,7 @@ class TagMacro(val c: blackbox.Context) {
 
         val ctorApplyingLambda = LightTypeTagRef.Lambda(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
-          FullReference(ctorLambdaParameter.name, usages)
+          FullReference(SymName.LambdaParamName(ctorLambdaParameter.name), usages)
         )
 
         logger.log(s"""HK non-trivial lambda construction:

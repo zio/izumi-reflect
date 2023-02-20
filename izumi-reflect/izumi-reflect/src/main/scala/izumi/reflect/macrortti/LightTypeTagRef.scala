@@ -462,6 +462,13 @@ object LightTypeTagRef {
         SymLiteral(constant)
       }
     }
+
+    private[reflect] def scala2FirstLambdaParamName: SymName.LambdaParamName = {
+      SymName.LambdaParamName("0")
+    }
+    private[reflect] def scala3FirstLambdaParamName: SymName.LambdaParamName = {
+      SymName.LambdaParamName("0")
+    }
   }
 
   @inline private[macrortti] final def OrderingAbstractReferenceInstance[A <: AbstractReference]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
