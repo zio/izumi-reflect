@@ -16,7 +16,7 @@ object Inspector {
 
     override def toString: String = s"[($name: $tpe) = $asParam]"
   }
-  case class LamContext(val params: List[LamParam])
+  case class LamContext(params: List[LamParam])
 
   def make(q: Quotes): Inspector { val qctx: q.type } = new Inspector(0, Queue.empty) {
     override val qctx: q.type = q
