@@ -22,7 +22,7 @@ import scala.annotation.nowarn
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.ReflectionUtil.{Kind, kindOf}
 import izumi.reflect.TagMacro._
-import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, SymName, TypeParam, Variance}
+import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam, Variance}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
@@ -154,20 +154,20 @@ class TagMacro(val c: blackbox.Context) {
         val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
 
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-        val ctorLambdaParameter = LambdaParameter(SymName.scala2FirstLambdaParamName)
+        val ctorLambdaParameter = SymName.scala2FirstLambdaParamName
 
-        val typeArgToLambdaParameterMap: Map[Either[Type, Symbol], LambdaParameter] =
+        val typeArgToLambdaParameterMap: Map[Either[Type, Symbol], SymName.LambdaParamName] =
           // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
           // it's very confusing.
           (distinctNonParamArgsTypes.map(Left(_)) ++ outerLambdaParamArgsSyms.map(Right(_)))
             .distinct.iterator.zipWithIndex.map {
               case (argTpeOrSym, idx) =>
                 val idxPlusOne = idx + 1
-                val lambdaParameter = LambdaParameter(SymName.LambdaParamName(s"$idxPlusOne"))
+                val lambdaParameter = SymName.LambdaParamName(s"$idxPlusOne")
                 argTpeOrSym -> lambdaParameter
             }.toMap
 
-        def getFromMap(k1: Either[Type, Symbol], k2: Either[Type, Symbol]): LambdaParameter = {
+        def getFromMap(k1: Either[Type, Symbol], k2: Either[Type, Symbol]): SymName.LambdaParamName = {
           typeArgToLambdaParameterMap.getOrElse(
             k1,
             typeArgToLambdaParameterMap.getOrElse(
@@ -183,11 +183,11 @@ class TagMacro(val c: blackbox.Context) {
         val usageOrderDistinctNonLambdaArgs = distinctNonParamArgsTypes.map(t => getFromMap(Left(t), Right(t.typeSymbol)))
         val declarationOrderLambdaParamArgs = outerLambdaParamArgsSyms.map(sym => getFromMap(Right(sym), Left(sym.typeSignature)))
 
-        val usages = typeArgsTpes.map(t => TypeParam(NameReference(getFromMap(Left(t), Right(t.typeSymbol)).name), Variance.Invariant))
+        val usages = typeArgsTpes.map(t => TypeParam(NameReference(getFromMap(Left(t), Right(t.typeSymbol))), Variance.Invariant))
 
         val ctorApplyingLambda = LightTypeTagRef.Lambda(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
-          FullReference(ctorLambdaParameter.name, usages)
+          FullReference(ctorLambdaParameter, usages)
         )
 
         logger.log(s"""HK non-trivial lambda construction:

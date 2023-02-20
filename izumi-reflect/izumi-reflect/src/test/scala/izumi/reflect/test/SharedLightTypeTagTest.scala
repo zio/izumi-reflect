@@ -1,6 +1,6 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries, FullReference, LambdaParameter, NameReference, SymName, TypeParam}
+import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries, FullReference, NameReference, SymName, TypeParam}
 import izumi.reflect.macrortti.{LTT, _}
 import izumi.reflect.test.TestModel.W3
 
@@ -506,7 +506,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       fullDb.foreach {
         case (_, parents) =>
           parents.foreach {
-            case LightTypeTagRef.Lambda(List(LambdaParameter(name)), FullReference(_, params, _)) =>
+            case LightTypeTagRef.Lambda(List(name), FullReference(_, params, _)) =>
               assert(params.exists {
                 case TypeParam(NameReference(ref, _, _), _) =>
                   name == ref

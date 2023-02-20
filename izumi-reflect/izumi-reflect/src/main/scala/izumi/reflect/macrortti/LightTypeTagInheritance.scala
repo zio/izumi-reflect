@@ -36,7 +36,7 @@ object LightTypeTagInheritance {
   private[reflect] final val tpeObject = NameReference(SymTypeName(classOf[Object].getName))
 
   private final case class Ctx(
-    outerLambdaParams: List[LambdaParameter],
+    outerLambdaParams: List[SymName.LambdaParamName],
     paramNames: Set[SymName.LambdaParamName],
     outerDecls: Set[RefinementDecl.TypeMember],
     declNames: Set[String],
@@ -44,7 +44,7 @@ object LightTypeTagInheritance {
     self: LightTypeTagInheritance
   ) {
     def next(): Ctx = Ctx(outerLambdaParams, paramNames, outerDecls, declNames, logger.sub(), self)
-    def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, newparams.iterator.map(_.name).toSet, outerDecls, declNames, logger.sub(), self)
+    def next(newparams: List[SymName.LambdaParamName]): Ctx = Ctx(newparams, newparams.iterator.toSet, outerDecls, declNames, logger.sub(), self)
     def next(newdecls: Set[RefinementDecl.TypeMember]): Ctx = Ctx(outerLambdaParams, paramNames, newdecls, newdecls.map(_.name), logger.sub(), self)
   }
   // https://github.com/lampepfl/dotty/issues/14013 // private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
@@ -149,7 +149,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         isChild(ctx.next(s.input))(s.output, t)
       case (s: Lambda, o: Lambda) =>
         (s.input.size == o.input.size
-        && isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.asInstanceOf[SymName.LambdaParamName]))))(s.normalizedOutput, o.normalizedOutput))
+        && isChild(ctx.next(s.normalizedParams.map(p => p.ref.asInstanceOf[SymName.LambdaParamName])))(s.normalizedOutput, o.normalizedOutput))
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>

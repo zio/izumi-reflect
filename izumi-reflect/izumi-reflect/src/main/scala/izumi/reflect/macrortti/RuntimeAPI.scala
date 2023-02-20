@@ -83,7 +83,7 @@ object RuntimeAPI {
     //        rewriter.replaceRefs(acc)
     //    }
 
-    val newParams = lambda.input.filterNot(paramMap contains _.name)
+    val newParams = lambda.input.filterNot(paramMap.contains)
     val res = if (newParams.isEmpty) {
       replaced
     } else {
@@ -106,7 +106,7 @@ object RuntimeAPI {
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>
-          val bad = l.input.iterator.map(_.name).toSet
+          val bad = l.input.iterator.toSet
           import scala.collection.compat._
           val fixed = new Rewriter(_rules.view.filterKeys(!bad.contains(_)).toMap).replaceRefs(l.output)
           l.copy(output = fixed)

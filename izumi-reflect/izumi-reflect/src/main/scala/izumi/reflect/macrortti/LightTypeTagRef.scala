@@ -48,7 +48,7 @@ sealed trait LightTypeTagRef extends Serializable {
           case (p, v) =>
             v match {
               case Some(value: AbstractReference) =>
-                Seq(p.name -> value)
+                Seq(p -> value)
               case None =>
                 Seq.empty
             }
@@ -155,7 +155,7 @@ sealed trait LightTypeTagRef extends Serializable {
   final def typeArgs: List[AbstractReference] = {
     this match {
       case Lambda(input, output) =>
-        val params = input.iterator.map(_.name).toSet[SymName]
+        val params = input.iterator.toSet[SymName]
         output.typeArgs.filter {
           case n: AppliedNamedReference =>
             !params.contains(n.asName.ref)
@@ -207,7 +207,7 @@ sealed trait LightTypeTagRef extends Serializable {
       l =>
         l.input.zip(refs).map {
           case (p, v) =>
-            p.name -> v
+            p -> v
         }
     }
   }
@@ -219,7 +219,7 @@ sealed trait LightTypeTagRef extends Serializable {
         if (l.input.size < parameters.size) {
           throw new IllegalArgumentException(s"$this expects no more than ${l.input.size} parameters: ${l.input} but got $parameters")
         }
-        val expected = l.input.iterator.map(_.name).toSet
+        val expected = l.input.iterator.toSet
         val unknownKeys = parameters.iterator.map(_._1).toSet.diff(expected)
         if (unknownKeys.nonEmpty) {
           throw new IllegalArgumentException(s"$this takes parameters: $expected but got unexpected ones: $unknownKeys")
@@ -258,7 +258,7 @@ object LightTypeTagRef {
 
   sealed trait AbstractReference extends LightTypeTagRef
 
-  final case class Lambda(input: List[LambdaParameter], output: AbstractReference) extends AbstractReference {
+  final case class Lambda(input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
     override def hashCode(): Int = {
       normalizedOutput.hashCode()
     }
@@ -269,7 +269,7 @@ object LightTypeTagRef {
           // No boundary on paramRefs
           // FIXME LambdaParameter should contain bounds and NameReference shouldn't
           //       (Except possibly lower bound of an abstract/opaque type member)
-          NameReference(n.name)
+          NameReference(n)
       }.toSet
     lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
@@ -303,14 +303,14 @@ object LightTypeTagRef {
     private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p.name -> NameReference(SymName.LambdaParamName(s"!FAKE_$idx"))
+          p -> NameReference(SymName.LambdaParamName(s"!FAKE_$idx"))
       }
     }
   }
 
-  final case class LambdaParameter(name: SymName.LambdaParamName) {
-    override def toString: String = this.render()
-  }
+//  final case class LambdaParameter(name: SymName.LambdaParamName) {
+//    override def toString: String = this.render()
+//  }
 
   sealed trait AppliedReference extends AbstractReference
 

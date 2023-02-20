@@ -277,7 +277,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def makeLambdaParents(componentPolyType: Type, lambdaParams: List[(String, LambdaParameter)]): Seq[AbstractReference] = {
+    def makeLambdaParents(componentPolyType: Type, lambdaParams: List[(String, SymName.LambdaParamName)]): Seq[AbstractReference] = {
       val allBaseTypes = tpeBases(componentPolyType)
 
       val paramMap = lambdaParams.toMap
@@ -370,14 +370,14 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
   }
 
-  private[this] def makeRefTop(tpe: Type, terminalNames: Map[String, LambdaParameter], isLambdaOutput: Boolean): AbstractReference = {
+  private[this] def makeRefTop(tpe: Type, terminalNames: Map[String, SymName.LambdaParamName], isLambdaOutput: Boolean): AbstractReference = {
     this.makeRefImpl(0, nestedIn = Set(tpe), terminalNames, Set.empty)(tpe, isLambdaOutput)
   }
 
   private[this] def makeRefImpl(
     level: Int,
     nestedIn: Set[Type],
-    terminalNames: Map[String, LambdaParameter],
+    terminalNames: Map[String, SymName.LambdaParamName],
     knownWildcards: Set[Symbol]
   )(tpe0: Type,
     isLambdaOutput: Boolean
@@ -395,7 +395,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def makeRefSub(tpe: Type, stop: Map[String, LambdaParameter], knownWildcardsSub: Set[Symbol]): AbstractReference = {
+    def makeRefSub(tpe: Type, stop: Map[String, SymName.LambdaParamName], knownWildcardsSub: Set[Symbol]): AbstractReference = {
       val allWildcards = knownWildcards ++ knownWildcardsSub
       if (allWildcards.contains(tpe.typeSymbol)) {
         WildcardReference(makeBoundaries(tpe0))
@@ -428,7 +428,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       out
     }
 
-    def unpackProperTypeRefinement(t0: Type, rules: Map[String, LambdaParameter]): AppliedReference = {
+    def unpackProperTypeRefinement(t0: Type, rules: Map[String, SymName.LambdaParamName]): AppliedReference = {
       IzAssert(!isHKTOrPolyType(Dealias.fullNormDealias(t0)))
 
       UniRefinement.breakRefinement(t0, squashHKTRefToPolyTypeResultType = false) match {
@@ -446,7 +446,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def unpackAsProperType(tpeRaw: Type, rules: Map[String, LambdaParameter]): AppliedNamedReference = {
+    def unpackAsProperType(tpeRaw: Type, rules: Map[String, SymName.LambdaParamName]): AppliedNamedReference = {
       val tpe = Dealias.fullNormDealias(tpeRaw)
       val prefix = makePrefixReference(tpe)
       val typeSymbol = tpe.typeSymbol
@@ -456,7 +456,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val nameRef = rules.get(typeSymbol.fullName) match {
         case Some(lambdaParameter) =>
           // this is a previously encountered type variable
-          NameReference(lambdaParameter.name, boundaries, prefix)
+          NameReference(lambdaParameter, boundaries, prefix)
 
         case None =>
           makeNameReference(tpe, typeSymbol, boundaries, prefix)
@@ -496,7 +496,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def convertDecl(decl: SymbolApi, rules: Map[String, LambdaParameter]): scala.collection.compat.IterableOnce[RefinementDecl] = {
+    def convertDecl(decl: SymbolApi, rules: Map[String, SymName.LambdaParamName]): scala.collection.compat.IterableOnce[RefinementDecl] = {
       if (decl.isMethod) {
         val declMethod = decl.asMethod
         val returnTpe = declMethod.returnType
@@ -547,7 +547,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     out
   }
 
-  private[this] def makeLambdaParams(ctxIdx: Option[Int], tparams: List[Symbol]): List[(String, LambdaParameter)] = {
+  private[this] def makeLambdaParams(ctxIdx: Option[Int], tparams: List[Symbol]): List[(String, SymName.LambdaParamName)] = {
     tparams.zipWithIndex.map {
       case (tparamSym, idx) =>
         val fullName = tparamSym.fullName
@@ -557,7 +557,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           case None =>
             idx.toString
         }
-        fullName -> LambdaParameter(SymName.LambdaParamName(idxStr))
+        fullName -> SymName.LambdaParamName(idxStr)
     }
   }
 

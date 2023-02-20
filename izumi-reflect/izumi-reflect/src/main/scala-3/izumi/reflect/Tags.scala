@@ -19,7 +19,6 @@
 package izumi.reflect
 
 import izumi.reflect.dottyreflection.Inspect
-import izumi.reflect.macrortti.LightTypeTagRef.LambdaParameter
 import izumi.reflect.macrortti.{LTag, LightTypeTag, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
