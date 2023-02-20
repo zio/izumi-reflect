@@ -4,22 +4,26 @@ import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.annotation.{tailrec, targetName}
+import scala.collection.immutable.Queue
 import scala.quoted.{Quotes, Type}
 import scala.reflect.Selectable.reflectiveSelectable
 
 object Inspector {
-  case class LamParam(qctx: Quotes)(val name: String, val tpe: qctx.reflect.TypeRepr, val index: Int, val depth: Int, val arity: Int) {
+  case class LamParam(name: String, index: Int, depth: Int, arity: Int)(val qctx: Quotes)(val tpe: qctx.reflect.TypeRepr) {
     def asParam = LambdaParameter(s"$depth:$index/$arity")
-//    def asParam = LambdaParameter(s"$depth:$index/$arity:$name")
-//    def asParam = LambdaParameter(s"$index/$carity:$name")
-//    def asParam = LambdaParameter(name)
+    // this might be useful for debugging
+    // def asParam = LambdaParameter(s"$depth:$index/$arity:$name")
 
-    override def toString: String = s"[$depth/$name@$index: $tpe]"
+    override def toString: String = s"[($name: $tpe) = $asParam]"
   }
-  case class LamContext(qctx: Quotes)(val params: List[LamParam])
+  case class LamContext(val params: List[LamParam])
+
+  def make(q: Quotes): Inspector { val qctx: q.type } = new Inspector(0, Queue.empty) {
+    override val qctx: q.type = q
+  }
 }
 
-abstract class Inspector(protected val shift: Int, val context: List[Inspector.LamContext]) extends InspectorBase {
+abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.LamContext]) extends InspectorBase {
   import qctx.reflect._
 
   def next(newContext: List[Inspector.LamContext] = Nil): Inspector { val qctx: Inspector.this.qctx.type } = new Inspector(shift + 1, this.context ++ newContext) {
@@ -27,16 +31,15 @@ abstract class Inspector(protected val shift: Int, val context: List[Inspector.L
   }
 
   def nextLam(l: TypeLambda): Inspector { val qctx: Inspector.this.qctx.type } = {
-    // val paramNames = .map(LambdaParameter(_))
     val params = l
       .paramNames
       .zipWithIndex
       .map {
         case (nme, idx) =>
-          Inspector.LamParam(qctx)(nme, l.param(idx), idx, context.size, l.paramNames.size)
+          Inspector.LamParam(nme, idx, context.size, l.paramNames.size)(qctx)(l.param(idx))
       }
       .toList
-    next(List(Inspector.LamContext(qctx)(params)))
+    next(List(Inspector.LamContext(params)))
   }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
@@ -237,12 +240,15 @@ abstract class Inspector(protected val shift: Int, val context: List[Inspector.L
         log(s"make name reference from term $term")
         makeNameReferenceFromSymbol(term.termSymbol, Some(term))
       case t: ParamRef =>
-        val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
         assert(context.flatMap(_.params.map(_.tpe)).contains(t), s"${context.flatMap(_.params.map(_.tpe))} must contain $t")
         val candidates = context.reverse.flatMap(_.params).filter(_.tpe == t)
-        // assert(candidates.size == 1, s"${candidates.map(_.tpe)}")
 
-        NameReference(SymName.LambdaParamName(candidates.head.asParam.name), Boundaries.Empty, None)
+        val contextParam = candidates.head
+        locally {
+          val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
+          assert(contextParam.name == paramName, s"$contextParam should match $paramName")
+        }
+        NameReference(SymName.LambdaParamName(contextParam.asParam.name), Boundaries.Empty, None)
       case constant: ConstantType =>
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
       case ref =>

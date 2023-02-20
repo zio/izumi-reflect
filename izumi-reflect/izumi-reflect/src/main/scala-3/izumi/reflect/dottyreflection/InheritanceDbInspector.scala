@@ -3,13 +3,20 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef._
 import scala.collection.mutable
+import scala.collection.immutable.Queue
 
 import scala.quoted._
+
+object InheritanceDbInspector {
+  def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
+    override val qctx: q.type = q
+  }
+}
 
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  private lazy val inspector = new Inspector(0, List.empty) { val qctx: InheritanceDbInspector.this.qctx.type = InheritanceDbInspector.this.qctx }
+  private lazy val inspector = Inspector.make(qctx)
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe0 = TypeRepr.of[T].dealias

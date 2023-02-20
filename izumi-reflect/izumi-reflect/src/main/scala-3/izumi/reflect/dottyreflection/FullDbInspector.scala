@@ -2,15 +2,22 @@ package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef.*
 
+import scala.collection.immutable.Queue
 import scala.collection.mutable
-import scala.quoted._
+import scala.quoted.*
+
+object FullDbInspector {
+  def make(q: Quotes): FullDbInspector { val qctx: q.type } = new FullDbInspector(0) {
+    override val qctx: q.type = q
+  }
+}
 
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  private lazy val inspector0 = new Inspector(0, List.empty) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
+  private lazy val inspector0 = Inspector.make(qctx)
 
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
     new Run(inspector0)
@@ -39,7 +46,14 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(a, selfRef, recurseIntoBases = false)
 
         case l: TypeLambda =>
-          val selfL = i.inspectTypeRepr(tpe).asInstanceOf[LightTypeTagRef.Lambda]
+          val selfL = i.inspectTypeRepr(l).asInstanceOf[LightTypeTagRef.Lambda]
+//          val selfL1 = i.nextLam(l).inspectTypeRepr(l).asInstanceOf[LightTypeTagRef.Lambda]
+//
+//          assert(selfL == selfL1)
+
+//          if (selfL.toString != selfL1.toString) {
+//            throw new RuntimeException(s"$selfL vs bad $selfL1")
+//          }
 
           val parents = new Run(i.nextLam(l)).inspectTypeBoundsToFull(l.resType)
           val out = parents.flatMap {
@@ -47,9 +61,9 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
               Seq((selfL, p), (c, p))
 
 //              if (c == selfL.output) {
-//                (selfL, p)
+//                Seq((selfL, p))
 //              } else {
-//                (selfL, p)
+//                Seq((c, p))
 //              }
           }
           out.distinct
