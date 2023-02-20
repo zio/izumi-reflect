@@ -18,12 +18,10 @@
 
 package izumi.reflect.test
 
-import izumi.reflect.macrortti._
-
 class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
-  "[progression] lightweight type tags (Scala 2)" should {
-
-  }
+//  "[progression] lightweight type tags (Scala 2)" should {
+//
+//  }
 
 }

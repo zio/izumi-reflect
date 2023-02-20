@@ -93,25 +93,25 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               val outerLambdaParamArgsTypeParamRefs = paramsRange.map(outerLambda.param(_)).toList
 
               // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-              val ctorLambdaParameter = LambdaParameter(SymName.scala3FirstLambdaParamName.name)
+              val ctorLambdaParameter = LambdaParameter(SymName.scala3FirstLambdaParamName)
 
               val typeArgToLambdaParameterMap = (distinctNonParamArgsTypes ++ outerLambdaParamArgsTypeParamRefs)
                 .iterator.distinct.zipWithIndex.map {
                   case (argTpe, idx) =>
                     val idxPlusOne = idx + 1
-                    val lambdaParameter = LambdaParameter(s"$idxPlusOne")
+                    val lambdaParameter = LambdaParameter(SymName.LambdaParamName(s"$idxPlusOne"))
                     argTpe -> lambdaParameter
                 }.toMap
 
               val usageOrderDistinctNonLambdaArgs = distinctNonParamArgsTypes.map(t => typeArgToLambdaParameterMap(t))
               val declarationOrderLambdaParamArgs = outerLambdaParamArgsTypeParamRefs.map(t => typeArgToLambdaParameterMap(t))
 
-              val usages = typeArgsTpes.map(t => TypeParam(NameReference(SymName.LambdaParamName(typeArgToLambdaParameterMap(t).name)), Variance.Invariant))
+              val usages = typeArgsTpes.map(t => TypeParam(NameReference(typeArgToLambdaParameterMap(t).name), Variance.Invariant))
 
               val ctorApplyingLambda =
                 LightTypeTagRef.Lambda(
                   ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
-                  FullReference(SymName.LambdaParamName(ctorLambdaParameter.name), usages)
+                  FullReference(ctorLambdaParameter.name, usages)
                 )
 
               log(s"""HK non-trivial lambda construction:

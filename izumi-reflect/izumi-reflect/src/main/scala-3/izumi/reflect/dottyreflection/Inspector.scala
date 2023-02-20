@@ -10,7 +10,7 @@ import scala.reflect.Selectable.reflectiveSelectable
 
 object Inspector {
   case class LamParam(name: String, index: Int, depth: Int, arity: Int)(val qctx: Quotes)(val tpe: qctx.reflect.TypeRepr) {
-    def asParam = LambdaParameter(s"$depth:$index/$arity")
+    def asParam = LambdaParameter(SymName.LambdaParamName(s"$depth:$index/$arity"))
     // this might be useful for debugging
     // def asParam = LambdaParameter(s"$depth:$index/$arity:$name")
 
@@ -252,7 +252,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
             assert(contextParam.name == paramName, s"$contextParam should match $paramName")
           }
 
-          NameReference(SymName.LambdaParamName(contextParam.asParam.name), Boundaries.Empty, None)
+          NameReference(contextParam.asParam.name, Boundaries.Empty, None)
 
         } else {
           val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString

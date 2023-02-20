@@ -101,9 +101,15 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
+    override def render(value: SymName.LambdaParamName): String = {
+      value.name
+    }
+  }
+
   implicit lazy val r_LambdaParameter: Renderable[LambdaParameter] = new Renderable[LambdaParameter] {
     override def render(value: LambdaParameter): String = {
-      s"%${value.name}"
+      s"%${value.name.render()}"
     }
   }
 

@@ -508,8 +508,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
           parents.foreach {
             case LightTypeTagRef.Lambda(List(LambdaParameter(name)), FullReference(_, params, _)) =>
               assert(params.exists {
-                case TypeParam(NameReference(SymName.LambdaParamName(lname), _, _), _) =>
-                  name == lname
+                case TypeParam(NameReference(ref, _, _), _) =>
+                  name == ref
                 case _ => false
               })
             case _ =>

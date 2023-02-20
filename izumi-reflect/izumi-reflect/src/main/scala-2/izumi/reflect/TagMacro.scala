@@ -154,7 +154,7 @@ class TagMacro(val c: blackbox.Context) {
         val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
 
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-        val ctorLambdaParameter = LambdaParameter(SymName.scala2FirstLambdaParamName.name)
+        val ctorLambdaParameter = LambdaParameter(SymName.scala2FirstLambdaParamName)
 
         val typeArgToLambdaParameterMap: Map[Either[Type, Symbol], LambdaParameter] =
           // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
@@ -163,7 +163,7 @@ class TagMacro(val c: blackbox.Context) {
             .distinct.iterator.zipWithIndex.map {
               case (argTpeOrSym, idx) =>
                 val idxPlusOne = idx + 1
-                val lambdaParameter = LambdaParameter(s"$idxPlusOne")
+                val lambdaParameter = LambdaParameter(SymName.LambdaParamName(s"$idxPlusOne"))
                 argTpeOrSym -> lambdaParameter
             }.toMap
 
@@ -183,11 +183,11 @@ class TagMacro(val c: blackbox.Context) {
         val usageOrderDistinctNonLambdaArgs = distinctNonParamArgsTypes.map(t => getFromMap(Left(t), Right(t.typeSymbol)))
         val declarationOrderLambdaParamArgs = outerLambdaParamArgsSyms.map(sym => getFromMap(Right(sym), Left(sym.typeSignature)))
 
-        val usages = typeArgsTpes.map(t => TypeParam(NameReference(SymName.LambdaParamName(getFromMap(Left(t), Right(t.typeSymbol)).name)), Variance.Invariant))
+        val usages = typeArgsTpes.map(t => TypeParam(NameReference(getFromMap(Left(t), Right(t.typeSymbol)).name), Variance.Invariant))
 
         val ctorApplyingLambda = LightTypeTagRef.Lambda(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
-          FullReference(SymName.LambdaParamName(ctorLambdaParameter.name), usages)
+          FullReference(ctorLambdaParameter.name, usages)
         )
 
         logger.log(s"""HK non-trivial lambda construction:

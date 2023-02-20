@@ -37,7 +37,7 @@ object LightTypeTagInheritance {
 
   private final case class Ctx(
     outerLambdaParams: List[LambdaParameter],
-    paramNames: Set[String],
+    paramNames: Set[SymName.LambdaParamName],
     outerDecls: Set[RefinementDecl.TypeMember],
     declNames: Set[String],
     logger: TrivialLogger,
@@ -149,7 +149,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         isChild(ctx.next(s.input))(s.output, t)
       case (s: Lambda, o: Lambda) =>
         (s.input.size == o.input.size
-        && isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.name))))(s.normalizedOutput, o.normalizedOutput))
+        && isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.asInstanceOf[SymName.LambdaParamName]))))(s.normalizedOutput, o.normalizedOutput))
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>

@@ -66,11 +66,11 @@ object RuntimeAPI {
     }
   }
 
-  def applyLambda(lambda: Lambda, parameters: Seq[(String, AbstractReference)]): AbstractReference = {
+  def applyLambda(lambda: Lambda, parameters: Seq[(SymName.LambdaParamName, AbstractReference)]): AbstractReference = {
 
     val paramMap = parameters.toMap
 
-    val rewriter = new Rewriter(paramMap)
+    val rewriter = new Rewriter(paramMap.toMap)
     val replaced = rewriter.replaceRefs(lambda.output)
 
     // fix for #82, #83
@@ -96,7 +96,8 @@ object RuntimeAPI {
     res
   }
 
-  final class Rewriter(rules: Map[String, AbstractReference]) {
+  final class Rewriter(_rules: Map[SymName.LambdaParamName, AbstractReference]) {
+    private val rules: Map[SymName, AbstractReference] = _rules.toMap
     def complete(@unused context: AppliedNamedReference, ref: AbstractReference): AbstractReference = {
       ref
     }
@@ -106,7 +107,8 @@ object RuntimeAPI {
       reference match {
         case l: Lambda =>
           val bad = l.input.iterator.map(_.name).toSet
-          val fixed = new Rewriter(rules.filterKeys(!bad(_)).toMap).replaceRefs(l.output)
+          import scala.collection.compat._
+          val fixed = new Rewriter(_rules.view.filterKeys(!bad.contains(_)).toMap).replaceRefs(l.output)
           l.copy(output = fixed)
 
         case o: AppliedReference =>
@@ -162,7 +164,7 @@ object RuntimeAPI {
 
       reference match {
         case n @ NameReference(ref, boundaries, prefix) =>
-          rules.get(ref.name) match {
+          rules.get(ref) match {
             case Some(value) =>
               complete(n, value)
             case None =>
@@ -170,7 +172,7 @@ object RuntimeAPI {
           }
 
         case f @ FullReference(ref, parameters, prefix) =>
-          rules.get(ref.name) match {
+          rules.get(ref) match {
             case Some(value) =>
               complete(f, value) match {
                 case out: Lambda =>

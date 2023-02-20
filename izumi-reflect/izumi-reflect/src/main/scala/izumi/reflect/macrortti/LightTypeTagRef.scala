@@ -155,10 +155,10 @@ sealed trait LightTypeTagRef extends Serializable {
   final def typeArgs: List[AbstractReference] = {
     this match {
       case Lambda(input, output) =>
-        val params = input.iterator.map(_.name).toSet
+        val params = input.iterator.map(_.name).toSet[SymName]
         output.typeArgs.filter {
           case n: AppliedNamedReference =>
-            !params.contains(n.asName.ref.name)
+            !params.contains(n.asName.ref)
           case _ =>
             true
         }
@@ -212,7 +212,7 @@ sealed trait LightTypeTagRef extends Serializable {
     }
   }
 
-  private[macrortti] final def applyParameters(p: Lambda => Seq[(String, AbstractReference)]): AbstractReference = {
+  private[macrortti] final def applyParameters(p: Lambda => Seq[(LambdaParamName, AbstractReference)]): AbstractReference = {
     this match {
       case l: Lambda =>
         val parameters = p(l)
@@ -269,7 +269,7 @@ object LightTypeTagRef {
           // No boundary on paramRefs
           // FIXME LambdaParameter should contain bounds and NameReference shouldn't
           //       (Except possibly lower bound of an abstract/opaque type member)
-          NameReference(SymName.LambdaParamName(n.name))
+          NameReference(n.name)
       }.toSet
     lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
@@ -300,7 +300,7 @@ object LightTypeTagRef {
       OrderingAbstractReference.compare(x.normalizedOutput, y.normalizedOutput)
     }
 
-    private[this] def makeFakeParams: List[(String, NameReference)] = {
+    private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
           p.name -> NameReference(SymName.LambdaParamName(s"!FAKE_$idx"))
@@ -308,7 +308,7 @@ object LightTypeTagRef {
     }
   }
 
-  final case class LambdaParameter(name: String) {
+  final case class LambdaParameter(name: SymName.LambdaParamName) {
     override def toString: String = this.render()
   }
 

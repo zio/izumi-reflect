@@ -750,7 +750,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[String](value.name)
+            state.pickle[String](value.name.name)
             state.addIdentityRef(value)
           }
         }
@@ -760,7 +760,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.LambdaParameter = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.LambdaParameter(state.unpickle[String])
+          val value = LightTypeTagRef.LambdaParameter(SymName.LambdaParamName(state.unpickle[String]))
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
