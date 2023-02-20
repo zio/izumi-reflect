@@ -92,7 +92,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
             val args = a
               .args.iterator.zipAll(variances, null.asInstanceOf[TypeRepr], Variance.Invariant).takeWhile(_._1 != null)
               .map(next().inspectTypeParam).toList
-            FullReference(ref = nameRef.ref.name, parameters = args, prefix = nameRef.prefix)
+            FullReference(symName = nameRef.symName, parameters = args, prefix = nameRef.prefix)
         }
 
       case l: TypeLambda =>
@@ -137,7 +137,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
-        NameReference("???")
+        NameReference(SymName.SymTypeName("???"))
 
       // Matches CachedRefinedType for this ZIO issue https://github.com/zio/zio/issues/6071
       case ref: Refinement =>

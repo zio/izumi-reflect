@@ -558,7 +558,7 @@ object LightTypeTag {
       addConcreteType[WildcardReference]
     }
 
-    implicit def wildcardRefSerializer: Pickler[WildcardReference] = new boopickle.Pickler[LightTypeTagRef.WildcardReference] {
+    implicit lazy val wildcardRefSerializer: Pickler[WildcardReference] = new boopickle.Pickler[LightTypeTagRef.WildcardReference] {
       override def pickle(value: LightTypeTagRef.WildcardReference)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
@@ -586,14 +586,19 @@ object LightTypeTag {
       }
     }
 
+    // Deserializer for FullReference before version 2.3.0 (with String first parameter instead of SymName)
     implicit lazy val fullRef: Pickler[FullReference] = new boopickle.Pickler[LightTypeTagRef.FullReference] {
       override def pickle(value: LightTypeTagRef.FullReference)(implicit state: boopickle.PickleState): Unit = {
         {
           val ref = state.identityRefFor(value)
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
-            state.enc.writeInt(0)
-            state.pickle[String](value.ref)
+            // After version 2.3.0 the FullReference format changed - we now use SymName not String for FullReference name
+            // Thankfully, boopickle's identity serialization only uses number range Int.MinValue..0,
+            // leaving us with all numbers above 0 to encode format variants.
+            state.enc.writeInt(1) // We use 1 instead of normal value 0
+            //
+            state.pickle[SymName](value.symName)
             state.pickle[List[LightTypeTagRef.TypeParam]](value.parameters)
             state.pickle[Option[LightTypeTagRef.AppliedReference]](value.prefix)
             state.addIdentityRef(value)
@@ -604,9 +609,17 @@ object LightTypeTag {
 
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.FullReference = {
         val ic = state.dec.readInt
-        if (ic == 0) {
+        if (ic == 0) { // Pre 2.3.0 format
           val value = LightTypeTagRef.FullReference(
-            state.unpickle[String],
+            SymName.SymTypeName(state.unpickle[String]),
+            state.unpickle[List[LightTypeTagRef.TypeParam]],
+            state.unpickle[Option[LightTypeTagRef.AppliedReference]]
+          )
+          state.addIdentityRef(value)
+          value
+        } else if (ic == 1) { // Post 2.3.0
+          val value = LightTypeTagRef.FullReference(
+            state.unpickle[SymName],
             state.unpickle[List[LightTypeTagRef.TypeParam]],
             state.unpickle[Option[LightTypeTagRef.AppliedReference]]
           )
@@ -618,6 +631,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val typeParam: Pickler[LightTypeTagRef.TypeParam] = new boopickle.Pickler[LightTypeTagRef.TypeParam] {
       override def pickle(value: LightTypeTagRef.TypeParam)(implicit state: boopickle.PickleState): Unit = {
         {
@@ -645,6 +659,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val union: Pickler[UnionReference] = new boopickle.Pickler[LightTypeTagRef.UnionReference] {
       override def pickle(value: LightTypeTagRef.UnionReference)(implicit state: boopickle.PickleState): Unit = {
         {
@@ -671,6 +686,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val intersection: Pickler[IntersectionReference] = new boopickle.Pickler[LightTypeTagRef.IntersectionReference] {
       override def pickle(value: LightTypeTagRef.IntersectionReference)(implicit state: boopickle.PickleState): Unit = {
         {
@@ -697,6 +713,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val lambda: Pickler[LightTypeTagRef.Lambda] = new boopickle.Pickler[LightTypeTagRef.Lambda] {
       override def pickle(value: LightTypeTagRef.Lambda)(implicit state: boopickle.PickleState): Unit = {
         {
@@ -724,6 +741,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val lambdaParameter: Pickler[LightTypeTagRef.LambdaParameter] = new boopickle.Pickler[LightTypeTagRef.LambdaParameter] {
       override def pickle(value: LightTypeTagRef.LambdaParameter)(implicit state: boopickle.PickleState): Unit = {
         {
@@ -750,6 +768,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val refinement: Pickler[Refinement] = new boopickle.Pickler[LightTypeTagRef.Refinement] {
       override def pickle(value: LightTypeTagRef.Refinement)(implicit state: boopickle.PickleState): Unit = {
         {
@@ -777,6 +796,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val refinementDecl: boopickle.CompositePickler[LightTypeTagRef.RefinementDecl] = new boopickle.CompositePickler[LightTypeTagRef.RefinementDecl] {
       addConcreteType[LightTypeTagRef.RefinementDecl.Signature]
       addConcreteType[LightTypeTagRef.RefinementDecl.TypeMember]
@@ -809,6 +829,7 @@ object LightTypeTag {
           state.codingError(ic)
       }
     }
+
     implicit lazy val signature: Pickler[RefinementDecl.Signature] = new boopickle.Pickler[LightTypeTagRef.RefinementDecl.Signature] {
       override def pickle(value: LightTypeTagRef.RefinementDecl.Signature)(implicit state: boopickle.PickleState): Unit = {
         {

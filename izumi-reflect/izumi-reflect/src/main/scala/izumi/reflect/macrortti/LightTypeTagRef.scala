@@ -390,14 +390,27 @@ object LightTypeTagRef {
   }
 
   final case class FullReference(
-    ref: String,
+    symName: SymName,
     parameters: List[TypeParam],
     prefix: Option[AppliedReference] = None
   ) extends AppliedNamedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = NameReference(symName, prefix = prefix)
-    override def symName: SymName = SymTypeName(ref)
+
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def ref: String = symName.name
+
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def this(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]) = {
+      this(SymName.SymTypeName(ref), parameters, prefix)
+    }
+  }
+  object FullReference {
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def apply(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
+      new FullReference(SymName.SymTypeName(ref), parameters, prefix)
+    }
   }
 
   final case class TypeParam(
@@ -481,7 +494,7 @@ object LightTypeTagRef {
         OrderingOptionAbstractReference.compare(prefixx, prefixy)
 
       case (FullReference(refx, parametersx, prefixx), FullReference(refy, parametersy, prefixy)) =>
-        val compare1 = Ordering.String.compare(refx, refy)
+        val compare1 = OrderingSymName.compare(refx, refy)
         if (compare1 != 0) return compare1
         val compare2 = OrderingListTypeParam.compare(parametersx, parametersy)
         if (compare2 != 0) return compare2

@@ -152,7 +152,7 @@ object RuntimeAPI {
     }
 
     private def replaceNamed(reference: AppliedNamedReference): AbstractReference = {
-      def returnFullRef(fixedRef: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
+      def returnFullRef(fixedRef: SymName, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
         val p = parameters.map {
           case TypeParam(pref, variance) =>
             TypeParam(replaceRefs(pref), variance)
@@ -170,7 +170,7 @@ object RuntimeAPI {
           }
 
         case f @ FullReference(ref, parameters, prefix) =>
-          rules.get(ref) match {
+          rules.get(ref.name) match {
             case Some(value) =>
               complete(f, value) match {
                 case out: Lambda =>
@@ -180,7 +180,7 @@ object RuntimeAPI {
 
                 case n: NameReference =>
                   // we need this to support fakes only (see LightTypeTagRef#makeFakeParams)
-                  returnFullRef(n.ref.name, parameters, prefix)
+                  returnFullRef(n.ref, parameters, prefix)
 
                 case out =>
                   throw new IllegalStateException(s"Lambda expected for context-bound $f, but got $out")
