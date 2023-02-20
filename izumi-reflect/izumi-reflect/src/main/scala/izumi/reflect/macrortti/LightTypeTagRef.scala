@@ -269,7 +269,7 @@ object LightTypeTagRef {
           // No boundary on paramRefs
           // FIXME LambdaParameter should contain bounds and NameReference shouldn't
           //       (Except possibly lower bound of an abstract/opaque type member)
-          NameReference(n.name)
+          NameReference(SymName.LambdaParamName(n.name))
       }.toSet
     lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
@@ -300,7 +300,7 @@ object LightTypeTagRef {
     private[this] def makeFakeParams: List[(String, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p.name -> NameReference(s"!FAKE_$idx")
+          p.name -> NameReference(SymName.LambdaParamName(s"!FAKE_$idx"))
       }
     }
   }
@@ -382,7 +382,8 @@ object LightTypeTagRef {
     override def symName: SymName = ref
   }
   object NameReference {
-    def apply(tpeName: String): NameReference = NameReference(SymTypeName(tpeName))
+    @deprecated("Use SymName explicitly", "20.02.2023")
+    private[NameReference] def apply(tpeName: String): NameReference = NameReference(SymTypeName(tpeName))
   }
 
   final case class FullReference(

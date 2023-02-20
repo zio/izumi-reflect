@@ -23,16 +23,17 @@ import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean._
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.macrortti.LightTypeTagInheritance._
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.collection.mutable
 
 object LightTypeTagInheritance {
-  private[reflect] final val tpeNothing = NameReference("scala.Nothing")
-  private[reflect] final val tpeAny = NameReference("scala.Any")
-  private[reflect] final val tpeAnyRef = NameReference("scala.AnyRef")
-  private[reflect] final val tpeMatchable = NameReference("scala.Matchable")
-  private[reflect] final val tpeObject = NameReference(classOf[Object].getName)
+  private[reflect] final val tpeNothing = NameReference(SymTypeName("scala.Nothing"))
+  private[reflect] final val tpeAny = NameReference(SymTypeName("scala.Any"))
+  private[reflect] final val tpeAnyRef = NameReference(SymTypeName("scala.AnyRef"))
+  private[reflect] final val tpeMatchable = NameReference(SymTypeName("scala.Matchable"))
+  private[reflect] final val tpeObject = NameReference(SymTypeName(classOf[Object].getName))
 
   private final case class Ctx(
     outerLambdaParams: List[LambdaParameter],

@@ -22,7 +22,7 @@ import scala.annotation.nowarn
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.ReflectionUtil.{Kind, kindOf}
 import izumi.reflect.TagMacro._
-import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, TypeParam, Variance}
+import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, LambdaParameter, NameReference, SymName, TypeParam, Variance}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
@@ -183,7 +183,7 @@ class TagMacro(val c: blackbox.Context) {
         val usageOrderDistinctNonLambdaArgs = distinctNonParamArgsTypes.map(t => getFromMap(Left(t), Right(t.typeSymbol)))
         val declarationOrderLambdaParamArgs = outerLambdaParamArgsSyms.map(sym => getFromMap(Right(sym), Left(sym.typeSignature)))
 
-        val usages = typeArgsTpes.map(t => TypeParam(NameReference(getFromMap(Left(t), Right(t.typeSymbol)).name), Variance.Invariant))
+        val usages = typeArgsTpes.map(t => TypeParam(NameReference(SymName.LambdaParamName(getFromMap(Left(t), Right(t.typeSymbol)).name)), Variance.Invariant))
 
         val ctorApplyingLambda = LightTypeTagRef.Lambda(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
