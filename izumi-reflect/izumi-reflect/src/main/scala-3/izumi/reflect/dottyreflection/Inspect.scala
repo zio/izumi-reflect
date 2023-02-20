@@ -4,7 +4,6 @@ import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 
-import java.rmi.server.LogStream.log
 import scala.quoted.{Expr, Quotes, Type}
 
 object Inspect {
