@@ -1,6 +1,6 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries}
+import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries, FullReference, LambdaParameter, NameReference, SymName, TypeParam}
 import izumi.reflect.macrortti.{LTT, _}
 
 import scala.collection.immutable.ListSet
@@ -498,6 +498,24 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertDebugSame(alias, direct)
     }
+
+    "No degenerate lambdas (regression test https://github.com/zio/izumi-reflect/issues/345)" in {
+      val fullDb = LTT[List[Int]].basesdb
+
+      fullDb.foreach {
+        case (_, parents) =>
+          parents.foreach {
+            case LightTypeTagRef.Lambda(List(LambdaParameter(name)), FullReference(_, params, _)) =>
+              assert(params.exists {
+                case TypeParam(NameReference(SymName.LambdaParamName(lname), _, _), _) =>
+                  name == lname
+                case _ => false
+              })
+            case _ =>
+          }
+      }
+    }
+
   }
 
 }

@@ -203,10 +203,10 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       .filterNot(isHKTOrPolyType) // remove PolyTypes, only process applied types in this inspection
       .flatMap {
         component =>
-          val appliedParents = tpeBases(component).filterNot(isHKTOrPolyType)
           val tparams = component.etaExpand.typeParams
           val lambdaParams = makeLambdaParams(None, tparams).toMap
 
+          val appliedParents = tpeBases(component).filterNot(isHKTOrPolyType)
           val componentRef = makeRef(component)
 
           appliedParents.map {
@@ -267,10 +267,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           } else {
 
             val lambdaParams = makeLambdaParams(None, tparams)
-            val maybeComponentLambdaRef = makeRef(componentAsPolyType)
-            IzAssert(maybeComponentLambdaRef.isInstanceOf[LightTypeTagRef.Lambda])
             val parentLambdas = makeLambdaParents(componentAsPolyType, lambdaParams)
-            parentLambdas.map(maybeComponentLambdaRef -> _)
+
+            val componentLambda = makeRef(componentAsPolyType) // : LightTypeTagRef.Lambda
+            IzAssert(componentLambda.isInstanceOf[LightTypeTagRef.Lambda])
+
+            parentLambdas.map(componentLambda -> _)
           }
       }
     }
@@ -279,6 +281,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val allBaseTypes = tpeBases(componentPolyType)
 
       val paramMap = lambdaParams.toMap
+      lazy val lambdaParamsUnpacked = lambdaParams.map(_._2)
 
       allBaseTypes.map {
         parentTpe =>
@@ -287,9 +290,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             case l: Lambda =>
               l
             case applied: AppliedReference =>
-              val l = Lambda(lambdaParams.map(_._2), applied)
+              val l = Lambda(lambdaParamsUnpacked, applied)
 //              Some(l).filter(_.allArgumentsReferenced) // do not include non-lambda parents such as Product into lambda's inheritance tree
-              // include ALL bases for lambdas (this should be more correct since lambda is a template for a full parameterized db after combine)
+              // No, include ALL bases for lambdas (this should be more correct since lambda is a template for a full parameterized db after combine)
               if (l.someArgumentsReferenced) l else applied
           }
       }
