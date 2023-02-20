@@ -154,7 +154,8 @@ class TagMacro(val c: blackbox.Context) {
         val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
 
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-        val ctorLambdaParameter = SymName.scala2FirstLambdaParamName
+        val firstParamIdx = 0
+        val ctorLambdaParameter = SymName.LambdaParamName(s"$firstParamIdx")
 
         val typeArgToLambdaParameterMap: Map[Either[Type, Symbol], SymName.LambdaParamName] =
           // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
