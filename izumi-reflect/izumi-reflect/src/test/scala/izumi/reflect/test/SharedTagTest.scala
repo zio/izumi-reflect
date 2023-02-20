@@ -868,7 +868,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       val fullDb = childBase.basesdb
       fullDb.foreach {
-        (_, parents) =>
+        case (_, parents) =>
           parents.foreach {
             p =>
               if (p.toString.contains("RoleParent")) {

@@ -24,20 +24,6 @@ class LightTypeTagProgressionTest extends SharedLightTypeTagProgressionTest {
 
   "[progression] lightweight type tags (Scala 2)" should {
 
-    "progression test: there should be no unexpected lambdas in bases db produced from nested existential types (Scala 2 specific, unreducible application of higher-kinded type to wildcard arguments)" in {
-      trait L[ARRG0]
-
-      trait Test0[+ARRG1]
-      trait Test1[+ARRG2] extends Test0[ARRG2]
-
-      type T1[AAA] = Test1[L[AAA]]
-
-      val list_ = LTT[T1[_]]
-      doesntWorkYetOnScala2 {
-        assert(!list_.debug().contains("* λ %0 → izumi.reflect.test.LightTypeTagProgressionTest.Test0[+izumi.reflect.test.LightTypeTagProgressionTest.L[=?]]"))
-      }
-    }
-
   }
 
 }
