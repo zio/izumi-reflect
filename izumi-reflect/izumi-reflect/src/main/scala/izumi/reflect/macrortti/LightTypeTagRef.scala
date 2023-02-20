@@ -337,7 +337,8 @@ object LightTypeTagRef {
   private[reflect] val ignored = Set[AppliedReference](
     LightTypeTagInheritance.tpeAny,
     LightTypeTagInheritance.tpeAnyRef,
-    LightTypeTagInheritance.tpeObject
+    LightTypeTagInheritance.tpeObject,
+    LightTypeTagInheritance.tpeMatchable
   )
 
   def maybeIntersection(refs: Set[AppliedReference]): AppliedReference = {

@@ -31,6 +31,7 @@ object LightTypeTagInheritance {
   private[reflect] final val tpeNothing = NameReference("scala.Nothing")
   private[reflect] final val tpeAny = NameReference("scala.Any")
   private[reflect] final val tpeAnyRef = NameReference("scala.AnyRef")
+  private[reflect] final val tpeMatchable = NameReference("scala.Matchable")
   private[reflect] final val tpeObject = NameReference(classOf[Object].getName)
 
   private final case class Ctx(

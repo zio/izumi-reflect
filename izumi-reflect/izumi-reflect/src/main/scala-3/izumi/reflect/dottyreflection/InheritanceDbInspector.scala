@@ -60,7 +60,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
         tpeRes._typeArgs.iterator ++
         intersectionUnionMembers.iterator.flatMap(_._typeArgs) ++
         intersectionUnionMembers
-      ).foreach(t => if (!inh(t) && !ignored(t)) goExtractComponents(t))
+      ).foreach(t => if (!inh.contains(t)) goExtractComponents(t))
     }
 
     goExtractComponents(tpe0)

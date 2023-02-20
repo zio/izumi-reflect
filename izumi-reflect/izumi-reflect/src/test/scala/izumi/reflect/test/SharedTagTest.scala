@@ -73,7 +73,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
   case class ZOBA[A, B, C](value: Either[B, C])
 
-  trait Test[A, dafg, adfg, LS, L[_], SD, GG[A] <: L[A], ZZZ[_, _], S, SDD, TG]
+  trait Test[A, dafg, adfg, LS, L[_], SD, GG[B] <: L[B], ZZZ[_, _], S, SDD, TG]
   trait T1[A, B, C, D, E, F[_]]
   trait YX[V] extends XY[V]
 
@@ -743,7 +743,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertChild(combinedTag, parentTag)
       assertNotChild(parentTag, combinedTag)
     }
-    
+
     "support subtyping of parents parameterized with type lambdas in combined tags with multiple parameters" in {
       val childBase = `LTT[_[+_,+_],_,_]`[RoleChild2]
       val childArgs = Seq(`LTT[_,_]`[Either], LTT[Int], LTT[String])

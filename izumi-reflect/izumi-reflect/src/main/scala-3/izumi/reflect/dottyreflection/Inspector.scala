@@ -240,15 +240,25 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         log(s"make name reference from term $term")
         makeNameReferenceFromSymbol(term.termSymbol, Some(term))
       case t: ParamRef =>
-        assert(context.flatMap(_.params.map(_.tpe)).contains(t), s"${context.flatMap(_.params.map(_.tpe))} must contain $t")
-        val candidates = context.reverse.flatMap(_.params).filter(_.tpe == t)
+        val isInContext = context.flatMap(_.params.map(_.tpe)).contains(t)
+        if (isInContext) {
+          // assert(isInContext, s"${context.flatMap(_.params.map(_.tpe)).map(t => t)} must contain $t")
 
-        val contextParam = candidates.head
-        locally {
+          val candidates = context.reverse.flatMap(_.params).filter(_.tpe == t)
+          val contextParam = candidates.head
+
+          locally {
+            val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
+            assert(contextParam.name == paramName, s"$contextParam should match $paramName")
+          }
+
+          NameReference(SymName.LambdaParamName(contextParam.asParam.name), Boundaries.Empty, None)
+
+        } else {
           val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
-          assert(contextParam.name == paramName, s"$contextParam should match $paramName")
+          NameReference(SymName.LambdaParamName(paramName), Boundaries.Empty, None)
         }
-        NameReference(SymName.LambdaParamName(contextParam.asParam.name), Boundaries.Empty, None)
+
       case constant: ConstantType =>
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
       case ref =>

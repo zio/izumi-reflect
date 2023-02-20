@@ -339,8 +339,8 @@ object LightTypeTag {
       import scala.collection.compat._
 
       def make(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]) = new SubtypeDBs(
-        bases.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).toMap,
-        idb.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).toMap
+        bases.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap,
+        idb.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap
       )
     }
   }
