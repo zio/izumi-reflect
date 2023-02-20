@@ -92,26 +92,30 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
               val outerLambdaParamArgsTypeParamRefs = paramsRange.map(outerLambda.param(_)).toList
 
-              // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-              val firstParamIdx = 0
-              val ctorLambdaParameter = SymName.LambdaParamName(s"$firstParamIdx")
-
-              val typeArgToLambdaParameterMap = (distinctNonParamArgsTypes ++ outerLambdaParamArgsTypeParamRefs)
-                .iterator.distinct.zipWithIndex.map {
-                  case (argTpe, idx) =>
-                    val idxPlusOne = idx + 1
-                    val lambdaParameter = SymName.LambdaParamName(s"$idxPlusOne")
-                    argTpe -> lambdaParameter
-                }.toMap
+              val arity = 1 + distinctNonParamArgsTypes.size + outerLambdaParamArgsTypeParamRefs.size
+              val fullParamTail = (distinctNonParamArgsTypes ++ outerLambdaParamArgsTypeParamRefs)
+                .iterator.distinct.zipWithIndex
+              val typeArgToLambdaParameterMap = fullParamTail.map {
+                case (argTpe, idx) =>
+                  val idxPlusOne = idx + 1
+                  val lambdaParameter = SymName.LambdaParamName(idxPlusOne, -3, arity)
+                  argTpe -> lambdaParameter
+              }.toMap
 
               val usageOrderDistinctNonLambdaArgs = distinctNonParamArgsTypes.map(t => typeArgToLambdaParameterMap(t))
               val declarationOrderLambdaParamArgs = outerLambdaParamArgsTypeParamRefs.map(t => typeArgToLambdaParameterMap(t))
+              val completeTail = usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs
 
               val usages = typeArgsTpes.map(t => TypeParam(NameReference(typeArgToLambdaParameterMap(t)), Variance.Invariant))
 
+              // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
+              val firstParamIdx = 0
+              assert(completeTail.size + 1 == arity)
+              val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, -3, arity)
+
               val ctorApplyingLambda =
                 LightTypeTagRef.Lambda(
-                  ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
+                  ctorLambdaParameter :: completeTail,
                   FullReference(ctorLambdaParameter, usages)
                 )
 

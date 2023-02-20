@@ -446,26 +446,34 @@ object LightTypeTag {
       override def pickle(obj: SymName)(implicit state: PickleState): Unit = {
         obj match {
           case SymTermName(name) =>
-            Tuple2Pickler[Int, String].pickle((0, name))
-          case SymTypeName(name) =>
-            Tuple2Pickler[Int, String].pickle((1, name))
-          case SymLiteral(name) =>
-            Tuple2Pickler[Int, String].pickle((2, name))
-          case LambdaParamName(name) =>
-            Tuple2Pickler[Int, String].pickle((3, name))
+            state.enc.writeInt(0)
+            state.enc.writeString(name)
 
+          case SymTypeName(name) =>
+            state.enc.writeInt(1)
+            state.enc.writeString(name)
+
+          case SymLiteral(name) =>
+            state.enc.writeInt(2)
+            state.enc.writeString(name)
+
+          case LambdaParamName(index, depth, arity) =>
+            state.enc.writeInt(3)
+            state.enc.writeInt(index)
+            state.enc.writeInt(depth)
+            state.enc.writeInt(arity)
         }
       }
 
-      override def unpickle(implicit state: UnpickleState): SymName = Tuple2Pickler[Int, String].unpickle match {
-        case (0, name) =>
-          SymTermName(name)
-        case (1, name) =>
-          SymTypeName(name)
-        case (2, name) =>
-          SymLiteral(name)
-        case (3, name) =>
-          LambdaParamName(name)
+      override def unpickle(implicit state: UnpickleState): SymName = state.dec.readInt match {
+        case 0 =>
+          SymTermName(state.dec.readString)
+        case 1 =>
+          SymTypeName(state.dec.readString)
+        case 2 =>
+          SymLiteral(state.dec.readString)
+        case 3 =>
+          LambdaParamName(state.dec.readInt, state.dec.readInt, state.dec.readInt)
         case o =>
           throw new IllegalArgumentException(s"Unexpected data: $o")
       }
@@ -750,7 +758,9 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[String](value.name)
+            state.pickle[Int](value.index)
+            state.pickle[Int](value.depth)
+            state.pickle[Int](value.arity)
             state.addIdentityRef(value)
           }
         }
@@ -760,7 +770,7 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): SymName.LambdaParamName = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = SymName.LambdaParamName(state.unpickle[String])
+          val value = SymName.LambdaParamName(state.unpickle[Int], state.unpickle[Int], state.unpickle[Int])
           state.addIdentityRef(value)
           value
         } else if (ic < 0)

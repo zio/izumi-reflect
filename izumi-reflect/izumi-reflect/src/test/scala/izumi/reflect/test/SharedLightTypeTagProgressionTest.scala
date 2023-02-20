@@ -69,23 +69,15 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
         )
       }
       assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
-      doesntWorkYetOnDotty {
-        assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
-      }
+      assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
       assertRepr(`LTT[_]`[Nothing], "Nothing")
       assertRepr(LTT[Int], "Int")
       assertRepr(LTT[List[Int]], "List[+Int]")
       assertRepr(LTT[Id[Int]], "Int")
       assertRepr(LTT[FP[Int]], "List[+Int]")
-      doesntWorkYetOnDotty {
-        assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
-      }
-      doesntWorkYetOnDotty {
-        assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
-      }
-      doesntWorkYetOnDotty {
-        assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
-      }
+      assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
+      assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
+      assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
     }
 
     "progression test: what about non-empty refinements with intersections" in {
@@ -293,14 +285,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(debug1.contains(": scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
       assert(debug1.contains("- scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
       assert(debug1.contains("* scala.Product"))
-      doesntWorkYetOnDotty {
-        assert(debug1.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
-      }
-      doesntWorkYetOnDotty {
-        assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      }
-
-      doesntWorkYetOnScala2 {
+      assert(debug1.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
+      assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      doesntWorkYet {
         assert(!debug1.contains("λ %1 → scala.util.Right[+scala.Unit,+1]"))
       }
     }
@@ -350,9 +337,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug1.contains("package::Either"))
       assert(!debug1.contains("scala.package.A"))
       assert(!debug1.contains("scala.package.B"))
-      doesntWorkYetOnDotty {
-        assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      }
+      assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       assert(debug1.contains("* scala.Product"))
 
       val debug2 = `LTT[_,_]`[Right].combine(LTT[Int], LTT[Int]).debug()
@@ -360,9 +345,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug2.contains("package::Either"))
       assert(!debug2.contains("scala.package.A"))
       assert(!debug2.contains("scala.package.B"))
-      doesntWorkYetOnDotty {
-        assert(debug2.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      }
+      assert(debug2.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       assert(debug2.contains("* scala.Product"))
 
       val debug3 = LTT[RoleParent[Right[Throwable, *]]].debug()

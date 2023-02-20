@@ -551,13 +551,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     tparams.zipWithIndex.map {
       case (tparamSym, idx) =>
         val fullName = tparamSym.fullName
-        val idxStr = ctxIdx match {
-          case Some(ctx) =>
-            s"$ctx:$idx"
-          case None =>
-            idx.toString
-        }
-        fullName -> SymName.LambdaParamName(idxStr)
+//        val idxStr = ctxIdx match {
+//          case Some(ctx) =>
+//            s"$ctx:$idx"
+//          case None =>
+//            idx.toString
+//        }
+        fullName -> SymName.LambdaParamName(idx, ctxIdx.getOrElse(-1), tparams.size)
     }
   }
 

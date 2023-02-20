@@ -153,9 +153,7 @@ class TagMacro(val c: blackbox.Context) {
 
         val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
 
-        // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
-        val firstParamIdx = 0
-        val ctorLambdaParameter = SymName.LambdaParamName(s"$firstParamIdx")
+        val arity = distinctNonParamArgsTypes.size + outerLambdaParamArgsSyms.size + 1
 
         val typeArgToLambdaParameterMap: Map[Either[Type, Symbol], SymName.LambdaParamName] =
           // for non-lambda arguments the types are unique, but symbols are not, for lambda arguments the symbols are unique but types are not.
@@ -164,7 +162,7 @@ class TagMacro(val c: blackbox.Context) {
             .distinct.iterator.zipWithIndex.map {
               case (argTpeOrSym, idx) =>
                 val idxPlusOne = idx + 1
-                val lambdaParameter = SymName.LambdaParamName(s"$idxPlusOne")
+                val lambdaParameter = SymName.LambdaParamName(idxPlusOne, -3, arity)
                 argTpeOrSym -> lambdaParameter
             }.toMap
 
@@ -185,6 +183,10 @@ class TagMacro(val c: blackbox.Context) {
         val declarationOrderLambdaParamArgs = outerLambdaParamArgsSyms.map(sym => getFromMap(Right(sym), Left(sym.typeSignature)))
 
         val usages = typeArgsTpes.map(t => TypeParam(NameReference(getFromMap(Left(t), Right(t.typeSymbol))), Variance.Invariant))
+
+        // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
+        val firstParamIdx = 0
+        val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, -3, arity)
 
         val ctorApplyingLambda = LightTypeTagRef.Lambda(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,

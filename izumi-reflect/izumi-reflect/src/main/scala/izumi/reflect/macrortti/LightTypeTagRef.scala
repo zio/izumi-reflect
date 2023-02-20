@@ -303,7 +303,7 @@ object LightTypeTagRef {
     private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(s"!FAKE_$idx"))
+          p -> NameReference(SymName.LambdaParamName(idx, -2, input.size)) // s"!FAKE_$idx"
       }
     }
   }
@@ -450,7 +450,9 @@ object LightTypeTagRef {
   }
   object SymName {
     final case class SymTermName(name: String) extends SymName
-    final case class LambdaParamName(name: String) extends SymName
+    final case class LambdaParamName(index: Int, depth: Int, arity: Int) extends SymName {
+      override def name: String = s"$depth:$index/$arity"
+    }
     final case class SymTypeName(name: String) extends SymName
     final case class SymLiteral(name: String) extends SymName
     object SymLiteral {
@@ -561,7 +563,7 @@ object LightTypeTagRef {
         case SymTermName(_) => 0
         case SymTypeName(_) => 1
         case SymLiteral(_) => 2
-        case LambdaParamName(_) => 3
+        case LambdaParamName(_, _, _) => 3
       }
       val compare1 = Ordering.Int.compare(idx(x), idx(y))
       if (compare1 != 0) return compare1
