@@ -167,22 +167,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: subtyping for Invariant Java HKT doesn't work on Dotty" in {
-      val collection = TagK[java.util.Collection]
-      val javaIterable = TagK[java.lang.Iterable]
-      doesntWorkYetOnDotty {
-        assertChildStrict(collection.tag, javaIterable.tag)
-      }
-    }
-
-    "progression test: subtyping for Invariant Scala HKT doesn't work on Dotty" in {
-      val mutableSet = TagK[scala.collection.mutable.Set]
-      val collectionSet = TagK[scala.collection.Set]
-      doesntWorkYetOnDotty {
-        assertChildStrict(mutableSet.tag, collectionSet.tag)
-      }
-    }
-
     "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
 //      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
