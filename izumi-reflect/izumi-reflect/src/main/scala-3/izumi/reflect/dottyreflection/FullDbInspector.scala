@@ -39,16 +39,18 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(a, selfRef, recurseIntoBases = false)
 
         case l: TypeLambda =>
-          val next = i.nextLam(l)
-          val parents = new Run(next).inspectTypeBoundsToFull(l.resType)
-          val selfL = next.inspectTypeRepr(tpe).asInstanceOf[LightTypeTagRef.Lambda]
-          val out = parents.map {
+          val selfL = i.inspectTypeRepr(tpe).asInstanceOf[LightTypeTagRef.Lambda]
+
+          val parents = new Run(i.nextLam(l)).inspectTypeBoundsToFull(l.resType)
+          val out = parents.flatMap {
             case (c, p) =>
-              if (c == selfL.output) {
-                (selfL, p)
-              } else {
-                (c, p)
-              }
+              Seq((selfL, p), (c, p))
+
+//              if (c == selfL.output) {
+//                (selfL, p)
+//              } else {
+//                (selfL, p)
+//              }
           }
           out.distinct
 

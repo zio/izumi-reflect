@@ -1,7 +1,8 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries}
-import izumi.reflect.macrortti._
+import izumi.reflect.macrortti.{LTT, _}
+import izumi.reflect.test.TestModel.{W1, W2}
 
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
@@ -453,6 +454,51 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[None.type], LTT[Option[Int]])
     }
 
+    "supports complex type lambdas" in {
+      assertSame(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[λ[(A, B) => FM2[(B, A)]]])
+      assertSame(
+        `LTT[_[_]]`[({ type l[F[_]] = NestedTL2[W1, W2, F] })#l],
+        `LTT[_[_]]`[({ type l[G[_]] = FM2[G[S[W2, W1]]] })#l]
+      )
+      assertChild(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[λ[(A, B) => FM2[(B, A)]]])
+    }
+
+    "intersection lambda tags should not contain junk bases" in {
+      val tCtor = `LTT[_,_]`[T3]
+      //      val tCtor = PlatformSpecific.fromRuntime(scala.reflect.runtime.universe.typeOf[T3[Any, Any]].typeConstructor)
+      val debugCtor = tCtor.debug("ctor")
+
+      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
+      val debugCombined = combined.debug("combined")
+
+      val alias = LTT[T3[Int, Boolean]]
+      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
+
+      println(debugCtor)
+      println(debugCombined)
+      println(alias.debug("alias"))
+      println(direct.debug("direct"))
+
+      assert(!debugCtor.contains("<refinement>"))
+      assert(!debugCtor.contains("<none>"))
+      assert(!debugCtor.contains("- T"))
+      assert(!debugCtor.contains("W4[=B]"))
+      assert(!debugCtor.contains("W3[=B]"))
+      assert(!debugCtor.contains("W5[=A]"))
+
+      assert(!direct.debug().contains("W4[=Int]"))
+      assert(!direct.debug().contains("W4[=scala.Int]"))
+
+      assert(!debugCombined.contains("<refinement>"))
+      assert(!debugCombined.contains("<none>"))
+      assert(!debugCombined.contains("- T"))
+      assert(!debugCombined.contains("W4[=B]"))
+      assert(!debugCombined.contains("W3[=B]"))
+      assert(!debugCombined.contains("W5[=A]"))
+      assert(debugCombined.contains("W5[=scala.Int]"))
+
+      assertDebugSame(alias, direct)
+    }
   }
 
 }

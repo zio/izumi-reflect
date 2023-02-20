@@ -496,69 +496,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug5.contains("+scala.Nothing"))
       assert(debug5.contains("* scala.Product"))
     }
-
-    "progression test: `intersection lambda tags should not contain junk bases` is not supported on Dotty" in {
-      val tCtor = `LTT[_,_]`[T3]
-//      val tCtor = PlatformSpecific.fromRuntime(scala.reflect.runtime.universe.typeOf[T3[Any, Any]].typeConstructor)
-      val debugCtor = tCtor.debug("ctor")
-
-      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
-      val debugCombined = combined.debug("combined")
-
-      val alias = LTT[T3[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
-
-      println(debugCtor)
-      println(debugCombined)
-      println(alias.debug("alias"))
-      println(direct.debug("direct"))
-
-      assert(!debugCtor.contains("<refinement>"))
-      assert(!debugCtor.contains("<none>"))
-      assert(!debugCtor.contains("- T"))
-      doesntWorkYetOnDotty {
-        assert(!debugCtor.contains("W4[=B]"))
-      }
-      doesntWorkYetOnDotty {
-        assert(!debugCtor.contains("W3[=B]"))
-      }
-      doesntWorkYetOnDotty {
-        assert(!debugCtor.contains("W5[=A]"))
-      }
-
-      assert(!direct.debug().contains("W4[=Int]"))
-      assert(!direct.debug().contains("W4[=scala.Int]"))
-
-      assert(!debugCombined.contains("<refinement>"))
-      assert(!debugCombined.contains("<none>"))
-      assert(!debugCombined.contains("- T"))
-      doesntWorkYetOnDotty {
-        assert(!debugCombined.contains("W4[=B]"))
-      }
-      doesntWorkYetOnDotty {
-        assert(!debugCombined.contains("W3[=B]"))
-      }
-      doesntWorkYetOnDotty {
-        assert(!debugCombined.contains("W5[=A]"))
-      }
-      assert(debugCombined.contains("W5[=scala.Int]"))
-
-      assertDebugSame(alias, direct)
-    }
-
-    "progression test: Dotty fails to support complex type lambdas" in {
-      doesntWorkYetOnDotty {
-        assertSame(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[λ[(A, B) => FM2[(B, A)]]])
-      }
-      doesntWorkYetOnDotty {
-        assertSame(
-          `LTT[_[_]]`[({ type l[F[_]] = NestedTL2[W1, W2, F] })#l],
-          `LTT[_[_]]`[({ type l[G[_]] = FM2[G[S[W2, W1]]] })#l]
-        )
-      }
-      assertChild(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[λ[(A, B) => FM2[(B, A)]]])
-    }
-
   }
 
 }

@@ -8,8 +8,15 @@ import scala.quoted.{Quotes, Type}
 import scala.reflect.Selectable.reflectiveSelectable
 
 object Inspector {
-  class LamParam(val qctx: Quotes)(val name: LambdaParameter, val tpe: qctx.reflect.TypeRepr, val index: Int)
-  class LamContext(val qctx: Quotes)(val params: List[LamParam])
+  case class LamParam(qctx: Quotes)(val name: String, val tpe: qctx.reflect.TypeRepr, val index: Int, val depth: Int, val arity: Int) {
+    def asParam = LambdaParameter(s"$depth:$index/$arity")
+//    def asParam = LambdaParameter(s"$depth:$index/$arity:$name")
+//    def asParam = LambdaParameter(s"$index/$carity:$name")
+//    def asParam = LambdaParameter(name)
+
+    override def toString: String = s"[$depth/$name@$index: $tpe]"
+  }
+  case class LamContext(qctx: Quotes)(val params: List[LamParam])
 }
 
 abstract class Inspector(protected val shift: Int, val context: List[Inspector.LamContext]) extends InspectorBase {
@@ -20,8 +27,15 @@ abstract class Inspector(protected val shift: Int, val context: List[Inspector.L
   }
 
   def nextLam(l: TypeLambda): Inspector { val qctx: Inspector.this.qctx.type } = {
-    val paramNames = l.paramNames.map(LambdaParameter(_))
-    val params = paramNames.zipWithIndex.map { case (nme, idx) => new Inspector.LamParam(qctx)(nme, l.param(idx), idx) }.toList
+    // val paramNames = .map(LambdaParameter(_))
+    val params = l
+      .paramNames
+      .zipWithIndex
+      .map {
+        case (nme, idx) =>
+          Inspector.LamParam(qctx)(nme, l.param(idx), idx, context.size, l.paramNames.size)
+      }
+      .toList
     next(List(Inspector.LamContext(qctx)(params)))
   }
 
@@ -81,7 +95,7 @@ abstract class Inspector(protected val shift: Int, val context: List[Inspector.L
       case l: TypeLambda =>
         val inspector = nextLam(l)
         val resType = inspector.inspectTypeRepr(l.resType)
-        val paramNames = inspector.context.last.params.map(_.name)
+        val paramNames = inspector.context.last.params.map(_.asParam)
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case p: ParamRef =>
@@ -214,7 +228,7 @@ abstract class Inspector(protected val shift: Int, val context: List[Inspector.L
   private def flattenInspectOr(or: OrType): Set[AppliedReference] =
     flattenOr(or).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
 
-  private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr, assertContextCorrectness: Boolean = true): NameReference = {
+  private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
         log(s"make name reference from type $ref termSymbol=${ref.termSymbol}")
@@ -224,13 +238,11 @@ abstract class Inspector(protected val shift: Int, val context: List[Inspector.L
         makeNameReferenceFromSymbol(term.termSymbol, Some(term))
       case t: ParamRef =>
         val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
+        assert(context.flatMap(_.params.map(_.tpe)).contains(t), s"${context.flatMap(_.params.map(_.tpe))} must contain $t")
+        val candidates = context.reverse.flatMap(_.params).filter(_.tpe == t)
+        // assert(candidates.size == 1, s"${candidates.map(_.tpe)}")
 
-        if (assertContextCorrectness) {
-          assert(context.flatMap(_.params.map(_.tpe)).contains(t), s"${context.flatMap(_.params.map(_.tpe))} must contain $t")
-        }
-
-        NameReference(SymName.LambdaParamName(paramName), Boundaries.Empty, None)
-
+        NameReference(SymName.LambdaParamName(candidates.head.asParam.name), Boundaries.Empty, None)
       case constant: ConstantType =>
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
       case ref =>
@@ -239,7 +251,8 @@ abstract class Inspector(protected val shift: Int, val context: List[Inspector.L
     }
   }
 
-  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol, prefixSource1: Option[NamedType]): NameReference = {
+  @tailrec
+  private[dottyreflection] final def makeNameReferenceFromSymbol(symbol: Symbol, prefixSource1: Option[NamedType]): NameReference = {
     def default: NameReference = {
       val (symName, s, prefixSource2) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
         (SymName.SymTermName(symbol.fullName), symbol, symbol.termRef)

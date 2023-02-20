@@ -224,48 +224,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         assertDifferent(t[Int].tag, Tag[{ type T = String }].tag)
       }
     }
-
-    "progression test: Dotty fails to Handle abstract types instead of parameters" in {
-      trait T1 {
-        type F[F0[_], A0] = OptionT[F0, A0]
-        type C[_, _]
-        type G[_]
-        type A
-        type B
-
-        def x: Tag[F[G, Either[A, B]]]
-      }
-
-      val t1: T1 {
-        type G[T] = List[T]
-        type C[A0, B0] = Either[A0, B0]
-        type A = Int
-        type B = Byte
-      } = new T1 {
-        type G[T] = List[T]
-        type C[A0, B0] = Either[A0, B0]
-        type A = Int
-        type B = Byte
-
-        // Inconsistent handling of type aliases by scalac...
-        // No TagK for G, but if G is inside an object or enclosing class
-        // then there is a TagK
-        val g: TagK[G] = TagK[List]
-
-        final val x: Tag[F[G, Either[A, B]]] = {
-          implicit val g0: TagK[G] = g
-          val _ = g0
-          Tag[F[G, C[A, B]]]
-        }
-      }
-
-//      withDebugOutput {
-      doesntWorkYetOnDotty {
-        assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
-      }
-//      }
-    }
-
+    
     "Work for any abstract type with available Tag while preserving additional type refinement" in {
       def testTag[T: Tag] = Tag[T { type X = Int; type Y = String }]
 

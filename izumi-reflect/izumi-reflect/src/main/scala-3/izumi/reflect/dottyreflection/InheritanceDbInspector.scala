@@ -14,14 +14,18 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe0 = TypeRepr.of[T].dealias
 
-    val allReferenceComponents = allTypeReferences(tpe0)
+    val allReferenceComponents = allTypeReferences(tpe0).filter {
+      case r: ParamRef => false
+      case _ => true
+    }
 
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
         val tpef = i.dealias.simplified._resultType
+        val targetRef = inspector.makeNameReferenceFromType(tpef)
+
         val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
-        val targetRef = inspector.makeNameReferenceFromType(tpef, assertContextCorrectness = false)
-        allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b, assertContextCorrectness = false)))
+        allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
     }
 
     baseclassReferences

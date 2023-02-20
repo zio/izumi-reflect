@@ -306,6 +306,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def oneOfParameterizedParentsIsInheritedFrom(ctx: Ctx)(child: AbstractReference, parent: AbstractReference): Boolean = {
+    ctx.logger.log(s"Looking up parameterized parents of $child => ${parameterizedParentsOf(child)}")
+//    ctx.logger.log(s"Checking if ${parameterizedParentsOf(child)} has a parent of $parent")
     parameterizedParentsOf(child).exists(ctx.isChild(_, parent))
   }
 
