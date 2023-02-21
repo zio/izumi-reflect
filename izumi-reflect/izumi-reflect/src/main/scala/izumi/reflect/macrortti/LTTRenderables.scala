@@ -186,8 +186,8 @@ object LTTRenderables {
           c
         case t: SymName.LambdaParamName =>
           t.render()
-        case _ =>
-          sym.name.split('.').last
+        case s: SymName.NamedSymbol =>
+          s.name.split('.').last
       }
     }
   }
@@ -200,7 +200,7 @@ object LTTRenderables {
       } else {
         sym match {
           case t: SymName.LambdaParamName => t.render()
-          case o => o.name
+          case o: SymName.NamedSymbol => o.name
         }
       }
     }

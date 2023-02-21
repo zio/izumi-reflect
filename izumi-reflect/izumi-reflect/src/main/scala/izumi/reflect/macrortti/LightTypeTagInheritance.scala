@@ -117,7 +117,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
             compareBounds(ctx)(s, t.boundaries),
             any(
 //              outerLambdaParams.map(_.name).contains(t.ref.name), // lambda parameter may accept anything within bounds      // UNSOUND-LAMBDA-COMPARISON
-              outerDecls.map(_.name).contains(t.ref.name) // refinement type decl may accept anything within bounds
+              t.ref.maybeName.exists(outerDecls.map(_.name).contains) // refinement type decl may accept anything within bounds
             )
           )
         )
@@ -128,12 +128,11 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // unparameterized type
       case (s: NameReference, t: NameReference) =>
         val boundIsOk = compareBounds(ctx)(s, t.boundaries)
-
         any(
           all(boundIsOk, parameterizedParentsOf(s).exists(ctx.isChild(_, t))),
           all(boundIsOk, unparameterizedParentsOf(s).exists(ctx.isChild(_, t))),
 //          all(boundIsOk, outerLambdaParams.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything within bounds       // UNSOUND-LAMBDA-COMPARISON
-          all(boundIsOk, outerDecls.map(_.name).contains(t.ref.name)), // refinement decl may accept anything within bounds
+          all(boundIsOk, t.ref.maybeName.exists(outerDecls.map(_.name).contains)), // refinement decl may accept anything within bounds
           s.boundaries match {
             case Boundaries.Defined(_, sUp) =>
               ctx.isChild(sUp, t)

@@ -448,20 +448,24 @@ object LightTypeTag {
           case SymTermName(name) =>
             state.enc.writeInt(0)
             state.enc.writeString(name)
+            ()
 
           case SymTypeName(name) =>
             state.enc.writeInt(1)
             state.enc.writeString(name)
+            ()
 
           case SymLiteral(name) =>
             state.enc.writeInt(2)
             state.enc.writeString(name)
+            ()
 
           case LambdaParamName(index, depth, arity) =>
             state.enc.writeInt(3)
             state.enc.writeInt(index)
             state.enc.writeInt(depth)
             state.enc.writeInt(arity)
+            ()
         }
       }
 

@@ -157,7 +157,10 @@ object LightTypeTagRef extends LTTOrdering {
     override def asName: NameReference = NameReference(symName, prefix = prefix)
 
     @deprecated("bincompat only", "20.02.2023")
-    private[LightTypeTagRef] def ref: String = symName.name
+    private[LightTypeTagRef] def ref: String = symName match {
+      case symbol: SymName.NamedSymbol => symbol.name
+      case lpn: LambdaParamName => LTTRenderables.Long.r_LambdaParameterName.render(lpn)
+    }
 
     @deprecated("bincompat only", "20.02.2023")
     private[LightTypeTagRef] def this(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]) = {
@@ -203,16 +206,18 @@ object LightTypeTagRef extends LTTOrdering {
     case object Empty extends Boundaries
   }
 
-  sealed trait SymName {
-    def name: String
-  }
+  // this name isn't correct anymore but we keep it here for historical reasons. In fact that should be Symbol or SymRef
+  sealed trait SymName
   object SymName {
-    final case class SymTermName(name: String) extends SymName
-    final case class LambdaParamName(index: Int, depth: Int, arity: Int) extends SymName {
-      override def name: String = s"$depth:$index/$arity"
+    final case class LambdaParamName(index: Int, depth: Int, arity: Int) extends SymName
+
+    sealed trait NamedSymbol extends SymName {
+      def name: String
     }
-    final case class SymTypeName(name: String) extends SymName
-    final case class SymLiteral(name: String) extends SymName
+    final case class SymTermName(name: String) extends NamedSymbol
+    final case class SymTypeName(name: String) extends NamedSymbol
+    final case class SymLiteral(name: String) extends NamedSymbol
+    
     object SymLiteral {
       def apply(c: Any): SymLiteral = {
         val constant = c match {
@@ -220,6 +225,13 @@ object LightTypeTagRef extends LTTOrdering {
           case o => o.toString
         }
         SymLiteral(constant)
+      }
+    }
+
+    implicit class SymNameExt(val name: SymName) extends AnyVal {
+      def maybeName: Option[String] = name match {
+        case symbol: SymName.NamedSymbol => Some(symbol.name)
+        case _: SymName.LambdaParamName => None
       }
     }
   }
