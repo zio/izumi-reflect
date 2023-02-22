@@ -18,15 +18,58 @@
 
 package izumi.reflect.macrortti
 
+import izumi.reflect.macrortti.LightTypeTagRef.AbstractReference
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymTypeName}
 
-sealed trait LightTypeTagRef extends Serializable with LTTSyntax {}
+import scala.runtime.AbstractFunction3
+import scala.util.{Failure, Success, Try}
+
+sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
+
+  // bincompat with versions before 2.3.0
+  final def combine(args: Seq[LightTypeTagRef]): AbstractReference = this.combineImpl(args)
+  final def combineNonPos(args: Seq[Option[LightTypeTagRef]]): AbstractReference = this.combineNonPosImpl(args)
+  final def withoutArgs: AbstractReference = this.withoutArgsImpl
+  /** Render to string, omitting package names */
+  override final def toString: String = this.toStringImpl
+  /** Fully-qualified rendering of a type, including packages and prefix types.
+    * Use [[toString]] for a rendering that omits package names
+    */
+  final def repr: String = this.reprImpl
+  final def shortName: String = this.shortNameImpl
+  final def longNameWithPrefix: String = this.longNameWithPrefixImpl
+  final def longNameInternalSymbol: String = this.longNameInternalSymbolImpl
+  @deprecated(
+    "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
+    "2.2.2"
+  )
+  final def longName: String = this.longNameInternalSymbolImpl
+  final def getPrefix: Option[LightTypeTagRef] = this.getPrefixImpl
+  final def typeArgs: List[AbstractReference] = this.typeArgsImpl
+  /** decompose intersection type */
+  final def decompose: Set[LightTypeTagRef.AppliedReference] = this.decomposeImpl
+  final def decomposeUnion: Set[LightTypeTagRef.AppliedReference] = this.decomposeUnionImpl
+
+}
 
 object LightTypeTagRef extends LTTOrdering {
   import LTTRenderables.Short._
 //  import LTTRenderables.Long._
 
   sealed trait AbstractReference extends LightTypeTagRef
+
+  // bincompat only
+  private[macrortti] sealed abstract class LambdaParameter {
+    @deprecated("bincompat only", "20.02.2023")
+    private[macrortti] def name: String
+  }
+  @deprecated("bincompat only", "20.02.2023")
+  private[macrortti] object LambdaParameter extends (String => LambdaParameter) {
+    @deprecated("bincompat only", "20.02.2023")
+    def apply(name: String): LambdaParameter = {
+      SymName.bincompatForceCreateLambdaParamNameFromString(name)
+    }
+  }
 
   final case class Lambda(input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
     override def hashCode(): Int = {
@@ -157,19 +200,28 @@ object LightTypeTagRef extends LTTOrdering {
     override def asName: NameReference = NameReference(symName, prefix = prefix)
 
     @deprecated("bincompat only", "20.02.2023")
-    private[LightTypeTagRef] def ref: String = symName match {
-      case symbol: SymName.NamedSymbol => symbol.name
-      case lpn: LambdaParamName => LTTRenderables.Long.r_LambdaParameterName.render(lpn)
-    }
+    private[LightTypeTagRef] def ref: String = SymName.forceName(symName)
 
     @deprecated("bincompat only", "20.02.2023")
     private[LightTypeTagRef] def this(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]) = {
       this(SymName.SymTypeName(ref), parameters, prefix)
     }
-  }
-  object FullReference {
+
     @deprecated("bincompat only", "20.02.2023")
-    private[LightTypeTagRef] def apply(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
+    private[LightTypeTagRef] def copy(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
+      this.copy(SymName.SymTypeName(ref), parameters, prefix)
+    }
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def copy$default$1: String = ref
+
+    def copy(symName: SymName = symName, parameters: List[TypeParam] = parameters, prefix: Option[AppliedReference] = prefix): FullReference = {
+      new FullReference(symName, parameters, prefix)
+    }
+
+  }
+  object FullReference extends /*bincompat*/ AbstractFunction3[String, List[TypeParam], Option[AppliedReference], FullReference] {
+    @deprecated("bincompat only", "20.02.2023")
+    override def apply(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
       new FullReference(SymName.SymTypeName(ref), parameters, prefix)
     }
   }
@@ -207,9 +259,15 @@ object LightTypeTagRef extends LTTOrdering {
   }
 
   // this name isn't correct anymore but we keep it here for historical reasons. In fact that should be Symbol or SymRef
-  sealed trait SymName
+  sealed trait SymName {
+    // bincompat only
+    private[macrortti] def name: String
+  }
   object SymName {
-    final case class LambdaParamName(index: Int, depth: Int, arity: Int) extends SymName
+    final case class LambdaParamName(index: Int, depth: Int, arity: Int) extends LambdaParameter with SymName {
+      @deprecated("bincompat only", "20.02.2023")
+      private[macrortti] override def name: String = SymName.forceName(this)
+    }
 
     sealed trait NamedSymbol extends SymName {
       def name: String
@@ -217,7 +275,7 @@ object LightTypeTagRef extends LTTOrdering {
     final case class SymTermName(name: String) extends NamedSymbol
     final case class SymTypeName(name: String) extends NamedSymbol
     final case class SymLiteral(name: String) extends NamedSymbol
-    
+
     object SymLiteral {
       def apply(c: Any): SymLiteral = {
         val constant = c match {
@@ -228,11 +286,36 @@ object LightTypeTagRef extends LTTOrdering {
       }
     }
 
-    implicit class SymNameExt(val name: SymName) extends AnyVal {
+    implicit final class SymNameExt(private val name: SymName) extends AnyVal {
       def maybeName: Option[String] = name match {
         case symbol: SymName.NamedSymbol => Some(symbol.name)
         case _: SymName.LambdaParamName => None
       }
     }
+
+    private[macrortti] def forceName(symName: SymName): String = {
+      symName match {
+        case symbol: SymName.NamedSymbol => symbol.name
+        case lpn: LambdaParamName => LTTRenderables.Long.r_LambdaParameterName.render(lpn)
+      }
+    }
+
+    private[macrortti] def bincompatForceCreateLambdaParamNameFromString(str: String): LambdaParamName = {
+      val (numericIndexFromString, numericContextFromString) = {
+        val parts = str.split(':')
+        val fst = Try(parts(0).toInt)
+        val snd = Try(parts(1).toInt)
+        (fst, snd) match {
+          case (Success(idx), Failure(_)) =>
+            (idx, -10)
+          case (Success(ctx), Success(idx)) =>
+            (idx, ctx)
+          case _ =>
+            (str.hashCode, -10)
+        }
+      }
+      LambdaParamName(numericIndexFromString, numericContextFromString, -10)
+    }
+
   }
 }

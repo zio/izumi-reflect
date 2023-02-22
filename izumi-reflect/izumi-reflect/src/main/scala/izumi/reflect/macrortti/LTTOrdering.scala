@@ -5,7 +5,7 @@ import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymLite
 
 import scala.util.Sorting
 
-trait LTTOrdering {
+private[macrortti] trait LTTOrdering {
   import LightTypeTagRef._
 
   @inline private[macrortti] final def OrderingAbstractReferenceInstance[A <: AbstractReference]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
@@ -118,16 +118,14 @@ trait LTTOrdering {
       val compare1 = Ordering.Int.compare(idx(x), idx(y))
       if (compare1 != 0) return compare1
 
-      def asStr(v: SymName.LambdaParamName) = LTTRenderables.Long.r_LambdaParameterName.render(v)
-
       (x, y) match {
         case (x1: SymName.NamedSymbol, y1: SymName.NamedSymbol) => Ordering.String.compare(x1.name, y1.name)
         case (x1: SymName.LambdaParamName, y1: SymName.LambdaParamName) =>
           Ordering.Tuple3[Int, Int, Int].compare((x1.depth, x1.index, x1.arity), (y1.depth, y1.index, y1.arity))
         case (x1: SymName.NamedSymbol, y1: SymName.LambdaParamName) =>
-          Ordering.String.compare(x1.name, asStr(y1))
+          Ordering.String.compare(x1.name, SymName.forceName(y1))
         case (x1: SymName.LambdaParamName, y1: SymName.NamedSymbol) =>
-          Ordering.String.compare(asStr(x1), y1.name)
+          Ordering.String.compare(SymName.forceName(x1), y1.name)
       }
     }
   }

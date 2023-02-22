@@ -174,6 +174,11 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  @deprecated("bincompat only", "20.03.2023")
+  private[macrortti] implicit def r_LambdaParameter: Renderable[LambdaParameter] = {
+    case l: SymName.LambdaParamName => r_SymName(l, hasPrefix = false)
+  }
+
 }
 
 object LTTRenderables {
@@ -213,6 +218,7 @@ object LTTRenderables {
     }
   }
 
+  // Same as `Long`, but split prefixes with . instead of ::
   object LongPrefixDot extends LTTRenderables {
     override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
       Long.r_SymName(sym, hasPrefix)

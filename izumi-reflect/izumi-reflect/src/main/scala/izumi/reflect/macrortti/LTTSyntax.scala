@@ -5,9 +5,10 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.annotation.tailrec
 
-trait LTTSyntax {
+private[macrortti] trait LTTSyntax {
   this: LightTypeTagRef =>
-  final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {
+
+  protected[this] final def combineImpl(args: Seq[LightTypeTagRef]): AbstractReference = {
     if (args.nonEmpty) {
       applySeq(args.map { case v: AbstractReference => v })
     } else {
@@ -21,7 +22,7 @@ trait LTTSyntax {
     }
   }
 
-  final def combineNonPos(args: Seq[Option[LightTypeTagRef]]): AbstractReference = {
+  protected[this] final def combineNonPosImpl(args: Seq[Option[LightTypeTagRef]]): AbstractReference = {
     applyParameters {
       l =>
         l.input.zip(args).flatMap {
@@ -36,7 +37,7 @@ trait LTTSyntax {
     }
   }
 
-  final def withoutArgs: AbstractReference = {
+  protected[this] final def withoutArgsImpl: AbstractReference = {
     def appliedNamedReference(reference: AppliedNamedReference) = {
       reference match {
         case LightTypeTagRef.NameReference(_, _, _) => reference
@@ -73,7 +74,7 @@ trait LTTSyntax {
   }
 
   /** Render to string, omitting package names */
-  override final def toString: String = {
+  protected[this] final def toStringImpl: String = {
     import izumi.reflect.macrortti.LTTRenderables.Short._
     (this: LightTypeTagRef).render()
   }
@@ -81,20 +82,20 @@ trait LTTSyntax {
   /** Fully-qualified rendering of a type, including packages and prefix types.
     * Use [[toString]] for a rendering that omits package names
     */
-  final def repr: String = {
+  protected[this] final def reprImpl: String = {
     import izumi.reflect.macrortti.LTTRenderables.Long._
     (this: LightTypeTagRef).render()
   }
 
-  final def shortName: String = {
+  protected[this] final def shortNameImpl: String = {
     getName(r => LTTRenderables.Short.r_SymName(r.symName, hasPrefix = false))
   }
 
-  final def longNameWithPrefix: String = {
+  protected[this] final def longNameWithPrefixImpl: String = {
     getName(r => LTTRenderables.LongPrefixDot.r_NameRefRenderer.render(NameReference(r.symName, Boundaries.Empty, r.prefix)))
   }
 
-  final def longNameInternalSymbol: String = {
+  protected[this] final def longNameInternalSymbolImpl: String = {
     getName(r => LTTRenderables.Long.r_SymName(r.symName, hasPrefix = false))
   }
 
@@ -102,11 +103,11 @@ trait LTTSyntax {
     "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
     "2.2.2"
   )
-  final def longName: String = {
+  protected[this] final def longNameImpl: String = {
     longNameInternalSymbol
   }
 
-  final def getPrefix: Option[LightTypeTagRef] = {
+  protected[this] final def getPrefixImpl: Option[LightTypeTagRef] = {
     @tailrec
     @inline
     def getPrefix(self: LightTypeTagRef): Option[LightTypeTagRef] = {
@@ -132,7 +133,7 @@ trait LTTSyntax {
     getPrefix(this)
   }
 
-  final def typeArgs: List[AbstractReference] = {
+  protected[this] final def typeArgsImpl: List[AbstractReference] = {
     this match {
       case Lambda(input, output) =>
         val params = input.iterator.toSet[SymName]
@@ -158,7 +159,7 @@ trait LTTSyntax {
   }
 
   /** decompose intersection type */
-  final def decompose: Set[AppliedReference] = {
+  protected[this] final def decomposeImpl: Set[AppliedReference] = {
     this match {
       case IntersectionReference(refs) =>
         refs.flatMap(_.decompose)
@@ -170,7 +171,7 @@ trait LTTSyntax {
     }
   }
 
-  final def decomposeUnion: Set[AppliedReference] = {
+  protected[this] final def decomposeUnionImpl: Set[AppliedReference] = {
     this match {
       case UnionReference(refs) =>
         refs.flatMap(_.decompose)

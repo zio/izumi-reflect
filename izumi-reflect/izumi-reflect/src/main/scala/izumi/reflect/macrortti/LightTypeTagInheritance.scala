@@ -38,7 +38,7 @@ object LightTypeTagInheritance {
   private final case class Ctx(
     outerLambdaParams: List[SymName.LambdaParamName],
     paramNames: Set[SymName.LambdaParamName],
-    outerDecls: Set[RefinementDecl.TypeMember],
+    outerDecls: Set[RefinementDecl.TypeMember], // refinement decls: { type T = x.type; val x: T }
     declNames: Set[String],
     logger: TrivialLogger,
     self: LightTypeTagInheritance
