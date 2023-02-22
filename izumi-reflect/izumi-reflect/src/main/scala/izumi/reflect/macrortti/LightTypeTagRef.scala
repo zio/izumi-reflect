@@ -22,6 +22,7 @@ import izumi.reflect.macrortti.LightTypeTagRef.AbstractReference
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymTypeName}
 
 import scala.runtime.AbstractFunction3
+import scala.util.hashing.MurmurHash3
 import scala.util.{Failure, Success, Try}
 
 sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
@@ -311,7 +312,8 @@ object LightTypeTagRef extends LTTOrdering {
           case (Success(ctx), Success(idx)) =>
             (idx, ctx)
           case _ =>
-            (str.hashCode, -10)
+            // use MurmurHash as it promises 'high-quality'
+            (MurmurHash3.stringHash(str), -10)
         }
       }
       LambdaParamName(numericIndexFromString, numericContextFromString, -10)
