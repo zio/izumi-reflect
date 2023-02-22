@@ -142,9 +142,10 @@ abstract class LightTypeTag private[reflect] (
     *       - You won't be able to call [[combine]] on result type
     * and partially applied types will not work correctly
     */
-  @nowarn("msg=view.mapValues")
+  @nowarn("msg=Unused import")
   def withoutArgs: LightTypeTag = {
-    LightTypeTag(ref.withoutArgs, basesdb.mapValues(_.map(_.withoutArgs)).toMap, idb)
+    import scala.collection.compat._
+    LightTypeTag(ref.withoutArgs, basesdb.view.mapValues(_.map(_.withoutArgs)).toMap, idb)
   }
 
   /**
@@ -335,11 +336,14 @@ object LightTypeTag {
     )
 
     private[reflect] object SubtypeDBs {
-      @nowarn("msg=view.mapValues")
-      private[reflect] def make(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]) = new SubtypeDBs(
-        bases.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap,
-        idb.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap
-      )
+      @nowarn("msg=Unused import")
+      private[reflect] def make(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]) = {
+        import scala.collection.compat._
+        new SubtypeDBs(
+          bases.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap,
+          idb.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap
+        )
+      }
     }
   }
 

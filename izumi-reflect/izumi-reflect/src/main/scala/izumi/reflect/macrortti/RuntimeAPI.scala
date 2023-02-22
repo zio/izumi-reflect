@@ -102,7 +102,7 @@ object RuntimeAPI {
       ref
     }
 
-    @nowarn("msg=view.filterKeys")
+    @nowarn("msg=Unused import")
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>

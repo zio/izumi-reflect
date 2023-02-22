@@ -19,7 +19,6 @@
 package izumi.reflect.internal.fundamentals.collections
 
 import scala.annotation.nowarn
-
 import scala.collection.mutable
 
 private[reflect] final class IzMappings[A, B](private val list: scala.collection.compat.IterableOnce[(A, B)]) extends AnyVal {
@@ -30,6 +29,9 @@ private[reflect] final class IzMappings[A, B](private val list: scala.collection
     }
   }
 
-  @nowarn("msg=mapValues")
-  def toMultimap: ImmutableMultiMap[A, B] = toMutableMultimap.mapValues(_.toSet).toMap
+  @nowarn("msg=Unused import")
+  def toMultimap: ImmutableMultiMap[A, B] = {
+    import scala.collection.compat._
+    toMutableMultimap.view.mapValues(_.toSet).toMap
+  }
 }
