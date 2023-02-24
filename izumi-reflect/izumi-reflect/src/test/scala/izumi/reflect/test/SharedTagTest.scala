@@ -413,14 +413,26 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
         Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]]
 
       assert(
-        t2[SharedTagTest.this.Z, SharedTagTest.this.Z, T1[
-          ZOB[String, Int, Byte],
-          String,
-          String,
-          String,
-          String,
-          List
-        ], SharedTagTest.this.Z, XY, SharedTagTest.this.Z, YX, Either, SharedTagTest.this.Z, SharedTagTest.this.Z, SharedTagTest.this.Z].tag
+        t2[
+          SharedTagTest.this.Z,
+          SharedTagTest.this.Z,
+          T1[
+            ZOB[String, Int, Byte],
+            String,
+            String,
+            String,
+            String,
+            List
+          ],
+          SharedTagTest.this.Z,
+          XY,
+          SharedTagTest.this.Z,
+          YX,
+          Either,
+          SharedTagTest.this.Z,
+          SharedTagTest.this.Z,
+          SharedTagTest.this.Z
+        ].tag
         == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
       )
     }
