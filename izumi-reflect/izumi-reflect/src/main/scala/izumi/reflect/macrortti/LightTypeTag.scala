@@ -752,7 +752,6 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.Lambda = {
         val ic = state.dec.readInt
         if (ic == 0) { // Pre 2.3.0 format
-
           object OldLambdaParameter {
             type OldLambdaParameter <: String
 
@@ -773,17 +772,82 @@ object LightTypeTag {
               }
             }
           }
+
+          def convertPre230LambdaToNew(lambda: LightTypeTagRef.Lambda, paramMap: Map[String, SymName.LambdaParamName]): LightTypeTagRef.Lambda = {
+
+            def goReplaceBoundaries(boundaries: Boundaries): Boundaries = boundaries match {
+              case Boundaries.Defined(bottom, top) =>
+                Boundaries.Defined(goReplace(bottom), goReplace(top))
+              case Boundaries.Empty =>
+                Boundaries.Empty
+            }
+
+            def goReplaceSymName(symName: SymName): SymName = symName match {
+              case oldSymName @ SymTypeName(maybeLambdaParam) =>
+                paramMap.getOrElse(maybeLambdaParam, oldSymName)
+              case _ => symName
+            }
+
+            def goReplace[T <: AbstractReference](abstractReference: T): T = {
+              (abstractReference match {
+                case Lambda(input, output) =>
+                  // a lambda read by another codec must have already
+                  // been processed by conversion procedure, so it should
+                  // have no clashes in SymTypeName with old parameters
+                  // anymore and be safe to process
+                  Lambda(input, goReplace(output))
+
+                case IntersectionReference(refs) =>
+                  IntersectionReference(refs.map(goReplace))
+
+                case UnionReference(refs) =>
+                  UnionReference(refs.map(goReplace))
+
+                case WildcardReference(boundaries) =>
+                  WildcardReference(goReplaceBoundaries(boundaries))
+
+                case Refinement(reference, decls) =>
+                  Refinement(
+                    goReplace(reference),
+                    decls.map {
+                      case RefinementDecl.Signature(name, input, output) =>
+                        RefinementDecl.Signature(name, input.map(goReplace), goReplace(output))
+                      case RefinementDecl.TypeMember(name, ref) =>
+                        RefinementDecl.TypeMember(name, goReplace(ref))
+                    }
+                  )
+
+                case NameReference(ref, boundaries, prefix) =>
+                  NameReference(goReplaceSymName(ref), goReplaceBoundaries(boundaries), prefix.map(goReplace))
+
+                case FullReference(symName, parameters, prefix) =>
+                  FullReference(
+                    goReplaceSymName(symName),
+                    parameters.map {
+                      case TypeParam(ref, variance) => TypeParam(goReplace(ref), variance)
+                    },
+                    prefix.map(goReplace)
+                  )
+              }).asInstanceOf[T]
+            }
+
+            val LightTypeTagRef.Lambda(convertedParams, oldResult) = lambda
+            LightTypeTagRef.Lambda(convertedParams, goReplace(oldResult))
+          }
+
           import OldLambdaParameter.{OldLambdaParameter, oldLambdaParameterPickler}
 
           val oldParams = state.unpickle[List[OldLambdaParameter]]
           val lambdaResult = state.unpickle[LightTypeTagRef.AbstractReference]
 
           val convertedParams = oldParams.map(SymName.bincompatForceCreateLambdaParamNameFromString(_))
+          val paramMap = oldParams.iterator.zip(convertedParams).toMap[String, SymName.LambdaParamName]
 
-          val value = LightTypeTagRef.Lambda(convertedParams, lambdaResult)
+          val oldLambda = LightTypeTagRef.Lambda(convertedParams, lambdaResult)
+          val value = convertPre230LambdaToNew(oldLambda, paramMap)
           state.addIdentityRef(value)
           value
-        } else if (ic == 1) { // Post 2.3.
+        } else if (ic == 1) { // Post 2.3.0
           val value = LightTypeTagRef.Lambda(
             state.unpickle[List[SymName.LambdaParamName]],
             state.unpickle[LightTypeTagRef.AbstractReference]
