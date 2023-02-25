@@ -737,7 +737,10 @@ object LightTypeTag {
           val ref = state.identityRefFor(value)
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
-            state.enc.writeInt(0)
+            // After version 2.3.0 the Lambda format changed - we now use LambdaParamName not LambdaParameter for Lambda inputs
+            // Thankfully, boopickle's identity serialization only uses number range Int.MinValue..0,
+            // leaving us with all numbers above 0 to encode format variants.
+            state.enc.writeInt(1) // We use 1 instead of normal value 0
             state.pickle[List[SymName.LambdaParamName]](value.input)
             state.pickle[LightTypeTagRef.AbstractReference](value.output)
             state.addIdentityRef(value)
@@ -748,8 +751,43 @@ object LightTypeTag {
 
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.Lambda = {
         val ic = state.dec.readInt
-        if (ic == 0) {
-          val value = LightTypeTagRef.Lambda(state.unpickle[List[SymName.LambdaParamName]], state.unpickle[LightTypeTagRef.AbstractReference])
+        if (ic == 0) { // Pre 2.3.0 format
+
+          object OldLambdaParameter {
+            type OldLambdaParameter <: String
+
+            implicit val oldLambdaParameterPickler: boopickle.Pickler[OldLambdaParameter] = new boopickle.Pickler[OldLambdaParameter] {
+              override def pickle(obj: OldLambdaParameter.OldLambdaParameter)(implicit state: PickleState): Unit = {
+                throw new RuntimeException("Impossible - old lambda parameter compat pickler should never be called to serialize - only to deserialize")
+              }
+              override def unpickle(implicit state: UnpickleState): OldLambdaParameter.OldLambdaParameter = {
+                val ic = state.dec.readInt
+                if (ic == 0) {
+                  val value = state.unpickle[String]
+                  state.addIdentityRef(value)
+                  value.asInstanceOf[OldLambdaParameter]
+                } else if (ic < 0)
+                  state.identityFor[String](-ic).asInstanceOf[OldLambdaParameter]
+                else
+                  state.codingError(ic)
+              }
+            }
+          }
+          import OldLambdaParameter.{OldLambdaParameter, oldLambdaParameterPickler}
+
+          val oldParams = state.unpickle[List[OldLambdaParameter]]
+          val lambdaResult = state.unpickle[LightTypeTagRef.AbstractReference]
+
+          val convertedParams = oldParams.map(SymName.bincompatForceCreateLambdaParamNameFromString(_))
+
+          val value = LightTypeTagRef.Lambda(convertedParams, lambdaResult)
+          state.addIdentityRef(value)
+          value
+        } else if (ic == 1) { // Post 2.3.
+          val value = LightTypeTagRef.Lambda(
+            state.unpickle[List[SymName.LambdaParamName]],
+            state.unpickle[LightTypeTagRef.AbstractReference]
+          )
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
