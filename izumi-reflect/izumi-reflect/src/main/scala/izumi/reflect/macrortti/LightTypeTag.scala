@@ -451,17 +451,17 @@ object LightTypeTag {
         obj match {
           case SymTermName(name) =>
             state.enc.writeInt(0)
-            state.enc.writeString(name)
+            state.pickle[String](name)
             ()
 
           case SymTypeName(name) =>
             state.enc.writeInt(1)
-            state.enc.writeString(name)
+            state.pickle[String](name)
             ()
 
           case SymLiteral(name) =>
             state.enc.writeInt(2)
-            state.enc.writeString(name)
+            state.pickle[String](name)
             ()
 
           case LambdaParamName(index, depth, arity) =>
@@ -475,11 +475,11 @@ object LightTypeTag {
 
       override def unpickle(implicit state: UnpickleState): SymName = state.dec.readInt match {
         case 0 =>
-          SymTermName(state.dec.readString)
+          SymTermName(state.unpickle[String])
         case 1 =>
-          SymTypeName(state.dec.readString)
+          SymTypeName(state.unpickle[String])
         case 2 =>
-          SymLiteral(state.dec.readString)
+          SymLiteral(state.unpickle[String])
         case 3 =>
           LambdaParamName(state.dec.readInt, state.dec.readInt, state.dec.readInt)
         case o =>
