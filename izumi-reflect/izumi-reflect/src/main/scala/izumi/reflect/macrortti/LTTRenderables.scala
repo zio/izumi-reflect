@@ -175,8 +175,10 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
   }
 
   @deprecated("bincompat only", "20.03.2023")
-  private[macrortti] implicit def r_LambdaParameter: Renderable[LambdaParameter] = {
-    case l: SymName.LambdaParamName => r_SymName(l, hasPrefix = false)
+  private[macrortti] implicit lazy val r_LambdaParameter: Renderable[LambdaParameter] = new Renderable[LambdaParameter] {
+    override def render(value: LambdaParameter): String = value match {
+      case l: SymName.LambdaParamName => r_SymName(l, hasPrefix = false)
+    }
   }
 
 }
