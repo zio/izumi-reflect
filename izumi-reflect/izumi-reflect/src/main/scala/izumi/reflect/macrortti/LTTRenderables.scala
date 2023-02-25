@@ -108,6 +108,8 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
           s"${value.index}"
         case t if t > 0 =>
           s"${value.depth}:${value.index}"
+        // FIXME so-called "debug" view doesn't display all the data here which could lead to confusion when "debugging"
+//          s"[${value.arity}]${value.depth}:${value.index}"
       }
     }
   }
