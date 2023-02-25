@@ -70,7 +70,7 @@ object RuntimeAPI {
 
     val paramMap = parameters.toMap
 
-    val rewriter = new Rewriter(paramMap.toMap)
+    val rewriter = new Rewriter(paramMap)
     val replaced = rewriter.replaceRefs(lambda.output)
 
     // fix for #82, #83
@@ -98,6 +98,7 @@ object RuntimeAPI {
 
   final class Rewriter(_rules: Map[SymName.LambdaParamName, AbstractReference]) {
     private val rules: Map[SymName, AbstractReference] = _rules.toMap
+
     def complete(@unused context: AppliedNamedReference, ref: AbstractReference): AbstractReference = {
       ref
     }
