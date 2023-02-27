@@ -179,8 +179,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = project.in(file("izumi-re
     } },
     scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.2.2") => Set.empty
-      case (_, _) => Set(organization.value %% name.value % "1.0.0")
+      case (_, "3.2.2") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
+      case (_, _) => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.13.10") => Seq(
@@ -379,8 +379,8 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
     } },
     scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.2.2") => Set.empty
-      case (_, _) => Set(organization.value %% name.value % "1.0.0")
+      case (_, "3.2.2") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
+      case (_, _) => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
       case (_, "2.13.10") => Seq(
@@ -500,6 +500,13 @@ lazy val `izumi-reflect-root` = (project in file("."))
             ),
     ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git")),
     ThisBuild / mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag"),
+      ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag110"),
+      ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag210"),
+      ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTagM8"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference._1"),
+      ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef*"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.r_LambdaParameterName"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.r_Wildcard"),
@@ -511,6 +518,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl#*"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.dottyreflection.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.internal.*"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.norm"),
