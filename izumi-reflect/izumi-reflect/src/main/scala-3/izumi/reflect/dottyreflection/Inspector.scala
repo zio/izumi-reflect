@@ -4,13 +4,43 @@ import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.annotation.{tailrec, targetName}
-import scala.quoted.Type
+import scala.collection.immutable.Queue
+import scala.quoted.{Quotes, Type}
 import scala.reflect.Selectable.reflectiveSelectable
 
-abstract class Inspector(protected val shift: Int) extends InspectorBase {
+object Inspector {
+  case class LamParam(name: String, index: Int, depth: Int, arity: Int)(val qctx: Quotes)(val tpe: qctx.reflect.TypeRepr) {
+    def asParam = SymName.LambdaParamName(index, depth, arity) // s"$depth:$index/$arity")
+    // this might be useful for debugging
+    // def asParam = LambdaParameter(s"$depth:$index/$arity:$name")
+
+    override def toString: String = s"[($name: $tpe) = $asParam]"
+  }
+  case class LamContext(params: List[LamParam])
+
+  def make(q: Quotes): Inspector { val qctx: q.type } = new Inspector(0, Queue.empty) {
+    override val qctx: q.type = q
+  }
+}
+
+abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.LamContext]) extends InspectorBase {
   import qctx.reflect._
 
-  private def next() = new Inspector(shift + 1) { val qctx: Inspector.this.qctx.type = Inspector.this.qctx }
+  def next(newContext: List[Inspector.LamContext] = Nil): Inspector { val qctx: Inspector.this.qctx.type } = new Inspector(shift + 1, this.context ++ newContext) {
+    val qctx: Inspector.this.qctx.type = Inspector.this.qctx
+  }
+
+  def nextLam(l: TypeLambda): Inspector { val qctx: Inspector.this.qctx.type } = {
+    val params = l
+      .paramNames
+      .zipWithIndex
+      .map {
+        case (nme, idx) =>
+          Inspector.LamParam(nme, idx, context.size, l.paramNames.size)(qctx)(l.param(idx))
+      }
+      .toList
+    next(List(Inspector.LamContext(params)))
+  }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
     val tpeTree = TypeTree.of[T]
@@ -22,6 +52,16 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
   private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     val tpe = tpe0.dealias.simplified
+
+    if (context.flatMap(_.params.map(_.tpe)).toSet.contains(tpe0)) {
+      assert(tpe == tpe0)
+      assert(tpe match {
+        case p: ParamRef =>
+          true
+        case _ =>
+          false
+      })
+    }
 
     tpe match {
       case a: AnnotatedType =>
@@ -52,12 +92,13 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
             val args = a
               .args.iterator.zipAll(variances, null.asInstanceOf[TypeRepr], Variance.Invariant).takeWhile(_._1 != null)
               .map(next().inspectTypeParam).toList
-            FullReference(ref = nameRef.ref.name, parameters = args, prefix = nameRef.prefix)
+            FullReference(symName = nameRef.symName, parameters = args, prefix = nameRef.prefix)
         }
 
       case l: TypeLambda =>
-        val resType = next().inspectTypeRepr(l.resType)
-        val paramNames = l.paramNames.map(LambdaParameter(_))
+        val inspector = nextLam(l)
+        val resType = inspector.inspectTypeRepr(l.resType)
+        val paramNames = inspector.context.last.params.map(_.asParam)
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case p: ParamRef =>
@@ -96,7 +137,7 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
 
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
-        NameReference("???")
+        NameReference(SymName.SymTypeName("???"))
 
       // Matches CachedRefinedType for this ZIO issue https://github.com/zio/zio/issues/6071
       case ref: Refinement =>
@@ -199,7 +240,26 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
         log(s"make name reference from term $term")
         makeNameReferenceFromSymbol(term.termSymbol, Some(term))
       case t: ParamRef =>
-        NameReference(tpeName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString)
+        val isInContext = context.flatMap(_.params.map(_.tpe)).contains(t)
+        if (isInContext) {
+          // assert(isInContext, s"${context.flatMap(_.params.map(_.tpe)).map(t => t)} must contain $t")
+
+          val candidates = context.reverse.flatMap(_.params).filter(_.tpe == t)
+          val contextParam = candidates.head
+
+          locally {
+            val paramName = t.binder.asInstanceOf[LambdaType].paramNames(t.paramNum).toString
+            assert(contextParam.name == paramName, s"$contextParam should match $paramName")
+          }
+
+          NameReference(contextParam.asParam, Boundaries.Empty, None)
+
+        } else {
+          val lt = t.binder.asInstanceOf[LambdaType]
+          val paramName = lt.paramNames(t.paramNum).toString
+          NameReference(SymName.LambdaParamName(t.paramNum, -1, lt.paramNames.size), Boundaries.Empty, None)
+        }
+
       case constant: ConstantType =>
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
       case ref =>
@@ -208,7 +268,8 @@ abstract class Inspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private[dottyreflection] def makeNameReferenceFromSymbol(symbol: Symbol, prefixSource1: Option[NamedType]): NameReference = {
+  @tailrec
+  private[dottyreflection] final def makeNameReferenceFromSymbol(symbol: Symbol, prefixSource1: Option[NamedType]): NameReference = {
     def default: NameReference = {
       val (symName, s, prefixSource2) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
         (SymName.SymTermName(symbol.fullName), symbol, symbol.termRef)

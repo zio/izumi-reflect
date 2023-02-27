@@ -18,247 +18,61 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.internal.OrderingCompat
-import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef.AbstractReference
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymTypeName}
 
-import scala.annotation.tailrec
-import scala.util.Sorting
+import scala.runtime.AbstractFunction3
+import scala.util.hashing.MurmurHash3
+import scala.util.{Failure, Success, Try}
 
-sealed trait LightTypeTagRef extends Serializable {
+sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
 
-  final def combine(args: Seq[LightTypeTagRef]): AbstractReference = {
-    if (args.nonEmpty) {
-      applySeq(args.map { case v: AbstractReference => v })
-    } else {
-      // while user is not expected to combine an arbitrary tag with an empty args list
-      // it's a sound operation which should just return the tag itself
-      // see also: https://github.com/7mind/izumi/pull/1528
-      this match {
-        case ref: AbstractReference =>
-          ref
-      }
-    }
-  }
-
-  final def combineNonPos(args: Seq[Option[LightTypeTagRef]]): AbstractReference = {
-    applyParameters {
-      l =>
-        l.input.zip(args).flatMap {
-          case (p, v) =>
-            v match {
-              case Some(value: AbstractReference) =>
-                Seq(p.name -> value)
-              case None =>
-                Seq.empty
-            }
-        }
-    }
-  }
-
-  final def withoutArgs: AbstractReference = {
-    def appliedNamedReference(reference: AppliedNamedReference) = {
-      reference match {
-        case LightTypeTagRef.NameReference(_, _, _) => reference
-        case r @ LightTypeTagRef.FullReference(_, parameters @ _, prefix) => NameReference(r.symName, Boundaries.Empty, prefix)
-      }
-    }
-
-    def appliedReference(reference: AppliedReference): AppliedReference = {
-      reference match {
-        case reference: AppliedNamedReference =>
-          appliedNamedReference(reference)
-        case LightTypeTagRef.IntersectionReference(refs) =>
-          LightTypeTagRef.maybeIntersection(refs.map(appliedReference))
-        case LightTypeTagRef.UnionReference(refs) =>
-          LightTypeTagRef.maybeUnion(refs.map(appliedReference))
-        case LightTypeTagRef.Refinement(reference, decls) =>
-          LightTypeTagRef.Refinement(appliedReference(reference), decls)
-        case r: LightTypeTagRef.WildcardReference =>
-          r
-      }
-    }
-
-    @tailrec
-    def go(self: LightTypeTagRef): AbstractReference = {
-      self match {
-        case Lambda(_, output) =>
-          go(output)
-        case reference: AppliedReference =>
-          appliedReference(reference)
-      }
-    }
-
-    go(this)
-  }
-
+  // bincompat with versions before 2.3.0
+  final def combine(args: Seq[LightTypeTagRef]): AbstractReference = this.combineImpl(args)
+  final def combineNonPos(args: Seq[Option[LightTypeTagRef]]): AbstractReference = this.combineNonPosImpl(args)
+  final def withoutArgs: AbstractReference = this.withoutArgsImpl
   /** Render to string, omitting package names */
-  override final def toString: String = {
-    import izumi.reflect.macrortti.LTTRenderables.Short._
-    (this: LightTypeTagRef).render()
-  }
-
+  override final def toString: String = this.toStringImpl
   /** Fully-qualified rendering of a type, including packages and prefix types.
     * Use [[toString]] for a rendering that omits package names
     */
-  final def repr: String = {
-    import izumi.reflect.macrortti.LTTRenderables.Long._
-    (this: LightTypeTagRef).render()
-  }
-
-  final def shortName: String = {
-    getName(r => LTTRenderables.Short.r_SymName(r.symName, hasPrefix = false))
-  }
-
-  final def longNameWithPrefix: String = {
-    getName(r => LTTRenderables.LongPrefixDot.r_NameRefRenderer.render(NameReference(r.symName, Boundaries.Empty, r.prefix)))
-  }
-
-  final def longNameInternalSymbol: String = {
-    getName(r => LTTRenderables.Long.r_SymName(r.symName, hasPrefix = false))
-  }
-
+  final def repr: String = this.reprImpl
+  final def shortName: String = this.shortNameImpl
+  final def longNameWithPrefix: String = this.longNameWithPrefixImpl
+  final def longNameInternalSymbol: String = this.longNameInternalSymbolImpl
   @deprecated(
     "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
     "2.2.2"
   )
-  final def longName: String = {
-    longNameInternalSymbol
-  }
-
-  final def getPrefix: Option[LightTypeTagRef] = {
-    @tailrec
-    @inline
-    def getPrefix(self: LightTypeTagRef): Option[LightTypeTagRef] = {
-      self match {
-        case Lambda(_, output) => getPrefix(output)
-        case NameReference(_, _, prefix) => prefix
-        case FullReference(_, _, prefix) => prefix
-        case IntersectionReference(refs) =>
-          val prefixes = refs.flatMap(_.getPrefix).collect {
-            case p: AppliedReference => p
-          }
-          if (prefixes.nonEmpty) Some(maybeIntersection(prefixes)) else None
-        case UnionReference(refs) =>
-          val prefixes = refs.flatMap(_.getPrefix).collect {
-            case p: AppliedReference => p
-          }
-          if (prefixes.nonEmpty) Some(maybeUnion(prefixes)) else None
-        case Refinement(reference, _) => getPrefix(reference)
-        case _: WildcardReference => None
-      }
-    }
-
-    getPrefix(this)
-  }
-
-  final def typeArgs: List[AbstractReference] = {
-    this match {
-      case Lambda(input, output) =>
-        val params = input.iterator.map(_.name).toSet
-        output.typeArgs.filter {
-          case n: AppliedNamedReference =>
-            !params.contains(n.asName.ref.name)
-          case _ =>
-            true
-        }
-      case NameReference(_, _, _) =>
-        Nil
-      case FullReference(_, parameters, _) =>
-        parameters.map(_.ref)
-      case IntersectionReference(_) =>
-        Nil
-      case UnionReference(_) =>
-        Nil
-      case WildcardReference(_) =>
-        Nil
-      case Refinement(reference, _) =>
-        reference.typeArgs
-    }
-  }
-
+  final def longName: String = this.longNameInternalSymbolImpl
+  final def getPrefix: Option[LightTypeTagRef] = this.getPrefixImpl
+  final def typeArgs: List[AbstractReference] = this.typeArgsImpl
   /** decompose intersection type */
-  final def decompose: Set[AppliedReference] = {
-    this match {
-      case IntersectionReference(refs) =>
-        refs.flatMap(_.decompose)
-      case appliedReference: AppliedReference =>
-        Set(appliedReference)
-      // lambdas cannot appear _inside_ intersections
-      case Lambda(_, _) =>
-        Set.empty
-    }
-  }
-
-  final def decomposeUnion: Set[AppliedReference] = {
-    this match {
-      case UnionReference(refs) =>
-        refs.flatMap(_.decompose)
-      case appliedReference: AppliedReference =>
-        Set(appliedReference)
-      // lambdas cannot appear _inside_ unions
-      case Lambda(_, _) =>
-        Set.empty
-    }
-  }
-
-  private[macrortti] final def applySeq(refs: Seq[AbstractReference]): AbstractReference = {
-    applyParameters {
-      l =>
-        l.input.zip(refs).map {
-          case (p, v) =>
-            p.name -> v
-        }
-    }
-  }
-
-  private[macrortti] final def applyParameters(p: Lambda => Seq[(String, AbstractReference)]): AbstractReference = {
-    this match {
-      case l: Lambda =>
-        val parameters = p(l)
-        if (l.input.size < parameters.size) {
-          throw new IllegalArgumentException(s"$this expects no more than ${l.input.size} parameters: ${l.input} but got $parameters")
-        }
-        val expected = l.input.iterator.map(_.name).toSet
-        val unknownKeys = parameters.iterator.map(_._1).toSet.diff(expected)
-        if (unknownKeys.nonEmpty) {
-          throw new IllegalArgumentException(s"$this takes parameters: $expected but got unexpected ones: $unknownKeys")
-        }
-
-        RuntimeAPI.applyLambda(l, parameters)
-      case _ =>
-        throw new IllegalArgumentException(s"$this is not a type lambda, it cannot be parameterized")
-    }
-  }
-
-  @inline
-  private[this] final def getName(render: AppliedNamedReference => String): String = {
-    @tailrec
-    @inline
-    def go(r: LightTypeTagRef): String = r match {
-      case Lambda(_, output) => go(output)
-      case ref: NameReference => render(ref)
-      case ref: FullReference => render(ref)
-      case IntersectionReference(refs) => refs.map(goDeep).mkString(" & ")
-      case UnionReference(refs) => refs.map(goDeep).mkString(" | ")
-      case Refinement(reference, _) => go(reference)
-      case WildcardReference(_) => "?"
-    }
-
-    def goDeep(r: LightTypeTagRef): String = go(r)
-
-    go(this)
-  }
+  final def decompose: Set[LightTypeTagRef.AppliedReference] = this.decomposeImpl
+  final def decomposeUnion: Set[LightTypeTagRef.AppliedReference] = this.decomposeUnionImpl
 
 }
 
-object LightTypeTagRef {
+object LightTypeTagRef extends LTTOrdering {
   import LTTRenderables.Short._
 //  import LTTRenderables.Long._
 
   sealed trait AbstractReference extends LightTypeTagRef
 
-  final case class Lambda(input: List[LambdaParameter], output: AbstractReference) extends AbstractReference {
+  // bincompat only
+  private[macrortti] sealed abstract class LambdaParameter {
+    @deprecated("bincompat only", "20.02.2023")
+    private[macrortti] def name: String
+  }
+  @deprecated("bincompat only", "20.02.2023")
+  private[macrortti] object LambdaParameter extends (String => LambdaParameter) {
+    @deprecated("bincompat only", "20.02.2023")
+    def apply(name: String): LambdaParameter = {
+      SymName.bincompatForceCreateLambdaParamNameFromString(name)
+    }
+  }
+
+  final case class Lambda(input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
     override def hashCode(): Int = {
       normalizedOutput.hashCode()
     }
@@ -269,11 +83,14 @@ object LightTypeTagRef {
           // No boundary on paramRefs
           // FIXME LambdaParameter should contain bounds and NameReference shouldn't
           //       (Except possibly lower bound of an abstract/opaque type member)
-          NameReference(n.name)
+          NameReference(n)
       }.toSet
     lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
-    lazy val someArgumentsReferenced: Boolean = paramRefs.diff(referenced).size < referenced.size
+    lazy val someArgumentsReferenced: Boolean = {
+      val unusedParamsSize = paramRefs.diff(referenced).size
+      unusedParamsSize < paramRefs.size
+    }
 
     lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
     lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)
@@ -289,24 +106,12 @@ object LightTypeTagRef {
       }
     }
 
-    private[LightTypeTagRef] def compare(y: Lambda): Int = {
-      val x = this
-      // Mirror equals
-      val compare1 = Ordering.Int.compare(x.input.size, y.input.size)
-      if (compare1 != 0) return compare1
-      OrderingAbstractReference.compare(x.normalizedOutput, y.normalizedOutput)
-    }
-
-    private[this] def makeFakeParams: List[(String, NameReference)] = {
+    private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p.name -> NameReference(s"!FAKE_$idx")
+          p -> NameReference(SymName.LambdaParamName(idx, -2, input.size)) // s"!FAKE_$idx"
       }
     }
-  }
-
-  final case class LambdaParameter(name: String) {
-    override def toString: String = this.render()
   }
 
   sealed trait AppliedReference extends AbstractReference
@@ -325,10 +130,20 @@ object LightTypeTagRef {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
   }
 
-  private[this] val ignored = Set[AppliedReference](
+  def isIgnored[T <: AbstractReference](t: T): Boolean = {
+    t match {
+      case a: AppliedReference =>
+        ignored.contains(a)
+      case _: Lambda =>
+        false
+    }
+  }
+
+  private[reflect] val ignored = Set[AppliedReference](
     LightTypeTagInheritance.tpeAny,
     LightTypeTagInheritance.tpeAnyRef,
-    LightTypeTagInheritance.tpeObject
+    LightTypeTagInheritance.tpeObject,
+    LightTypeTagInheritance.tpeMatchable
   )
 
   def maybeIntersection(refs: Set[AppliedReference]): AppliedReference = {
@@ -372,18 +187,44 @@ object LightTypeTagRef {
     override def symName: SymName = ref
   }
   object NameReference {
-    def apply(tpeName: String): NameReference = NameReference(SymTypeName(tpeName))
+    @deprecated("Use SymName explicitly", "20.02.2023")
+    private[NameReference] def apply(tpeName: String): NameReference = NameReference(SymTypeName(tpeName))
   }
 
   final case class FullReference(
-    ref: String,
+    symName: SymName,
     parameters: List[TypeParam],
     prefix: Option[AppliedReference] = None
   ) extends AppliedNamedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
     override def asName: NameReference = NameReference(symName, prefix = prefix)
-    override def symName: SymName = SymTypeName(ref)
+
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def ref: String = SymName.forceName(symName)
+
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def this(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]) = {
+      this(SymName.SymTypeName(ref), parameters, prefix)
+    }
+
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def copy(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
+      this.copy(SymName.SymTypeName(ref), parameters, prefix)
+    }
+    @deprecated("bincompat only", "20.02.2023")
+    private[LightTypeTagRef] def copy$default$1: String = ref
+
+    def copy(symName: SymName = symName, parameters: List[TypeParam] = parameters, prefix: Option[AppliedReference] = prefix): FullReference = {
+      new FullReference(symName, parameters, prefix)
+    }
+
+  }
+  object FullReference extends /*bincompat*/ AbstractFunction3[String, List[TypeParam], Option[AppliedReference], FullReference] {
+    @deprecated("bincompat only", "20.02.2023")
+    override def apply(ref: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
+      new FullReference(SymName.SymTypeName(ref), parameters, prefix)
+    }
   }
 
   final case class TypeParam(
@@ -418,13 +259,24 @@ object LightTypeTagRef {
     case object Empty extends Boundaries
   }
 
+  // this name isn't correct anymore but we keep it here for historical reasons. In fact that should be Symbol or SymRef
   sealed trait SymName {
-    def name: String
+    // bincompat only
+    private[macrortti] def name: String
   }
   object SymName {
-    final case class SymTermName(name: String) extends SymName
-    final case class SymTypeName(name: String) extends SymName
-    final case class SymLiteral(name: String) extends SymName
+    final case class LambdaParamName(index: Int, depth: Int, arity: Int) extends LambdaParameter with SymName {
+      @deprecated("bincompat only", "20.02.2023")
+      private[macrortti] override def name: String = SymName.forceName(this)
+    }
+
+    sealed trait NamedSymbol extends SymName {
+      def name: String
+    }
+    final case class SymTermName(name: String) extends NamedSymbol
+    final case class SymTypeName(name: String) extends NamedSymbol
+    final case class SymLiteral(name: String) extends NamedSymbol
+
     object SymLiteral {
       def apply(c: Any): SymLiteral = {
         val constant = c match {
@@ -434,152 +286,38 @@ object LightTypeTagRef {
         SymLiteral(constant)
       }
     }
-  }
 
-  @inline private[macrortti] final def OrderingAbstractReferenceInstance[A <: AbstractReference]: Ordering[A] = OrderingAbstractReference.asInstanceOf[Ordering[A]]
-  @inline private[macrortti] final def OrderingRefinementDeclInstance: Ordering[RefinementDecl] = OrderingRefinementDecl
-
-  private[this] val OrderingAbstractReference: Ordering[AbstractReference] = new Ordering[AbstractReference] {
-    override def equiv(x: AbstractReference, y: AbstractReference): Boolean = x == y
-
-    override def compare(x: AbstractReference, y: AbstractReference): Int = (x, y) match {
-      case (lx: Lambda, ly: Lambda) =>
-        // Mirror Lambda#equals
-        lx.compare(ly)
-
-      case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
-        OrderingArrayAbstractReference.compare(refSetToSortedArray(refsx), refSetToSortedArray(refsy))
-
-      case (UnionReference(refsx), UnionReference(refsy)) =>
-        OrderingArrayAbstractReference.compare(refSetToSortedArray(refsx), refSetToSortedArray(refsy))
-
-      case (Refinement(referencex, declsx), Refinement(referencey, declsy)) =>
-        val compare1 = compare(referencex, referencey)
-        if (compare1 != 0) return compare1
-        OrderingArrayRefinementDecl.compare(refinementDeclSetToSortedArray(declsx), refinementDeclSetToSortedArray(declsy))
-
-      case (NameReference(symx, boundariesx, prefixx), NameReference(symy, boundariesy, prefixy)) =>
-        val compare1 = OrderingSymName.compare(symx, symy)
-        if (compare1 != 0) return compare1
-        val compare2 = OrderingBoundaries.compare(boundariesx, boundariesy)
-        if (compare2 != 0) return compare2
-        OrderingOptionAbstractReference.compare(prefixx, prefixy)
-
-      case (FullReference(refx, parametersx, prefixx), FullReference(refy, parametersy, prefixy)) =>
-        val compare1 = Ordering.String.compare(refx, refy)
-        if (compare1 != 0) return compare1
-        val compare2 = OrderingListTypeParam.compare(parametersx, parametersy)
-        if (compare2 != 0) return compare2
-        OrderingOptionAbstractReference.compare(prefixx, prefixy)
-
-      case _ =>
-        def idx(abstractReference: AbstractReference): Int = abstractReference match {
-          case _: Lambda => 0
-          case _: IntersectionReference => 1
-          case _: UnionReference => 2
-          case _: Refinement => 3
-          case _: NameReference => 4
-          case _: FullReference => 5
-          case _: WildcardReference => 6
-        }
-        Ordering.Int.compare(idx(x), idx(y))
-    }
-  }
-
-  private[macrortti] def refSetToSortedArray[T <: AbstractReference](set: Set[_ <: T]): Array[T] = {
-    @inline implicit def OrderingInstance: Ordering[AbstractReference] = LightTypeTagRef.OrderingAbstractReferenceInstance
-    val array: Array[AbstractReference] = set.toArray
-    Sorting.stableSort(array)
-    array.asInstanceOf[Array[T]]
-  }
-
-  private[macrortti] def refinementDeclSetToSortedArray(set: Set[RefinementDecl]): Array[RefinementDecl] = {
-    @inline implicit def OrderingInstance: Ordering[RefinementDecl] = LightTypeTagRef.OrderingRefinementDeclInstance
-    val array: Array[RefinementDecl] = set.toArray
-    Sorting.stableSort(array)
-    array
-  }
-
-  private[this] val OrderingRefinementDecl: Ordering[RefinementDecl] = new Ordering[RefinementDecl] {
-    override def equiv(x: RefinementDecl, y: RefinementDecl): Boolean = x == y
-
-    override def compare(x: RefinementDecl, y: RefinementDecl): Int = (x, y) match {
-      case (RefinementDecl.Signature(namex, inputx, outputx), RefinementDecl.Signature(namey, inputy, outputy)) =>
-        val compare1 = Ordering.String.compare(namex, namey)
-        if (compare1 != 0) return compare1
-        val compare2 = OrderingListAbstractReference.compare(inputx, inputy)
-        if (compare2 != 0) return compare2
-        OrderingAbstractReference.compare(outputx, outputy)
-
-      case (RefinementDecl.TypeMember(namex, refx), RefinementDecl.TypeMember(namey, refy)) =>
-        val compare1 = Ordering.String.compare(namex, namey)
-        if (compare1 != 0) return compare1
-        OrderingAbstractReference.compare(refx, refy)
-
-      case _ =>
-        def idx(refinementDecl: RefinementDecl): Int = refinementDecl match {
-          case _: RefinementDecl.Signature => 0
-          case _: RefinementDecl.TypeMember => 1
-        }
-        Ordering.Int.compare(idx(x), idx(y))
-    }
-  }
-
-  private[this] val OrderingSymName: Ordering[SymName] = new Ordering[SymName] {
-    override def equiv(x: SymName, y: SymName): Boolean = x == y
-
-    override def compare(x: SymName, y: SymName): Int = {
-      def idx(symName: SymName): Int = symName match {
-        case SymTermName(_) => 0
-        case SymTypeName(_) => 1
-        case SymLiteral(_) => 2
+    implicit final class SymNameExt(private val name: SymName) extends AnyVal {
+      def maybeName: Option[String] = name match {
+        case symbol: SymName.NamedSymbol => Some(symbol.name)
+        case _: SymName.LambdaParamName => None
       }
-      val compare1 = Ordering.Int.compare(idx(x), idx(y))
-      if (compare1 != 0) return compare1
-      Ordering.String.compare(x.name, y.name)
     }
-  }
 
-  private[this] val OrderingBoundaries: Ordering[Boundaries] = new Ordering[Boundaries] {
-    override def equiv(x: Boundaries, y: Boundaries): Boolean = x == y
+    private[macrortti] def forceName(symName: SymName): String = {
+      symName match {
+        case symbol: SymName.NamedSymbol => symbol.name
+        case lpn: LambdaParamName => LTTRenderables.Long.r_LambdaParameterName.render(lpn)
+      }
+    }
 
-    override def compare(x: Boundaries, y: Boundaries): Int = (x, y) match {
-      case (Boundaries.Defined(rebx, retx), Boundaries.Defined(reby, rety)) =>
-        val compare1 = OrderingAbstractReference.compare(rebx, reby)
-        if (compare1 != 0) return compare1
-        OrderingAbstractReference.compare(retx, rety)
-
-      case (x, y) =>
-        def idx(boundaries: Boundaries): Int = boundaries match {
-          case _: Boundaries.Empty.type => 0
-          case _: Boundaries.Defined => 1
+    private[macrortti] def bincompatForceCreateLambdaParamNameFromString(str: String): LambdaParamName = {
+      val (numericIndexFromString, numericContextFromString) = {
+        val parts = str.split(':')
+        val fst = Try(parts(0).toInt)
+        val snd = Try(parts(1).toInt)
+        (fst, snd) match {
+          case (Success(idx), Failure(_)) =>
+            (idx, -10)
+          case (Success(ctx), Success(idx)) =>
+            (idx, ctx)
+          case _ =>
+            // use MurmurHash as it promises 'high-quality'
+            (MurmurHash3.stringHash(str), -10)
         }
-        Ordering.Int.compare(idx(x), idx(y))
+      }
+      LambdaParamName(numericIndexFromString, numericContextFromString, -10)
     }
+
   }
-
-  private[this] val OrderingTypeParam: Ordering[TypeParam] = new Ordering[TypeParam] {
-    override def equiv(x: TypeParam, y: TypeParam): Boolean = x == y
-
-    override def compare(x: TypeParam, y: TypeParam): Int = (x, y) match {
-      case (TypeParam(namex, varx), TypeParam(namey, vary)) =>
-        val compare1 = OrderingAbstractReference.compare(namex, namey)
-        if (compare1 != 0) return compare1
-        OrderingVariance.compare(varx, vary)
-    }
-  }
-
-  private[this] val OrderingVariance: Ordering[Variance] = Ordering.by {
-    case Variance.Invariant => 0
-    case Variance.Contravariant => 1
-    case Variance.Covariant => 2
-  }
-
-  private[this] val OrderingListAbstractReference: Ordering[List[AbstractReference]] = OrderingCompat.listOrdering(OrderingAbstractReference)
-  private[this] val OrderingArrayAbstractReference: Ordering[Array[AbstractReference]] = OrderingCompat.arrayOrdering(OrderingAbstractReference)
-  private[this] val OrderingOptionAbstractReference: Ordering[Option[AbstractReference]] = Ordering.Option(OrderingAbstractReference)
-
-  private[this] val OrderingArrayRefinementDecl: Ordering[Array[RefinementDecl]] = OrderingCompat.arrayOrdering(OrderingRefinementDecl)
-
-  private[this] val OrderingListTypeParam: Ordering[List[TypeParam]] = OrderingCompat.listOrdering(OrderingTypeParam)
 }

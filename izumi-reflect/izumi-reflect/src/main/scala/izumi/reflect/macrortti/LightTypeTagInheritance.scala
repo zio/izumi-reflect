@@ -23,26 +23,28 @@ import izumi.reflect.internal.fundamentals.platform.basics.IzBoolean._
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.macrortti.LightTypeTagInheritance._
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.collection.mutable
 
 object LightTypeTagInheritance {
-  private[reflect] final val tpeNothing = NameReference("scala.Nothing")
-  private[reflect] final val tpeAny = NameReference("scala.Any")
-  private[reflect] final val tpeAnyRef = NameReference("scala.AnyRef")
-  private[reflect] final val tpeObject = NameReference(classOf[Object].getName)
+  private[reflect] final val tpeNothing = NameReference(SymTypeName("scala.Nothing"))
+  private[reflect] final val tpeAny = NameReference(SymTypeName("scala.Any"))
+  private[reflect] final val tpeAnyRef = NameReference(SymTypeName("scala.AnyRef"))
+  private[reflect] final val tpeMatchable = NameReference(SymTypeName("scala.Matchable"))
+  private[reflect] final val tpeObject = NameReference(SymTypeName(classOf[Object].getName))
 
   private final case class Ctx(
-    outerLambdaParams: List[LambdaParameter],
-    paramNames: Set[String],
-    outerDecls: Set[RefinementDecl.TypeMember],
+    outerLambdaParams: List[SymName.LambdaParamName],
+    paramNames: Set[SymName.LambdaParamName],
+    outerDecls: Set[RefinementDecl.TypeMember], // refinement decls: { type T = x.type; val x: T }
     declNames: Set[String],
     logger: TrivialLogger,
     self: LightTypeTagInheritance
   ) {
     def next(): Ctx = Ctx(outerLambdaParams, paramNames, outerDecls, declNames, logger.sub(), self)
-    def next(newparams: List[LambdaParameter]): Ctx = Ctx(newparams, newparams.iterator.map(_.name).toSet, outerDecls, declNames, logger.sub(), self)
+    def next(newparams: List[SymName.LambdaParamName]): Ctx = Ctx(newparams, newparams.iterator.toSet, outerDecls, declNames, logger.sub(), self)
     def next(newdecls: Set[RefinementDecl.TypeMember]): Ctx = Ctx(outerLambdaParams, paramNames, newdecls, newdecls.map(_.name), logger.sub(), self)
   }
   // https://github.com/lampepfl/dotty/issues/14013 // private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
@@ -115,7 +117,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
             compareBounds(ctx)(s, t.boundaries),
             any(
 //              outerLambdaParams.map(_.name).contains(t.ref.name), // lambda parameter may accept anything within bounds      // UNSOUND-LAMBDA-COMPARISON
-              outerDecls.map(_.name).contains(t.ref.name) // refinement type decl may accept anything within bounds
+              t.ref.maybeName.exists(outerDecls.map(_.name).contains) // refinement type decl may accept anything within bounds
             )
           )
         )
@@ -126,12 +128,11 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // unparameterized type
       case (s: NameReference, t: NameReference) =>
         val boundIsOk = compareBounds(ctx)(s, t.boundaries)
-
         any(
           all(boundIsOk, parameterizedParentsOf(s).exists(ctx.isChild(_, t))),
           all(boundIsOk, unparameterizedParentsOf(s).exists(ctx.isChild(_, t))),
 //          all(boundIsOk, outerLambdaParams.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything within bounds       // UNSOUND-LAMBDA-COMPARISON
-          all(boundIsOk, outerDecls.map(_.name).contains(t.ref.name)), // refinement decl may accept anything within bounds
+          all(boundIsOk, t.ref.maybeName.exists(outerDecls.map(_.name).contains)), // refinement decl may accept anything within bounds
           s.boundaries match {
             case Boundaries.Defined(_, sUp) =>
               ctx.isChild(sUp, t)
@@ -147,7 +148,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         isChild(ctx.next(s.input))(s.output, t)
       case (s: Lambda, o: Lambda) =>
         (s.input.size == o.input.size
-        && isChild(ctx.next(s.normalizedParams.map(p => LambdaParameter(p.ref.name))))(s.normalizedOutput, o.normalizedOutput))
+        && isChild(ctx.next(s.normalizedParams.map(p => p.ref.asInstanceOf[SymName.LambdaParamName])))(s.normalizedOutput, o.normalizedOutput))
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>
@@ -306,6 +307,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def oneOfParameterizedParentsIsInheritedFrom(ctx: Ctx)(child: AbstractReference, parent: AbstractReference): Boolean = {
+    ctx.logger.log(s"Looking up parameterized parents of $child => ${parameterizedParentsOf(child)}")
+//    ctx.logger.log(s"Checking if ${parameterizedParentsOf(child)} has a parent of $parent")
     parameterizedParentsOf(child).exists(ctx.isChild(_, parent))
   }
 

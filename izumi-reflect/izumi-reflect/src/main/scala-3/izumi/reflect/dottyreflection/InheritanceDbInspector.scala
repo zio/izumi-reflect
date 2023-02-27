@@ -1,26 +1,38 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTagRef._
-import scala.collection.mutable
+import izumi.reflect.macrortti.LightTypeTagRef
+import izumi.reflect.macrortti.LightTypeTagRef.*
 
-import scala.quoted._
+import scala.collection.mutable
+import scala.collection.immutable.Queue
+import scala.quoted.*
+
+object InheritanceDbInspector {
+  def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
+    override val qctx: q.type = q
+  }
+}
 
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  private lazy val inspector = new Inspector(0) { val qctx: InheritanceDbInspector.this.qctx.type = InheritanceDbInspector.this.qctx }
+  private lazy val inspector = Inspector.make(qctx)
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe0 = TypeRepr.of[T].dealias
 
-    val allReferenceComponents = allTypeReferences(tpe0)
+    val allReferenceComponents = allTypeReferences(tpe0).filter {
+      case r: ParamRef => false
+      case _ => true
+    }
 
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
         val tpef = i.dealias.simplified._resultType
-        val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
         val targetRef = inspector.makeNameReferenceFromType(tpef)
+
+        val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
         allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
     }
 
@@ -48,7 +60,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
         tpeRes._typeArgs.iterator ++
         intersectionUnionMembers.iterator.flatMap(_._typeArgs) ++
         intersectionUnionMembers
-      ).foreach(t => if (!inh(t) && !ignored(t)) goExtractComponents(t))
+      ).foreach(t => if (!inh.contains(t)) goExtractComponents(t))
     }
 
     goExtractComponents(tpe0)

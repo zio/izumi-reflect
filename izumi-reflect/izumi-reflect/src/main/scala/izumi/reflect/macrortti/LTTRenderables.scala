@@ -97,13 +97,20 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
     override def render(value: Lambda): String = {
-      s"λ ${value.input.map(_.render()).mkString(",")} → ${value.output.render()}"
+      s"λ ${value.input.map(_.render()).map(p => s"%$p").mkString(",")} → ${value.output.render()}"
     }
   }
 
-  implicit lazy val r_LambdaParameter: Renderable[LambdaParameter] = new Renderable[LambdaParameter] {
-    override def render(value: LambdaParameter): String = {
-      s"%${value.name}"
+  implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
+    override def render(value: SymName.LambdaParamName): String = {
+      value.depth match {
+        case t if t <= 0 =>
+          s"${value.index}"
+        case t if t > 0 =>
+          s"${value.depth}:${value.index}"
+        // FIXME so-called "debug" view doesn't display all the data here which could lead to confusion when "debugging"
+//          s"[${value.arity}]${value.depth}:${value.index}"
+      }
     }
   }
 
@@ -169,6 +176,13 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  @deprecated("bincompat only", "20.03.2023")
+  private[macrortti] implicit lazy val r_LambdaParameter: Renderable[LambdaParameter] = new Renderable[LambdaParameter] {
+    override def render(value: LambdaParameter): String = value match {
+      case l: SymName.LambdaParamName => r_SymName(l, hasPrefix = false)
+    }
+  }
+
 }
 
 object LTTRenderables {
@@ -177,8 +191,12 @@ object LTTRenderables {
   object Short extends LTTRenderables {
     override def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
       sym match {
-        case SymLiteral(c) => c
-        case _ => sym.name.split('.').last
+        case SymLiteral(c) =>
+          c
+        case t: SymName.LambdaParamName =>
+          t.render()
+        case s: SymName.NamedSymbol =>
+          s.name.split('.').last
       }
     }
   }
@@ -189,7 +207,10 @@ object LTTRenderables {
       if (hasPrefix) {
         Short.r_SymName(sym, hasPrefix)
       } else {
-        sym.name
+        sym match {
+          case t: SymName.LambdaParamName => t.render()
+          case o: SymName.NamedSymbol => o.name
+        }
       }
     }
 
@@ -201,6 +222,7 @@ object LTTRenderables {
     }
   }
 
+  // Same as `Long`, but split prefixes with . instead of ::
   object LongPrefixDot extends LTTRenderables {
     override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
       Long.r_SymName(sym, hasPrefix)

@@ -2,18 +2,25 @@ package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
-import izumi.reflect.macrortti.LightTypeTagRef._
+import izumi.reflect.macrortti.LightTypeTagRef.*
 
+import scala.collection.immutable.Queue
 import scala.collection.mutable
-import scala.quoted._
+import scala.quoted.*
+
+object FullDbInspector {
+  def make(q: Quotes): FullDbInspector { val qctx: q.type } = new FullDbInspector(0) {
+    override val qctx: q.type = q
+  }
+}
 
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  private lazy val inspector = new Inspector(0) { val qctx: FullDbInspector.this.qctx.type = FullDbInspector.this.qctx }
+  private lazy val inspector0 = Inspector.make(qctx)
 
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
-    new Run()
+    new Run(inspector0)
       .inspectTypeReprToFullBases(TypeRepr.of[T])
       .distinct
       .toMultimap
@@ -24,30 +31,48 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       .filterNot(_._2.isEmpty)
   }
 
-  class Run() {
+  class Run(i: Inspector { val qctx: FullDbInspector.this.qctx.type }) {
     private val termination = mutable.HashSet.empty[TypeRepr]
 
     def inspectTypeReprToFullBases(tpe0: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0.dealias.simplified
-      lazy val selfRef = inspector.inspectTypeRepr(tpe) // FIXME duplicate work for top-level type
+      def selfRef: AbstractReference = i.inspectTypeRepr(tpe)
 
       tpe match {
-        case t if ignored(t) =>
-          Nil
-
         case a: AppliedType =>
           extractBase(a, selfRef, recurseIntoBases = false)
 
-        case l: TypeLambda =>
-          val parents = inspectTypeBoundsToFull(l.resType)
-          val selfL = selfRef.asInstanceOf[LightTypeTagRef.Lambda]
-          val out = parents.map {
-            case (c, p) =>
-              if (c == selfL.output) {
-                (selfL, p)
+        case typeLambda: TypeLambda =>
+          val selfL = i.inspectTypeRepr(typeLambda).asInstanceOf[LightTypeTagRef.Lambda]
+
+          val parents = new Run(i.nextLam(typeLambda)).inspectTypeBoundsToFull(typeLambda.resType)
+
+          val out = parents.flatMap {
+            case (child0, parent0) =>
+              val child = if (child0 == selfL.output) { // if child == typeLambda.resType, use typeLambda itself
+                selfL
               } else {
-                (c, p)
+                child0
               }
+
+              // For Scala 2: see LightTypeTagImpl.makeLambdaOnlyBases.makeLambdaParents
+              def lambdify(parentOrChild: LightTypeTagRef): AbstractReference = parentOrChild match {
+                case l: Lambda =>
+                  l
+                case applied: AppliedReference =>
+                  val l = LightTypeTagRef.Lambda(selfL.input, applied)
+                  if (l.someArgumentsReferenced) l else applied
+              }
+
+              val childMaybeAsLambda = lambdify(child)
+              val parentMaybeAsLambda = lambdify(parent0)
+
+              Seq(
+                (childMaybeAsLambda, parentMaybeAsLambda)
+                // you may debug by inserting some debug trash into dbs:
+//                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
+//                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
+              )
           }
           out.distinct
 
@@ -95,7 +120,11 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
 
     private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, recurseIntoBases: Boolean): List[(AbstractReference, AbstractReference)] = {
-      val baseTypes = tpe.baseClasses.iterator.map(tpe.baseType).filterNot(ignored).filterNot(termination).toList
+      val baseTypes = tpe
+        .baseClasses
+        .iterator.map(tpe.baseType)
+        .filterNot(termination)
+        .toList
       log(s"For `$tpe` found base types $baseTypes")
 
       val recursiveParentBases = if (recurseIntoBases) {
@@ -108,7 +137,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
       val main = recursiveParentBases ++ baseTypes.map {
         bt =>
-          val parentRef = inspector.inspectTypeRepr(bt)
+          val parentRef = i.inspectTypeRepr(bt)
           (selfRef, parentRef)
       }
 
@@ -116,10 +145,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case a: AppliedType =>
           a.args
         case _ =>
-          val m = qctx.reflect.TypeReprMethods
-          val mm = m.getClass.getMethods.collect { case m if m.getName == "typeArgs" => m }.head
-          val out = mm.invoke(m, tpe).asInstanceOf[List[TypeRepr]]
-          out
+          tpe.typeArgs
       }
 
       val argInheritance = typeArgs.filterNot(termination.contains).flatMap {
