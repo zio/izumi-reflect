@@ -192,8 +192,38 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "support type alias and refinement subtype checks" in {
-      assertChildStrict(LTT[XS], LTT[WithX])
-      assertChildStrict(LTT[XS], LTT[{ type X }])
+      val t1 = LTT[XS]
+      val t2 = LTT[WithX]
+      val t3 = LTT[{ type X >: Nothing <: Any }]
+      val t4 = LTT[{ type X >: Any <: Any }]
+      val t5 = LTT[{ type X = Any }]
+
+      assertChildStrict(t1, t2)
+      assertChildStrict(t1, t3)
+      assertChildStrict(t4, t3)
+      assertChildStrict(t5, t3)
+      assertSameStrict(t3, LTT[{ type X }])
+      assertNotChild(t3, LTT[{ type X <: AnyVal }])
+
+      assertNotChild(t3, t5)
+      assertNotChild(t2, t5)
+      assertNotChild(t3, t4)
+      assertNotChild(t2, t4)
+      assertNotChild(t1, t4)
+    }
+
+    "support refinement higher-kinded subtype checks" in {
+      val t1 = LTT[{ type F[A] = A }]
+      val t2 = LTT[{ type F[A] <: Any }]
+      val t3 = LTT[{ type F[A] <: AnyVal }]
+      val t4 = LTT[FXS]
+
+      assertChildStrict(t1, t2)
+      assertNotChildStrict(t1, t3)
+
+      assertChildStrict(t4, t1)
+      assertChildStrict(t4, t2)
+      assertNotChildStrict(t4, t3)
     }
 
     "support literal types" in {
@@ -202,6 +232,9 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertChildStrict(literalLtt("str"), LTT[String])
       assertNotChild(literalLtt("str"), LTT[Int])
+
+      val tag = literalLtt("str")
+      assertRepr(tag, "\"str\"")
     }
 
     "resolve comparisons of object and trait with the same name" in {
@@ -589,6 +622,100 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChild(combined, LTT[W3[Int]])
       assertNotChild(combined, LTT[W5[Boolean]])
       assertNotChild(combined, LTT[W1 with W5[Boolean]])
+    }
+
+    "support structural & refinement type subtype checks" in {
+      type C1 = C
+      assertSameStrict(LTT[{ def a: Int }], LTT[{ val a: Int }])
+      assertSameStrict(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
+
+      assertChildStrict(LTT[C { def a: Int }], LTT[C])
+      assertChildStrict(LTT[C { type A = Int }], LTT[C])
+      assertChildStrict(LTT[C { type A <: Int }], LTT[C])
+
+      assertChildStrict(LTT[C { def a: Int; def b: Int }], LTT[C { def a: Int }])
+
+      assertChildStrict(LTT[C { def a: Int }], LTT[{ def a: Int }])
+    }
+
+    "support structural & refinement type equality" in {
+      assertDifferent(LTT[W4[str.type] with ({ type T = str.type with Int })], LTT[W4[str.type] with ({ type T = str.type with Long })])
+
+      type C1 = C
+      assertSame(LTT[{ def a: Int }], LTT[{ def a: Int }])
+      assertSame(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
+
+      assertDifferent(LTT[C { def a: Int }], LTT[{ def a: Int }])
+      assertDifferent(LTT[C { def a: Int }], LTT[C])
+
+      assertDifferent(LTT[C { def a: Int }], LTT[C { def a: Int; def b: Int }])
+    }
+
+    "strong summons test" in {
+      assertTypeError("def x1[T] = LTag[Array[Int] { type X = T }]")
+
+      assertTypeError("def x1[T] = LTag[Array[T]]")
+      assertTypeError("def x1[T <: { type Array }] = LTag[T#Array]")
+      assertTypeError("def x1[T] = LTag[Array[Int] with List[T]]")
+      assertTypeError("def x1[F[_]] = LTag[F[Int]]")
+
+      assertCompiles("def x1 = { object x { type T }; def x1 = LTag[Array[x.T]]; () }")
+      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] { type X = x.T }]; () }")
+      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] with List[x.T]]; () }")
+      assertCompiles("def x1 = { object x { type F[_] }; LTag[x.F[Int]]; () }")
+      assertCompiles("def x1 = { object x { type F[_[_]]; type Id[A] = A }; LTag[x.F[x.Id]]; () }")
+    }
+
+    "distinguishes between val and type structural refinements" in {
+      val t1 = LTT[{ type T = Either[Int, String] }]
+      val t2 = LTT[{ val T: Either[Int, String] }]
+      assertNotChildStrict(t1, t2)
+    }
+
+    "does not contain intersections in plain structural refinements" in {
+      val t1 = LTT[Any { type T = Int }]
+      val t2 = LTT[{ def x: Int }]
+      assert(!t1.debug().contains("&"))
+      assert(!t2.debug().contains("&"))
+    }
+
+    "support equal-bounded types" in {
+      object x {
+        type X >: String <: String
+      }
+      val tag = LTT[String]
+      val tag1 = LTT[x.X]
+
+      assertSameRef(tag, tag1)
+      assertSameStrict(tag, tag1)
+    }
+
+    "support structural subtype checks" in {
+      assertNotChildStrict(LTT[{ type T = List[Int] }], LTT[{ type T[A] = List[A] }])
+      assertChildStrict(LTT[{ type T = List[Int] }], LTT[{ type T <: List[Any] }])
+      assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+      assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: Any }])
+      assertChildStrict(LTT[{ type T = String }], LTT[{ type T <: CharSequence }])
+      assertChildStrict(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
+      assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
+
+      assertNotChild(LTT[{ type T = Int }], LTT[{ type T <: CharSequence }])
+      assertNotChildStrict(LTT[{ def T: Int }], LTT[{ type T }])
+    }
+
+    "what about non-empty refinements with intersections" in {
+      val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
+      val debug = ltt.debug()
+      assert(!debug.contains("<refinement>"))
+      assert(!debug.contains("<none>"))
+      assert(!debug.contains("* String"))
+      assert(debug.contains("- java.lang.String"))
+    }
+
+    "support contravariance in refinement method comparisons" in {
+      val t1 = LTT[{ def compare(a: AnyVal): Int }]
+      val t2 = LTT[{ def compare(b: Int): Int }]
+      assertChildStrict(t1, t2)
     }
 
   }

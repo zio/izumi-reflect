@@ -61,7 +61,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   implicit lazy val r_Refinement: Renderable[Refinement] = new Renderable[Refinement] {
     override def render(value: Refinement): String = {
-      s"(${value.reference.render()} & ${value.decls.toSeq.sorted(OrderingRefinementDeclInstance).map(_.render()).mkString("{", ", ", "}")})"
+      s"(${value.reference.render()} ${value.decls.toSeq.sorted(OrderingRefinementDeclInstance).map(_.render()).mkString("{", ", ", "}")})"
     }
   }
 

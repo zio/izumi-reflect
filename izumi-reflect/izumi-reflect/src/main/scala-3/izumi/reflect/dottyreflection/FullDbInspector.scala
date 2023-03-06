@@ -100,6 +100,10 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case t: ThisType =>
           inspectTypeReprToFullBases(t.tref)
 
+        case r: Refinement =>
+          refinementInfoToParts(r.info).flatMap(inspectTypeBoundsToFull)
+          ++ inspectTypeReprToFullBases(r.parent)
+
         case other =>
           log(s"FullDbInspector: UNSUPPORTED: $other")
           extractBase(other, selfRef, false)

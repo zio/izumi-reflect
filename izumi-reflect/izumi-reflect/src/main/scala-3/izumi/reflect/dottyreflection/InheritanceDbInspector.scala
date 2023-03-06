@@ -23,7 +23,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     val tpe0 = TypeRepr.of[T].dealias
 
     val allReferenceComponents = allTypeReferences(tpe0).filter {
-      case r: ParamRef => false
+      case _: ParamRef => false
       case _ => true
     }
 
@@ -75,6 +75,9 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
       case tpe: AndOrType =>
         go(tpe.left)
         go(tpe.right)
+      case r: Refinement =>
+        refinementInfoToParts(r.info).foreach(go)
+        go(r.parent)
       case t =>
         tpes += t
     }

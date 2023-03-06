@@ -24,7 +24,6 @@ import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
-import izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
@@ -123,7 +122,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             val m = sym.asMethod
             m.returnType :: m.paramLists.iterator.flatten.map(UniRefinement.typeOfParam).toList
           } else if (sym.isType) {
-            List(UniRefinement.typeOfTypeMember(sym))
+            UniRefinement.concreteTypesOfTypeMemberOnly(sym)
           } else Nil
       }
       val intersectionExpansionsArgsBounds: Iterator[Type] = intersectionWithPreservedLambdas.iterator.flatMap(collectArgsAndBounds)
@@ -382,13 +381,20 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   )(tpe0: Type,
     isLambdaOutput: Boolean
   ): AbstractReference = {
+
     def makeBoundaries(t: Type): Boundaries = {
-      t.typeSymbol.typeSignature match {
+      val tOrTypeSymBounds = t match {
+        case b: TypeBoundsApi => b
+        case _ => t.typeSymbol.typeSignature
+      }
+      tOrTypeSymBounds match {
         case b: TypeBoundsApi =>
           if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
             Boundaries.Empty
           } else {
-            Boundaries.Defined(makeRefSub(b.lo, Map.empty, Set.empty), makeRefSub(b.hi, Map.empty, Set.empty))
+            val lo = makeRefSub(b.lo, Map.empty, Set.empty)
+            val hi = makeRefSub(b.hi, Map.empty, Set.empty)
+            Boundaries.Defined(lo, hi)
           }
         case _ =>
           Boundaries.Empty
@@ -459,7 +465,18 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           NameReference(lambdaParameter, boundaries, prefix)
 
         case None =>
-          makeNameReference(tpe, typeSymbol, boundaries, prefix)
+          val nameRef0 = makeNameReference(tpe, typeSymbol, boundaries, prefix)
+          // for `type X >: Any <: Any` generate just `type X = Any`
+          nameRef0.boundaries match {
+            case Boundaries.Defined(lo: AppliedNamedReference, hi: AppliedNamedReference) =>
+              if (lo == hi) {
+                hi
+              } else {
+                nameRef0
+              }
+            case _ =>
+              nameRef0
+          }
       }
 
       tpe.typeArgs match {
@@ -490,13 +507,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               }
           }
 
-          val res = FullReference(nameRef.ref, refParams, prefix)
+          val res = FullReference(nameRef.asName.ref, refParams, prefix)
           thisLevel.log(s"Assembled FullReference=$res from args=$args and tparams=$tparams")
           res
       }
     }
 
-    def convertDecl(decl: SymbolApi, rules: Map[String, SymName.LambdaParamName]): scala.collection.compat.IterableOnce[RefinementDecl] = {
+    def convertDecl(decl: Symbol, rules: Map[String, SymName.LambdaParamName]): scala.collection.compat.IterableOnce[RefinementDecl] = {
       if (decl.isMethod) {
         val declMethod = decl.asMethod
         val returnTpe = declMethod.returnType
@@ -515,8 +532,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         }
       } else if (decl.isType) {
         val tpe = UniRefinement.typeOfTypeMember(decl)
-        val ref = makeRefSub(tpe, rules, Set.empty)
-        Some(TypeMember(decl.name.decodedName.toString, ref))
+        val declName = decl.name.decodedName.toString
+        val ref = makeRefSub(tpe, rules, Set.empty) match {
+          // inspecting abstract type will always return a <none> NamedReference
+          case n @ NameReference(SymTypeName("<none>"), _, _) => n.copy(ref = SymTypeName(declName))
+          case ref => ref
+        }
+        Some(RefinementDecl.TypeMember(declName, ref))
       } else {
         None
       }
@@ -665,10 +687,10 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] object UniRefinement {
 
-    def unapply(tpe: Type): Option[(List[Type], List[SymbolApi])] = {
+    def unapply(tpe: Type): Option[(List[Type], List[Symbol])] = {
       (tpe: AnyRef) match {
         case x: scala.reflect.internal.Types#RefinementTypeRef =>
-          Some((x.parents.asInstanceOf[List[Type]], x.decls.toList.asInstanceOf[List[SymbolApi]]))
+          Some((x.parents.asInstanceOf[List[Type]], x.decls.toList.asInstanceOf[List[Symbol]]))
         case r: RefinedTypeApi @unchecked =>
           Some((r.parents, r.decls.toList))
         case _ =>
@@ -676,7 +698,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def breakRefinement(t0: Type, squashHKTRefToPolyTypeResultType: Boolean): Broken[Type, SymbolApi] = {
+    def breakRefinement(t0: Type, squashHKTRefToPolyTypeResultType: Boolean): Broken[Type, Symbol] = {
       breakRefinement0(t0, squashHKTRefToPolyTypeResultType) match {
         case (t, d) if d.isEmpty && t.size == 1 =>
           Broken.Single(t.head)
@@ -686,7 +708,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    private[this] def breakRefinement0(t0: Type, squashHKTRefToPolyTypeResultType: Boolean): (Set[Type], Set[SymbolApi]) = {
+    private[this] def breakRefinement0(t0: Type, squashHKTRefToPolyTypeResultType: Boolean): (Set[Type], Set[Symbol]) = {
       val normalized = if (squashHKTRefToPolyTypeResultType) {
         Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(t0)
       } else {
@@ -703,15 +725,44 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def typeOfParam(p: u.Symbol): Type = {
+    def typeOfParam(p: Symbol): Type = {
       p.typeSignature
     }
 
-    def typeOfTypeMember(decl: u.SymbolApi): Type = {
+    def typeOfTypeMember(decl: Symbol): Type = {
       if (decl.isAbstract) {
-        decl.asType.toType
+        // Generate a type like {type F = F|<λ %2:0 → Nothing..λ %2:0 → Any>}
+        // on Scala 2 for abstract type lambdas like `type F[A] <: Any`
+        // This form is inferior to Scala 3's default {type F = F|<Nothing..λ %1:0 → Any>}
+        // But it's valid for comparisons
+        val invertTypeBoundsForPolyTypes = {
+          decl.typeSignature match {
+            case _: PolyTypeApi =>
+              internal.typeBounds(
+                lo = decl.typeSignature.map { case TypeBounds(lo, _) => lo; case t => t },
+                hi = decl.typeSignature.map { case TypeBounds(_, hi) => hi; case t => t }
+              )
+            case _ =>
+              decl.typeSignature
+          }
+        }
+
+        invertTypeBoundsForPolyTypes
       } else {
         decl.typeSignature
+      }
+    }
+
+    def concreteTypesOfTypeMemberOnly(decl: Symbol): List[Type] = {
+      if (decl.isAbstract) {
+        decl.typeSignature match {
+          case TypeBounds(lo, hi) => List(lo, hi)
+          case _ => Nil
+          // we ignore higher kinded type members like `type F[A] = A`
+          // because supporting them is highly non-straightforward (unlike on Scala 3)
+        }
+      } else {
+        List(decl.typeSignature)
       }
     }
 

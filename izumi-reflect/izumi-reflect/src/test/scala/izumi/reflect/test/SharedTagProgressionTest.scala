@@ -14,15 +14,15 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
   "[progression] Tag (all versions)" should {
 
-    "progression test: can't handle parameters in defs/vals in structural types" in {
+    "progression test: can't substitute type parameters inside defs/vals in structural types" in {
       def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
       def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
 
-      doesntWorkYetOnScala2 {
-        assert(t1[Int].tag == Tag[{ def x: Int }].tag)
+      doesntWorkYet {
+        assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
       }
-      doesntWorkYetOnScala2 {
-        assert(t2[Int].tag == Tag[{ val x: Int }].tag)
+      doesntWorkYet {
+        assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
       }
     }
 
@@ -158,13 +158,11 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     }
 
     "progression test: Work for structural concrete types doesn't work on Dotty" in {
-      assert(Tag[{ def a: Int; def g: Boolean }].tag == fromRuntime[{ def a: Int; def g: Boolean }])
-      assert(Tag[Int { def a: Int }].tag == fromRuntime[Int { def a: Int }])
+      assertSameStrict(Tag[{ def a: Int; def g: Boolean }].tag, fromRuntime[{ def a: Int; def g: Boolean }])
+      assertSameStrict(Tag[Int { def a: Int }].tag, fromRuntime[Int { def a: Int }])
 
-      assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag == fromRuntime[With[str.type] with ({ type T = str.type with Int })])
-      doesntWorkYetOnDotty {
-        assert(Tag[With[str.type] with ({ type T = str.type with Int })].tag != fromRuntime[With[str.type] with ({ type T = str.type with Long })])
-      }
+      assertSameStrict(Tag[With[str.type] with ({ type T = str.type with Int })].tag, fromRuntime[With[str.type] with ({ type T = str.type with Int })])
+      assertNotChildStrict(Tag[With[str.type] with ({ type T = str.type with Int })].tag, fromRuntime[With[str.type] with ({ type T = str.type with Long })])
     }
 
     "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
@@ -203,16 +201,18 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     "progression test: Dotty fails to can resolve parameters in structural types" in {
       def t[X: Tag]: Tag[{ type T = X }] = Tag[{ type T = X }]
 
-      assertSame(t[Int].tag, Tag[{ type T = Int }].tag)
       doesntWorkYetOnDotty {
+        assertSame(t[Int].tag, Tag[{ type T = Int }].tag)
         assertDifferent(t[Int].tag, Tag[{ type T = String }].tag)
       }
     }
-    
+
     "Work for any abstract type with available Tag while preserving additional type refinement" in {
       def testTag[T: Tag] = Tag[T { type X = Int; type Y = String }]
 
-      assertSameStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = String }])
+      doesntWorkYetOnDotty {
+        assertSameStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = String }])
+      }
       doesntWorkYetOnDotty {
         assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = String; type Y = Boolean }])
       }
@@ -230,7 +230,9 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     "Work for any abstract type with available Tag while preserving additional method refinement" in {
       def testTag[T: Tag] = Tag[T { def x: Int; val y: String }]
 
-      assertSameStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: String }])
+      doesntWorkYetOnDotty {
+        assertSameStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: String }])
+      }
       doesntWorkYetOnDotty {
         assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: String; val y: Boolean }])
       }

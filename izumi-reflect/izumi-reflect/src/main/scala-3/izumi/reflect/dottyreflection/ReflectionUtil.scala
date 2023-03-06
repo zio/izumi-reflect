@@ -32,6 +32,22 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
+  protected def refinementInfoToParts(tpe0: TypeRepr): List[TypeRepr] = {
+    tpe0 match {
+      case ByNameType(tpe) =>
+        refinementInfoToParts(tpe)
+      case MethodType(_, args, res) =>
+        args.flatMap(refinementInfoToParts) ++ refinementInfoToParts(res)
+      case PolyType(_, tbounds, res) =>
+        // FIXME we need to do FullDbInspector.inspectTypeReprToFullBases.lambdify/LightTypeTagImpl.makeLambdaOnlyBases.makeLambdaParents
+        //   to wrap the unresolved type params in `res` into a lambda.
+        //   As is, if type parameters are used in `res`, we'll add lots of trash types into db
+        tbounds.flatMap { case TypeBounds(lo, hi) => List(lo, hi) } ++ refinementInfoToParts(res)
+      case tpe =>
+        List(tpe)
+    }
+  }
+
   protected def allPartsStrong(typeRepr: TypeRepr): Boolean = {
     ReflectionUtil.allPartsStrong(using qctx)(shift, Set.empty, typeRepr)
   }
@@ -106,6 +122,8 @@ private[reflect] object ReflectionUtil {
       case NoPrefix() => true
       case TypeBounds(lo, hi) => allPartsStrong(shift, lambdas, lo) && allPartsStrong(shift, lambdas, hi)
       case lam @ TypeLambda(_, _, body) => allPartsStrong(shift, lambdas + lam, body)
+      case Refinement(parent, _, tpe) => allPartsStrong(shift, lambdas, tpe) && allPartsStrong(shift, lambdas, parent)
+      case ByNameType(tpe) => allPartsStrong(shift, lambdas, tpe)
       case strange =>
         InspectorBase.log(shift, s"Got unknown type component when checking strength: $strange")
         true
