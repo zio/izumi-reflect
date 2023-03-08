@@ -26,7 +26,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
         assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
       }
 
-      val goodCombine = PDT[Int].badCombine(PDT[Unit])
+      val goodCombine = PDT[Int].goodCombine(PDT[Unit])
       doesntWorkYet {
         assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
       }

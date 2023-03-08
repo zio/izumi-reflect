@@ -147,14 +147,17 @@ object LightTypeTagRef extends LTTOrdering {
   )
 
   def maybeIntersection(refs: Set[AppliedReference]): AppliedReference = {
-    val normalized = refs.diff(ignored)
-    normalized.toList match {
-      case Nil =>
+    if (refs.size == 1) {
+      refs.head
+    } else {
+      val normalized = refs.diff(ignored)
+      if (normalized.isEmpty) {
         LightTypeTagInheritance.tpeAny
-      case head :: Nil =>
-        head
-      case _ =>
+      } else if (normalized.size == 1) {
+        normalized.head
+      } else {
         IntersectionReference(normalized)
+      }
     }
   }
 

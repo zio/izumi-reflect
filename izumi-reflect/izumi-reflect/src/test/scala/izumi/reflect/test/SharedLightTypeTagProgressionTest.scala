@@ -3,17 +3,22 @@ package izumi.reflect.test
 import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, AppliedReference}
 import izumi.reflect.macrortti._
 
+/**
+  * The tests here are *progression* tests, that means they test that something *doesn't work*
+  *
+  * If a test here starts to fail that's a GOOD thing - that means a new feature is now supported.
+  * When that happens you can remove the `doesntWorkYet` condition inversions and move the test to
+  * the non-progression test suite.
+  *
+  * All tests must have `doesntWorkYet` clauses wrapping the expected GOOD conditions if a feature
+  * were to work. If a test is missing `doesntWorkYet` clause, it's a probably not a progression test
+  * anymore and should be moved.
+  */
 abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagProgressions {
 
   "[progression] lightweight type tags (all versions)" should {
 
     import TestModel._
-
-    "progression test: Dotty fails to `support contravariance in refinement method comparisons`" in {
-      doesntWorkYetOnDotty {
-        assertChildStrict(LTT[{ def compare(a: AnyVal): Int }], LTT[{ def compare(b: Int): Int }])
-      }
-    }
 
     "progression test: `support distinction between subtypes` doesn't work properly on Dotty" in {
       val strLTT = LTT[String]
@@ -34,6 +39,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
 
       doesntWorkYetOnDotty {
+        // there must be a a base entry (SubStrA -> (String, Serializable, ...)), but there isn't on Dotty
         assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR); case p => p })
       }
       succeedsOnDottyButShouldnt {
@@ -45,51 +51,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
       succeedsOnDottyButShouldnt {
         assert(subsubstrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
-      }
-    }
-
-    "progression test: Dotty fails to `support human-readable representation` (should strip trailing $ from object names)" in {
-      type TX[B] = Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[B, A] }
-      doesntWorkYetOnDotty {
-        assertRepr(
-          `LTT[_]`[TX],
-          "λ %0 → (Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})"
-        )
-      }
-      doesntWorkYetOnDotty {
-        assertRepr(
-          `LTT[_]`[TX].combine(LTT[Unit]),
-          "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})"
-        )
-      }
-      doesntWorkYetOnDotty {
-        assertRepr(
-          LTT[TX[Unit]],
-          "(Int & {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})"
-        )
-      }
-      assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
-      assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
-      assertRepr(`LTT[_]`[Nothing], "Nothing")
-      assertRepr(LTT[Int], "Int")
-      assertRepr(LTT[List[Int]], "List[+Int]")
-      assertRepr(LTT[Id[Int]], "Int")
-      assertRepr(LTT[FP[Int]], "List[+Int]")
-      assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
-      assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
-      assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
-    }
-
-    "progression test: what about non-empty refinements with intersections" in {
-      val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
-      val debug = ltt.debug()
-      assert(!debug.contains("<refinement>"))
-      doesntWorkYetOnDotty {
-        assert(!debug.contains("<none>"))
-      }
-      assert(!debug.contains("* String"))
-      doesntWorkYetOnDotty {
-        assert(debug.contains("- java.lang.String"))
       }
     }
 
@@ -132,19 +93,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: can't support equal-bounded types on Scala 2" in {
-      object x {
-        type X >: String <: String
-      }
-      val tag = LTT[String]
-      val tag1 = LTT[x.X]
-
-      doesntWorkYetOnScala2 {
-        assertSameRef(tag, tag1)
-        assertSame(tag, tag1)
-      }
-    }
-
     "progression test: bounds-based subtype checks for lambdas do not work properly (LambdaParameter must contain bounds and NameReferences shouldn't for this to work)" in {
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Set[A]
@@ -168,89 +116,26 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       trait KK1[+A, +B, +U]
       trait KK2[+A, +B] extends KK1[B, A, Unit]
 
+      // FIXME incorrect fullBases parent lambdaification on Scala 3:
+      // fullBases on Scala 3 has 1 type parameter:
+      // - λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+izumi.reflect.test.TestModel::H2,+0] ->
+      //   * λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+izumi.reflect.test.TestModel::H2,+scala.Unit]
+      // While should be 2 type parameters:
+      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
+      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
+
       doesntWorkYetOnDotty {
-        assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
-      }
-    }
-
-    "progression test: in `support literal types` literal encoding in Dotty version doesn't match Scala 2" in {
-      val tag = literalLtt("str")
-      assertRepr(tag, "\"str\"")
-    }
-
-    "progression test: `support structural & refinement type subtype checks` doesn't work on Dotty" in {
-      doesntWorkYetOnDotty {
-        type C1 = C
-        assertSameStrict(LTT[{ def a: Int }], LTT[{ val a: Int }])
-        assertSameStrict(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
-
-        assertChildStrict(LTT[C { def a: Int }], LTT[C])
-        assertChildStrict(LTT[C { type A = Int }], LTT[C])
-        assertChildStrict(LTT[C { type A <: Int }], LTT[C])
-
-        assertChildStrict(LTT[C { def a: Int; def b: Int }], LTT[C { def a: Int }])
-
-        assertChildStrict(LTT[C { def a: Int }], LTT[{ def a: Int }])
-      }
-    }
-
-    "progression test: `support structural subtype checks` doesn't work on Dotty" in {
-      doesntWorkYetOnDotty {
-        assertChildStrict(LTT[{ type T = List[Int] }], LTT[{ type T <: List[Any] }])
-        assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
-        assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: Any }])
-        assertChildStrict(LTT[{ type T = String }], LTT[{ type T <: CharSequence }])
-        assertChildStrict(LTT[{ def T: Int }], LTT[{ def T: AnyVal }])
-        assertChildStrict(LTT[{ type T = Int }], LTT[{ type T <: AnyVal }])
-
-        assertNotChild(LTT[{ type T = Int }], LTT[{ type T <: CharSequence }])
-        assertNotChildStrict(LTT[{ def T: Int }], LTT[{ type T }])
+        withDebugOutput {
+          assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
+        }
       }
     }
 
     "progression test: indirect structural checks do not work" in {
-      doesntWorkYetOnDotty {
-        assertDifferent(LTT[{ type A }], LTT[Object])
-      }
-      doesntWorkYetOnScala2 {
+      assertDifferent(LTT[{ type A }], LTT[Object])
+      doesntWorkYet {
         assertChildStrict(LTT[C], LTT[{ type A }])
       }
-    }
-
-    "progression test: Dotty fails to `support structural & refinement type equality`" in {
-      doesntWorkYetOnDotty {
-        assertDifferent(LTT[W4[str.type] with ({ type T = str.type with Int })], LTT[W4[str.type] with ({ type T = str.type with Long })])
-      }
-
-      type C1 = C
-      assertSame(LTT[{ def a: Int }], LTT[{ def a: Int }])
-      assertSame(LTT[C { def a: Int }], LTT[C1 { def a: Int }])
-
-      assertDifferent(LTT[C { def a: Int }], LTT[{ def a: Int }])
-      doesntWorkYetOnDotty {
-        assertDifferent(LTT[C { def a: Int }], LTT[C])
-      }
-
-      doesntWorkYetOnDotty {
-        assertDifferent(LTT[C { def a: Int }], LTT[C { def a: Int; def b: Int }])
-      }
-    }
-
-    "progression test: `strong summons test` doesn't work on Dotty (type members aren't inspected on Dotty yet)" in {
-      doesntWorkYetOnDotty {
-        assertTypeError("def x1[T] = LTag[Array[Int] { type X = T }]")
-      }
-
-      assertTypeError("def x1[T] = LTag[Array[T]]")
-      assertTypeError("def x1[T <: { type Array }] = LTag[T#Array]")
-      assertTypeError("def x1[T] = LTag[Array[Int] with List[T]]")
-      assertTypeError("def x1[F[_]] = LTag[F[Int]]")
-
-      assertCompiles("def x1 = { object x { type T }; def x1 = LTag[Array[x.T]]; () }")
-      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] { type X = x.T }]; () }")
-      assertCompiles("def x1 = { object x { type T }; LTag[Array[Int] with List[x.T]]; () }")
-      assertCompiles("def x1 = { object x { type F[_] }; LTag[x.F[Int]]; () }")
-      assertCompiles("def x1 = { object x { type F[_[_]]; type Id[A] = A }; LTag[x.F[x.Id]]; () }")
     }
 
     "progression test: combined intersection lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {
@@ -301,6 +186,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug0.contains("<refinement>"))
       assert(!debug0.contains("<none>"))
       doesntWorkYetOnDotty {
+        // FIXME incorrect fullBases parent lambdaification on Scala 3:
+        //   contains `scala.collection.immutable.List[+scala.Any]`
+        //   instead of `- λ %0 → scala.collection.immutable.List[+0]`
         assert(debug0.contains("- λ %0 → scala.collection.immutable.List[+0]"))
       }
 
@@ -358,6 +246,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug3.contains("TestModel.A"))
       assert(!debug3.contains("+scala.Nothing"))
       doesntWorkYetOnDotty {
+        // FIXME incorrect fullBases parent lambdaification on Scala 3:
         assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       }
       assert(debug3.contains("* scala.Product"))
@@ -382,7 +271,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val oneArgApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
       val debug5 = oneArgApplied.debug()
 
-      println(debug5)
       assert(!debug5.contains("package::Right"))
       assert(!debug5.contains("<refinement>"))
       assert(!debug5.contains("<none>"))
@@ -391,6 +279,54 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug5.contains("+scala.Nothing"))
       assert(debug5.contains("* scala.Product"))
     }
+
+    "progression test: Dotty fails to `support methods with type parameters in structural refinements`" in {
+      trait X { def x[A](a: A): A }
+
+      assertNotChildStrict(LTT[X { def x[A](a: A): Boolean }], LTT[X { def x[A](a: A): Int }])
+      assertChildStrict(LTT[X { def x[A](a: A): Boolean }], LTT[X { def x[A](a: A): AnyVal }])
+      doesntWorkYet {
+        assertChildStrict(LTT[X { def x[A](a: A): Boolean }], LTT[X { def x[A](a: A): A }])
+      }
+    }
+
+    "fails to treat tautological refinements as equal to the underlying type" in {
+      trait X { def x[A](a: A): A }
+
+      doesntWorkYet {
+        assertSameStrict(LTT[X], LTT[X { def x[A](a: A): A }])
+        assertSameStrict(LTT[Object], LTT[Object { def equals(obj: Object): Boolean }])
+      }
+    }
+
+    "fails to support methods in refinements with multiple parameter lists" in {
+      doesntWorkYetOnScala2 {
+        assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(b: Boolean): Int }])
+      }
+      doesntWorkYetOnScala2 {
+        assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int): Int }])
+      }
+
+      doesntWorkYetOnDotty {
+        assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int, b: Boolean): Int }])
+      }
+
+      assertChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int)(b: Boolean): Any }])
+      // This isn't quite true according to Scalac:
+      //   implicitly[({ def x(i: Int)(b: Boolean): Int }) <:< ({ def x(i: Int)(b: Nothing): Int })] // false
+      // But since the equivalent with values instead of methods is true, we regard this as true:
+      //   implicitly[({ def x(i: Int): Boolean => Int }) <:< ({ def x(i: Int): Nothing => Int })] // true
+      assertChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int)(b: Nothing): Int }])
+    }
+
+    "progression test: fails to `Any/Object relation is consistent with Scala`" in {
+      assertChild(LTT[Object], LTT[Any])
+      doesntWorkYet {
+        assertNotChild(LTT[Any], LTT[Object])
+      }
+      assertDifferent(LTT[Any], LTT[Object])
+    }
+
   }
 
 }

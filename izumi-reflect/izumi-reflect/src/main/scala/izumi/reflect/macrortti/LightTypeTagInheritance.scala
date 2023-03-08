@@ -183,7 +183,12 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // refinements
       case (s: Refinement, t: Refinement) =>
         (ctx.isChild(s.reference, t.reference)
-        && compareDecls(ctx.next(t.decls.collect { case tm: RefinementDecl.TypeMember => tm }))(s.decls, t.decls))
+        && {
+          // FIXME not sure this does anything anymore, the tests we have do not stress this part
+          // FIXME remove Ctx.outerDecls if we can prove it's redundant now
+          val parentTypeMemberDecls = t.decls.collect { case tm: RefinementDecl.TypeMember => tm }
+          compareDecls(ctx.next(parentTypeMemberDecls))(s.decls, t.decls)
+        })
       case (s: Refinement, t: LightTypeTagRef) =>
         ctx.isChild(s.reference, t)
       case (s: AbstractReference, t: Refinement) =>
@@ -213,11 +218,23 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def compareDecl(ctx: Ctx)(s: RefinementDecl, t: RefinementDecl): Boolean = (s, t) match {
+    case (
+          RefinementDecl.TypeMember(ln, lref),
+          RefinementDecl.TypeMember(rn, NameReference(SymName.SymTypeName(rn1), rBounds, None))
+        ) if rn == rn1 =>
+      // we're comparing two abstract types type X = X|>:A<:B|
+      // We know that the type is abstract if its name matches the type member's name
+      ln == rn && compareBounds(ctx)(lref, rBounds)
     case (RefinementDecl.TypeMember(ln, lref), RefinementDecl.TypeMember(rn, rref)) =>
-      ln == rn && ctx.isChild(lref, rref)
+      // if the rhs type is not abstract (has form `type X = Int`), then lhs must be exactly equal to it, not <:
+      ln == rn && lref == rref
     case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
       (ln == rn
-      && lins.iterator.zip(rins.iterator).forall { case (l, r) => ctx.isChild(r, l) } // contravariant
+      && lins.iterator.zipAll(rins.iterator, null, null).forall {
+        case (null, _) => false
+        case (_, null) => false
+        case (l, r) => ctx.isChild(r, l) // contravariant
+      }
       && ctx.isChild(lout, rout)) // covariant
     case _ =>
       false
@@ -303,13 +320,23 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def parameterizedParentsOf(t: AbstractReference): Set[AbstractReference] = {
-    basesdb.getOrElse(t, Set.empty)
+    val basesDbParents = basesdb.getOrElse(t, Set.empty)
+    val withBoundaryParents = t match {
+      case NameReference(_, b: Boundaries.Defined, _) =>
+        basesDbParents + b.top
+      case WildcardReference(b: Boundaries.Defined) =>
+        basesDbParents + b.top
+      case _ =>
+        basesDbParents
+    }
+    withBoundaryParents
   }
 
   private def oneOfParameterizedParentsIsInheritedFrom(ctx: Ctx)(child: AbstractReference, parent: AbstractReference): Boolean = {
     ctx.logger.log(s"Looking up parameterized parents of $child => ${parameterizedParentsOf(child)}")
 //    ctx.logger.log(s"Checking if ${parameterizedParentsOf(child)} has a parent of $parent")
-    parameterizedParentsOf(child).exists(ctx.isChild(_, parent))
+    val parents = parameterizedParentsOf(child)
+    parents.exists(ctx.isChild(_, parent))
   }
 
   private def unparameterizedParentsOf(t: NameReference): mutable.HashSet[NameReference] = {

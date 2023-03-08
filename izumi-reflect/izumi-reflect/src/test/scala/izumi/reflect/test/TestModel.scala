@@ -106,6 +106,7 @@ object TestModel {
 
   type XS <: { type X }
   type WithX = { type X }
+  type FXS <: { type F[A] = A }
 
   trait H1
   trait H2 extends H1
