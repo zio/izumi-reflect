@@ -1,6 +1,6 @@
 package izumi.reflect
 
-import scala.quoted.{Expr, Quotes, Type}
+import scala.quoted.{Expr, Quotes, Type, Varargs}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
 import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam, Variance}
@@ -33,12 +33,13 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         // There's probably a missing case where a higher-kinded type is not a type lambda, with splicing inbetween causing fixup by the compiler
         //   val ltt = Inspect.inspectAny[A]
         val ltt = '{ Inspect.inspect[a] }
-        val cls = Literal(ClassOfConstant(lubClassOf(intersectionUnionClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+        val cls = closestClassOfExpr(typeRepr)
         '{ Tag[a]($cls, $ltt) }.asInstanceOf[Expr[Tag[A]]]
     }
   }
 
   private def summonCombinedTag[T <: AnyKind: Type](typeRepr: TypeRepr): Expr[Tag[T]] = {
+
     def summonLTTAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[LightTypeTag] = {
       if (allPartsStrong(typeRepr)) {
         typeRepr.asType match {
@@ -59,7 +60,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       }
     }
 
-    def summonIfNotParameterOf(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
+    def summonIfNotLambdaParamOf(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
       if (isLambdaParamOf(typeRepr, lam)) {
         '{ None }
       } else {
@@ -86,7 +87,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
             val constructorTag = summonTag[T, Any](ctorTpe)
             if (isSimpleApplication) {
-              val argsTags = Expr.ofList(typeArgsTpes.map(a => summonIfNotParameterOf(a, outerLambda)))
+              val argsTags = Expr.ofList(typeArgsTpes.map(a => summonIfNotLambdaParamOf(a, outerLambda)))
               '{ Tag.appliedTagNonPos[T](${ constructorTag }, ${ argsTags }) }
             } else {
               val distinctNonParamArgsTypes = typeArgsTpes.filter(!isLambdaParamOf(_, outerLambda)).distinct
@@ -152,28 +153,56 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       case AppliedType(ctor, args) =>
         val ctorTag = summonTagAndFastTrackIfNotTypeParam(ctor)
         val argsTags = Expr.ofList(args.map(summonLTTAndFastTrackIfNotTypeParam))
-        '{ Tag.appliedTag[T]($ctorTag, $argsTags) }
+        '{ Tag.appliedTag[T](${ ctorTag }, ${ argsTags }) }
 
       case andType: AndType =>
         val tpes = flattenAnd(andType)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTTAndFastTrackIfNotTypeParam))
         val cls = Literal(ClassOfConstant(lubClassOf(tpes))).asExprOf[Class[?]]
-        val structLtt = Inspect.inspectAny(using andType.asType, qctx)
-        '{ Tag.refinedTag[T]($cls, $ltts, $structLtt, Map.empty) }
+        val dummyAnyStructLtt = {
+          // FIXME add constructor for intersections without the unused on Scala 3 struct type
+          Inspect.inspectAny[Any]
+        }
+        '{ Tag.refinedTag[T](${ cls }, ${ ltts }, ${ dummyAnyStructLtt }, Map.empty) }
 
       case orType: OrType =>
         val tpes = flattenOr(orType)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTTAndFastTrackIfNotTypeParam))
         val cls = Literal(ClassOfConstant(lubClassOf(tpes))).asExprOf[Class[?]]
-        '{ Tag.unionTag[T]($cls, $ltts) }
+        '{ Tag.unionTag[T](${ cls }, ${ ltts }) }
 
       case refinement: Refinement =>
+        val (members, parent) = flattenRefinements(refinement)
+        val cls = closestClassOfExpr(parent)
+        val parentLtt = summonLTTAndFastTrackIfNotTypeParam(parent)
+
+        val (typeMembers, termMembers) = members.partition {
+          case (_, tb: TypeBounds) => true
+          case _ => false
+        }
+        // FIXME: once we add resolution for method/val members too, not just type members
+        //  this struct will no longer be 'weak'. In fact we'll want to add a new constructor
+        //  instead of `refinedTag` that will be better suited to fully resolved struct tags
+        val termOnlyWeakStructLtt = {
+          val termOnlyRefinementTypeRepr = termMembers.foldRight(defn.AnyRefClass.typeRef: TypeRepr) {
+            case ((name, tpe), refinement) =>
+              Refinement.apply(parent = refinement, name = name, info = tpe)
+          }
+          Inspect.inspectAny(using termOnlyRefinementTypeRepr.asType, qctx)
+        }
+        val resolvedTypeMemberLtts = typeMembers.map {
+          case (name, tpe) => '{ (${ Expr(name) }, ${ summonLTTAndFastTrackIfNotTypeParam(tpe) }) }
+        }
+        // NB: we're resolving LTTs anew for all type members here, instead of optimizing
+        // to resolve only for 'weak' members as in Scala 2.
         log(
-          s"""Unsupported refinement $refinement
-             |parent=${refinement.parent} name=${refinement.name} info=${refinement.info}""".stripMargin
+          s"""Got refinement $refinement
+             |parent=$parent
+             |members=$members
+             |closestClass=$cls
+             |""".stripMargin
         )
-        val tag = summonTag[T, Any](refinement.parent)
-        '{ $tag.asInstanceOf[Tag[T]] }
+        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ termOnlyWeakStructLtt }, Map(${ Varargs(resolvedTypeMemberLtts) }: _*)) }
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
@@ -189,13 +218,19 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
+  private def closestClassOfExpr(typeRepr: TypeRepr): Expr[Class[?]] = {
+    Literal(ClassOfConstant(lubClassOf(intersectionUnionRefinementClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+  }
+
   private def lubClassOf(tpes: List[TypeRepr]): TypeRepr = {
     tpes.map(_.baseClasses) match {
       case h :: t =>
         val bases = h.to(mutable.LinkedHashSet)
-        t.foreach(b => bases.filterInPlace(b.to(mutable.HashSet)))
-        // rely on the fact that .baseClasses returns classes in order from most specific to list, therefore most specific class should be first.
+        t.foreach(b => bases.filterInPlace(b.to(mutable.HashSet).contains))
+        // rely on the fact that .baseClasses returns classes in order from most specific to least, therefore most specific class should be first.
         bases.headOption.getOrElse(defn.AnyClass).typeRef
+      // FIXME: below doesn't work, need to treat AnyVals specially
+//        bases.find(!_.typeRef.baseClasses.contains(defn.AnyValClass)).getOrElse(defn.AnyClass).typeRef
       case Nil =>
         defn.AnyClass.typeRef
     }

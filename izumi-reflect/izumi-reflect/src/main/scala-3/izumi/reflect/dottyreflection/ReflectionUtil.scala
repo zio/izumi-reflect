@@ -1,6 +1,7 @@
 package izumi.reflect.dottyreflection
 
 import scala.annotation.unused
+import scala.collection.immutable.Queue
 import scala.quoted.Quotes
 
 private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
@@ -19,14 +20,14 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       case _ => List(tpe)
     }
 
-  protected def intersectionUnionClassPartsOf(tpe: TypeRepr): List[TypeRepr] = {
+  protected def intersectionUnionRefinementClassPartsOf(tpe: TypeRepr): List[TypeRepr] = {
     tpe.dealias match {
       case AndType(lhs, rhs) =>
-        intersectionUnionClassPartsOf(lhs) ++ intersectionUnionClassPartsOf(rhs)
+        intersectionUnionRefinementClassPartsOf(lhs) ++ intersectionUnionRefinementClassPartsOf(rhs)
       case OrType(lhs, rhs) =>
-        intersectionUnionClassPartsOf(lhs) ++ intersectionUnionClassPartsOf(rhs)
+        intersectionUnionRefinementClassPartsOf(lhs) ++ intersectionUnionRefinementClassPartsOf(rhs)
       case refinement: Refinement =>
-        intersectionUnionClassPartsOf(refinement.parent)
+        intersectionUnionRefinementClassPartsOf(refinement.parent)
       case _ =>
         List(tpe)
     }
@@ -45,6 +46,17 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
         tbounds.flatMap { case TypeBounds(lo, hi) => List(lo, hi) } ++ refinementInfoToParts(res)
       case tpe =>
         List(tpe)
+    }
+  }
+
+  protected def flattenRefinements(ref: Refinement): (Queue[(String, TypeRepr)], TypeRepr) = {
+    val refinementDecl = (ref.name, ref.info)
+    ref.parent match {
+      case innerRefinement: Refinement =>
+        val (innerRefs, nonRefinementParent) = flattenRefinements(innerRefinement)
+        (innerRefs :+ refinementDecl, nonRefinementParent)
+      case nonRefinementParent =>
+        (Queue(refinementDecl), nonRefinementParent)
     }
   }
 

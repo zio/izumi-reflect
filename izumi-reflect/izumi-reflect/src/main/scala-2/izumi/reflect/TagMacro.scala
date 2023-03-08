@@ -285,12 +285,12 @@ class TagMacro(val c: blackbox.Context) {
           ReflectionUtil.isSelfStrong(symbol.info)
       }
 
+    val strongDeclsTpe = internal.refinedType(intersection, originalRefinement.typeSymbol.owner, internal.newScopeWith(strongDecls.toSeq: _*))
+
     val resolvedTags = weakDecls.map {
       symbol =>
         symbol.name.decodedName.toString -> summonLightTypeTagOfAppropriateKind(symbol.info)
     }.toMap
-
-    val strongDeclsTpe = internal.refinedType(intersection, originalRefinement.typeSymbol.owner, internal.newScopeWith(strongDecls.toSeq: _*))
     val resolvedTagsExpr = c.Expr[Map[String, LightTypeTag]](Liftable.liftMap[String, Expr[LightTypeTag]].apply(resolvedTags))
 
     (ltagMacro.makeParsedLightTypeTagImpl(strongDeclsTpe), resolvedTagsExpr)

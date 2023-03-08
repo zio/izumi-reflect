@@ -39,6 +39,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
 
       doesntWorkYetOnDotty {
+        // there must be a a base entry (SubStrA -> (String, Serializable, ...)), but there isn't on Dotty
         assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR); case p => p })
       }
       succeedsOnDottyButShouldnt {
@@ -51,38 +52,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       succeedsOnDottyButShouldnt {
         assert(subsubstrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
       }
-    }
-
-    "progression test: Dotty fails to `support human-readable representation`" in {
-      type TX[B] = Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[B, A] }
-      doesntWorkYetOnDotty {
-        assertRepr(
-          `LTT[_]`[TX],
-          "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})"
-        )
-      }
-      doesntWorkYetOnDotty {
-        assertRepr(
-          `LTT[_]`[TX].combine(LTT[Unit]),
-          "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})"
-        )
-      }
-      doesntWorkYetOnDotty {
-        assertRepr(
-          LTT[TX[Unit]],
-          "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})"
-        )
-      }
-      assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
-      assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
-      assertRepr(`LTT[_]`[Nothing], "Nothing")
-      assertRepr(LTT[Int], "Int")
-      assertRepr(LTT[List[Int]], "List[+Int]")
-      assertRepr(LTT[Id[Int]], "Int")
-      assertRepr(LTT[FP[Int]], "List[+Int]")
-      assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
-      assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
-      assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
     }
 
     "progression test: can't support subtyping of type prefixes" in {
@@ -217,6 +186,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug0.contains("<refinement>"))
       assert(!debug0.contains("<none>"))
       doesntWorkYetOnDotty {
+        // FIXME incorrect fullBases parent lambdaification on Scala 3:
+        //   contains `scala.collection.immutable.List[+scala.Any]`
+        //   instead of `- λ %0 → scala.collection.immutable.List[+0]`
         assert(debug0.contains("- λ %0 → scala.collection.immutable.List[+0]"))
       }
 
@@ -274,6 +246,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug3.contains("TestModel.A"))
       assert(!debug3.contains("+scala.Nothing"))
       doesntWorkYetOnDotty {
+        // FIXME incorrect fullBases parent lambdaification on Scala 3:
         assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       }
       assert(debug3.contains("* scala.Product"))
@@ -344,6 +317,14 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       // But since the equivalent with values instead of methods is true, we regard this as true:
       //   implicitly[({ def x(i: Int): Boolean => Int }) <:< ({ def x(i: Int): Nothing => Int })] // true
       assertChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int)(b: Nothing): Int }])
+    }
+
+    "progression test: fails to `Any/Object relation is consistent with Scala`" in {
+      assertChild(LTT[Object], LTT[Any])
+      doesntWorkYet {
+        assertNotChild(LTT[Any], LTT[Object])
+      }
+      assertDifferent(LTT[Any], LTT[Object])
     }
 
   }

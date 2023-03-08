@@ -110,6 +110,9 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(Tag[Int with String].tag == fromRuntime[Int with String])
 
       assert(Tag[str.type].tag == fromRuntime[str.type])
+
+      assert(Tag[this.Z].tag == fromRuntime[this.Z])
+      assert(Tag[TagTest#Z].tag == fromRuntime[TagTest#Z])
     }
 
     "Support identity lambda type equality" in {
@@ -150,11 +153,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       }
 
       IzumiReflectTagEqualRegression.test()
-    }
-
-    "Work for any concrete type (dotty failures)" in {
-      assert(Tag[this.Z].tag == fromRuntime[this.Z])
-      assert(Tag[TagTest#Z].tag == fromRuntime[TagTest#Z])
     }
 
     "Work for any abstract type with available Tag when obscured by empty refinement" in {
@@ -901,6 +899,44 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       val mutableSet = TagK[scala.collection.mutable.Set]
       val collectionSet = TagK[scala.collection.Set]
       assertChildStrict(mutableSet.tag, collectionSet.tag)
+    }
+
+    "Work for structural concrete types" in {
+      assertSameStrict(Tag[{ def a: Int; def g: Boolean }].tag, fromRuntime[{ def a: Int; def g: Boolean }])
+      assertSameStrict(Tag[Int { def a: Int }].tag, fromRuntime[Int { def a: Int }])
+
+      assertSameStrict(Tag[With[str.type] with ({ type T = str.type with Int })].tag, fromRuntime[With[str.type] with ({ type T = str.type with Int })])
+      assertNotChildStrict(Tag[With[str.type] with ({ type T = str.type with Int })].tag, fromRuntime[With[str.type] with ({ type T = str.type with Long })])
+    }
+
+    "Work for any abstract type with available Tag while preserving additional type refinement" in {
+      def testTag[T: Tag] = Tag[T { type X = Int; type Y = String }]
+
+      assertSameStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = String }])
+      assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = String; type Y = Boolean }])
+      assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = String; type Y = Boolean }])
+      assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = Boolean }])
+      assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = Boolean; type Y = String }])
+    }
+
+    "Work for any abstract type with available Tag while preserving additional method refinement" in {
+      def testTag[T: Tag] = Tag[T { def x: Int; val y: String }]
+
+      assertSameStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: String }])
+      assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: String; val y: Boolean }])
+      assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: Boolean }])
+      assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: Boolean; val y: String }])
+    }
+
+    "can resolve parameters in structural types" in {
+      def t[X: Tag]: Tag[{ type T = X }] = Tag[{ type T = X }]
+
+      val t1 = t[Int].tag
+      val t2 = Tag[{ type T = Int }].tag
+      val t3 = Tag[{ type T = SubStrC }].tag
+
+      assertSame(t1, t2)
+      assertDifferent(t1, t3)
     }
 
   }

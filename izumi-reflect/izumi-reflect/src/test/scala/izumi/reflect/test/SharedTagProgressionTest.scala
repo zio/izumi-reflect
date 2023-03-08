@@ -26,7 +26,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: reported in https://github.com/zio/izumi-reflect/issues/189, parameterized type alias with intersection produces incorrect output" in {
+    "progression test: Scala 2, reported in https://github.com/zio/izumi-reflect/issues/189, parameterized type alias with intersection produces incorrect output" in {
       def elementTag[F[_]: TagK]: Tag[SrcContextProcessor[F]] = Tag[TestModel.x.SrcContextProcessor[F]]
       assert(elementTag[CIO].tag == Tag[TestModel.x.SrcContextProcessor[CIO]].tag)
 
@@ -157,14 +157,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: Work for structural concrete types doesn't work on Dotty" in {
-      assertSameStrict(Tag[{ def a: Int; def g: Boolean }].tag, fromRuntime[{ def a: Int; def g: Boolean }])
-      assertSameStrict(Tag[Int { def a: Int }].tag, fromRuntime[Int { def a: Int }])
-
-      assertSameStrict(Tag[With[str.type] with ({ type T = str.type with Int })].tag, fromRuntime[With[str.type] with ({ type T = str.type with Int })])
-      assertNotChildStrict(Tag[With[str.type] with ({ type T = str.type with Int })].tag, fromRuntime[With[str.type] with ({ type T = str.type with Long })])
-    }
-
     "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
 //      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
@@ -193,54 +185,9 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     }
 
     "progression test: Dotty fails to regression test: resolve correct closestClass for Scala vararg AnyVal (https://github.com/zio/izumi-reflect/issues/224)" in {
+      val tag = Tag[VarArgsAnyVal]
       doesntWorkYetOnDotty {
-        assert(Tag[VarArgsAnyVal].closestClass == classOf[scala.Seq[Any]])
-      }
-    }
-
-    "progression test: Dotty fails to can resolve parameters in structural types" in {
-      def t[X: Tag]: Tag[{ type T = X }] = Tag[{ type T = X }]
-
-      doesntWorkYetOnDotty {
-        assertSame(t[Int].tag, Tag[{ type T = Int }].tag)
-        assertDifferent(t[Int].tag, Tag[{ type T = String }].tag)
-      }
-    }
-
-    "Work for any abstract type with available Tag while preserving additional type refinement" in {
-      def testTag[T: Tag] = Tag[T { type X = Int; type Y = String }]
-
-      doesntWorkYetOnDotty {
-        assertSameStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = String }])
-      }
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = String; type Y = Boolean }])
-      }
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = String; type Y = Boolean }])
-      }
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = Int; type Y = Boolean }])
-      }
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(testTag[String].tag, fromRuntime[String { type X = Boolean; type Y = String }])
-      }
-    }
-
-    "Work for any abstract type with available Tag while preserving additional method refinement" in {
-      def testTag[T: Tag] = Tag[T { def x: Int; val y: String }]
-
-      doesntWorkYetOnDotty {
-        assertSameStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: String }])
-      }
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: String; val y: Boolean }])
-      }
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: Int; val y: Boolean }])
-      }
-      doesntWorkYetOnDotty {
-        assertNotChildStrict(testTag[String].tag, fromRuntime[String { def x: Boolean; val y: String }])
+        assert(tag.closestClass == classOf[scala.Seq[Any]])
       }
     }
 

@@ -293,17 +293,6 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   private def flattenInspectOr(or: OrType): Set[AppliedReference] =
     flattenOr(or).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
 
-  private def flattenRefinements(ref: Refinement): (Queue[(String, TypeRepr)], TypeRepr) = {
-    val refinementDecl = (ref.name, ref.info)
-    ref.parent match {
-      case innerRefinement: Refinement =>
-        val (innerRefs, nonRefinementParent) = flattenRefinements(innerRefinement)
-        (innerRefs :+ refinementDecl, nonRefinementParent)
-      case nonRefinementParent =>
-        (Queue(refinementDecl), nonRefinementParent)
-    }
-  }
-
   private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {
       case ref: TypeRef =>
