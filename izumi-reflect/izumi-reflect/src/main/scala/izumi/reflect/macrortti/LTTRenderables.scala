@@ -20,13 +20,13 @@ package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.functional.{Renderable, WithRenderableSyntax}
 import izumi.reflect.internal.fundamentals.platform.language.unused
-import izumi.reflect.macrortti.LightTypeTag.LambdaParamNameMaker
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izumi.reflect.macrortti.LightTypeTagRef._
 
 trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
+
   def prefixSplitter: String = "::"
 
   implicit lazy val r_LightTypeTag: Renderable[LightTypeTagRef] = new Renderable[LightTypeTagRef] {
@@ -110,7 +110,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
         case t if t > 0 =>
           s"${value.depth}:${value.index}"
         // FIXME so-called "debug" view doesn't display all the data here which could lead to confusion when "debugging"
-//          s"[${value.arity}]${value.depth}:${value.index}"
+        //          s"[${value.arity}]${value.depth}:${value.index}"
       }
     }
   }
@@ -202,8 +202,10 @@ object LTTRenderables {
     }
   }
 
+  object Long extends Long
+
   // print package names
-  object Long extends LTTRenderables {
+  private[LTTRenderables] trait Long extends LTTRenderables {
     override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
       if (hasPrefix) {
         Short.r_SymName(sym, hasPrefix)
@@ -218,8 +220,8 @@ object LTTRenderables {
     private[macrortti] def renderDb(db: Map[_ <: AbstractReference, Set[_ <: AbstractReference]]): String = {
       import izumi.reflect.internal.fundamentals.platform.strings.IzString._
       db.toList.sortBy(_._1)(OrderingAbstractReferenceInstance).map {
-          case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
-        }.niceList()
+        case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
+      }.niceList()
     }
   }
 
@@ -228,25 +230,21 @@ object LTTRenderables {
     override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
       Long.r_SymName(sym, hasPrefix)
     }
+
     override def prefixSplitter: String = "."
   }
 
-  object ScalaStyledLambdas extends LTTRenderables {
-    override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
-      Long.r_SymName(sym, hasPrefix)
-    }
+  object ScalaStyledLambdas extends Long {
 
     override def prefixSplitter: String = "."
+
+    override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
+      override def render(value: SymName.LambdaParamName): String = "_"
+    }
 
     override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
       override def render(value: Lambda): String = {
         s"${value.output.render()}"
-      }
-    }
-
-    override implicit lazy val r_LambdaParameter: Renderable[LambdaParameter] = new Renderable[LambdaParameter] {
-      override def render(value: LambdaParameter): String = {
-        s"_"
       }
     }
 
@@ -258,24 +256,36 @@ object LTTRenderables {
       }
     }
 
-    override implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
-      override def render(value: Boundaries): String = value match {
-        case Boundaries.Defined(bottom, top) =>
-          s"_ >:${bottom.render()} <: ${top.render()}"
+    override implicit lazy val r_NameRefRenderer: Renderable[NameReference] = new Renderable[NameReference] {
+      override def render(value: NameReference): String = {
+        val r = r_SymName(value.ref, value.prefix.isDefined)
 
-        case Boundaries.Empty =>
-          ""
+        val rr = value.boundaries match {
+          case _: Boundaries.Defined =>
+            s"$r ${value.boundaries.render()}"
+          case Boundaries.Empty =>
+            r
+        }
+
+        value.prefix match {
+          case Some(p) =>
+            s"${p.render()}$prefixSplitter$rr"
+          case None =>
+            rr
+        }
       }
     }
 
-    override implicit lazy val r_TypeParam: Renderable[TypeParam] = new Renderable[TypeParam] {
-      override def render(value: TypeParam): String =
-        value.ref match {
-          case n: NameReference if LambdaParamNameMaker.isParamName(n.symName.name) =>
-            s"${value.variance.render()}_"
-          case other =>
-            other.render()
-        }
+    override implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
+      override def render(value: Boundaries): String = value match {
+        case Boundaries.Defined(bottom, top) =>
+          (bottom.render(), top.render()) match {
+            case (bottomRendered, topRendered) if bottomRendered == "scala.Nothing" => s"<: $topRendered"
+            case (bottomRendered, topRendered) if topRendered == "scala.Any" => s">: $bottomRendered}"
+            case (bottomRendered, topRendered) => s">: $bottomRendered} <: $topRendered"
+          }
+        case Boundaries.Empty => ""
+      }
     }
   }
 }
