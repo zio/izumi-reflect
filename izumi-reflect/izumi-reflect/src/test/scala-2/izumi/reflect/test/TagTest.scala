@@ -27,16 +27,7 @@ class TagTest extends SharedTagTest {
 
   override final val tagZ = Tag[String]
 
-  trait H0
-  trait H1 extends H0
-  trait T1[A, B, C, D, E, F[_]]
   trait T2[A, B, C[_[_], _], D[_], E]
-  trait Test[A, dafg, adfg, LS, L[_], SD, GG[A] <: L[A], ZZZ[_, _], S, SDD, TG]
-  type Const[A, B] = A
-  trait ZIO[-R, +E, +A]
-  type IO[+E, +A] = ZIO[Any, E, A]
-
-  class ApplePaymentProvider[F0[_]] extends H1
 
   trait Trait1 {
     def dep: Dep

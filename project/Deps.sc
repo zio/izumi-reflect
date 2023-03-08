@@ -133,7 +133,26 @@ object Izumi {
             |    Some(Opts.resolver.sonatypeSnapshots)
             |})
             |""".stripMargin.raw,
-        "credentials" in SettingScope.Build += """Credentials(file(".secrets/credentials.sonatype-nexus.properties"))""".raw,
+        "credentials" in SettingScope.Build ++=
+          """
+            |{
+            |val credTarget = Path.userHome / ".sbt" / "secrets" / "credentials.sonatype-nexus.properties"
+            |if (credTarget.exists) {
+            |  Seq(Credentials(credTarget))
+            |} else {
+            |  Seq.empty
+            |}
+            |}""".stripMargin.raw,
+        "credentials" in SettingScope.Build ++=
+          """
+            |{
+            |val credTarget = file(".") / ".secrets" / "credentials.sonatype-nexus.properties"
+            |if (credTarget.exists) {
+            |  Seq(Credentials(credTarget))
+            |} else {
+            |  Seq.empty
+            |}
+            |}""".stripMargin.raw,
         "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
         "licenses" in SettingScope.Build := """Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0"))""".raw,
         "developers" in SettingScope.Build :=
@@ -143,7 +162,17 @@ object Izumi {
         )""".raw,
         "scmInfo" in SettingScope.Build := """Some(ScmInfo(url("https://github.com/zio/izumi-reflect"), "scm:git:https://github.com/zio/izumi-reflect.git"))""".raw,
         "mimaBinaryIssueFilters" in SettingScope.Build ++= Seq(
+          // ignore deletion of old ParsedLightTypeTag* classes, they were made package private more than a year ago, they shouldn't appear in library sources anymore - or in the first place
+          """ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag")""".raw,
+          """ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag110")""".raw,
+          """ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag210")""".raw,
+          """ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTagM8")""".raw,
+          // dotty-only ProductX case class inheritance breakage
+          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference._1")""".raw,
+          // new inherited methods added (2.11 problem only?)
+          """ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef*")""".raw,
           // new methods added
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.r_LambdaParameterName")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.repr")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.r_Wildcard")""".raw,
@@ -156,6 +185,7 @@ object Izumi {
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl#*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.dottyreflection.*")""".raw,
           // private packages
           """ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.internal.*")""".raw,
@@ -211,10 +241,8 @@ object Izumi {
           },
           "scalacOptions" -= "-Wconf:any:error",
           "mimaPreviousArtifacts" := Seq(
-            // FIXME setup mima for dotty after 2.1.0
-//            SettingKey(Some(scala300), None) := """Set(organization.value %% name.value % "2.1.0")""".raw,
-            SettingKey(Some(scala300), None) := """Set.empty""".raw,
-            SettingKey.Default := """Set(organization.value %% name.value % "1.0.0")""".raw
+            SettingKey(Some(scala300), None) := """Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")""".raw,
+            SettingKey.Default := """Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")""".raw
           ),
           "scalacOptions" ++= Seq(
             SettingKey(Some(scala213), None) := Seq(

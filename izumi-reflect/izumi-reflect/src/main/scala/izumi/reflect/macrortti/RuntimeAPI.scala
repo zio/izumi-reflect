@@ -66,7 +66,7 @@ object RuntimeAPI {
     }
   }
 
-  def applyLambda(lambda: Lambda, parameters: Seq[(String, AbstractReference)]): AbstractReference = {
+  def applyLambda(lambda: Lambda, parameters: Seq[(SymName.LambdaParamName, AbstractReference)]): AbstractReference = {
 
     val paramMap = parameters.toMap
 
@@ -83,7 +83,7 @@ object RuntimeAPI {
     //        rewriter.replaceRefs(acc)
     //    }
 
-    val newParams = lambda.input.filterNot(paramMap contains _.name)
+    val newParams = lambda.input.filterNot(paramMap.contains)
     val res = if (newParams.isEmpty) {
       replaced
     } else {
@@ -96,17 +96,20 @@ object RuntimeAPI {
     res
   }
 
-  final class Rewriter(rules: Map[String, AbstractReference]) {
+  final class Rewriter(_rules: Map[SymName.LambdaParamName, AbstractReference]) {
+    private val rules: Map[SymName, AbstractReference] = _rules.toMap
+
     def complete(@unused context: AppliedNamedReference, ref: AbstractReference): AbstractReference = {
       ref
     }
 
-    @nowarn("msg=view.filterKeys")
+    @nowarn("msg=Unused import")
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>
-          val bad = l.input.iterator.map(_.name).toSet
-          val fixed = new Rewriter(rules.filterKeys(!bad(_)).toMap).replaceRefs(l.output)
+          val bad = l.input.iterator.toSet
+          import scala.collection.compat._
+          val fixed = new Rewriter(_rules.view.filterKeys(!bad.contains(_)).toMap).replaceRefs(l.output)
           l.copy(output = fixed)
 
         case o: AppliedReference =>
@@ -152,7 +155,7 @@ object RuntimeAPI {
     }
 
     private def replaceNamed(reference: AppliedNamedReference): AbstractReference = {
-      def returnFullRef(fixedRef: String, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
+      def returnFullRef(fixedRef: SymName, parameters: List[TypeParam], prefix: Option[AppliedReference]): FullReference = {
         val p = parameters.map {
           case TypeParam(pref, variance) =>
             TypeParam(replaceRefs(pref), variance)
@@ -162,7 +165,7 @@ object RuntimeAPI {
 
       reference match {
         case n @ NameReference(ref, boundaries, prefix) =>
-          rules.get(ref.name) match {
+          rules.get(ref) match {
             case Some(value) =>
               complete(n, value)
             case None =>
@@ -180,7 +183,7 @@ object RuntimeAPI {
 
                 case n: NameReference =>
                   // we need this to support fakes only (see LightTypeTagRef#makeFakeParams)
-                  returnFullRef(n.ref.name, parameters, prefix)
+                  returnFullRef(n.ref, parameters, prefix)
 
                 case out =>
                   throw new IllegalStateException(s"Lambda expected for context-bound $f, but got $out")

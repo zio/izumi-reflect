@@ -1,11 +1,12 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag210
+import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag230Plus
 import izumi.reflect.macrortti._
 import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel._
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import izumi.reflect._
+import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam}
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
@@ -73,7 +74,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
   case class ZOBA[A, B, C](value: Either[B, C])
 
-  trait Test[A, dafg, adfg, LS, L[_], SD, GG[A] <: L[A], ZZZ[_, _], S, SDD, TG]
+  trait Test[A, dafg, adfg, LS, L[_], SD, GG[B] <: L[B], ZZZ[_, _], S, SDD, TG]
   trait T1[A, B, C, D, E, F[_]]
   trait YX[V] extends XY[V]
 
@@ -138,8 +139,8 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
           assert(tag1.tag.ref == tag2.tag.ref)
 
-          assert(rtTag1 == tag1.tag.asInstanceOf[ParsedLightTypeTag210].refString)
-          assert(rtTag2 == tag2.tag.asInstanceOf[ParsedLightTypeTag210].refString)
+          assert(rtTag1 == tag1.tag.asInstanceOf[ParsedLightTypeTag230Plus].refString)
+          assert(rtTag2 == tag2.tag.asInstanceOf[ParsedLightTypeTag230Plus].refString)
 
           assert(rtTag1 == rtTag2)
 
@@ -413,14 +414,26 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
         Tag[Test[A, dafg, adfg, LS, L, SD, GG, ZZZ, S, SDD, TG]]
 
       assert(
-        t2[SharedTagTest.this.Z, SharedTagTest.this.Z, T1[
-          ZOB[String, Int, Byte],
-          String,
-          String,
-          String,
-          String,
-          List
-        ], SharedTagTest.this.Z, XY, SharedTagTest.this.Z, YX, Either, SharedTagTest.this.Z, SharedTagTest.this.Z, SharedTagTest.this.Z].tag
+        t2[
+          SharedTagTest.this.Z,
+          SharedTagTest.this.Z,
+          T1[
+            ZOB[String, Int, Byte],
+            String,
+            String,
+            String,
+            String,
+            List
+          ],
+          SharedTagTest.this.Z,
+          XY,
+          SharedTagTest.this.Z,
+          YX,
+          Either,
+          SharedTagTest.this.Z,
+          SharedTagTest.this.Z,
+          SharedTagTest.this.Z
+        ].tag
         == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
       )
     }
@@ -823,6 +836,71 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSameStrict(tag.tag, Tag[BIOService[SwapF2[Either, *, *]]].tag)
       assertSameStrict(tag.tag, Tag[BIOService[Swap]].tag)
       assertSameStrict(tag.tag, Tag[BIOService[λ[(E, A) => Either[A, E]]]].tag)
+    }
+
+    "handles abstract types instead of parameters" in {
+      trait T1 {
+        type F[F0[_], A0] = OptionT[F0, A0]
+        type C[_, _]
+        type G[_]
+        type A
+        type B
+
+        def x: Tag[F[G, Either[A, B]]]
+      }
+
+      val t1: T1 {
+        type G[T] = List[T]
+        type C[A0, B0] = Either[A0, B0]
+        type A = Int
+        type B = Byte
+      } = new T1 {
+        type G[T] = List[T]
+        type C[A0, B0] = Either[A0, B0]
+        type A = Int
+        type B = Byte
+
+        // Inconsistent handling of type aliases by scalac...
+        // No TagK for G, but if G is inside an object or enclosing class
+        // then there is a TagK
+        val g: TagK[G] = TagK[List]
+
+        final val x: Tag[F[G, Either[A, B]]] = {
+          implicit val g0: TagK[G] = g
+          val _ = g0
+          Tag[F[G, C[A, B]]]
+        }
+      }
+
+      assertSameStrict(t1.x.tag, fromRuntime[OptionT[List, Either[Int, Byte]]])
+    }
+
+    "Generates lambda parents for lambda bases" in {
+      val childBase = `LTT[_[_,_]]`[RoleChild]
+
+      val fullDb = childBase.basesdb
+      fullDb.foreach {
+        case (_, parents) =>
+          parents.foreach {
+            p =>
+              if (p.toString.contains("RoleParent")) {
+                assert(p.isInstanceOf[LightTypeTagRef.Lambda])
+                assert(p.asInstanceOf[LightTypeTagRef.Lambda].input.size == 1)
+              }
+          }
+      }
+    }
+
+    "subtyping for Invariant Java HKT" in {
+      val collection = TagK[java.util.Collection]
+      val javaIterable = TagK[java.lang.Iterable]
+      assertChildStrict(collection.tag, javaIterable.tag)
+    }
+
+    "subtyping for Invariant Scala HKT" in {
+      val mutableSet = TagK[scala.collection.mutable.Set]
+      val collectionSet = TagK[scala.collection.Set]
+      assertChildStrict(mutableSet.tag, collectionSet.tag)
     }
 
   }
