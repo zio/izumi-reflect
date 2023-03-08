@@ -192,9 +192,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
             // abstract type member: type T >: Int <: AnyVal
             NameReference(SymName.SymTypeName(name), definedBoundaries, None)
         }
-        val out = RefinementDecl.TypeMember(name, ref)
-        System.err.println(s"$name -> $bounds {${bounds.getClass}} = $out")
-        out
+        RefinementDecl.TypeMember(name, ref)
 
       case (name, tpe) => // val t: Int
         RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
