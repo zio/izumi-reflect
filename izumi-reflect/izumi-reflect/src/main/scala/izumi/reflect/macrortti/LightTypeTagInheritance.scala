@@ -78,7 +78,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         true
       case (s, _) if s == tpeNothing =>
         true
-      case (_, t) if t == tpeAny || t == tpeAnyRef || t == tpeObject =>
+      case (_, t) if t == tpeAny || t == tpeAnyRef || t == tpeObject || t == tpeMatchable =>
         // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)
         true
 
