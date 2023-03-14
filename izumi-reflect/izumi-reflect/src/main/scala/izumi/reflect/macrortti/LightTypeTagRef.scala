@@ -37,6 +37,7 @@ sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
     * Use [[toString]] for a rendering that omits package names
     */
   final def repr: String = this.reprImpl
+  final def scalaStyledName: String = this.scalaStyledNameImpl
   final def shortName: String = this.shortNameImpl
   final def longNameWithPrefix: String = this.longNameWithPrefixImpl
   final def longNameInternalSymbol: String = this.longNameInternalSymbolImpl
