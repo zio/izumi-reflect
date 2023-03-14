@@ -181,6 +181,7 @@ object Izumi {
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.longNameInternalSymbol")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.symName")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.prefix")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledName")""".raw,
           // compile-time only
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*")""".raw,
