@@ -297,7 +297,7 @@ object Izumi {
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
         libs = Seq(
-          collection_compat in Scope.Provided.all
+          collection_compat in Scope.Compile.all
         ),
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
