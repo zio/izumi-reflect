@@ -210,7 +210,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   .settings(
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % V.scalatest % Test,
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat % Provided
+      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
@@ -515,6 +515,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.longNameInternalSymbol"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.symName"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.prefix"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledName"),
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl#*"),
