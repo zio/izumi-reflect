@@ -18,7 +18,7 @@
 
 package izumi.reflect.macrortti
 
-import scala.annotation.nowarn
+import izumi.reflect.internal.NowarnCompat
 import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTagRef._
 
@@ -103,13 +103,12 @@ object RuntimeAPI {
       ref
     }
 
-    @nowarn("msg=Unused import")
+    @NowarnCompat.nowarn("msg=deprecated")
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>
           val bad = l.input.iterator.toSet
-          import scala.collection.compat._
-          val fixed = new Rewriter(_rules.view.filterKeys(!bad.contains(_)).toMap).replaceRefs(l.output)
+          val fixed = new Rewriter(_rules.filterKeys(!bad.contains(_)).iterator.toMap).replaceRefs(l.output)
           l.copy(output = fixed)
 
         case o: AppliedReference =>
