@@ -18,12 +18,13 @@
 
 package izumi.reflect.internal.fundamentals.platform.console
 
-import java.util.concurrent.atomic.AtomicBoolean
-import scala.annotation.{nowarn, tailrec}
 import izumi.reflect.DebugProperties
+import izumi.reflect.internal.NowarnCompat
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 
+import java.util.concurrent.atomic.AtomicBoolean
+import scala.annotation.tailrec
 import scala.reflect.{ClassTag, classTag}
 
 private[reflect] trait TrivialLogger {
@@ -79,7 +80,7 @@ private[reflect] object TrivialLogger {
     config.forceLog || enabled.get()
   }
 
-  @nowarn("msg=return statement")
+  @NowarnCompat.nowarn("msg=return statement")
   private[this] val enabled: AtomicBoolean = {
     def prop(): Boolean = {
       val sysProperty = DebugProperties.`izumi.reflect.debug.macro.rtti` // this is the only debug logging property supported in the library

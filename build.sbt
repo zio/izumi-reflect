@@ -209,8 +209,7 @@ lazy val `izumi-reflect` = project.in(file("izumi-reflect/izumi-reflect"))
   )
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % V.scalatest % Test,
-      "org.scala-lang.modules" %% "scala-collection-compat" % V.collection_compat
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
       compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),

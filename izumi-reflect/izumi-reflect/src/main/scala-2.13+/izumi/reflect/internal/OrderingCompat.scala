@@ -9,5 +9,5 @@ private[reflect] object OrderingCompat {
   @inline private[reflect] def arrayOrdering[A](ordering: Ordering[A]): Ordering[Array[A]] = {
     Ordering.Implicits.seqOrdering[ArraySeqLike, A](ordering).on(array => array)
   }
-  final type ArraySeqLike[A] = mutable.ArraySeq[A]
+  private[reflect] final type ArraySeqLike[A] = mutable.ArraySeq[A]
 }

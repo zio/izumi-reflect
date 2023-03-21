@@ -19,6 +19,7 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.DebugProperties
+import izumi.reflect.internal.NowarnCompat
 import izumi.reflect.internal.OrderingCompat.ArraySeqLike
 import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
@@ -29,7 +30,6 @@ import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import scala.annotation.nowarn
 import scala.collection.immutable.HashSet
 
 /**
@@ -142,10 +142,9 @@ abstract class LightTypeTag private[reflect] (
     *       - You won't be able to call [[combine]] on result type
     * and partially applied types will not work correctly
     */
-  @nowarn("msg=Unused import")
+  @NowarnCompat.nowarn("msg=deprecated")
   def withoutArgs: LightTypeTag = {
-    import scala.collection.compat._
-    LightTypeTag(ref.withoutArgs, basesdb.view.mapValues(_.map(_.withoutArgs)).toMap, idb)
+    LightTypeTag(ref.withoutArgs, basesdb.mapValues(_.map(_.withoutArgs)).iterator.toMap, idb)
   }
 
   /**
@@ -321,12 +320,11 @@ object LightTypeTag {
     )
 
     private[reflect] object SubtypeDBs {
-      @nowarn("msg=Unused import")
+      @NowarnCompat.nowarn("msg=deprecated")
       private[reflect] def make(bases: Map[AbstractReference, Set[AbstractReference]], idb: Map[NameReference, Set[NameReference]]): SubtypeDBs = {
-        import scala.collection.compat._
         new SubtypeDBs(
-          bases.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap,
-          idb.view.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).toMap
+          bases.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).iterator.toMap,
+          idb.mapValues(_.filterNot(v => LightTypeTagRef.isIgnored(v))).filterNot(_._2.isEmpty).iterator.toMap
         )
       }
     }

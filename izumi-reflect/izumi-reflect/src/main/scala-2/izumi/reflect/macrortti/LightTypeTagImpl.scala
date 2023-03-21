@@ -18,6 +18,7 @@
 
 package izumi.reflect.macrortti
 
+import izumi.reflect.internal.CollectionCompat
 import izumi.reflect.internal.fundamentals.collections.IzCollections._
 import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
@@ -513,7 +514,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def convertDecl(decl: Symbol, rules: Map[String, SymName.LambdaParamName]): scala.collection.compat.IterableOnce[RefinementDecl] = {
+    def convertDecl(decl: Symbol, rules: Map[String, SymName.LambdaParamName]): CollectionCompat.IterableOnce[RefinementDecl] = {
       if (decl.isMethod) {
         val declMethod = decl.asMethod
         val returnTpe = declMethod.returnType

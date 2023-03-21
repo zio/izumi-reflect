@@ -5,7 +5,6 @@ import izumi.sbtgen.model._
 object Izumi {
 
   object V {
-    val collection_compat = Version.VExpr("V.collection_compat")
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
     val sbtgen = Version.VExpr("V.sbtgen")
@@ -70,8 +69,6 @@ object Izumi {
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
-
-    final val collection_compat = Library("org.scala-lang.modules", "scala-collection-compat", V.collection_compat, LibraryType.Auto)
   }
 
   import Deps._
@@ -296,9 +293,7 @@ object Izumi {
       ),
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
-        libs = Seq(
-          collection_compat in Scope.Compile.all
-        ),
+        libs = Seq.empty,
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
         )
