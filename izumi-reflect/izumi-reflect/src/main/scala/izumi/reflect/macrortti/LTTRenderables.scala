@@ -221,8 +221,8 @@ object LTTRenderables {
     private[macrortti] def renderDb(db: Map[_ <: AbstractReference, Set[_ <: AbstractReference]]): String = {
       import izumi.reflect.internal.fundamentals.platform.strings.IzString._
       db.toList.sortBy(_._1)(OrderingAbstractReferenceInstance).map {
-        case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
-      }.niceList()
+          case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
+        }.niceList()
     }
   }
 
