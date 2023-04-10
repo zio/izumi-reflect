@@ -1,7 +1,7 @@
 package izumi.reflect.test
 
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, Boundaries, FullReference, NameReference, SymName, TypeParam}
-import izumi.reflect.macrortti.{LTT, *}
+import izumi.reflect.macrortti._
 import izumi.reflect.test.TestModel.W3
 
 import scala.collection.immutable.ListSet
