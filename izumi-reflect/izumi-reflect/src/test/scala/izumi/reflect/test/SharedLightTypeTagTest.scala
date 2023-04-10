@@ -1,7 +1,7 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, Boundaries, FullReference, NameReference, SymName, TypeParam}
-import izumi.reflect.macrortti.{LTT, _}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, Boundaries, FullReference, NameReference, SymName, TypeParam}
+import izumi.reflect.macrortti.{LTT, *}
 import izumi.reflect.test.TestModel.W3
 
 import scala.collection.immutable.ListSet
@@ -14,43 +14,47 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
   "lightweight type tags (all versions)" should {
 
     "support distinction between subtypes" in {
-      val strLTT = LTT[String]
-      val subStrALTT = LTT[SubStrA]
-      val subStrCLTT = LTT[SubStrC]
-      val subStrBLTT = LTT[SubStrB]
-      val subStrDLTT = LTT[SubStrD]
-      val subSubStrLTT = LTT[SubSubStr]
-      val foo = LTT[SubStrA \/ Int]
-      val bar = `LTT[_,_]`[\/].combine(subStrALTT, LTT[Int])
-      val strUnpacker = LightTypeTagUnpacker(strLTT)
-      val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
-      val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
-      val strTR = strLTT.ref.asInstanceOf[AppliedNamedReference]
-      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedNamedReference]
-      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedNamedReference]
+      val str = LTT[String]
+      val subStrA = LTT[SubStrA]
+      val subStrB = LTT[SubStrB]
+      val subStrC = LTT[SubStrC]
+      val subStrD = LTT[SubStrD]
+      val subSubStr = LTT[SubSubStr]
 
-      assert(substrUnpacker.inheritance == strUnpacker.inheritance.map {
-        case (s, v) if s.toString == "String" => subStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName)
-        case p => p
-      })
-      assert(subsubstrUnpacker.inheritance == strUnpacker.inheritance.map {
-        case (s, v) if s.toString == "String" => subSubStrTR.asName.copy(boundaries = Boundaries.Empty) -> (v + strTR.asName)
-        case p => p
-      })
+      assertChildStrict(subStrA, str)
+      assertChildStrict(subSubStr, str)
+      assertChildStrict(subSubStr, subStrA)
+      assertNotChildStrict(subSubStr, subStrB)
 
-      assertChildStrict(subStrALTT, strLTT)
-      assertChildStrict(subSubStrLTT, strLTT)
-      assertChildStrict(subSubStrLTT, subStrALTT)
-      assertNotChildStrict(subSubStrLTT, subStrBLTT)
+      assertSameStrict(subStrC, str)
 
-      assertSameStrict(subStrCLTT, strLTT)
-
-      assertNotChild(subStrALTT, subStrBLTT)
-      assertSame(subStrALTT, subStrDLTT)
-      assertSame(foo, bar)
+      assertNotChild(subStrA, subStrB)
+      assertSame(subStrA, subStrD)
 
       // see https://github.com/7mind/izumi/pull/1528
-      assertSame(strLTT.combine(), strLTT)
+      assertSame(str.combine(), str)
+
+      val strInhBases = LightTypeTagUnpacker(str).inheritance(str.ref.asInstanceOf[NameReference])
+      val subStrAInhBases = LightTypeTagUnpacker(subStrA).inheritance(subStrA.ref.asInstanceOf[NameReference].copy(boundaries = Boundaries.Empty))
+      val subSubStrInhBases = LightTypeTagUnpacker(subSubStr).inheritance(subSubStr.ref.asInstanceOf[NameReference].copy(boundaries = Boundaries.Empty))
+
+      assert(subStrAInhBases == (strInhBases ++ Set(str.ref.asInstanceOf[NameReference])))
+      assert(subSubStrInhBases == (strInhBases ++ Set(str.ref.asInstanceOf[NameReference])))
+
+      val strFullBases = LightTypeTagUnpacker(str).bases(str.ref.asInstanceOf[NameReference])
+      val subStrAFullBases = LightTypeTagUnpacker(subStrA).bases(subStrA.ref.asInstanceOf[NameReference])
+      val subSubStrFullBases = LightTypeTagUnpacker(subSubStr).bases(subSubStr.ref.asInstanceOf[NameReference])
+
+      assert(LightTypeTagUnpacker(str).bases.keySet == Set(str.ref.asInstanceOf[AppliedNamedReference]))
+      assert(subStrA.repr == "izumi.reflect.test.TestModel::SubStrA|<scala.Nothing..java.lang.String>")
+      assert(subStrA.repr != "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
+
+      assert(subStrAFullBases == (strFullBases ++ Set(str.ref.asInstanceOf[AbstractReference])))
+      assert(subSubStrFullBases == (strFullBases ++ Set(str.ref.asInstanceOf[AbstractReference])))
+
+      val foo = LTT[SubStrA \/ Int]
+      val bar = `LTT[_,_]`[\/].combine(subStrA, LTT[Int])
+      assertSameStrict(foo, bar)
     }
 
     "eradicate tautologies with Any/Object" in {

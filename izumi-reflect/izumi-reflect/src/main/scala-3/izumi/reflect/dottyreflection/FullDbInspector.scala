@@ -43,7 +43,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(a, selfRef, recurseIntoBases = false)
 
         case typeLambda: TypeLambda =>
-          val selfL = i.inspectTypeRepr(typeLambda).asInstanceOf[LightTypeTagRef.Lambda]
+          val selfL = selfRef.asInstanceOf[LightTypeTagRef.Lambda]
 
           val parents = new Run(i.nextLam(typeLambda)).inspectTypeBoundsToFull(typeLambda.resType)
 
@@ -92,7 +92,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(termRef, selfRef, false)
 
         case b: TypeBounds =>
-          inspectTypeReprToFullBases(b.hi) ++ inspectTypeReprToFullBases(b.low)
+          processTypeBounds(b)
 
         case c: ConstantType =>
           extractBase(c, selfRef, false)
@@ -116,7 +116,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(r, selfRef, recurseIntoBases = true)
 
         case s if s.isTypeDef =>
-          inspectTypeReprToFullBases(r._underlying)
+          processTypeMemberWithTypeLambdaBounds(r)
 
         case o =>
           throw new RuntimeException(s"Shit tree: ${o.getClass} $o $r ${o.tree}")
@@ -164,11 +164,56 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       tpe.dealias match {
         case t: TypeBounds =>
-          inspectTypeReprToFullBases(t.hi) ++ inspectTypeReprToFullBases(t.low)
+          processTypeBounds(t)
         case t: TypeRepr =>
           inspectTypeReprToFullBases(t)
       }
     }
+
+    private def processTypeBounds(tb: TypeBounds): List[(AbstractReference, AbstractReference)] = {
+      inspectTypeReprToFullBases(tb.hi) ++ inspectTypeReprToFullBases(tb.low)
+    }
+
+    private def processTypeMemberWithTypeLambdaBounds(t: TypeRef | ParamRef): List[(AbstractReference, AbstractReference)] = {
+      def replaceUpperBoundWithSelfInUpperBoundBases(selfRef: AbstractReference, upperBound: AbstractReference, upperBoundTpe: TypeRepr)
+        : List[(AbstractReference, AbstractReference)] = {
+        val basesOfUpperBound = inspectTypeReprToFullBases(upperBoundTpe)
+        basesOfUpperBound.map {
+          case (k, v) if k == upperBound =>
+            // bases of upper bound are also bases of the abstract type
+            selfRef -> v
+          case kv =>
+            kv
+        }
+      }
+
+      val underlying = t._underlying
+      underlying match {
+        // handle abstract higher-kinded type members specially,
+        // move their upper bound into inheritance db, because they
+        // will lose it after application. (Unlike proper type members)
+        case TypeBounds(_, tl0: TypeLambda) =>
+          val selfRef = i.inspectTypeRepr(t)
+          // include only upper bound: we discard the lower bound for abstract higher-kinded type members
+          val tl = tl0.dealias.simplified
+          val hiTypeLambda = i.inspectTypeRepr(tl)
+
+          (selfRef, hiTypeLambda) :: replaceUpperBoundWithSelfInUpperBoundBases(selfRef, hiTypeLambda, tl)
+
+        // for abstract proper type members, we do not include the upper bound itself into db
+        // (because it's already in the type bound and unlike for type lambda members, the type bound is not lost.
+        case TypeBounds(_, hi0) =>
+          val selfRef = i.inspectTypeRepr(t)
+          val hi = hi0.dealias.simplified
+          val upperBound = i.inspectTypeRepr(hi)
+
+          replaceUpperBoundWithSelfInUpperBoundBases(selfRef, upperBound, hi)
+
+        case _ =>
+          inspectTypeReprToFullBases(underlying)
+      }
+    }
+
   }
 
 }

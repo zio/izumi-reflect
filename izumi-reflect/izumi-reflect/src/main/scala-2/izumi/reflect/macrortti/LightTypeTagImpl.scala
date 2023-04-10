@@ -146,7 +146,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       // we need to use tpe.etaExpand but 2.13 has a bug: https://github.com/scala/bug/issues/11673#
       // tpe.etaExpand.resultType.dealias.typeArgs.flatMap(_.dealias.resultType.typeSymbol.typeSignature match {
 
-      def doExtract(t: Type) = {
+      def doExtract(t: Type): List[Type] = {
         val tpePolyTypeResultType = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(t)
 
         tpePolyTypeResultType.typeArgs.flatMap {
@@ -190,11 +190,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       out
     }
 
-    val inh = mutable.HashSet[Type]()
-    extractComponents(mainTpe, inh)
-    logger.log(s"Extracted all type references for mainTpe=$mainTpe inh=${inh.iterator.map(t => (t, t.getClass.asInstanceOf[Class[Any]])).toMap.niceList()}")
+    val parts = mutable.HashSet[Type]()
+    extractComponents(mainTpe, parts)
+    logger.log(s"Extracted all type references for mainTpe=$mainTpe parts=${parts.iterator.map(t => (t, t.getClass.asInstanceOf[Class[Any]])).toMap.niceList()}")
 
-    inh.toSet
+    parts.toSet
   }
 
   private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Set[Type]): Set[(AbstractReference, AbstractReference)] = {
@@ -299,7 +299,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     val unappliedBases = allReferenceComponents.flatMap(processLambdasReturningRefinements)
-    logger.log(s"Computed unapplied lambda bases for tpe=$mainTpe unappliedBases=${unappliedBases.toMultimap.niceList()}")
+    logger.log(s"Computed lambda only bases for tpe=$mainTpe lambdaBases=${unappliedBases.toMultimap.niceList()}")
     unappliedBases
   }
 
@@ -345,7 +345,19 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     // val tpef = Dealias.fullNormDealiasResultType(t0, squashHKTRefToPolyTypeResultType = false)
     // no PolyTypes passed to here [but actually we should preserve polyTypes]
     val tpe = Dealias.fullNormDealias(t0)
-    tpe
+    val upperBound = {
+      val tpeSig = tpe.typeSymbol.typeSignature
+      tpeSig.finalResultType match {
+        // handle abstract higher-kinded type members specially,
+        // move their upper bound into inheritance db, because they
+        // will lose it after application. (Unlike proper type members)
+        case b: TypeBoundsApi if tpeSig.takesTypeArgs =>
+          List(b.hi)
+        case _ =>
+          Nil
+      }
+    }
+    upperBound ++ tpe
       .baseClasses
       .iterator
       .map(tpe.baseType)
@@ -390,7 +402,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
       tOrTypeSymBounds match {
         case b: TypeBoundsApi =>
-          if ((b.lo =:= nothing && b.hi =:= any) || (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
+          if ((b.lo =:= nothing && b.hi =:= any) ||
+            // prevent recursion
+            (nestedIn.contains(b.lo) || nestedIn.contains(b.hi))) {
             Boundaries.Empty
           } else {
             val lo = makeRefSub(b.lo, Map.empty, Set.empty)
