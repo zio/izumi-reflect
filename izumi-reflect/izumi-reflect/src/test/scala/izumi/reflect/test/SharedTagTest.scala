@@ -939,6 +939,32 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertDifferent(t1, t3)
     }
 
+    "combine higher-kinded type members" in {
+      def combine1[X[_[_], _]: TagTK, F[_]: TagK, A: Tag]: Tag[X[F, A]] = Tag[X[F, A]]
+      def combine2[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]
+
+      val t1 = TagTK[HigherKindedTypeMember.T]
+      val t2 = TagK[HigherKindedTypeMember.T[IO[Throwable, *], *]]
+      val t3 = TagTK[HigherKindedTypeMember.G]
+
+      val tres1 = combine1[HigherKindedTypeMember.T, IO[Throwable, *], Int](t1, implicitly, implicitly)
+      val tres2 = combine2[HigherKindedTypeMember.T[IO[Throwable, *], *], Int](t2, implicitly)
+      val tres3 = combine1[HigherKindedTypeMember.G, IO[Throwable, *], Int](t3, implicitly, implicitly)
+
+      assertSameStrict(tres1.tag, Tag[HigherKindedTypeMember.T[IO[Throwable, *], Int]].tag)
+      assertSameStrict(tres2.tag, Tag[HigherKindedTypeMember.T[IO[Throwable, *], Int]].tag)
+      assertSameStrict(tres3.tag, Tag[HigherKindedTypeMember.G[IO[Throwable, *], Int]].tag)
+
+      assertChildStrict(tres1.tag, Tag[AnyVal].tag)
+      assertChildStrict(tres2.tag, Tag[AnyVal].tag)
+      assertChildStrict(tres3.tag, Tag[HigherKindedTypeMember.T[IO[Throwable, *], Int]].tag)
+      assertChildStrict(tres3.tag, Tag[AnyVal].tag)
+
+      // unnapliedInheritanceDB contains evidence that G <: T
+      val t3InhBases = t3.tag.idb(tres3.tag.ref.withoutArgs.asInstanceOf[LightTypeTagRef.NameReference])
+      assert(t3InhBases.contains(tres1.tag.ref.withoutArgs.asInstanceOf[LightTypeTagRef.NameReference]))
+    }
+
   }
 
 }

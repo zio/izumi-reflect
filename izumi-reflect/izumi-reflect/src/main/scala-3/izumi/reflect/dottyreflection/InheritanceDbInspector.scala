@@ -90,12 +90,27 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     val onlyParameterizedBases =
       typeRepr
         .baseClasses
-        .filter(s => s.isType)
-        .map(s => typeRepr.baseType(s))
+        .filter(_.isType)
+        .map(typeRepr.baseType)
 
     val allbases = onlyParameterizedBases.filterNot(_ =:= typeRepr)
 
-    allbases
+    val upperBoundBases = typeRepr match {
+      case t: TypeRef =>
+        t._underlying match {
+          // handle abstract higher-kinded type members specially,
+          // move their upper bound into inheritance db, because they
+          // will lose it after application. (Unlike proper type members)
+          case TypeBounds(_, tl: TypeLambda) =>
+            List(tl.resType.dealias.simplified)
+          case _ =>
+            Nil
+        }
+      case _ =>
+        Nil
+    }
+
+    upperBoundBases ++ allbases
   }
 
   extension (t: TypeRepr) {

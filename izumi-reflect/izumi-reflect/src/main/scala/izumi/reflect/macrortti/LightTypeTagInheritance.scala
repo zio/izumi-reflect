@@ -116,6 +116,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
           all(
             compareBounds(ctx)(s, t.boundaries),
             any(
+              oneOfUnparameterizedParentsIsInheritedFrom(ctx)(s.asName, t), // constructor inherits from rhs, where rhs is an unparameterized type
 //              outerLambdaParams.map(_.name).contains(t.ref.name), // lambda parameter may accept anything within bounds      // UNSOUND-LAMBDA-COMPARISON
               t.ref.maybeName.exists(outerDecls.map(_.name).contains) // refinement type decl may accept anything within bounds
             )
@@ -129,10 +130,12 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (s: NameReference, t: NameReference) =>
         val boundIsOk = compareBounds(ctx)(s, t.boundaries)
         any(
-          all(boundIsOk, parameterizedParentsOf(s).exists(ctx.isChild(_, t))),
-          all(boundIsOk, unparameterizedParentsOf(s).exists(ctx.isChild(_, t))),
-//          all(boundIsOk, outerLambdaParams.map(_.name).contains(t.ref.name)), // lambda parameter may accept anything within bounds       // UNSOUND-LAMBDA-COMPARISON
-          all(boundIsOk, t.ref.maybeName.exists(outerDecls.map(_.name).contains)), // refinement decl may accept anything within bounds
+          boundIsOk && any(
+            oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t),
+            oneOfUnparameterizedParentsIsInheritedFrom(ctx)(s, t),
+            // outerLambdaParams.map(_.name).contains(t.ref.name), // lambda parameter may accept anything within bounds       // UNSOUND-LAMBDA-COMPARISON
+            t.ref.maybeName.exists(outerDecls.map(_.name).contains) // refinement decl may accept anything within bounds
+          ),
           s.boundaries match {
             case Boundaries.Defined(_, sUp) =>
               ctx.isChild(sUp, t)
@@ -336,6 +339,12 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     ctx.logger.log(s"Looking up parameterized parents of $child => ${parameterizedParentsOf(child)}")
 //    ctx.logger.log(s"Checking if ${parameterizedParentsOf(child)} has a parent of $parent")
     val parents = parameterizedParentsOf(child)
+    parents.exists(ctx.isChild(_, parent))
+  }
+
+  private def oneOfUnparameterizedParentsIsInheritedFrom(ctx: Ctx)(child: NameReference, parent: NameReference): Boolean = {
+    ctx.logger.log(s"Looking up unparameterized parents of $child => ${unparameterizedParentsOf(child)}")
+    val parents = unparameterizedParentsOf(child)
     parents.exists(ctx.isChild(_, parent))
   }
 

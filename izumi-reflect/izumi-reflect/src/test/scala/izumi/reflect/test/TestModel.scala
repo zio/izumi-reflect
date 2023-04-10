@@ -187,4 +187,9 @@ object TestModel {
     }
   }
 
+  object HigherKindedTypeMember {
+    type T[F[_], A] >: Unit <: AnyVal
+    type G[F[_], A] >: Unit <: T[F, A]
+  }
+
 }

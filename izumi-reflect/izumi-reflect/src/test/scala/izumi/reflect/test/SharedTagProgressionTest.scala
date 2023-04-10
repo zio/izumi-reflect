@@ -191,6 +191,22 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
+    "progression test: fails to preserve lower bound when combining higher-kinded type members" in {
+      def combine1[X[_[_], _]: TagTK, F[_]: TagK, A: Tag]: Tag[X[F, A]] = Tag[X[F, A]]
+      def combine2[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]
+
+      val t1 = TagTK[HigherKindedTypeMember.T]
+      val t2 = TagK[HigherKindedTypeMember.T[IO[Throwable, *], *]]
+
+      val tres1 = combine1[HigherKindedTypeMember.T, IO[Throwable, *], Int](t1, implicitly, implicitly)
+      val tres2 = combine2[HigherKindedTypeMember.T[IO[Throwable, *], *], Int](t2, implicitly)
+
+      doesntWorkYet {
+        assertChildStrict(Tag[Unit].tag, tres1.tag)
+        assertChildStrict(Tag[Unit].tag, tres2.tag)
+      }
+    }
+
   }
 
 }

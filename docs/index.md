@@ -38,6 +38,7 @@ Known limitations are:
 4. This-Types such as `X.this.type` are ignored and identical to `X`
 5. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
 6. There are some optimizations in place which reduce correctness, namely: subtype check for `scala.Matchable` will always return true, no distinction is made between `scala.Any` and `scala.AnyRef`.
+7. Lower bounds are not preserved in abstract higher-kinded type members which may produce false comparisons.
 
 ## Installation
 

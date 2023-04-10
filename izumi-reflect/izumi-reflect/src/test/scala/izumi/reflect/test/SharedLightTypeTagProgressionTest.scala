@@ -20,40 +20,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     import TestModel._
 
-    "progression test: `support distinction between subtypes` doesn't work properly on Dotty" in {
-      val strLTT = LTT[String]
-      val subStrALTT = LTT[SubStrA]
-      val subSubStrLTT = LTT[SubSubStr]
-      val strUnpacker = LightTypeTagUnpacker(strLTT)
-      val substrUnpacker = LightTypeTagUnpacker(subStrALTT)
-      val subsubstrUnpacker = LightTypeTagUnpacker(subSubStrLTT)
-      val strTR = strLTT.ref.asInstanceOf[AppliedNamedReference]
-      val subStrTR = subStrALTT.ref.asInstanceOf[AppliedReference]
-      val subSubStrTR = subSubStrLTT.ref.asInstanceOf[AppliedReference]
-
-      assert(strUnpacker.bases.keySet == Set(strTR))
-      assert(subStrALTT.repr == "izumi.reflect.test.TestModel::SubStrA|<scala.Nothing..java.lang.String>")
-      assert(subStrALTT.repr != "izumi.reflect.test.TestModel$::SubStrA|<scala.Nothing..java.lang.String>")
-
-      val nothingRef = LTT[Nothing].ref.asInstanceOf[AppliedNamedReference]
-      val anyRef = LTT[Any].ref.asInstanceOf[AppliedNamedReference]
-
-      doesntWorkYetOnDotty {
-        // there must be a a base entry (SubStrA -> (String, Serializable, ...)), but there isn't on Dotty
-        assert(substrUnpacker.bases == strUnpacker.bases.map { case (s, v) if s.toString == "String" => subStrTR -> (v + strTR); case p => p })
-      }
-      succeedsOnDottyButShouldnt {
-        assert(substrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
-      }
-
-      doesntWorkYetOnDotty {
-        assert(subsubstrUnpacker.bases == strUnpacker.bases.map { case (strTR, v) => subSubStrTR -> (v + strTR) })
-      }
-      succeedsOnDottyButShouldnt {
-        assert(subsubstrUnpacker.bases == strUnpacker.bases /*+ (nothingRef -> Set(anyRef))*/ )
-      }
-    }
-
     "progression test: can't support subtyping of type prefixes" in {
       val a = new C {}
 

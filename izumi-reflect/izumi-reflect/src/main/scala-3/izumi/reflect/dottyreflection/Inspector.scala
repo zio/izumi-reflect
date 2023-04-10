@@ -2,6 +2,7 @@ package izumi.reflect.dottyreflection
 
 import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
 
 import scala.annotation.{tailrec, targetName}
 import scala.collection.immutable.Queue
@@ -43,10 +44,9 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
-    val tpeTree = TypeTree.of[T]
-    log(s" -------- about to inspect ${tpeTree.show} --------")
+    log(s" -------- about to inspect ${TypeTree.of[T].show} (${TypeRepr.of[T]}) --------")
     val res = inspectTypeRepr(TypeRepr.of[T])
-    log(s" -------- done inspecting ${tpeTree.show} --------")
+    log(s" -------- done inspecting ${TypeTree.of[T].show} (${TypeRepr.of[T]}) --------")
     res
   }
 
@@ -103,9 +103,6 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         val paramNames = inspector.context.last.params.map(_.asParam)
         LightTypeTagRef.Lambda(paramNames, resType)
 
-      case p: ParamRef =>
-        makeNameReferenceFromType(p)
-
       case t: ThisType =>
         next().inspectTypeRepr(t.tref)
 
@@ -125,6 +122,9 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
           UnionReference(elements)
         }
 
+      case p: ParamRef =>
+        makeNameReferenceFromType(p)
+
       case term: TermRef =>
         makeNameReferenceFromType(term)
 
@@ -137,13 +137,12 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       case constant: ConstantType =>
         makeNameReferenceFromType(constant)
 
+      case ref: Refinement =>
+        next().inspectRefinements(ref)
+
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
         NameReference(SymName.SymTypeName("???"))
-
-      // Matches CachedRefinedType for this ZIO issue https://github.com/zio/zio/issues/6071
-      case ref: Refinement =>
-        next().inspectRefinements(ref)
 
       case o =>
         log(s"TYPEREPR UNSUPPORTED: $o")
@@ -204,7 +203,8 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds, isParamWildcard: Boolean): AbstractReference = {
-    inspectBoundsImpl(tb) match {
+    log(s"inspectBounds: found TypeBounds $tb outer=$outerTypeRef isParamWildcard=$isParamWildcard")
+    val res = inspectBoundsImpl(tb) match {
       case Left(hi) =>
         hi
       case Right(boundaries) =>
@@ -219,6 +219,16 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
           symref
         }
     }
+    invertTypeMemberWithTypeLambdaBounds(res)
+  }
+
+  private def invertTypeMemberWithTypeLambdaBounds(abstractReference: AbstractReference): AbstractReference = abstractReference match {
+    case NameReference(symName, Boundaries.Defined(bottom @ _, LightTypeTagRef.Lambda(input, realTop @ _)), prefix) =>
+      // We throw away both upper and lower boundaries
+      // Upper boundaries we'll recover later in fulldb and inheritancedb
+      // But lower boundaries we don't recover
+      LightTypeTagRef.Lambda(input, FullReference(symName, input.map(p => TypeParam(NameReference(p), Variance.Invariant)), prefix))
+    case other => other
   }
 
   private def inspectBoundsImpl(tb: TypeBounds): Either[AbstractReference, Boundaries] = {
@@ -239,6 +249,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   private[dottyreflection] def inspectSymbol(symbol: Symbol, outerTypeRef: Option[TypeRef], prefixSource: Option[NamedType]): AbstractReference = {
     symbol match {
       case s if s.isClassDef || s.isValDef || s.isBind =>
+        log(s"inspectSymbol: Found Cls=${s.isClassDef} Val=${s.isValDef} Bind=${s.isBind} symbol $s")
         makeNameReferenceFromSymbol(symbol, prefixSource)
 
       case s if s.isTypeDef =>
@@ -300,6 +311,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         log(s"make name reference from term $term")
         makeNameReferenceFromSymbol(term.termSymbol, Some(term))
       case t: ParamRef =>
+        log(s"make name reference from paramRef $t")
         val isInContext = context.flatMap(_.params.map(_.tpe)).contains(t)
         if (isInContext) {
           // assert(isInContext, s"${context.flatMap(_.params.map(_.tpe)).map(t => t)} must contain $t")
@@ -316,12 +328,13 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
         } else {
           val lt = t.binder.asInstanceOf[LambdaType]
-          val paramName = lt.paramNames(t.paramNum).toString
           NameReference(SymName.LambdaParamName(t.paramNum, -1, lt.paramNames.size), Boundaries.Empty, None)
         }
 
       case constant: ConstantType =>
+        log(s"make name reference from ConstantType $constant")
         NameReference(SymName.SymLiteral(constant.constant.value), Boundaries.Empty, prefix = None)
+
       case ref =>
         log(s"make name reference from what? $ref ${ref.getClass} ${ref.termSymbol}")
         makeNameReferenceFromSymbol(ref.typeSymbol, None)
@@ -331,12 +344,12 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   @tailrec
   private[dottyreflection] final def makeNameReferenceFromSymbol(symbol: Symbol, prefixSource1: Option[NamedType]): NameReference = {
     def default: NameReference = {
-      val (symName, s, prefixSource2) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
-        (SymName.SymTermName(symbol.fullName), symbol, symbol.termRef)
+      val (symName, prefixSource2) = if (symbol.isTerm || symbol.isBind || symbol.isValDef) {
+        (SymName.SymTermName(symbol.fullName), symbol.termRef)
       } else if (symbol.flags.is(Flags.Module)) { // Handle ModuleClasses (can creep in from ThisType)
-        (SymName.SymTermName(symbol.companionModule.fullName), symbol.companionModule, symbol.companionModule.termRef)
+        (SymName.SymTermName(symbol.companionModule.fullName), symbol.companionModule.termRef)
       } else {
-        (SymName.SymTypeName(symbol.fullName), symbol, symbol.termRef)
+        (SymName.SymTypeName(symbol.fullName), symbol.termRef)
       }
       val prefix = getPrefixFromQualifier(prefixSource1.getOrElse(prefixSource2))
       NameReference(symName, Boundaries.Empty, prefix)
