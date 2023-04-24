@@ -76,6 +76,6 @@ jobs:
           fi
   all-good:
     runs-on: ubuntu-latest
-    needs: [ 'build' ]
+    needs: [ 'build', 'publish-artifacts' ]
     steps:
       - run: 'echo "No build required"'
