@@ -18,11 +18,12 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   override def shift: Int = 0
 
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
+    val owners = getClassDefOwners(Symbol.spliceOwner)
     val typeRepr = TypeRepr.of[A].dealias
-    if (allPartsStrong(typeRepr)) {
+    if (allPartsStrong(owners, typeRepr)) {
       createTag[A](typeRepr)
     } else {
-      summonCombinedTag[A](typeRepr)
+      summonCombinedTag[A](owners, typeRepr)
     }
   }
 
@@ -38,10 +39,10 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
-  private def summonCombinedTag[T <: AnyKind: Type](typeRepr: TypeRepr): Expr[Tag[T]] = {
+  private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeRepr: TypeRepr): Expr[Tag[T]] = {
 
     def summonLTTAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[LightTypeTag] = {
-      if (allPartsStrong(typeRepr)) {
+      if (allPartsStrong(owners, typeRepr)) {
         typeRepr.asType match {
           //        case given Type[a] => Inspect.inspectAny[a]
           case given Type[a] => '{ Inspect.inspect[a] }
@@ -53,7 +54,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
 
     def summonTagAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[Tag[Any]] = {
-      if (allPartsStrong(typeRepr)) {
+      if (allPartsStrong(owners, typeRepr)) {
         createTag[Any](typeRepr)
       } else {
         summonTag[T, Any](typeRepr)
@@ -206,7 +207,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
-      case x if ReflectionUtil.topLevelWeakType(Set.empty, x) =>
+      case x if ReflectionUtil.topLevelWeakType(owners, Set.empty, x) =>
         val tStr = x.show
         val implicitMessage = defaultImplicitError.replace("${T}", tStr)
         report.errorAndAbort(s"""$tStr is a type parameter without an implicit Tag!

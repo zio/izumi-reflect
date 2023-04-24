@@ -24,7 +24,8 @@ object Inspect {
   def inspectStrong[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {
     import qctx.reflect.*
     val tpe = TypeRepr.of[T]
-    if (ReflectionUtil.allPartsStrong(0, Set.empty, tpe)) {
+    val owners = ReflectionUtil.getClassDefOwners(Symbol.spliceOwner)
+    if (ReflectionUtil.allPartsStrong(0, owners, Set.empty, tpe)) {
       inspectAny[T]
     } else {
       report.errorAndAbort(s"Can't materialize LTag[$tpe]: found unresolved type parameters in $tpe")

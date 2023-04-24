@@ -192,4 +192,9 @@ object TestModel {
     type G[F[_], A] >: Unit <: T[F, A]
   }
 
+  object RoleDep {
+    type RoleDep[RoleId, C] >: Any
+    type RoleDeps[RoleId, C] = Set[this.RoleDep[RoleId, C]] // this-prefix is important, do not remove
+  }
+
 }
