@@ -965,6 +965,18 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(t3InhBases.contains(tres1.tag.ref.withoutArgs.asInstanceOf[LightTypeTagRef.NameReference]))
     }
 
+    "regression test: do not be confused by a type alias of Set of an abstract type referred via this-prefix on Scala 3" in {
+      val t1 = Tag[RoleDep.RoleDeps[Int, Int]].tag
+      val t2 = Tag[Set[RoleDep.RoleDep[Int, Int]]].tag
+      val t3 = LTT[RoleDep.RoleDeps[Int, Int]]
+
+      assertSameStrict(t1, t2)
+      assertSameStrict(t1, t3)
+
+      assertDebugSame(t1, t2)
+      assertDebugSame(t1, t3)
+    }
+
   }
 
 }

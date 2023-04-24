@@ -60,8 +60,12 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
-  protected def allPartsStrong(typeRepr: TypeRepr): Boolean = {
-    ReflectionUtil.allPartsStrong(using qctx)(shift, Set.empty, typeRepr)
+  protected def allPartsStrong(outerOwnerClassDefs: Set[Symbol], typeRepr: TypeRepr): Boolean = {
+    ReflectionUtil.allPartsStrong(using qctx)(shift, outerOwnerClassDefs, Set.empty, typeRepr)
+  }
+
+  protected def getClassDefOwners(symbol: Symbol): Set[Symbol] = {
+    ReflectionUtil.getClassDefOwners(using qctx)(symbol)
   }
 
   import ReflectionUtil.reflectiveUncheckedNonOverloadedSelectable
@@ -121,41 +125,73 @@ private[reflect] object ReflectionUtil {
     * Returns true if the given type contains no type parameters
     * (this means the type is not "weak" https://stackoverflow.com/questions/29435985/weaktypetag-v-typetag)
     */
-  private[reflect] def allPartsStrong(using qctx: Quotes)(shift: Int, lambdas: Set[qctx.reflect.TypeRepr], typeRepr: qctx.reflect.TypeRepr): Boolean = {
+  private[reflect] def allPartsStrong(
+    using qctx: Quotes
+  )(shift: Int,
+    outerOwnerClassDefs: Set[qctx.reflect.Symbol],
+    outerLambdas: Set[qctx.reflect.TypeRepr],
+    typeRepr: qctx.reflect.TypeRepr
+  ): Boolean = {
     import qctx.reflect.*
     typeRepr.dealias match {
-      case x if topLevelWeakType(lambdas, x) => false
-      case AppliedType(tpe, args) => allPartsStrong(shift, lambdas, tpe) && args.forall(allPartsStrong(shift, lambdas, _))
-      case AndType(lhs, rhs) => allPartsStrong(shift, lambdas, lhs) && allPartsStrong(shift, lambdas, rhs)
-      case OrType(lhs, rhs) => allPartsStrong(shift, lambdas, lhs) && allPartsStrong(shift, lambdas, rhs)
-      case TypeRef(tpe, _) => allPartsStrong(shift, lambdas, tpe)
-      case TermRef(tpe, _) => allPartsStrong(shift, lambdas, tpe)
-      case ThisType(tpe) => allPartsStrong(shift, lambdas, tpe)
+      case x if topLevelWeakType(outerOwnerClassDefs, outerLambdas, x) => false
+      case AppliedType(tpe, args) =>
+        allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe) && args.forall(allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, _))
+      case AndType(lhs, rhs) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lhs) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, rhs)
+      case OrType(lhs, rhs) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lhs) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, rhs)
+      case TypeRef(tpe, _) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
+      case TermRef(tpe, _) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
+      case ThisType(tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
       case NoPrefix() => true
-      case TypeBounds(lo, hi) => allPartsStrong(shift, lambdas, lo) && allPartsStrong(shift, lambdas, hi)
-      case lam @ TypeLambda(_, _, body) => allPartsStrong(shift, lambdas + lam, body)
-      case Refinement(parent, _, tpe) => allPartsStrong(shift, lambdas, tpe) && allPartsStrong(shift, lambdas, parent)
-      case ByNameType(tpe) => allPartsStrong(shift, lambdas, tpe)
+      case TypeBounds(lo, hi) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lo) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, hi)
+      case lam @ TypeLambda(_, _, body) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas + lam, body)
+      case Refinement(parent, _, tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, parent)
+      case ByNameType(tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
       case strange =>
         InspectorBase.log(shift, s"Got unknown type component when checking strength: $strange")
         true
     }
   }
 
-  private[reflect] def topLevelWeakType(using qctx: Quotes)(lambdas: Set[qctx.reflect.TypeRepr], typeRepr: qctx.reflect.TypeRepr): Boolean = {
+  private[reflect] def topLevelWeakType(
+    using qctx: Quotes
+  )(outerOwnerClassDefs: Set[qctx.reflect.Symbol],
+    outerLambdas: Set[qctx.reflect.TypeRepr],
+    typeRepr: qctx.reflect.TypeRepr
+  ): Boolean = {
     import qctx.reflect.*
     typeRepr match {
       case x if x.typeSymbol.isTypeParam =>
         x match {
-          case t: ParamRef if lambdas.contains(t.binder) => false
+          case t: ParamRef if outerLambdas.contains(t.binder) => false
           case _ => true
         }
       // we regard abstract types like T in trait X { type T; Tag[this.T] } - when we are _inside_ the definition template
       // as 'type parameters' too. So that you could define `implicit def tagForT: Tag[this.T]` and the tag would be resolved
       // to this implicit correctly, instead of generating a useless `X::this.type::T` tag.
-      case x @ TypeRef(ThisType(_), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef => true
+      // TODO: Due to https://github.com/lampepfl/dotty/issues/16107 not being fixed we have to make sure we're actually
+      //       inside the definition of the this-type prefix to count it as 'weak' - unlike Scala 2 we're not protected
+      //       from this-types leaking in and have to carry the owner chain here - until that issue is fixed.
+      case x @ TypeRef(ThisType(prefix), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef && outerOwnerClassDefs.contains(prefix.typeSymbol) =>
+        true
       case _ => false
     }
+  }
+
+  private[reflect] def getClassDefOwners(using qctx: Quotes)(symbol: qctx.reflect.Symbol): Set[qctx.reflect.Symbol] = {
+    Iterator
+      .iterate(symbol) {
+        s =>
+          val owner = s.owner
+          if (owner == null || owner.isNoSymbol || owner == qctx.reflect.defn.RootClass) {
+            null.asInstanceOf[qctx.reflect.Symbol]
+          } else {
+            owner
+          }
+      }
+      .takeWhile(_ ne null)
+      .filter(s => s.isClassDef && !s.isAbstractType)
+      .toSet
   }
 
   private[reflect] final class UncheckedNonOverloadedSelectable(private val selectable: Any) extends AnyVal with Selectable {
