@@ -77,8 +77,8 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
   final def makeParsedLightTypeTagImpl(ltt: LightTypeTag): c.Expr[LightTypeTag] = {
     logger.log(s"LightTypeTagImpl: created LightTypeTag: $ltt")
 
-    val hashCodeRef = ltt.hashCode()
     val serialized = ltt.serialize()
+    val hashCodeRef = serialized.hash
     val strRef = serialized.ref
     val strDBs = serialized.databases
 

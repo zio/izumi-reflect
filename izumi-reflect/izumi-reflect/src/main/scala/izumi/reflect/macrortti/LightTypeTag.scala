@@ -58,9 +58,10 @@ abstract class LightTypeTag private[reflect] (
   def binaryFormatVersion: Int
 
   def serialize(): LightTypeTag.Serialized = {
+    val hashCodeRef = this.hashCode()
     val strRef = PickleImpl.serializeIntoString(this.ref, LightTypeTag.lttRefSerializer)
     val strDBs = PickleImpl.serializeIntoString(SubtypeDBs.make(this.basesdb, this.idb), LightTypeTag.subtypeDBsSerializer)
-    LightTypeTag.Serialized(strRef, strDBs)
+    LightTypeTag.Serialized(hashCodeRef, strRef, strDBs, LightTypeTag.currentBinaryFormatVersion)
   }
 
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
@@ -233,7 +234,7 @@ abstract class LightTypeTag private[reflect] (
 object LightTypeTag {
   final val currentBinaryFormatVersion = 30
 
-  case class Serialized(ref: String, databases: String)
+  case class Serialized(hash: Int, ref: String, databases: String, version: Int)
 
   @inline def apply(ref0: LightTypeTagRef, bases: => Map[AbstractReference, Set[AbstractReference]], db: => Map[NameReference, Set[NameReference]]): LightTypeTag = {
     new UnparsedLightTypeTag(ref0, () => bases, () => db)
@@ -285,6 +286,10 @@ object LightTypeTag {
       LightTypeTag.mergeIDBs(Map.empty[NameReference, Set[NameReference]], union.iterator.map(_.idb))
 
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
+  }
+
+  def parse(serialized: Serialized): LightTypeTag = {
+    parse[LightTypeTag](serialized.hash, serialized.ref, serialized.databases, serialized.version)
   }
 
   def parse[T](hashCode: Int, refString: String, basesString: String, version: Int): LightTypeTag = {

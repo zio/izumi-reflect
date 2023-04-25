@@ -33,8 +33,8 @@ object Inspect {
   }
 
   def makeParsedLightTypeTagImpl(ltt: LightTypeTag)(using qctx: Quotes): Expr[LightTypeTag] = {
-    val hashCodeRef = ltt.hashCode()
     val serialized = ltt.serialize()
+    val hashCodeRef = serialized.hash
     val strRef = serialized.ref
     val strDBs = serialized.databases
 
