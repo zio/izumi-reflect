@@ -26,7 +26,7 @@ import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
-import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
+import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, UnpickleState}
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -56,6 +56,13 @@ abstract class LightTypeTag private[reflect] (
   private[reflect] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
 
   def binaryFormatVersion: Int
+
+  def serialize(): LightTypeTag.Serialized = {
+    val hashCodeRef = this.hashCode()
+    val strRef = PickleImpl.serializeIntoString(this.ref, LightTypeTag.lttRefSerializer)
+    val strDBs = PickleImpl.serializeIntoString(SubtypeDBs.make(this.basesdb, this.idb), LightTypeTag.subtypeDBsSerializer)
+    LightTypeTag.Serialized(hashCodeRef, strRef, strDBs, LightTypeTag.currentBinaryFormatVersion)
+  }
 
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
     new LightTypeTagInheritance(this, maybeParent).isChild()
@@ -227,6 +234,8 @@ abstract class LightTypeTag private[reflect] (
 object LightTypeTag {
   final val currentBinaryFormatVersion = 30
 
+  case class Serialized(hash: Int, ref: String, databases: String, version: Int)
+
   @inline def apply(ref0: LightTypeTagRef, bases: => Map[AbstractReference, Set[AbstractReference]], db: => Map[NameReference, Set[NameReference]]): LightTypeTag = {
     new UnparsedLightTypeTag(ref0, () => bases, () => db)
   }
@@ -277,6 +286,10 @@ object LightTypeTag {
       LightTypeTag.mergeIDBs(Map.empty[NameReference, Set[NameReference]], union.iterator.map(_.idb))
 
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
+  }
+
+  def parse(serialized: Serialized): LightTypeTag = {
+    parse[LightTypeTag](serialized.hash, serialized.ref, serialized.databases, serialized.version)
   }
 
   def parse[T](hashCode: Int, refString: String, basesString: String, version: Int): LightTypeTag = {

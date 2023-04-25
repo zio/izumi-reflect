@@ -33,19 +33,20 @@ object Inspect {
   }
 
   def makeParsedLightTypeTagImpl(ltt: LightTypeTag)(using qctx: Quotes): Expr[LightTypeTag] = {
-    val hashCodeRef = ltt.hashCode()
-    val strRef = PickleImpl.serializeIntoString(ltt.ref, LightTypeTag.lttRefSerializer)
-    val strDbs = PickleImpl.serializeIntoString(SubtypeDBs.make(ltt.basesdb, ltt.idb), LightTypeTag.subtypeDBsSerializer)
+    val serialized = ltt.serialize()
+    val hashCodeRef = serialized.hash
+    val strRef = serialized.ref
+    val strDBs = serialized.databases
 
     InspectorBase.ifDebug {
       def string2hex(str: String): String = str.toList.map(_.toInt.toHexString).mkString
 
       println(s"${ltt.ref} => ${strRef.size} bytes, ${string2hex(strRef)}")
-      println(s"${SubtypeDBs.make(ltt.basesdb, ltt.idb)} => ${strDbs.size} bytes, ${string2hex(strDbs)}")
-      println(strDbs)
+      println(s"${SubtypeDBs.make(ltt.basesdb, ltt.idb)} => ${strDBs.size} bytes, ${string2hex(strDBs)}")
+      println(strDBs)
     }
 
-    '{ LightTypeTag.parse(${ Expr(hashCodeRef) }, ${ Expr(strRef) }, ${ Expr(strDbs) }, ${ Expr(LightTypeTag.currentBinaryFormatVersion) }) }
+    '{ LightTypeTag.parse(${ Expr(hashCodeRef) }, ${ Expr(strRef) }, ${ Expr(strDBs) }, ${ Expr(LightTypeTag.currentBinaryFormatVersion) }) }
   }
 
 }
