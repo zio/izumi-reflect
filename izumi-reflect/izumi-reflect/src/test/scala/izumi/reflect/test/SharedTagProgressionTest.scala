@@ -4,7 +4,6 @@ import izumi.reflect.macrortti._
 import izumi.reflect.test.TestModel._
 import izumi.reflect._
 import izumi.reflect.test.PlatformSpecific.fromRuntime
-import izumi.reflect.test.TestModel.x.SrcContextProcessor
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -26,22 +25,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "progression test: Scala 2, reported in https://github.com/zio/izumi-reflect/issues/189, parameterized type alias with intersection produces incorrect output" in {
-      def elementTag[F[_]: TagK]: Tag[SrcContextProcessor[F]] = Tag[TestModel.x.SrcContextProcessor[F]]
-      assert(elementTag[CIO].tag == Tag[TestModel.x.SrcContextProcessor[CIO]].tag)
-
-      doesntWorkYetOnScala2 {
-        type K[F[_]] = Set[TestModel.x.SrcContextProcessor[F]]
-        assert(TagT[K].tag.combine(TagK[CIO].tag) == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
-
-        def aliasedTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[K[F]]
-        assert(aliasedTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
-
-        def directTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[Set[TestModel.x.SrcContextProcessor[F]]]
-        assert(directTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
-      }
-    }
-
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda on Scala 2" in {
       val t = Try(intercept[TestFailedException] {
         assertCompiles(
@@ -59,8 +42,8 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       succeedsOnScala2ButShouldnt {
         assert(t.isSuccess)
         assert(
-          t.get.message.get.contains("could not find implicit value") ||
-          t.get.message.get.contains("diverging implicit") /*2.11*/
+          t.get.getMessage.contains("could not find implicit value") ||
+          t.get.getMessage.contains("diverging implicit") /*2.11*/
         )
       }
     }
@@ -77,10 +60,10 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         )
       }
       assert(
-        t.message.get.contains("could not find implicit value") ||
-        t.message.get.contains("diverging implicit") || /*2.11*/
-        t.message.get.contains("no implicit argument of type") || /*Dotty*/
-        t.message.get.contains("Cannot find implicit Tag") /*Dotty 3.1.3+*/
+        t.getMessage.contains("could not find implicit value") ||
+        t.getMessage.contains("diverging implicit") || /*2.11*/
+        t.getMessage.contains("no implicit argument of type") || /*Dotty*/
+        t.getMessage.contains("Cannot find implicit Tag") /*Dotty 3.1.3+*/
       )
     }
 

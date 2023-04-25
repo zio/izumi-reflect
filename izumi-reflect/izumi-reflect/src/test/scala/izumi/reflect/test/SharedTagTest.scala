@@ -6,13 +6,13 @@ import izumi.reflect.test.ID._
 import izumi.reflect.test.TestModel._
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import izumi.reflect._
-import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam}
+import izumi.reflect.test.DiscoveryModel.{DiscoverableService, DiscoverableServiceImpl, DiscoveryNodeProvider, GetDiscoveryNode, NodeIdImpl}
+import izumi.reflect.test.TestModel.x.SrcContextProcessor
 import org.scalatest.Assertions
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.annotation.StaticAnnotation
-import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.util.Try
 
@@ -276,10 +276,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       val left = tag.tag
       val right = Tag[H1].tag
-
-      println(TagT[ApplePaymentProvider].tag.debug())
-      println(left.debug())
-      println(right.debug())
 
       assertChild(left, right)
     }
@@ -975,6 +971,33 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       assertDebugSame(t1, t2)
       assertDebugSame(t1, t3)
+    }
+
+    "support injecting runtime tags in place of type projections from type parameters / match types on type parameters" in {
+      def tag[TC <: DiscoverableService](implicit tag: Tag[GetDiscoveryNode[TC]]): Tag[DiscoveryNodeProvider[GetDiscoveryNode[TC]]] = {
+        Tag[DiscoveryNodeProvider[GetDiscoveryNode[TC]]]
+      }
+
+      val t1 = tag[DiscoverableServiceImpl].tag
+      val t2 = Tag[DiscoveryNodeProvider[NodeIdImpl]].tag
+
+      assertSameStrict(t1, t2)
+
+      assertDebugSame(t1, t2)
+    }
+
+    "regression test for: Scala 2, https://github.com/zio/izumi-reflect/issues/189, parameterized type alias with intersection produces incorrect output" in {
+      def elementTag[F[_]: TagK]: Tag[SrcContextProcessor[F]] = Tag[TestModel.x.SrcContextProcessor[F]]
+      assert(elementTag[CIO].tag == Tag[TestModel.x.SrcContextProcessor[CIO]].tag)
+
+      type K[F[_]] = Set[TestModel.x.SrcContextProcessor[F]]
+      assert(TagT[K].tag.combine(TagK[CIO].tag) == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
+
+      def aliasedTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[K[F]]
+      assert(aliasedTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
+
+      def directTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[Set[TestModel.x.SrcContextProcessor[F]]]
+      assert(directTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
     }
 
   }

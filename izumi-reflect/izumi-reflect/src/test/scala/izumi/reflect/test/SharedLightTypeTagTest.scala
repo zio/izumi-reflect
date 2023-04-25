@@ -1,8 +1,7 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, Boundaries, FullReference, NameReference, SymName, TypeParam}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, FullReference, NameReference, TypeParam}
 import izumi.reflect.macrortti._
-import izumi.reflect.test.TestModel.W3
 
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
@@ -511,11 +510,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val alias = LTT[T3[Int, Boolean]]
       val direct = LTT[W1 with W4[Boolean] with W5[Int]]
 
-      println(debugCtor)
-      println(debugCombined)
-      println(alias.debug("alias"))
-      println(direct.debug("direct"))
-
       assert(!debugCtor.contains("<refinement>"))
       assert(!debugCtor.contains("<none>"))
       assert(!debugCtor.contains("- T"))
@@ -583,11 +577,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val t2 = `LTT[_]`[T2]
       val w3 = `LTT[_]`[W3]
       val w4 = `LTT[_]`[W4]
-
-      println(t1.debug("T1[_]"))
-      println(t2.debug("T2[_]"))
-      println(w3.debug("W3[_]"))
-      println(w4.debug("W4[_]"))
 
       assertChild(t1, w3)
       assertChild(t1, LTT[W1])

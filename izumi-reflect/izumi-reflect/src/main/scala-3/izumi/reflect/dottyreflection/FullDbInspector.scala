@@ -86,7 +86,8 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           processSymbol(typeRef, selfRef)
 
         case paramRef: ParamRef =>
-          processSymbol(paramRef, selfRef)
+          // do not process type parameters for bases db
+          Nil
 
         case termRef: TermRef =>
           extractBase(termRef, selfRef, false)

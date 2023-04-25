@@ -19,9 +19,10 @@
 package izumi.reflect.test
 
 import izumi.reflect.ReflectionUtil
+import izumi.reflect.test.DiscoveryModel.{DiscoverableService, DiscoverableServiceImpl, DiscoveryNodeProvider, GetDiscoveryNode}
 import org.scalatest.wordspec.AnyWordSpec
 
-class LightTypeTagTestJvm extends AnyWordSpec {
+class AllPartsStrongTestScala2Jvm extends AnyWordSpec {
 
   type FP1[+T] = List[T]
   type Ap1[+F[+_], +T] = F[T]
@@ -53,7 +54,6 @@ class LightTypeTagTestJvm extends AnyWordSpec {
       .asInstanceOf[scala.reflect.runtime.universe.RefinedTypeApi].decl(scala.reflect.runtime.universe.TypeName("l"))
       .asType.typeSignature
       .typeConstructor
-    println(tpe)
     val res1 = ReflectionUtil.allPartsStrong(tpe)
     assert(res1)
   }
@@ -61,6 +61,17 @@ class LightTypeTagTestJvm extends AnyWordSpec {
   "allPartsStrong for x.F[x.Id] typelambda" in {
     val res1 = ReflectionUtil.allPartsStrong { object x { type F[_[_]]; type Id[A] = A }; scala.reflect.runtime.universe.weakTypeOf[x.F[x.Id]] }
     assert(res1)
+  }
+
+  "allPartsStrong for TC#DiscoveryNode type projection" in {
+    def test1[TC <: DiscoverableService]: Boolean = {
+      ReflectionUtil.allPartsStrong(scala.reflect.runtime.universe.weakTypeOf[DiscoveryNodeProvider[GetDiscoveryNode[TC]]])
+    }
+    def test2[TC <: DiscoverableService]: Boolean = {
+      ReflectionUtil.allPartsStrong(scala.reflect.runtime.universe.weakTypeOf[DiscoveryNodeProvider[TC#DiscoveryNode]])
+    }
+    assert(!test1[DiscoverableServiceImpl])
+    assert(!test2[DiscoverableServiceImpl])
   }
 
 }
