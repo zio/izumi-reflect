@@ -26,7 +26,7 @@ import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.thirdparty.internal.boopickle.NoMacro.Pickler
-import izumi.reflect.thirdparty.internal.boopickle.UnpickleState
+import izumi.reflect.thirdparty.internal.boopickle.{PickleImpl, UnpickleState}
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -56,6 +56,12 @@ abstract class LightTypeTag private[reflect] (
   private[reflect] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
 
   def binaryFormatVersion: Int
+
+  def serialize(): LightTypeTag.Serialized = {
+    val strRef = PickleImpl.serializeIntoString(this.ref, LightTypeTag.lttRefSerializer)
+    val strDBs = PickleImpl.serializeIntoString(SubtypeDBs.make(this.basesdb, this.idb), LightTypeTag.subtypeDBsSerializer)
+    LightTypeTag.Serialized(strRef, strDBs)
+  }
 
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
     new LightTypeTagInheritance(this, maybeParent).isChild()
@@ -226,6 +232,8 @@ abstract class LightTypeTag private[reflect] (
 
 object LightTypeTag {
   final val currentBinaryFormatVersion = 30
+
+  case class Serialized(ref: String, databases: String)
 
   @inline def apply(ref0: LightTypeTagRef, bases: => Map[AbstractReference, Set[AbstractReference]], db: => Map[NameReference, Set[NameReference]]): LightTypeTag = {
     new UnparsedLightTypeTag(ref0, () => bases, () => db)
