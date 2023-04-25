@@ -20,6 +20,7 @@ package izumi.reflect.test
 
 import izumi.reflect._
 import izumi.reflect.macrortti._
+import org.scalatest.exceptions.TestFailedException
 
 class TagTest extends SharedTagTest {
 
@@ -65,6 +66,37 @@ class TagTest extends SharedTagTest {
     "can find HKTag when obscured by type lambda (Scala 2 HKTag Syntax)" in {
       assertCompiles("HKTag.hktagFromTagMacro[{ type Arg[C] = Option[C] }]")
       assertCompiles("HKTag.hktagFromTagMacro[({ type l[F[_]] = { type Arg[C] = F[C] } })#l[Option]]")
+    }
+
+    "we no longer accidentally materialize tags for type parameters that are prefixes of type projections (Scala 2 specific, generic type projection)" in {
+      class Path {
+        type Child
+      }
+      val path = new Path
+
+      // A has no tag and the definition of `getTag` should not compile at all. It's a bug that it compiles
+      val t = intercept[TestFailedException](
+        assertCompiles(
+          """
+          def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
+          """
+        )
+      )
+      assert(
+        t.getMessage.contains("could not find implicit value") ||
+        t.getMessage.contains("no implicit argument of type") /*Dotty*/
+      )
+
+      def getTag[A <: Path](implicit t: Tag[A#Child]): Tag[A#Child] = Tag[A#Child]
+
+      val directChildTag = Tag[Path#Child].tag // Path::Child
+      val indirectChildTag = getTag[path.type].tag // A|<Nothing..Path>::Child
+
+      assertDifferent(indirectChildTag, directChildTag)
+      assertNotChild(directChildTag, indirectChildTag)
+      assertNotChild(indirectChildTag, directChildTag)
+
+      assertRepr(indirectChildTag, "path::Child")
     }
 
   }

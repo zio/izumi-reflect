@@ -45,43 +45,42 @@ private[reflect] object ReflectionUtil {
   }
 
   def allPartsStrong(tpe: Universe#Type): Boolean = {
-    val selfStrong = isSelfStrong(tpe)
-    def prefixStrong = {
-      tpe match {
-        case t: Universe#TypeRefApi =>
-          allPartsStrong(t.pre.dealias)
-        case _ =>
-          true
-      }
-    }
-    val dealiased = tpe.dealias
-    def typeCtorStrong = {
-      val resType = dealiased.finalResultType
-      val ctor = resType.typeConstructor
-      (resType == dealiased) || (ctor == resType) || (ctor == tpe) ||
-      tpe.typeParams.contains(ctor.typeSymbol) || allPartsStrong(ctor)
-    }
-    def argsStrong = {
-      dealiased.finalResultType.typeArgs.forall {
-        arg =>
-          tpe.typeParams.contains(arg.typeSymbol) ||
-          allPartsStrong(arg)
-      }
-    }
-    def intersectionStructStrong = {
-      tpe match {
-        case t: Universe#RefinedTypeApi =>
-          t.parents.forall(allPartsStrong) &&
-          t.decls.toSeq.forall((s: Universe#Symbol) => s.isTerm || allPartsStrong(s.asType.typeSignature.dealias))
-        case _ =>
-          true
-      }
-    }
-
-    selfStrong && prefixStrong && typeCtorStrong && argsStrong && intersectionStructStrong
+    allPartsStrong(Set.empty, tpe)
   }
 
-  def isSelfStrong(tpe: Universe#Type): Boolean = {
+  def allPartsStrong(outerTypeParams: Set[Universe#Symbol], tpeRaw: Universe#Type): Boolean = {
+    val dealiased = tpeRaw.dealias
+    val selfStrong = isSelfStrong(outerTypeParams, dealiased) || outerTypeParams.contains(dealiased.typeSymbol)
+
+    dealiased match {
+      case t: Universe#RefinedTypeApi =>
+        t.parents.forall(allPartsStrong(outerTypeParams, _)) &&
+        t.decls.toSeq.forall((s: Universe#Symbol) => s.isTerm || allPartsStrong(outerTypeParams, s.asType.typeSignature.dealias))
+      case _ =>
+        val resType = dealiased.finalResultType
+        if (dealiased.takesTypeArgs && !dealiased.typeParams.forall(outerTypeParams.contains)) {
+          allPartsStrong(outerTypeParams ++ dealiased.typeParams, resType)
+        } else {
+
+          def typeCtorStrong: Boolean = {
+            val ctor = resType.typeConstructor
+            (resType == dealiased) || (ctor == dealiased) || (ctor == tpeRaw) ||
+            outerTypeParams.contains(ctor.typeSymbol) || allPartsStrong(outerTypeParams, ctor)
+          }
+
+          def argsStrong: Boolean = {
+            resType.typeArgs.forall {
+              arg =>
+                outerTypeParams.contains(arg.typeSymbol) || allPartsStrong(outerTypeParams, arg)
+            }
+          }
+
+          selfStrong && /*prefixStrong &&*/ typeCtorStrong && argsStrong
+        }
+    }
+  }
+
+  def isSelfStrong(outerTypeParams: Set[Universe#Symbol], tpe: Universe#Type): Boolean = {
     // FIXME: strengthening check to capture `IntersectionBlockingIO` test case causes StackOverflow during implicit search
 //    def intersectionMembersStrong = {
 //      tpe match {
@@ -91,15 +90,24 @@ private[reflect] object ReflectionUtil {
 //      }
 //    }
 
-    !(tpe.typeSymbol.isParameter || (
+    def prefixStrong: Boolean = {
+      tpe match {
+        case t: Universe#TypeRefApi =>
+          allPartsStrong(outerTypeParams, t.pre.dealias)
+        case _ =>
+          true
+      }
+    }
+
+    (prefixStrong && !(tpe.typeSymbol.isParameter || (
       // we regard abstract types like T in trait X { type T; Tag[this.T] } - when we are _inside_ the definition template
       // as 'type parameters' too. So that you could define `implicit def tagForT: Tag[this.T]` and the tag would be resolved
       // to this implicit correctly, instead of generating a useless `X::this.type::T` tag.
       tpe.isInstanceOf[Universe#TypeRefApi] &&
       tpe.asInstanceOf[Universe#TypeRefApi].pre.isInstanceOf[Universe#ThisTypeApi] &&
       tpe.typeSymbol.isAbstract && !tpe.typeSymbol.isClass && isNotDealiasedFurther(tpe)
-    )) /*&& intersectionMembersStrong*/ ||
-    tpe.typeParams.exists {
+    ))) /*&& intersectionMembersStrong*/ ||
+    tpe.typeParams.exists { // is identity
       t =>
         t == tpe.typeSymbol ||
         t.typeSignature == tpe.typeSymbol.typeSignature ||

@@ -282,7 +282,7 @@ class TagMacro(val c: blackbox.Context) {
           // skip resolution for types in methods/vals (that would need a new runtime constructor, `methodTag`, like `refinedTag` for the case & dealing with method type parameters may be non-trivial)
           // see: "progression test: can't handle parameters in defs/vals in structural types"
           symbol.isTerm ||
-          ReflectionUtil.isSelfStrong(symbol.info)
+          ReflectionUtil.isSelfStrong(Set.empty, symbol.info)
       }
 
     val strongDeclsTpe = internal.refinedType(intersection, originalRefinement.typeSymbol.owner, internal.newScopeWith(strongDecls.toSeq: _*))
@@ -354,7 +354,7 @@ class TagMacro(val c: blackbox.Context) {
 
   @inline
   private[this] final def getCtorKindIfCtorIsTypeParameter(tpe: Type): Option[Kind] = {
-    if (!ReflectionUtil.isSelfStrong(tpe)) Some(kindOf(tpe))
+    if (!ReflectionUtil.isSelfStrong(Set.empty, tpe)) Some(kindOf(tpe))
     else None
   }
 

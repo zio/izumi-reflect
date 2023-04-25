@@ -91,7 +91,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
 
     val lttRef = makeRef(tpe)
-//    println(s"$tpe0 => $tpe => $lttRef")
 
     val allReferenceComponents = allTypeReferences(tpe)
 
@@ -243,14 +242,17 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       IzAssert(
         assertion = {
-          if (componentsOfPolyTypeResultType.maybeUnbrokenType.nonEmpty) {
-            componentsOfPolyTypeResultType.intersectionComponents.exists(_.etaExpand.typeParams.nonEmpty)
-          } else true
+          if (componentsOfPolyTypeResultType.maybeUnbrokenType.isEmpty) {
+            !componentsOfPolyTypeResultType.intersectionComponents.exists(_.takesTypeArgs)
+          } else {
+            true
+          }
         },
         clue = {
           s"""Unexpected intersection contains a PolyType:
              |tpeRaw0 = $tpeRaw0
              |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
+             |takesTypeArgs = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.takesTypeArgs).niceList(prefix = "*")}
              |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
              |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
              |""".stripMargin
@@ -260,7 +262,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       componentsOfPolyTypeResultType.intersectionComponents.toSeq.flatMap {
         component =>
           val componentAsPolyType = component.etaExpand
-          val tparams = component.etaExpand.typeParams
+          val tparams = componentAsPolyType.typeParams
 
           if (tparams.isEmpty) {
             Seq.empty
