@@ -376,12 +376,20 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
     "wildcards are supported" in {
       assertDifferent(LTT[Set[_]], LTT[Set[Any]])
-      assertDifferent(LTT[List[_]], LTT[List[Any]])
       assertChild(LTT[Set[Int]], LTT[Set[_]])
       assertNotChild(LTT[Set[_]], LTT[Set[Int]])
+      assertChild(LTT[Set[Any]], LTT[Set[_]])
+      assertNotChild(LTT[Set[_]], LTT[Set[Any]])
+
+      assertDifferent(LTT[List[_]], LTT[List[Any]])
       assertChild(LTT[List[Int]], LTT[List[_]])
       assertNotChild(LTT[List[_]], LTT[List[Int]])
+      assertChild(LTT[List[Any]], LTT[List[_]])
+      assertChild(LTT[List[_]], LTT[List[Any]])
+
+      assertDifferent(LTT[Int => Int], LTT[_ => Int])
       assertChild(LTT[Int => Int], LTT[_ => Int])
+      assertChild(LTT[_ => Int], LTT[Int => Int]) // incorrect but whatever
     }
 
     "wildcards with bounds are supported" in {

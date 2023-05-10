@@ -132,7 +132,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         next().inspectSymbol(r.typeSymbol, Some(r), Some(r))
 
       case tb: TypeBounds =>
-        inspectBounds(outerTypeRef, tb, isParamWildcard = false)
+        inspectBounds(outerTypeRef, tb)
 
       case constant: ConstantType =>
         makeNameReferenceFromType(constant)
@@ -202,19 +202,19 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     LightTypeTagRef.Refinement(ohOh, refinementDecls.toSet)
   }
 
-  private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds, isParamWildcard: Boolean): AbstractReference = {
-    log(s"inspectBounds: found TypeBounds $tb outer=$outerTypeRef isParamWildcard=$isParamWildcard")
+  private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds): AbstractReference = {
+    log(s"inspectBounds: found TypeBounds $tb outer=$outerTypeRef")
     val res = inspectBoundsImpl(tb) match {
       case Left(hi) =>
         hi
       case Right(boundaries) =>
-        if (isParamWildcard) {
+        if (outerTypeRef.isEmpty) {
           // Boundaries in parameters always stand for wildcards even though Scala3 eliminates wildcards
           WildcardReference(boundaries)
         } else {
           // Boundaries which are not parameters are named types (e.g. type members) and are NOT wildcards
           // if hi and low boundaries are defined and distinct, type is not reducible to one of them
-          val typeRepr = outerTypeRef.getOrElse(tb)
+          val typeRepr = outerTypeRef.get
           val symref = makeNameReferenceFromType(typeRepr).copy(boundaries = boundaries)
           symref
         }
@@ -274,7 +274,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   private def inspectTypeParam(tpe: TypeRepr, variance: Variance): TypeParam = {
     tpe match {
       case t: TypeBounds => // wildcard
-        TypeParam(inspectBounds(outerTypeRef = None, tb = t, isParamWildcard = true), variance)
+        TypeParam(inspectBounds(outerTypeRef = None, tb = t), variance)
       case t: TypeRepr =>
         TypeParam(inspectTypeRepr(t), variance)
     }

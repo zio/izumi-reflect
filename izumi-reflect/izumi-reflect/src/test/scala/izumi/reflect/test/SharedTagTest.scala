@@ -13,6 +13,7 @@ import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.annotation.StaticAnnotation
+import scala.collection.immutable.Set
 import scala.collection.mutable
 import scala.util.Try
 
@@ -998,6 +999,18 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       def directTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[Set[TestModel.x.SrcContextProcessor[F]]]
       assert(directTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
+    }
+
+    "combining with wildcards is supported" in {
+      def tag[F[_]: TagK]: Tag[OptionT[F, _]] = Tag[OptionT[F, _]]
+
+      val t1 = tag[Set]
+      val t2 = tag[List]
+      val t3 = tag[* => Int]
+
+      assertSameStrict(t1.tag, Tag[OptionT[Set, _]].tag)
+      assertSameStrict(t2.tag, Tag[OptionT[List, _]].tag)
+      assertSameStrict(t3.tag, Tag[OptionT[* => Int, _]].tag)
     }
 
   }
