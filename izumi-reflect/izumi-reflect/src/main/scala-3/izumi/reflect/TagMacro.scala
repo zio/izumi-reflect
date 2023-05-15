@@ -128,7 +128,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
                      |""".stripMargin)
 
               val argTagsExceptCtor = {
-                val nonParamArgsDealiased = distinctNonParamArgsTypes.map(_.dealias.simplified)
+                val nonParamArgsDealiased = distinctNonParamArgsTypes.map(ReflectionUtil.dealiasSimplifiedFull(_))
                 log(s"HK COMPLEX Now summoning tags for args=$nonParamArgsDealiased outerLambdaParams=$outerLambdaParamArgsTypeParamRefs")
                 Expr.ofList(
                   nonParamArgsDealiased.map(t => '{ Some(${ summonLTTAndFastTrackIfNotTypeParam(t) }) }) ++ outerLambdaParamArgsTypeParamRefs.map(_ => '{ None })

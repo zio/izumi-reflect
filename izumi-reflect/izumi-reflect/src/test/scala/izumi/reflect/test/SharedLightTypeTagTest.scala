@@ -680,15 +680,20 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!t2.debug().contains("&"))
     }
 
-    "support equal-bounded types" in {
+    "support equal-bounded types as paradoxical (before 2.3.0 and since 2.3.6 NOT equal to their underlying)" in {
       object x {
         type X >: String <: String
       }
       val tag = LTT[String]
       val tag1 = LTT[x.X]
 
-      assertSameRef(tag, tag1)
-      assertSameStrict(tag, tag1)
+      // equal bounds create a paradox where s <:< t && t <:< s but not s == t, because refs are not the same.
+      // but this is also technically true in Scala. equal bounded abstract types are not identical - have their own
+      // implicit scope, etc. And because in practical usage it's useful to permit these abstract types we're fine with
+      // representing them despite them breaking our model.
+      assertChild(tag, tag1)
+      assertChild(tag1, tag)
+      assertDifferent(tag1, tag) // paradox and bad, but also an inevitable result of using "optimistic equality" with binary strings
     }
 
     "support structural subtype checks" in {

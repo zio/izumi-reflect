@@ -51,17 +51,19 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    val tpe = tpe0.dealias.simplified
+    val tpe = tpe0._dealiasSimplifiedFull
 
     if (context.flatMap(_.params.map(_.tpe)).toSet.contains(tpe0)) {
       assert(tpe == tpe0)
       assert(tpe match {
-        case p: ParamRef =>
+        case _: ParamRef =>
           true
         case _ =>
           false
       })
     }
+
+//    log(s"inspectTypeRepr tpe=$tpe outerTypeRef=$outerTypeRef")
 
     tpe match {
       case a: AnnotatedType =>
@@ -204,22 +206,25 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
   private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds): AbstractReference = {
     log(s"inspectBounds: found TypeBounds $tb outer=$outerTypeRef")
-    val res = inspectBoundsImpl(tb) match {
-      case Left(hi) =>
-        hi
-      case Right(boundaries) =>
-        if (outerTypeRef.isEmpty) {
-          // Boundaries in parameters always stand for wildcards even though Scala3 eliminates wildcards
-          WildcardReference(boundaries)
-        } else {
+    val boundaries = inspectBoundsImpl(tb)
+    if (outerTypeRef.isEmpty) {
+      // Boundaries in parameters always stand for wildcards even though Scala3 eliminates wildcards
+      WildcardReference(boundaries)
+    } else {
+      // Type projections like A#S2 don't get dealiased with .dealias for some reason, so we dereference them manually here
+      val outerTpe = outerTypeRef.get
+      boundaries match {
+        case Boundaries.Defined(bottom, top) if outerTpe.typeSymbol.isAliasType && top == bottom =>
+          // type projection, return underlying
+          top
+        case _ =>
+          // abstract type, return TpeName|LowerBound..UpperBound
           // Boundaries which are not parameters are named types (e.g. type members) and are NOT wildcards
-          // if hi and low boundaries are defined and distinct, type is not reducible to one of them
-          val typeRepr = outerTypeRef.get
-          val symref = makeNameReferenceFromType(typeRepr).copy(boundaries = boundaries)
-          symref
-        }
+          // if hi and low boundaries are defined <strike>and distinct</strike>, type is not reducible to one of them
+          val nameRef = makeNameReferenceFromType(outerTypeRef.get).copy(boundaries = boundaries)
+          invertTypeMemberWithTypeLambdaBounds(nameRef)
+      }
     }
-    invertTypeMemberWithTypeLambdaBounds(res)
   }
 
   private def invertTypeMemberWithTypeLambdaBounds(abstractReference: AbstractReference): AbstractReference = abstractReference match {
@@ -227,22 +232,19 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       // We throw away both upper and lower boundaries
       // Upper boundaries we'll recover later in fulldb and inheritancedb
       // But lower boundaries we don't recover
+      log(s"invertTypeMemberWithTypeLambdaBounds: found symName=$symName, input=$input")
       LightTypeTagRef.Lambda(input, FullReference(symName, input.map(p => TypeParam(NameReference(p), Variance.Invariant)), prefix))
-    case other => other
+    case other =>
+      other
   }
 
-  private def inspectBoundsImpl(tb: TypeBounds): Either[AbstractReference, Boundaries] = {
+  private def inspectBoundsImpl(tb: TypeBounds): Boundaries = {
     val hi = next().inspectTypeRepr(tb.hi)
     val low = next().inspectTypeRepr(tb.low)
-    if (hi == low) {
-      Left(hi)
+    if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
+      Boundaries.Empty
     } else {
-      val boundaries = if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
-        Boundaries.Empty
-      } else {
-        Boundaries.Defined(low, hi)
-      }
-      Right(boundaries)
+      Boundaries.Defined(low, hi)
     }
   }
 

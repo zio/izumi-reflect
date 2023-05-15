@@ -1,6 +1,6 @@
 package izumi.reflect.dottyreflection
 
-import scala.annotation.unused
+import scala.annotation.{tailrec, unused}
 import scala.collection.immutable.Queue
 import scala.quoted.Quotes
 
@@ -99,6 +99,8 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
         case _: NoSuchMethodException => None
       }
     }
+
+    protected def _dealiasSimplifiedFull: TypeRepr = ReflectionUtil.dealiasSimplifiedFull(using qctx)(typeRepr)
   }
 
   extension (qctx: Quotes) {
@@ -118,6 +120,16 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 }
 
 private[reflect] object ReflectionUtil {
+
+  @tailrec
+  private[reflect] def dealiasSimplifiedFull(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): qctx.reflect.TypeRepr = {
+    val res = typeRepr.dealias.simplified
+    if (res.asInstanceOf[AnyRef] eq typeRepr.asInstanceOf[AnyRef]) {
+      res
+    } else {
+      dealiasSimplifiedFull(res)
+    }
+  }
 
   private[reflect] inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
 

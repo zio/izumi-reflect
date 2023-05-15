@@ -29,7 +29,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
-        val tpef = i.dealias.simplified._resultType
+        val tpef = i._dealiasSimplifiedFull._resultType
         val targetRef = inspector.makeNameReferenceFromType(tpef)
 
         val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
@@ -49,7 +49,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     val inh = mutable.HashSet.empty[TypeRepr]
 
     def goExtractComponents(tpeRaw0: TypeRepr): Unit = {
-      val tpeRes = tpeRaw0.dealias.simplified._resultType
+      val tpeRes = tpeRaw0._dealiasSimplifiedFull._resultType
       val intersectionUnionMembers = breakRefinement(tpeRes)
 
       if (intersectionUnionMembers.sizeIs == 1) {
@@ -102,7 +102,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
           // move their upper bound into inheritance db, because they
           // will lose it after application. (Unlike proper type members)
           case TypeBounds(_, tl: TypeLambda) =>
-            List(tl.resType.dealias.simplified)
+            List(tl.resType._dealiasSimplifiedFull)
           case _ =>
             Nil
         }

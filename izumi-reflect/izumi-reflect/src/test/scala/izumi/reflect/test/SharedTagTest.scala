@@ -1013,6 +1013,18 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSameStrict(t3.tag, Tag[OptionT[* => Int, _]].tag)
     }
 
+    "form a correct type lambda for an equal-bounded abstract type" in {
+      def tag[F[_, _]: TagKK]: Tag[F[Int, String]] = Tag[F[Int, String]]
+
+      val t1 = tag[RoleDep.RoleDep]
+      val t2 = tag[RoleDep.RoleDeps]
+
+      assertSameStrict(t1.tag, Tag[RoleDep.RoleDep[Int, String]].tag)
+      assertDifferent(t1.tag, Tag[Any].tag)
+      assertSameStrict(t2.tag, Tag[RoleDep.RoleDeps[Int, String]].tag)
+      assertDifferent(t2.tag, Tag[Any].tag)
+    }
+
   }
 
 }

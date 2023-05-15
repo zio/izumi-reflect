@@ -482,18 +482,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           NameReference(lambdaParameter, boundaries, prefix)
 
         case None =>
-          val nameRef0 = makeNameReference(tpe, typeSymbol, boundaries, prefix)
-          // for `type X >: Any <: Any` generate just `type X = Any`
-          nameRef0.boundaries match {
-            case Boundaries.Defined(lo: AppliedNamedReference, hi: AppliedNamedReference) =>
-              if (lo == hi) {
-                hi
-              } else {
-                nameRef0
-              }
-            case _ =>
-              nameRef0
-          }
+          makeNameReference(tpe, typeSymbol, boundaries, prefix)
       }
 
       tpe.typeArgs match {
