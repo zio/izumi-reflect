@@ -280,9 +280,10 @@ class TagMacro(val c: blackbox.Context) {
       .partition {
         symbol =>
           // skip resolution for types in methods/vals (that would need a new runtime constructor, `methodTag`, like `refinedTag` for the case & dealing with method type parameters may be non-trivial)
+          // also skip resolution for "strong" type members
           // see: "progression test: can't handle parameters in defs/vals in structural types"
           symbol.isTerm ||
-          ReflectionUtil.isSelfStrong(Set.empty, symbol.info)
+          ReflectionUtil.allPartsStrong(Set.empty, symbol.info)
       }
 
     val strongDeclsTpe = internal.refinedType(intersection, originalRefinement.typeSymbol.owner, internal.newScopeWith(strongDecls.toSeq: _*))

@@ -36,19 +36,12 @@ object LightTypeTagInheritance {
   private[reflect] final val tpeObject = NameReference(SymTypeName(classOf[Object].getName))
 
   private final case class Ctx(
-    outerLambdaParams: List[SymName.LambdaParamName],
-    paramNames: Set[SymName.LambdaParamName],
-    outerDecls: Set[RefinementDecl.TypeMember], // refinement decls: { type T = x.type; val x: T }
-    declNames: Set[String],
     logger: TrivialLogger,
     self: LightTypeTagInheritance
   ) {
-    def next(): Ctx = Ctx(outerLambdaParams, paramNames, outerDecls, declNames, logger.sub(), self)
-    def next(newparams: List[SymName.LambdaParamName]): Ctx = Ctx(newparams, newparams.iterator.toSet, outerDecls, declNames, logger.sub(), self)
-    def next(newdecls: Set[RefinementDecl.TypeMember]): Ctx = Ctx(outerLambdaParams, paramNames, newdecls, newdecls.map(_.name), logger.sub(), self)
+    def next(): Ctx = Ctx(logger.sub(), self)
   }
-  // https://github.com/lampepfl/dotty/issues/14013 // private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
-  private[LightTypeTagInheritance] implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
+  private implicit final class CtxExt(private val ctx: Ctx) extends AnyVal {
     def isChild(selfT0: LightTypeTagRef, thatT0: LightTypeTagRef): Boolean = ctx.self.isChild(ctx.next())(selfT0, thatT0)
   }
 }
@@ -66,12 +59,12 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
                   |⚡️bases: ${LTTRenderables.Long.renderDb(basesdb)}
                   |⚡️inheritance: ${LTTRenderables.Long.renderDb(idb)}""".stripMargin)
 
-    isChild(Ctx(Nil, Set.empty, Set.empty, Set.empty, logger, this))(st, ot)
+    isChild(Ctx(logger, this))(st, ot)
   }
 
   private def isChild(ctx: Ctx)(selfT: LightTypeTagRef, thatT: LightTypeTagRef): Boolean = {
     import ctx._
-    logger.log(s"✴️ ️${selfT.repr} <:< ${thatT.repr}, context = ${ctx.outerLambdaParams}")
+    logger.log(s"✴️ ️${selfT.repr} <:< ${thatT.repr}, context = $ctx")
 
     val result = (selfT, thatT) match {
       case (s, t) if s == t =>
@@ -97,7 +90,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (s: AppliedNamedReference, t: WildcardReference) =>
         compareBounds(ctx)(s, t.boundaries)
       case (s: Lambda, t: WildcardReference) =>
-        isChild(ctx.next(s.input))(s.output, t)
+        isChild(ctx.next())(s.output, t)
       case (s: WildcardReference, t) =>
         s.boundaries match {
           case Boundaries.Defined(_, top) =>
@@ -118,7 +111,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
             any(
               oneOfUnparameterizedParentsIsInheritedFrom(ctx)(s.asName, t), // constructor inherits from rhs, where rhs is an unparameterized type
 //              outerLambdaParams.map(_.name).contains(t.ref.name), // lambda parameter may accept anything within bounds      // UNSOUND-LAMBDA-COMPARISON
-              t.ref.maybeName.exists(outerDecls.map(_.name).contains) // refinement type decl may accept anything within bounds
+//              t.ref.maybeName.exists(outerDecls.map(_.name).contains), // refinement type decl may accept anything within bounds,
+              isInBoundsOfAnEqualBoundedAbstractType(s, t) // equal-bounded abstract type
             )
           )
         )
@@ -134,7 +128,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
             oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t),
             oneOfUnparameterizedParentsIsInheritedFrom(ctx)(s, t),
             // outerLambdaParams.map(_.name).contains(t.ref.name), // lambda parameter may accept anything within bounds       // UNSOUND-LAMBDA-COMPARISON
-            t.ref.maybeName.exists(outerDecls.map(_.name).contains) // refinement decl may accept anything within bounds
+//            t.ref.maybeName.exists(outerDecls.map(_.name).contains), // refinement decl may accept anything within bounds
+            isInBoundsOfAnEqualBoundedAbstractType(s, t) // equal-bounded abstract type
           ),
           s.boundaries match {
             case Boundaries.Defined(_, sUp) =>
@@ -146,12 +141,12 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
       // lambdas
       case (s: AppliedNamedReference, t: Lambda) =>
-        isChild(ctx.next(t.input))(s, t.output)
+        isChild(ctx.next())(s, t.output)
       case (s: Lambda, t: AppliedNamedReference) =>
-        isChild(ctx.next(s.input))(s.output, t)
+        isChild(ctx.next())(s.output, t)
       case (s: Lambda, o: Lambda) =>
         (s.input.size == o.input.size
-        && isChild(ctx.next(s.normalizedParams.map(p => p.ref.asInstanceOf[SymName.LambdaParamName])))(s.normalizedOutput, o.normalizedOutput))
+        && isChild(ctx.next())(s.normalizedOutput, o.normalizedOutput))
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>
@@ -185,13 +180,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
       // refinements
       case (s: Refinement, t: Refinement) =>
-        (ctx.isChild(s.reference, t.reference)
-        && {
-          // FIXME not sure this does anything anymore, the tests we have do not stress this part
-          // FIXME remove Ctx.outerDecls if we can prove it's redundant now
-          val parentTypeMemberDecls = t.decls.collect { case tm: RefinementDecl.TypeMember => tm }
-          compareDecls(ctx.next(parentTypeMemberDecls))(s.decls, t.decls)
-        })
+        ctx.isChild(s.reference, t.reference) && compareDecls(ctx.next())(s.decls, t.decls)
       case (s: Refinement, t: LightTypeTagRef) =>
         ctx.isChild(s.reference, t)
       case (s: AbstractReference, t: Refinement) =>
@@ -292,7 +281,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
     ctx
       .logger.log(
-        s"⚠️ comparing parameterized references, ${self.repr} <:< ${that.repr}, context = ${ctx.outerLambdaParams}; sameArity = $sameArity, shapeOk = $parameterShapeCompatible"
+        s"⚠️ comparing parameterized references, ${self.repr} <:< ${that.repr}, context = $ctx; sameArity = $sameArity, shapeOk = $parameterShapeCompatible"
       )
 
     if (self.asName == that.asName) {
@@ -346,6 +335,13 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     ctx.logger.log(s"Looking up unparameterized parents of $child => ${unparameterizedParentsOf(child)}")
     val parents = unparameterizedParentsOf(child)
     parents.exists(ctx.isChild(_, parent))
+  }
+
+  private def isInBoundsOfAnEqualBoundedAbstractType(child: AbstractReference, parent: NameReference): Boolean = {
+    parent.boundaries match {
+      case Boundaries.Defined(bottom, top) if top == bottom && top == child => true
+      case _ => false
+    }
   }
 
   private def unparameterizedParentsOf(t: NameReference): mutable.HashSet[NameReference] = {

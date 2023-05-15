@@ -49,8 +49,8 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
-  protected def flattenRefinements(ref: Refinement): (Queue[(String, TypeRepr)], TypeRepr) = {
-    val refinementDecl = (ref.name, ref.info)
+  protected def flattenRefinements(ref: Refinement): (Queue[(Symbol, String, TypeRepr)], TypeRepr) = {
+    val refinementDecl = (ref.typeSymbol, ref.name, ref.info)
     ref.parent match {
       case innerRefinement: Refinement =>
         val (innerRefs, nonRefinementParent) = flattenRefinements(innerRefinement)

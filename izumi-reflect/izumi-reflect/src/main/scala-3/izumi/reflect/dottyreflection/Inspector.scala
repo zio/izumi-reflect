@@ -159,10 +159,10 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     val parentRef = next().inspectTypeRepr(nonRefinementParent)
 
     val refinementDecls = refinements.map {
-      case (name, ByNameType(tpe)) => // def x(): Int
+      case (_, name, ByNameType(tpe)) => // def x(): Int
         RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
 
-      case (name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
+      case (_, name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
         // FIXME as of version 2.3.0 RefinementDecl.Signature model is broken
         //   it doesn't support either multiple parameter lists or type parameters
         //   on methods, so this is a hacky to avoid fixing that for now.
@@ -183,19 +183,19 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         val outputRef = next().inspectTypeRepr(resType).asInstanceOf[AppliedReference]
         RefinementDecl.Signature(name, inputRefs, outputRef)
 
-      case (name, bounds: TypeBounds) => // type T = Int
+      case (_, name, bounds: TypeBounds) => // type T = Int
         val boundaries = next().inspectBoundsImpl(bounds)
-        val ref = boundaries match {
-          case Left(ref) =>
-            // concrete type member: type T = Int
-            ref
-          case Right(definedBoundaries) =>
+        val res = boundaries match {
+          case Boundaries.Defined(low, high) if high == low =>
+            // concrete type member: type T = Int (can't distinguish between equal-bounded type and alias inside refinements in dotty)
+            high
+          case definedBoundaries =>
             // abstract type member: type T >: Int <: AnyVal
             NameReference(SymName.SymTypeName(name), definedBoundaries, None)
         }
-        RefinementDecl.TypeMember(name, ref)
+        RefinementDecl.TypeMember(name, res)
 
-      case (name, tpe) => // val t: Int
+      case (_, name, tpe) => // val t: Int
         RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
     }
 

@@ -1013,6 +1013,17 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSameStrict(t3.tag, Tag[OptionT[* => Int, _]].tag)
     }
 
+    "other type members' bounds are not malformed when resolving parameters in structural types" in {
+      def t[X: Tag]: Tag[{ type G >: Int <: AnyVal; type T = X }] = Tag[{ type G >: Int <: AnyVal; type T = X }]
+
+      val t1 = t[Int].tag
+      val t2 = Tag[{ type G >: Int <: AnyVal; type T = Int }].tag
+      val t3 = Tag[{ type G >: Int <: AnyVal; type T = SubStrC }].tag
+
+      assertSame(t1, t2)
+      assertDifferent(t1, t3)
+    }
+
     "form a correct type lambda for an equal-bounded abstract type" in {
       def tag[F[_, _]: TagKK]: Tag[F[Int, String]] = Tag[F[Int, String]]
 

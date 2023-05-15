@@ -141,9 +141,9 @@ object Tag {
   /**
     * Create a Tag of a type formed from an `intersection` of types (A with B) with a structural refinement taken from `structType`
     *
-    * `structType` is assumed to be a weak type of the entire type, e.g.
+    * `structType` is assumed to be contain the structural refinements of the entire type, e.g.
     * {{{
-    *   Tag[A with B {def abc: Unit}] == refinedTag(classOf[Any], List(LTag[A].tag, LTag[B].tag), LTag.Weak[A with B { def abc: Unit }].tag, Map.empty)
+    *   Tag[A with B {def abc: Unit}] == refinedTag(classOf[Any], List(LTag[A].tag, LTag[B].tag), LTag.Weak[{ def abc: Unit }].tag, Map.empty)
     * }}}
     */
   def refinedTag[R <: AnyKind](

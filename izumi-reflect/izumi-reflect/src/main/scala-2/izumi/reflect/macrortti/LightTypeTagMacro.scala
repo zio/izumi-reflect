@@ -19,8 +19,6 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
 
 import scala.reflect.macros.blackbox

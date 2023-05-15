@@ -200,19 +200,27 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val t3 = LTT[{ type X >: Nothing <: Any }]
       val t4 = LTT[{ type X >: Any <: Any }]
       val t5 = LTT[{ type X = Any }]
+      val t6 = LTT[{ type X = Int }]
+      val t7 = LTT[{ type X <: AnyVal }]
 
       assertChildStrict(t1, t2)
       assertChildStrict(t1, t3)
+      assertNotChild(t3, t4)
       assertChildStrict(t4, t3)
       assertChildStrict(t5, t3)
       assertSameStrict(t3, LTT[{ type X }])
-      assertNotChild(t3, LTT[{ type X <: AnyVal }])
+      assertNotChild(t3, t7)
 
       assertNotChild(t3, t5)
       assertNotChild(t2, t5)
       assertNotChild(t3, t4)
       assertNotChild(t2, t4)
       assertNotChild(t1, t4)
+
+      assertChildStrict(t6, t3)
+      assertChildStrict(t6, t7)
+      assertNotChildStrict(t6, t4)
+      assertNotChildStrict(t6, t5)
     }
 
     "support refinement higher-kinded subtype checks" in {

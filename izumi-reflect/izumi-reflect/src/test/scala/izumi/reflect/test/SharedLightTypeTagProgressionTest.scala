@@ -1,6 +1,5 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTagRef.{AppliedNamedReference, AppliedReference}
 import izumi.reflect.macrortti._
 
 /**
@@ -91,9 +90,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
 
       doesntWorkYetOnDotty {
-        withDebugOutput {
-          assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
-        }
+//        withDebugOutput {
+        assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
+//        }
       }
     }
 
@@ -291,6 +290,15 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
         assertNotChild(LTT[Any], LTT[Object])
       }
       assertDifferent(LTT[Any], LTT[Object])
+    }
+
+    "progression test: can't distinguish between equal-bounded type and alias inside refinements in dotty" in {
+      val t4 = LTT[{ type X >: Any <: Any }]
+      val t5 = LTT[{ type X = Any }]
+
+      doesntWorkYetOnDotty {
+        assertDifferent(t4, t5)
+      }
     }
 
   }

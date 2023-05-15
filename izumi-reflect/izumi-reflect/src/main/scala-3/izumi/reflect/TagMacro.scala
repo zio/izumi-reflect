@@ -177,21 +177,29 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         val cls = closestClassOfExpr(parent)
         val parentLtt = summonLTTAndFastTrackIfNotTypeParam(parent)
 
-        val (typeMembers, termMembers) = members.partition {
-          case (_, tb: TypeBounds) => true
-          case _ => false
+        val (allTypeMembers, termMembers) = members.partitionMap {
+          case (s, n, tb: TypeBounds) if allPartsStrong(owners, tb) => Left(Left((n, tb)))
+          case (_, n, TypeBounds(lo, hi)) if lo == hi => Left(Right((n, hi)))
+          case (_, _, tb @ TypeBounds(lo, hi)) =>
+            report.errorAndAbort(s"TagMacro: resolving type parameters inside type bounds is not supported, got weak types in bounds=${tb.show}, in type=$typeRepr")
+          case x => Right(x)
         }
+        val (strongTypeBounds, weakTypeMembers) = allTypeMembers.partitionMap(identity)
         // FIXME: once we add resolution for method/val members too, not just type members
         //  this struct will no longer be 'weak'. In fact we'll want to add a new constructor
         //  instead of `refinedTag` that will be better suited to fully resolved struct tags
-        val termOnlyWeakStructLtt = {
+        val termAndStrongTpesOnlyWeakStructLtt = {
           val termOnlyRefinementTypeRepr = termMembers.foldRight(defn.AnyRefClass.typeRef: TypeRepr) {
-            case ((name, tpe), refinement) =>
-              Refinement.apply(parent = refinement, name = name, info = tpe)
+            case ((_, name, tpe), refinement) =>
+              Refinement(parent = refinement, name = name, info = tpe)
           }
-          Inspect.inspectAny(using termOnlyRefinementTypeRepr.asType, qctx)
+          val withStrongTpesRefinementTypeRepr = strongTypeBounds.foldRight(termOnlyRefinementTypeRepr) {
+            case ((name, tpe), refinement) =>
+              Refinement(parent = refinement, name = name, info = tpe)
+          }
+          Inspect.inspectAny(using withStrongTpesRefinementTypeRepr.asType, qctx)
         }
-        val resolvedTypeMemberLtts = typeMembers.map {
+        val resolvedTypeMemberLtts = weakTypeMembers.map {
           case (name, tpe) => '{ (${ Expr(name) }, ${ summonLTTAndFastTrackIfNotTypeParam(tpe) }) }
         }
         // NB: we're resolving LTTs anew for all type members here, instead of optimizing
@@ -203,7 +211,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
              |closestClass=$cls
              |""".stripMargin
         )
-        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ termOnlyWeakStructLtt }, Map(${ Varargs(resolvedTypeMemberLtts) }: _*)) }
+        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ termAndStrongTpesOnlyWeakStructLtt }, Map(${ Varargs(resolvedTypeMemberLtts) }: _*)) }
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
