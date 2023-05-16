@@ -51,17 +51,19 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
-    val tpe = tpe0.dealias.simplified
+    val tpe = tpe0._dealiasSimplifiedFull
 
     if (context.flatMap(_.params.map(_.tpe)).toSet.contains(tpe0)) {
       assert(tpe == tpe0)
       assert(tpe match {
-        case p: ParamRef =>
+        case _: ParamRef =>
           true
         case _ =>
           false
       })
     }
+
+//    log(s"inspectTypeRepr tpe=$tpe outerTypeRef=$outerTypeRef")
 
     tpe match {
       case a: AnnotatedType =>
@@ -132,7 +134,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         next().inspectSymbol(r.typeSymbol, Some(r), Some(r))
 
       case tb: TypeBounds =>
-        inspectBounds(outerTypeRef, tb, isParamWildcard = false)
+        inspectBounds(outerTypeRef, tb)
 
       case constant: ConstantType =>
         makeNameReferenceFromType(constant)
@@ -157,10 +159,10 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     val parentRef = next().inspectTypeRepr(nonRefinementParent)
 
     val refinementDecls = refinements.map {
-      case (name, ByNameType(tpe)) => // def x(): Int
+      case (_, name, ByNameType(tpe)) => // def x(): Int
         RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
 
-      case (name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
+      case (_, name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
         // FIXME as of version 2.3.0 RefinementDecl.Signature model is broken
         //   it doesn't support either multiple parameter lists or type parameters
         //   on methods, so this is a hacky to avoid fixing that for now.
@@ -181,19 +183,19 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         val outputRef = next().inspectTypeRepr(resType).asInstanceOf[AppliedReference]
         RefinementDecl.Signature(name, inputRefs, outputRef)
 
-      case (name, bounds: TypeBounds) => // type T = Int
+      case (_, name, bounds: TypeBounds) => // type T = Int
         val boundaries = next().inspectBoundsImpl(bounds)
-        val ref = boundaries match {
-          case Left(ref) =>
-            // concrete type member: type T = Int
-            ref
-          case Right(definedBoundaries) =>
+        val res = boundaries match {
+          case Boundaries.Defined(low, high) if high == low =>
+            // concrete type member: type T = Int (can't distinguish between equal-bounded type and alias inside refinements in dotty)
+            high
+          case definedBoundaries =>
             // abstract type member: type T >: Int <: AnyVal
             NameReference(SymName.SymTypeName(name), definedBoundaries, None)
         }
-        RefinementDecl.TypeMember(name, ref)
+        RefinementDecl.TypeMember(name, res)
 
-      case (name, tpe) => // val t: Int
+      case (_, name, tpe) => // val t: Int
         RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
     }
 
@@ -202,24 +204,27 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     LightTypeTagRef.Refinement(ohOh, refinementDecls.toSet)
   }
 
-  private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds, isParamWildcard: Boolean): AbstractReference = {
-    log(s"inspectBounds: found TypeBounds $tb outer=$outerTypeRef isParamWildcard=$isParamWildcard")
-    val res = inspectBoundsImpl(tb) match {
-      case Left(hi) =>
-        hi
-      case Right(boundaries) =>
-        if (isParamWildcard) {
-          // Boundaries in parameters always stand for wildcards even though Scala3 eliminates wildcards
-          WildcardReference(boundaries)
-        } else {
+  private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds): AbstractReference = {
+    log(s"inspectBounds: found TypeBounds $tb outer=$outerTypeRef")
+    val boundaries = inspectBoundsImpl(tb)
+    if (outerTypeRef.isEmpty) {
+      // Boundaries in parameters always stand for wildcards even though Scala3 eliminates wildcards
+      WildcardReference(boundaries)
+    } else {
+      // Type projections like A#S2 don't get dealiased with .dealias for some reason, so we dereference them manually here
+      val outerTpe = outerTypeRef.get
+      boundaries match {
+        case Boundaries.Defined(bottom, top) if outerTpe.typeSymbol.isAliasType && top == bottom =>
+          // type projection, return underlying
+          top
+        case _ =>
+          // abstract type, return TpeName|LowerBound..UpperBound
           // Boundaries which are not parameters are named types (e.g. type members) and are NOT wildcards
-          // if hi and low boundaries are defined and distinct, type is not reducible to one of them
-          val typeRepr = outerTypeRef.getOrElse(tb)
-          val symref = makeNameReferenceFromType(typeRepr).copy(boundaries = boundaries)
-          symref
-        }
+          // if hi and low boundaries are defined <strike>and distinct</strike>, type is not reducible to one of them
+          val nameRef = makeNameReferenceFromType(outerTypeRef.get).copy(boundaries = boundaries)
+          invertTypeMemberWithTypeLambdaBounds(nameRef)
+      }
     }
-    invertTypeMemberWithTypeLambdaBounds(res)
   }
 
   private def invertTypeMemberWithTypeLambdaBounds(abstractReference: AbstractReference): AbstractReference = abstractReference match {
@@ -227,22 +232,19 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       // We throw away both upper and lower boundaries
       // Upper boundaries we'll recover later in fulldb and inheritancedb
       // But lower boundaries we don't recover
+      log(s"invertTypeMemberWithTypeLambdaBounds: found symName=$symName, input=$input")
       LightTypeTagRef.Lambda(input, FullReference(symName, input.map(p => TypeParam(NameReference(p), Variance.Invariant)), prefix))
-    case other => other
+    case other =>
+      other
   }
 
-  private def inspectBoundsImpl(tb: TypeBounds): Either[AbstractReference, Boundaries] = {
+  private def inspectBoundsImpl(tb: TypeBounds): Boundaries = {
     val hi = next().inspectTypeRepr(tb.hi)
     val low = next().inspectTypeRepr(tb.low)
-    if (hi == low) {
-      Left(hi)
+    if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
+      Boundaries.Empty
     } else {
-      val boundaries = if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
-        Boundaries.Empty
-      } else {
-        Boundaries.Defined(low, hi)
-      }
-      Right(boundaries)
+      Boundaries.Defined(low, hi)
     }
   }
 
@@ -274,7 +276,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   private def inspectTypeParam(tpe: TypeRepr, variance: Variance): TypeParam = {
     tpe match {
       case t: TypeBounds => // wildcard
-        TypeParam(inspectBounds(outerTypeRef = None, tb = t, isParamWildcard = true), variance)
+        TypeParam(inspectBounds(outerTypeRef = None, tb = t), variance)
       case t: TypeRepr =>
         TypeParam(inspectTypeRepr(t), variance)
     }

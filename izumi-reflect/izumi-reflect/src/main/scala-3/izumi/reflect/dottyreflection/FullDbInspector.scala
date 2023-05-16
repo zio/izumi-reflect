@@ -35,7 +35,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     private val termination = mutable.HashSet.empty[TypeRepr]
 
     def inspectTypeReprToFullBases(tpe0: TypeRepr): List[(AbstractReference, AbstractReference)] = {
-      val tpe = tpe0.dealias.simplified
+      val tpe = tpe0._dealiasSimplifiedFull
       def selfRef: AbstractReference = i.inspectTypeRepr(tpe)
 
       tpe match {
@@ -196,7 +196,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case TypeBounds(_, tl0: TypeLambda) =>
           val selfRef = i.inspectTypeRepr(t)
           // include only upper bound: we discard the lower bound for abstract higher-kinded type members
-          val tl = tl0.dealias.simplified
+          val tl = tl0._dealiasSimplifiedFull
           val hiTypeLambda = i.inspectTypeRepr(tl)
 
           (selfRef, hiTypeLambda) :: replaceUpperBoundWithSelfInUpperBoundBases(selfRef, hiTypeLambda, tl)
@@ -205,7 +205,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         // (because it's already in the type bound and unlike for type lambda members, the type bound is not lost.
         case TypeBounds(_, hi0) =>
           val selfRef = i.inspectTypeRepr(t)
-          val hi = hi0.dealias.simplified
+          val hi = hi0._dealiasSimplifiedFull
           val upperBound = i.inspectTypeRepr(hi)
 
           replaceUpperBoundWithSelfInUpperBoundBases(selfRef, upperBound, hi)

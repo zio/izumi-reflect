@@ -13,6 +13,7 @@ import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.annotation.StaticAnnotation
+import scala.collection.immutable.Set
 import scala.collection.mutable
 import scala.util.Try
 
@@ -998,6 +999,41 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       def directTag[F[_]: TagK]: Tag[Set[SrcContextProcessor[F]]] = Tag[Set[TestModel.x.SrcContextProcessor[F]]]
       assert(directTag[CIO].tag == Tag[Set[TestModel.x.SrcContextProcessor[CIO]]].tag)
+    }
+
+    "combining with wildcards is supported" in {
+      def tag[F[_]: TagK]: Tag[OptionT[F, _ <: Int]] = Tag[OptionT[F, _ <: Int]]
+
+      val t1 = tag[Set]
+      val t2 = tag[List]
+      val t3 = tag[* => Int]
+
+      assertSameStrict(t1.tag, Tag[OptionT[Set, _ <: Int]].tag)
+      assertSameStrict(t2.tag, Tag[OptionT[List, _ <: Int]].tag)
+      assertSameStrict(t3.tag, Tag[OptionT[* => Int, _ <: Int]].tag)
+    }
+
+    "other type members' bounds are not malformed when resolving parameters in structural types" in {
+      def t[X: Tag]: Tag[{ type G >: Int <: AnyVal; type T = X }] = Tag[{ type G >: Int <: AnyVal; type T = X }]
+
+      val t1 = t[Int].tag
+      val t2 = Tag[{ type G >: Int <: AnyVal; type T = Int }].tag
+      val t3 = Tag[{ type G >: Int <: AnyVal; type T = SubStrC }].tag
+
+      assertSame(t1, t2)
+      assertDifferent(t1, t3)
+    }
+
+    "form a correct type lambda for an equal-bounded abstract type" in {
+      def tag[F[_, _]: TagKK]: Tag[F[Int, String]] = Tag[F[Int, String]]
+
+      val t1 = tag[RoleDep.RoleDep]
+      val t2 = tag[RoleDep.RoleDeps]
+
+      assertSameStrict(t1.tag, Tag[RoleDep.RoleDep[Int, String]].tag)
+      assertDifferent(t1.tag, Tag[Any].tag)
+      assertSameStrict(t2.tag, Tag[RoleDep.RoleDeps[Int, String]].tag)
+      assertDifferent(t2.tag, Tag[Any].tag)
     }
 
   }
