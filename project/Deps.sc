@@ -192,6 +192,8 @@ object Izumi {
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.izumi$reflect$macrortti$LightTypeTagImpl$$*")""".raw,
           // private types
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagInheritance.CtxExt")""".raw,
+          """ProblemFilters.exclude[MissingFieldProblem]("izumi.reflect.macrortti.LightTypeTagInheritance.CtxExt")""".raw,
+          """ProblemFilters.exclude[FinalClassProblem]("izumi.reflect.macrortti.LightTypeTagInheritance$CtxExt")""".raw,
           """ProblemFilters.exclude[MissingTypesProblem]       ("izumi.reflect.macrortti.LightTypeTagInheritance$Ctx*")""".raw,
           """ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagInheritance#Ctx*")""".raw,
           """ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagUnpacker*")""".raw
