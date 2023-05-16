@@ -1002,15 +1002,15 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
     }
 
     "combining with wildcards is supported" in {
-      def tag[F[_]: TagK]: Tag[OptionT[F, _]] = Tag[OptionT[F, _]]
+      def tag[F[_]: TagK]: Tag[OptionT[F, _ <: Int]] = Tag[OptionT[F, _ <: Int]]
 
       val t1 = tag[Set]
       val t2 = tag[List]
       val t3 = tag[* => Int]
 
-      assertSameStrict(t1.tag, Tag[OptionT[Set, _]].tag)
-      assertSameStrict(t2.tag, Tag[OptionT[List, _]].tag)
-      assertSameStrict(t3.tag, Tag[OptionT[* => Int, _]].tag)
+      assertSameStrict(t1.tag, Tag[OptionT[Set, _ <: Int]].tag)
+      assertSameStrict(t2.tag, Tag[OptionT[List, _ <: Int]].tag)
+      assertSameStrict(t3.tag, Tag[OptionT[* => Int, _ <: Int]].tag)
     }
 
     "other type members' bounds are not malformed when resolving parameters in structural types" in {

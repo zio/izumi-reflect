@@ -326,7 +326,22 @@ class TagMacro(val c: blackbox.Context) {
       }
     }
     val argTags = {
-      val args = tpe.typeArgs.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
+      val args = tpe match {
+        // preserve wildcards in type arguments
+        case e: ExistentialTypeApi =>
+          val exts = e.quantified.toSet
+          e.underlying.typeArgs.map {
+            t =>
+              if (exts.contains(t.typeSymbol)) {
+                /// generate top-level existential type for LightTypeTagImpl macro
+                c.internal.existentialType(List(t.typeSymbol), t)
+              } else {
+                ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)
+              }
+          }
+        case _ =>
+          tpe.typeArgs.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
+      }
       logger.log(s"Now summoning tags for args=$args")
       c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(args.map(summonLightTypeTagOfAppropriateKind)))
     }
