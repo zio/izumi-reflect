@@ -125,5 +125,10 @@ In Intellij, you may also set Scala version by changing the option `sbt -> sbt s
 * No support for subtype checks
 * Preserves field information
 
+## And even more
+
+1. https://github.com/gaeljw/typetrees - a very basic type tag substitute
+2. https://stackoverflow.com/questions/75752812/is-there-a-simple-scala-3-example-of-how-to-use-quoted-type-as-replacement-for - discussion on StackOverflow
+
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
