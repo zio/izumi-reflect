@@ -127,8 +127,9 @@ In Intellij, you may also set Scala version by changing the option `sbt -> sbt s
 
 ## And even more
 
-1. https://github.com/gaeljw/typetrees - a very basic type tag substitute
+1. https://github.com/gaeljw/typetrees - a very basic type tag substitute for Scala 3
 2. https://stackoverflow.com/questions/75752812/is-there-a-simple-scala-3-example-of-how-to-use-quoted-type-as-replacement-for - discussion on StackOverflow
+3. https://contributors.scala-lang.org/t/scala-3-and-reflection/3627 - original discussion on Scala Contributors forum
 
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
