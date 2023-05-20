@@ -723,7 +723,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray[AppliedReference](value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -755,7 +755,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray[AppliedReference](value.refs))
             state.addIdentityRef(value)
           }
         }

@@ -206,7 +206,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       val t10 = t1.removeIntersectionTautologies
 
-      doesntWorkYetOnDotty {
+      doesntWorkYet {
         assertSameStrict(t1, t10)
         assertDebugSame(t1, t10)
       }
