@@ -168,7 +168,7 @@ object LightTypeTagRef extends LTTOrdering {
   }
 
   def maybeUnion(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
-    val refs = refs0.iterator.flatMap(_.decomposeUnion).toSet // flatten nested unions
+    val refs = refs0.flatMap(_.decomposeUnion).toSet // flatten nested unions
     val normalized = refs - LightTypeTagInheritance.tpeNothing
     val superTypes = normalized.intersect(ignored)
     if (superTypes.nonEmpty) {
