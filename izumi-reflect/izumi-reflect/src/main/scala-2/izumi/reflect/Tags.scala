@@ -45,12 +45,22 @@ trait AnyTag extends Serializable {
     }
   }
 
+  final def =:=(that: AnyTag): Boolean = {
+    tag =:= that.tag
+  }
+
+  final def <:<(that: AnyTag): Boolean = {
+    tag <:< that.tag
+  }
+
   override final def equals(that: Any): Boolean = that match {
     case that: AnyTag => this.tag == that.tag
     case _ => false
   }
 
   override final def hashCode(): Int = tag.hashCode()
+
+  override def toString: String = s"AnyTag[$tag]"
 }
 
 /**

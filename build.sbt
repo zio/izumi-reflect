@@ -515,6 +515,8 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.symName"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.prefix"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledName"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.=:="),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.<:<"),
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl#*"),
