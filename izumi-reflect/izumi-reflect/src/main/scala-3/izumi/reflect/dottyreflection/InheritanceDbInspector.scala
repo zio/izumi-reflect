@@ -20,7 +20,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   private lazy val inspector = Inspector.make(qctx)
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
-    val tpe0 = TypeRepr.of[T].dealias
+    val tpe0 = TypeRepr.of[T]._dealiasSimplifiedFull
 
     val allReferenceComponents = allTypeReferences(tpe0).filter {
       case _: ParamRef => false // do not process type parameters for inheritance db
@@ -71,7 +71,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   private def breakRefinement(tpe0: TypeRepr): collection.Set[TypeRepr] = {
     val tpes = mutable.HashSet.empty[TypeRepr]
 
-    def go(t0: TypeRepr): Unit = t0.dealias match {
+    def go(t0: TypeRepr): Unit = t0._dealiasSimplifiedFull match {
       case tpe: AndOrType =>
         go(tpe.left)
         go(tpe.right)

@@ -561,7 +561,7 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
       case None =>
         c.abort(
           c.enclosingPosition,
-          "Couldn't find an the type that `Tag.auto.T` macro was applied to, please make sure you use the correct syntax, as in `def tagk[F[_]: Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[F]]`"
+          "Couldn't find the tree of the type that `Tag.auto.T` macro was applied to, please make sure you use the correct syntax, as in `def tagk[F[_]: Tag.auto.T]: TagK[T] = implicitly[Tag.auto.T[F]]`"
         )
       case Some(t) =>
         t

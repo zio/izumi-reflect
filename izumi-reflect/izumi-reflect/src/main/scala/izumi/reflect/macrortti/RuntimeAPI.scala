@@ -132,10 +132,10 @@ object RuntimeAPI {
     private def replaceApplied(reference: AppliedReference): AbstractReference = {
       reference match {
         case IntersectionReference(refs) =>
-          val replaced = refs.map(replaceApplied).map(r => ensureApplied(reference, r))
+          val replaced = refs.map(replaceApplied).map(ensureApplied(reference, _))
           maybeIntersection(replaced)
         case UnionReference(refs) =>
-          val replaced = refs.map(replaceApplied).map(r => ensureApplied(reference, r))
+          val replaced = refs.map(replaceApplied).map(ensureApplied(reference, _))
           maybeUnion(replaced)
         case WildcardReference(boundaries) =>
           WildcardReference(replaceBoundaries(boundaries))

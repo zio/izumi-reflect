@@ -983,7 +983,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       val t2 = Tag[DiscoveryNodeProvider[NodeIdImpl]].tag
 
       assertSameStrict(t1, t2)
-
       assertDebugSame(t1, t2)
     }
 
@@ -1034,6 +1033,22 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertDifferent(t1.tag, Tag[Any].tag)
       assertSameStrict(t2.tag, Tag[RoleDep.RoleDeps[Int, String]].tag)
       assertDifferent(t2.tag, Tag[Any].tag)
+    }
+
+    "eradicate intersection tautologies with Any/Object (Tag)" in {
+      assertSameStrict(Tag[Any with Option[String]].tag, LTT[Option[String]])
+      assertSameStrict(Tag[AnyRef with Option[String]].tag, LTT[Option[String]])
+      assertSameStrict(Tag[Object with Option[String]].tag, LTT[Option[String]])
+    }
+
+    "tautological intersections with Any/Object are discarded from internal structure (Tag)" in {
+      assertSameStrict(Tag[(Object {}) @IdAnnotation("x") with Option[(String with Object) {}]].tag, LTT[Option[String]])
+      assertSameStrict(Tag[(Any {}) @IdAnnotation("x") with Option[(String with Object) {}]].tag, LTT[Option[String]])
+      assertSameStrict(Tag[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]].tag, LTT[Option[String]])
+
+      assertDebugSame(Tag[(Object {}) @IdAnnotation("x") with Option[(String with Object) {}]].tag, LTT[Option[String]])
+      assertDebugSame(Tag[(Any {}) @IdAnnotation("x") with Option[(String with Object) {}]].tag, LTT[Option[String]])
+      assertDebugSame(Tag[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]].tag, LTT[Option[String]])
     }
 
   }

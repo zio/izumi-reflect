@@ -19,7 +19,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val owners = getClassDefOwners(Symbol.spliceOwner)
-    val typeRepr = TypeRepr.of[A].dealias
+    val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
     if (allPartsStrong(owners, typeRepr)) {
       createTag[A](typeRepr)
     } else {
@@ -39,7 +39,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
-  private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeRepr: TypeRepr): Expr[Tag[T]] = {
+  private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
 
     def summonLTTAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[LightTypeTag] = {
       if (allPartsStrong(owners, typeRepr)) {
@@ -77,7 +77,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       }
     }
 
-    typeRepr.dealias match {
+    typeReprDealiased match {
       case outerLambda: TypeLambda =>
         outerLambda.resType match {
           case AppliedType(ctorTpe, typeArgsTpes) =>
@@ -128,7 +128,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
                      |""".stripMargin)
 
               val argTagsExceptCtor = {
-                val nonParamArgsDealiased = distinctNonParamArgsTypes.map(ReflectionUtil.dealiasSimplifiedFull(_))
+                val nonParamArgsDealiased = distinctNonParamArgsTypes.map(_._dealiasSimplifiedFull)
                 log(s"HK COMPLEX Now summoning tags for args=$nonParamArgsDealiased outerLambdaParams=$outerLambdaParamArgsTypeParamRefs")
                 Expr.ofList(
                   nonParamArgsDealiased.map(t => '{ Some(${ summonLTTAndFastTrackIfNotTypeParam(t) }) }) ++ outerLambdaParamArgsTypeParamRefs.map(_ => '{ None })
@@ -181,7 +181,9 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           case (s, n, tb: TypeBounds) if allPartsStrong(owners, tb) => Left(Left((n, tb)))
           case (_, n, TypeBounds(lo, hi)) if lo == hi => Left(Right((n, hi)))
           case (_, _, tb @ TypeBounds(lo, hi)) =>
-            report.errorAndAbort(s"TagMacro: resolving type parameters inside type bounds is not supported, got weak types in bounds=${tb.show}, in type=$typeRepr")
+            report.errorAndAbort(
+              s"TagMacro: resolving type parameters inside type bounds is not supported, got weak types in bounds=${tb.show}, in type=$typeReprDealiased"
+            )
           case x => Right(x)
         }
         val (strongTypeBounds, weakTypeMembers) = allTypeMembers.partitionMap(identity)
@@ -223,7 +225,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
                                 |""".stripMargin)
 
       case _ =>
-        report.errorAndAbort(s"Unsupported type in TagMacro.summonCombinedTag: $typeRepr")
+        report.errorAndAbort(s"Unsupported type in TagMacro.summonCombinedTag: $typeReprDealiased")
     }
   }
 

@@ -297,12 +297,20 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     }
   }
 
-  private def flattenInspectAnd(and: AndType): Set[AppliedReference] = {
-    flattenAnd(and).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
+  private def flattenInspectAnd(and: AndType): Set[AppliedReferenceExceptIntersection] = {
+    flattenAnd(and).toSet.map(inspectTypeRepr(_)).flatMap {
+      case i: IntersectionReference => i.refs
+      case other: AppliedReferenceExceptIntersection => Set(other)
+      case _: LightTypeTagRef.Lambda => Set.empty
+    }
   }
 
-  private def flattenInspectOr(or: OrType): Set[AppliedReference] =
-    flattenOr(or).toSet.map(inspectTypeRepr(_).asInstanceOf[AppliedReference])
+  private def flattenInspectOr(or: OrType): Set[AppliedReferenceExceptUnion] =
+    flattenOr(or).toSet.map(inspectTypeRepr(_)).flatMap {
+      case i: UnionReference => i.refs
+      case other: AppliedReferenceExceptUnion => Set(other)
+      case _: LightTypeTagRef.Lambda => Set.empty
+    }
 
   private[dottyreflection] def makeNameReferenceFromType(t: TypeRepr): NameReference = {
     t match {

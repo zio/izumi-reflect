@@ -163,7 +163,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
-      tpe.dealias match {
+      tpe._dealiasSimplifiedFull match {
         case t: TypeBounds =>
           processTypeBounds(t)
         case t: TypeRepr =>

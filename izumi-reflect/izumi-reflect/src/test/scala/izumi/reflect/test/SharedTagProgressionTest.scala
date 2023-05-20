@@ -67,22 +67,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       )
     }
 
-    "progression test: type tags with bounds are not currently requested by the macro" in {
-      val t = intercept[TestFailedException] {
-        assertCompiles("""
-        type `TagK<:Dep`[K[_ <: Dep]] = HKTag[ { type Arg[A <: Dep] = K[A] } ]
-
-        def t[T[_ <: Dep]: `TagK<:Dep`, A: Tag] = Tag[T[A]]
-
-        assert(t[Trait3, Dep].tag == safe[Trait3[Dep]].tag)
-        """)
-      }
-      assert(
-        t.message.get.contains("could not find implicit value") ||
-        t.message.get.contains("no implicit argument of type") /*Dotty*/
-      )
-    }
-
     "progression test: projections into singletons are not handled properly (on Scala 2)" in {
       trait A {
         class X
@@ -187,6 +171,44 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       doesntWorkYet {
         assertChildStrict(Tag[Unit].tag, tres1.tag)
         assertChildStrict(Tag[Unit].tag, tres2.tag)
+      }
+    }
+
+    // Can't fix this atm because simplification happens even without .simplified call because of https://github.com/lampepfl/dotty/issues/17544
+    // The other way to fix this is to call `LightTypeTag.removeIntersectionTautologies` for every `Tag.refinedTag` -
+    // but this would make such tags expensive to construct because the complexity is quadratic, with two <:< calls
+    // per iteration.
+    "progression test: fails on Scala 3 don't lose tautological intersection components other than Any/AnyRef" in {
+      def tag1[T: Tag]: Tag[T with Trait1] = Tag[T with Trait1]
+      def tag4[T: Tag]: Tag[T with Trait4] = Tag[T with Trait4]
+
+      val t1 = tag1[Trait3[Dep]].tag
+      val t2 = tag4[Trait3[Dep]].tag
+
+      val t10 = Tag[Trait3[Dep] with Trait1].tag
+      val t20 = Tag[Trait3[Dep] with Trait4].tag
+
+      doesntWorkYetOnDotty {
+        assertSameStrict(t1, t10)
+        assertDebugSame(t1, t10)
+      }
+
+      assertSameStrict(t2, t20)
+      assertDebugSame(t2, t20)
+    }
+
+    // We don't really want to fix it, because removing tautologies is quadratic, with two subtyping comparisions per step!
+    // Would make construction really expensive, all for an extremely rare corner case
+    "progression test: intersection tautologies are not removed automatically when constructing combined intersection type" in {
+      def tag1[T: Tag]: Tag[T with Trait1] = Tag[T with Trait1]
+
+      val t1 = tag1[Trait3[Dep]].tag
+
+      val t10 = t1.removeIntersectionTautologies
+
+      doesntWorkYetOnDotty {
+        assertSameStrict(t1, t10)
+        assertDebugSame(t1, t10)
       }
     }
 

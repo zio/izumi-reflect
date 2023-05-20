@@ -1,9 +1,11 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LTag
+import izumi.reflect.macrortti.{LTT, LTag}
 import izumi.reflect.{HKTag, Tag, TagK, TagTK}
 import izumi.reflect.test.ID.*
 import izumi.reflect.test.PlatformSpecific.fromRuntime
+import izumi.reflect.test.TestModel.{Trait1, Trait3, Trait4}
+import org.scalatest.exceptions.TestFailedException
 
 class TagTest extends SharedTagTest with TagAssertions {
 
@@ -50,6 +52,22 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(t2[Int, String].tag, Tag[String | Int].tag)
       assertSameStrict(t1[String].tag, Tag[String].tag)
       assertSameStrict(t2[String, String].tag, Tag[String].tag)
+    }
+
+    "type tags with bounds are successfully requested by TagMacro" in {
+      type `TagK<:Dep`[K[_ <: Dep]] = Tag.auto.T[K]
+
+      def t[T[_ <: Dep]: `TagK<:Dep`, A <: Dep: Tag] = Tag[T[A]]
+
+      assertSameStrict(t[Trait3, Dep].tag, Tag[Trait3[Dep]].tag)
+    }
+
+    "remove tautological unions with Nothing (LTT)" in {
+      assertSameStrict(LTT[Nothing | Option[String]], LTT[Option[String]])
+    }
+
+    "remove tautological unions with Nothing (Tag)" in {
+      assertSameStrict(Tag[Nothing | Option[String]].tag, LTT[Option[String]])
     }
 
   }

@@ -18,7 +18,8 @@
 
 package izumi.reflect.test
 
-import izumi.reflect.macrortti._
+import izumi.reflect.Tag
+import izumi.reflect.macrortti.*
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, Lambda}
 
 import scala.collection.immutable.ListSet
@@ -33,6 +34,45 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     "tautological intersections with Matchable are discarded from internal structure (Scala 3 specific, Matchable)" in {
       assertSameStrict(LTT[Matchable with Option[String]], LTT[Option[String]])
       assertDebugSame(LTT[Matchable with Option[String]], LTT[Option[String]])
+    }
+
+    "tautological intersections with Matchable are discarded from internal structure (Scala 3 specific, Matchable) (Tag)" in {
+      assertSameStrict(Tag[Matchable with Option[String]].tag, LTT[Option[String]])
+      assertDebugSame(Tag[Matchable with Option[String]].tag, LTT[Option[String]])
+    }
+
+    "tautological unions with Any/AnyRef/Matchable/Object are discarded from internal structure (Scala 3 specific, Matchable)" in {
+      assertSameStrict(LTT[Any | Matchable | AnyRef | Object | Option[String] | Nothing], LTT[Any])
+      assertDebugSame(LTT[Any | Matchable | AnyRef | Object | Option[String] | Nothing], LTT[Any])
+
+      assertSameStrict(LTT[Matchable | AnyRef | Object | Option[String] | Nothing], LTT[Matchable])
+      assertDebugSame(LTT[Matchable | AnyRef | Object | Option[String] | Nothing], LTT[Matchable])
+
+      assertSameStrict(LTT[AnyRef | Object | Option[String] | Nothing], LTT[AnyRef])
+      assertDebugSame(LTT[AnyRef | Object | Option[String] | Nothing], LTT[AnyRef])
+
+      assertSameStrict(LTT[Object | Option[String] | Nothing], LTT[Object])
+      assertDebugSame(LTT[Object | Option[String] | Nothing], LTT[Object])
+
+      assertSameStrict(LTT[Option[String] | Nothing], LTT[Option[String]])
+      assertDebugSame(LTT[Option[String] | Nothing], LTT[Option[String]])
+    }
+
+    "tautological unions with Any/AnyRef/Matchable/Object are discarded from internal structure (Scala 3 specific, Matchable) (Tag)" in {
+      assertSameStrict(Tag[Any | Matchable | AnyRef | Object | Option[String] | Nothing].tag, LTT[Any])
+      assertDebugSame(Tag[Any | Matchable | AnyRef | Object | Option[String] | Nothing].tag, LTT[Any])
+
+      assertSameStrict(Tag[Matchable | AnyRef | Object | Option[String] | Nothing].tag, LTT[Matchable])
+      assertDebugSame(Tag[Matchable | AnyRef | Object | Option[String] | Nothing].tag, LTT[Matchable])
+
+      assertSameStrict(Tag[AnyRef | Object | Option[String] | Nothing].tag, LTT[AnyRef])
+      assertDebugSame(Tag[AnyRef | Object | Option[String] | Nothing].tag, LTT[AnyRef])
+
+      assertSameStrict(Tag[Object | Option[String] | Nothing].tag, LTT[Object])
+      assertDebugSame(Tag[Object | Option[String] | Nothing].tag, LTT[Object])
+
+      assertSameStrict(Tag[Option[String] | Nothing].tag, LTT[Option[String]])
+      assertDebugSame(Tag[Option[String] | Nothing].tag, LTT[Option[String]])
     }
 
     "support top-level abstract types (Scala 3 specific, top level type aliases)" in {
