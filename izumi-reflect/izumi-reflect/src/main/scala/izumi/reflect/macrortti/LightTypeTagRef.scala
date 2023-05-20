@@ -188,9 +188,8 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  // bincompat
-  private[reflect] def maybeIntersection(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeIntersection(r.iterator)
-  private[reflect] def maybeUnion(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeUnion(r.iterator)
+  def maybeIntersection(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeIntersection(r.iterator)
+  def maybeUnion(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeUnion(r.iterator)
 
   sealed trait AppliedNamedReference extends AppliedReferenceExceptIntersection with AppliedReferenceExceptUnion {
     def asName: NameReference
