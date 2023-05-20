@@ -74,7 +74,18 @@ abstract class LightTypeTag private[reflect] (
 
   final def decompose: Set[LightTypeTag] = {
     ref match {
-      case LightTypeTagRef.IntersectionReference(refs) =>
+      case intersection: LightTypeTagRef.IntersectionReference =>
+        val refs = intersection.decompose // make sure to unwrap nested intersections
+        refs.map(LightTypeTag(_, basesdb, idb))
+      case _ =>
+        Set(this)
+    }
+  }
+
+  final def decomposeUnion: Set[LightTypeTag] = {
+    ref match {
+      case union: LightTypeTagRef.UnionReference =>
+        val refs = union.decomposeUnion // make sure to unwrap nested unions
         refs.map(LightTypeTag(_, basesdb, idb))
       case _ =>
         Set(this)
@@ -88,7 +99,7 @@ abstract class LightTypeTag private[reflect] (
     * lambda taking remaining arguments:
     *
     * {{{
-    *   F[?, ?, ?].combine(A, B) = F[A, B, ?]
+    *   F[_, _, _].combine(A, B) = F[A, B, _]
     * }}}
     */
   def combine(args: LightTypeTag*): LightTypeTag = {
@@ -117,7 +128,7 @@ abstract class LightTypeTag private[reflect] (
     * The resulting type lambda will take parameters in places where `args` was None:
     *
     * {{{
-    *   F[?, ?, ?].combine(Some(A), None, Some(C)) = F[A, ?, C]
+    *   F[_, _, _].combine(Some(A), None, Some(C)) = F[A, _, C]
     * }}}
     */
   def combineNonPos(args: Option[LightTypeTag]*): LightTypeTag = {
@@ -159,6 +170,62 @@ abstract class LightTypeTag private[reflect] (
     */
   def typeArgs: List[LightTypeTag] = {
     ref.typeArgs.map(LightTypeTag(_, basesdb, idb))
+  }
+
+  /**
+    * Remove types that are supertypes of other types in the intersection from it
+    *
+    * e.g. transform `Tag[TraitSuper & TraitChild & AnyRef]` to `Tag[TraitChild]`
+    */
+  def removeIntersectionTautologies: LightTypeTag = {
+    ref match {
+      case IntersectionReference(refs) =>
+        if (refs.size <= 1) {
+          this
+        } else {
+          refs.tail.foldLeft(LightTypeTag(refs.head, basesdb, idb)) {
+            case (acc, tref) =>
+              val t = LightTypeTag(tref, basesdb, idb)
+              if (t <:< acc) {
+                t
+              } else if (acc <:< t) {
+                acc
+              } else {
+                LightTypeTag(LightTypeTagRef.IntersectionReference(acc.ref.decompose + tref), basesdb, idb)
+              }
+          }
+        }
+      case _ =>
+        this
+    }
+  }
+
+  /**
+    * Remove types that are subtypes of other types in the union from it
+    *
+    * e.g. transform `Tag[TraitSuper | TraitChild | Nothing]` to `Tag[TraitSuper]`
+    */
+  def removeUnionTautologies: LightTypeTag = {
+    ref match {
+      case UnionReference(refs) =>
+        if (refs.size <= 1) {
+          this
+        } else {
+          refs.tail.foldLeft(LightTypeTag(refs.head, basesdb, idb)) {
+            case (acc, tref) =>
+              val t = LightTypeTag(tref, basesdb, idb)
+              if (t <:< acc) {
+                acc
+              } else if (acc <:< t) {
+                t
+              } else {
+                LightTypeTag(LightTypeTagRef.UnionReference(acc.ref.decomposeUnion + tref), basesdb, idb)
+              }
+          }
+        }
+      case _ =>
+        this
+    }
   }
 
   /** Render to string, omitting package names */
@@ -246,8 +313,7 @@ object LightTypeTag {
     * @param additionalTypeMembers additional type members
     */
   def refinedType(intersection: List[LightTypeTag], structure: LightTypeTag, additionalTypeMembers: Map[String, LightTypeTag]): LightTypeTag = {
-    val parts = intersection.iterator.flatMap(_.ref.decompose).toSet
-    val intersectionRef = LightTypeTagRef.maybeIntersection(parts)
+    val intersectionRef = LightTypeTagRef.maybeIntersection(intersection.iterator.map(_.ref))
     val ref = {
       val decls = structure.ref match {
         case LightTypeTagRef.Refinement(_, decls) if decls.nonEmpty =>
@@ -276,14 +342,13 @@ object LightTypeTag {
   }
 
   def unionType(union: List[LightTypeTag]): LightTypeTag = {
-    val parts = union.iterator.flatMap(_.ref.decomposeUnion).toSet
-    val ref = LightTypeTagRef.maybeUnion(parts)
+    val ref = LightTypeTagRef.maybeUnion(union.iterator.map(_.ref))
 
     def mergedBasesDB: Map[AbstractReference, Set[AbstractReference]] =
-      LightTypeTag.mergeIDBs(Map.empty[AbstractReference, Set[AbstractReference]], union.iterator.map(_.basesdb))
+      LightTypeTag.mergeIDBs(union.iterator.flatMap(_.basesdb))
 
     def mergedInheritanceDb: Map[NameReference, Set[NameReference]] =
-      LightTypeTag.mergeIDBs(Map.empty[NameReference, Set[NameReference]], union.iterator.map(_.idb))
+      LightTypeTag.mergeIDBs(union.iterator.flatMap(_.idb))
 
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
@@ -658,7 +723,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray[AppliedReference](value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -668,7 +733,12 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.UnionReference = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.UnionReference(state.unpickle[HashSet[LightTypeTagRef.AppliedReference]])
+          val refs0 = state.unpickle[HashSet[AppliedReference]]
+          val refs = refs0.flatMap {
+            case u: UnionReference => u.decomposeUnion
+            case other: AppliedReferenceExceptUnion => Set(other)
+          }
+          val value = LightTypeTagRef.UnionReference(refs)
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
@@ -685,7 +755,7 @@ object LightTypeTag {
           if (ref.isDefined) state.enc.writeInt(-ref.get)
           else {
             state.enc.writeInt(0)
-            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray(value.refs))
+            state.pickle[ArraySeqLike[LightTypeTagRef.AppliedReference]](LightTypeTagRef.refSetToSortedArray[AppliedReference](value.refs))
             state.addIdentityRef(value)
           }
         }
@@ -695,7 +765,12 @@ object LightTypeTag {
       override def unpickle(implicit state: boopickle.UnpickleState): LightTypeTagRef.IntersectionReference = {
         val ic = state.dec.readInt
         if (ic == 0) {
-          val value = LightTypeTagRef.IntersectionReference(state.unpickle[HashSet[LightTypeTagRef.AppliedReference]])
+          val refs0 = state.unpickle[HashSet[AppliedReference]]
+          val refs = refs0.flatMap {
+            case u: IntersectionReference => u.decompose
+            case other: AppliedReferenceExceptIntersection => Set(other)
+          }
+          val value = LightTypeTagRef.IntersectionReference(refs)
           state.addIdentityRef(value)
           value
         } else if (ic < 0)
@@ -998,17 +1073,19 @@ object LightTypeTag {
   }
 
   private[macrortti] def mergeIDBs[T](self: Map[T, Set[T]], other: Map[T, Set[T]]): Map[T, Set[T]] = {
-    import izumi.reflect.internal.fundamentals.collections.IzCollections._
-
-    val both = self.toSeq ++ other.toSeq
-    both.toMultimap.map {
-      case (k, v) =>
-        (k, v.flatten.filterNot(_ == k))
-    }
+    mergeIDBs(self.iterator ++ other.iterator)
   }
 
   private[macrortti] def mergeIDBs[T](self: Map[T, Set[T]], others: Iterator[Map[T, Set[T]]]): Map[T, Set[T]] = {
-    others.foldLeft(self)(mergeIDBs[T])
+    mergeIDBs(self.iterator ++ others.flatMap(_.iterator))
+  }
+
+  private[macrortti] def mergeIDBs[T](bases: Iterator[(T, Set[T])]): Map[T, Set[T]] = {
+    import izumi.reflect.internal.fundamentals.collections.IzCollections._
+    bases.toMultimap.map {
+      case (k, v) =>
+        (k, v.flatten.filterNot(_ == k))
+    }
   }
 
 }

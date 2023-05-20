@@ -6,21 +6,36 @@ import scala.quoted.Quotes
 
 private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 
-  import qctx.reflect._
+  import qctx.reflect.*
 
-  protected def flattenAnd(tpe: TypeRepr): List[TypeRepr] =
+  private final lazy val ignoredInIntersections0: Set[TypeRepr] = {
+    Set(
+      defn.AnyClass.typeRef,
+      defn.MatchableClass.typeRef,
+      defn.AnyRefClass.typeRef,
+      defn.ObjectClass.typeRef
+    )
+  }
+  def ignoredInIntersections(repr: qctx.reflect.TypeRepr): Boolean = {
+    ignoredInIntersections0.exists(_ =:= repr)
+  }
+  def ignoredInUnions(repr: qctx.reflect.TypeRepr): Boolean = {
+    repr =:= defn.NothingClass.typeRef
+  }
+
+  protected final def flattenAnd(tpe: TypeRepr): List[TypeRepr] =
     tpe.dealias match {
       case AndType(lhs, rhs) => flattenAnd(lhs) ++ flattenAnd(rhs)
       case _ => List(tpe)
     }
 
-  protected def flattenOr(tpe: TypeRepr): List[TypeRepr] =
+  protected final def flattenOr(tpe: TypeRepr): List[TypeRepr] =
     tpe.dealias match {
       case OrType(lhs, rhs) => flattenOr(lhs) ++ flattenOr(rhs)
       case _ => List(tpe)
     }
 
-  protected def intersectionUnionRefinementClassPartsOf(tpe: TypeRepr): List[TypeRepr] = {
+  protected final def intersectionUnionRefinementClassPartsOf(tpe: TypeRepr): List[TypeRepr] = {
     tpe.dealias match {
       case AndType(lhs, rhs) =>
         intersectionUnionRefinementClassPartsOf(lhs) ++ intersectionUnionRefinementClassPartsOf(rhs)
@@ -33,7 +48,7 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
-  protected def refinementInfoToParts(tpe0: TypeRepr): List[TypeRepr] = {
+  protected final def refinementInfoToParts(tpe0: TypeRepr): List[TypeRepr] = {
     tpe0 match {
       case ByNameType(tpe) =>
         refinementInfoToParts(tpe)
@@ -49,7 +64,7 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
-  protected def flattenRefinements(ref: Refinement): (Queue[(Symbol, String, TypeRepr)], TypeRepr) = {
+  protected final def flattenRefinements(ref: Refinement): (Queue[(Symbol, String, TypeRepr)], TypeRepr) = {
     val refinementDecl = (ref.typeSymbol, ref.name, ref.info)
     ref.parent match {
       case innerRefinement: Refinement =>
@@ -60,18 +75,18 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
-  protected def allPartsStrong(outerOwnerClassDefs: Set[Symbol], typeRepr: TypeRepr): Boolean = {
+  protected final def allPartsStrong(outerOwnerClassDefs: Set[Symbol], typeRepr: TypeRepr): Boolean = {
     ReflectionUtil.allPartsStrong(using qctx)(shift, outerOwnerClassDefs, Set.empty, typeRepr)
   }
 
-  protected def getClassDefOwners(symbol: Symbol): Set[Symbol] = {
+  protected final def getClassDefOwners(symbol: Symbol): Set[Symbol] = {
     ReflectionUtil.getClassDefOwners(using qctx)(symbol)
   }
 
   import ReflectionUtil.reflectiveUncheckedNonOverloadedSelectable
 
   extension (typeRef: TypeRef | ParamRef) {
-    protected def _underlying: TypeRepr = {
+    protected final def _underlying: TypeRepr = {
       // This works as a substitution for `TypeRef#underlying` call,
       // but I'm not sure if it's a reliable substitution.
 
@@ -92,7 +107,7 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   extension (typeRepr: TypeRepr) {
-    protected def _declaredVariancesIfHKTypeLambda: Option[List[Flags]] = {
+    protected final def _declaredVariancesIfHKTypeLambda: Option[List[Flags]] = {
       try {
         Some(typeRepr.asInstanceOf[InternalHKTypeLambda].declaredVariances)
       } catch {
@@ -100,11 +115,96 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       }
     }
 
-    protected def _dealiasSimplifiedFull: TypeRepr = ReflectionUtil.dealiasSimplifiedFull(using qctx)(typeRepr)
+    @tailrec
+    protected final def _dealiasSimplifiedFull: TypeRepr = {
+//      val res = typeRepr.dealias.simplified
+      // simplified does everything below functions do, with exception of `_removeTautologicalUnions` for some reason
+      // All of these would be more useful, if not for forced type simplification on implicit macro - https://github.com/lampepfl/dotty/issues/17544
+      val res = typeRepr.dealias._removeTautologicalIntersections._removeTautologicalUnions._simplifyMatchCase
+      if (res.asInstanceOf[AnyRef] eq typeRepr.asInstanceOf[AnyRef]) {
+        res
+      } else {
+        res._dealiasSimplifiedFull
+      }
+    }
+
+    // Calling .simplified will remove too many intersections - we only want to remove those with Any/AnyRef/Object/Matchable
+    @tailrec private def _removeTautologicalIntersections: TypeRepr = {
+      typeRepr match {
+        case AndType(a, b) =>
+          if (ignoredInIntersections(a)) {
+            b._removeTautologicalIntersections
+          } else if (ignoredInIntersections(b)) {
+            a._removeTautologicalIntersections
+          } else {
+            removeTautologicalIntersectionsNonTailRec(a, b)
+          }
+        case _ =>
+          typeRepr
+      }
+    }
+
+    private def removeTautologicalIntersectionsNonTailRec(a: TypeRepr, b: TypeRepr): TypeRepr = {
+      val a0 = a._removeTautologicalIntersections
+      val b0 = b._removeTautologicalIntersections
+      if ((a.asInstanceOf[AnyRef] ne a0.asInstanceOf[AnyRef]) || (b.asInstanceOf[AnyRef] ne b0.asInstanceOf[AnyRef])) {
+        AndType(a0, b0)
+      } else {
+        typeRepr
+      }
+    }
+
+    @tailrec private def _removeTautologicalUnions: TypeRepr = {
+      typeRepr match {
+        case OrType(a, b) =>
+          if (ignoredInUnions(a)) {
+            b._removeTautologicalUnions
+          } else if (ignoredInUnions(b)) {
+            a._removeTautologicalUnions
+          } else {
+            removeTautologicaUnionsNonTailRec(a, b)
+          }
+        case _ =>
+          typeRepr
+      }
+    }
+
+    private def removeTautologicaUnionsNonTailRec(a: TypeRepr, b: TypeRepr): TypeRepr = {
+      val superA = ignoredInIntersections(a)
+      val superB = ignoredInIntersections(b)
+      if (superA && superB) {
+        (if (a <:< b) b else a)._removeTautologicalUnions
+      } else if (superA) {
+        a
+      } else if (superB) {
+        b
+      } else {
+        val a0 = a._removeTautologicalUnions
+        val b0 = b._removeTautologicalUnions
+        if ((a.asInstanceOf[AnyRef] ne a0.asInstanceOf[AnyRef]) || (b.asInstanceOf[AnyRef] ne b0.asInstanceOf[AnyRef])) {
+          AndType(a0, b0)
+        } else {
+          typeRepr
+        }
+      }
+    }
+
+    inline private def _simplifyMatchCase: TypeRepr = {
+      typeRepr match {
+        case _: MatchCase | _: MatchType =>
+          // no other way to evaluate a match type other than calling simplified,
+          // even though that'll also cause a collapse of tautological intersections
+          // other than with Any/AnyRef/Object/Matchable
+          typeRepr.simplified
+        case _ =>
+          typeRepr
+      }
+    }
+
   }
 
   extension (qctx: Quotes) {
-    def _ctx: InternalContext = qctx.asInstanceOf[{ def ctx: InternalContext }].ctx
+    final def _ctx: InternalContext = qctx.asInstanceOf[{ def ctx: InternalContext }].ctx
   }
 
   type InternalTypeRefOrParamRef = {
@@ -120,16 +220,6 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 }
 
 private[reflect] object ReflectionUtil {
-
-  @tailrec
-  private[reflect] def dealiasSimplifiedFull(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): qctx.reflect.TypeRepr = {
-    val res = typeRepr.dealias.simplified
-    if (res.asInstanceOf[AnyRef] eq typeRepr.asInstanceOf[AnyRef]) {
-      res
-    } else {
-      dealiasSimplifiedFull(res)
-    }
-  }
 
   private[reflect] inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
 

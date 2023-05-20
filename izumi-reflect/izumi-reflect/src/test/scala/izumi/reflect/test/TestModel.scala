@@ -197,4 +197,14 @@ object TestModel {
     type RoleDeps[RoleId, C] = Set[this.RoleDep[RoleId, C]] // this-prefix is important, do not remove
   }
 
+  trait Trait1 {
+    def dep: Any
+  }
+
+  trait Trait3[T] extends Trait1 {
+    def dep: T
+  }
+
+  trait Trait4
+
 }

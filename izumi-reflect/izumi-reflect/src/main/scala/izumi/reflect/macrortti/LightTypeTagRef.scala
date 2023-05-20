@@ -18,7 +18,7 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.macrortti.LightTypeTagRef.AbstractReference
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedReference}
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymTypeName}
 
 import scala.runtime.AbstractFunction3
@@ -46,11 +46,11 @@ sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
     "2.2.2"
   )
   final def longName: String = this.longNameInternalSymbolImpl
-  final def getPrefix: Option[LightTypeTagRef] = this.getPrefixImpl
+  final def getPrefix: Option[AppliedReference] = this.getPrefixImpl
   final def typeArgs: List[AbstractReference] = this.typeArgsImpl
   /** decompose intersection type */
-  final def decompose: Set[LightTypeTagRef.AppliedReference] = this.decomposeImpl
-  final def decomposeUnion: Set[LightTypeTagRef.AppliedReference] = this.decomposeUnionImpl
+  final def decompose: Set[LightTypeTagRef.AppliedReferenceExceptIntersection] = this.decomposeImpl
+  final def decomposeUnion: Set[LightTypeTagRef.AppliedReferenceExceptUnion] = this.decomposeUnionImpl
 
 }
 
@@ -117,17 +117,20 @@ object LightTypeTagRef extends LTTOrdering {
 
   sealed trait AppliedReference extends AbstractReference
 
-  final case class IntersectionReference(refs: Set[AppliedReference]) extends AppliedReference {
+  sealed trait AppliedReferenceExceptIntersection extends AppliedReference
+  sealed trait AppliedReferenceExceptUnion extends AppliedReference
+
+  final case class IntersectionReference(refs: Set[AppliedReferenceExceptIntersection]) extends AppliedReferenceExceptUnion {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
   }
 
-  final case class WildcardReference(boundaries: Boundaries) extends AppliedReference
+  final case class WildcardReference(boundaries: Boundaries) extends AppliedReferenceExceptIntersection with AppliedReferenceExceptUnion
 
-  final case class UnionReference(refs: Set[AppliedReference]) extends AppliedReference {
+  final case class UnionReference(refs: Set[AppliedReferenceExceptUnion]) extends AppliedReferenceExceptIntersection {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
   }
 
-  final case class Refinement(reference: AppliedReference, decls: Set[RefinementDecl]) extends AppliedReference {
+  final case class Refinement(reference: AppliedReference, decls: Set[RefinementDecl]) extends AppliedReferenceExceptIntersection with AppliedReferenceExceptUnion {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
   }
 
@@ -140,14 +143,16 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  private[reflect] val ignored = Set[AppliedReference](
+  private[reflect] def ignored[T >: NameReference]: Set[T] = ignored0.asInstanceOf[Set[T]]
+  private[this] val ignored0: Set[NameReference] = Set[NameReference](
     LightTypeTagInheritance.tpeAny,
+    LightTypeTagInheritance.tpeMatchable,
     LightTypeTagInheritance.tpeAnyRef,
-    LightTypeTagInheritance.tpeObject,
-    LightTypeTagInheritance.tpeMatchable
+    LightTypeTagInheritance.tpeObject
   )
 
-  def maybeIntersection(refs: Set[AppliedReference]): AppliedReference = {
+  def maybeIntersection(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
+    val refs = refs0.flatMap(_.decompose).toSet // flatten nested intersections
     if (refs.size == 1) {
       refs.head
     } else {
@@ -162,19 +167,31 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  def maybeUnion(refs: Set[AppliedReference]): AppliedReference = {
-    val normalized = refs.diff(ignored)
-    normalized.toList match {
-      case Nil =>
-        LightTypeTagInheritance.tpeAny
-      case head :: Nil =>
-        head
-      case _ =>
+  def maybeUnion(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
+    val refs = refs0.flatMap(_.decomposeUnion).toSet // flatten nested unions
+    val normalized = refs - LightTypeTagInheritance.tpeNothing
+    val superTypes = normalized.intersect(ignored)
+    if (superTypes.nonEmpty) {
+      if (normalized.contains(LightTypeTagInheritance.tpeAny)) LightTypeTagInheritance.tpeAny
+      else if (normalized.contains(LightTypeTagInheritance.tpeMatchable)) LightTypeTagInheritance.tpeMatchable
+      else if (normalized.contains(LightTypeTagInheritance.tpeAnyRef)) LightTypeTagInheritance.tpeAnyRef
+      else if (normalized.contains(LightTypeTagInheritance.tpeObject)) LightTypeTagInheritance.tpeObject
+      else superTypes.head
+    } else {
+      if (normalized.isEmpty) {
+        LightTypeTagInheritance.tpeNothing
+      } else if (normalized.size == 1) {
+        normalized.head
+      } else {
         UnionReference(normalized)
+      }
     }
   }
 
-  sealed trait AppliedNamedReference extends AppliedReference {
+  def maybeIntersection(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeIntersection(r.iterator)
+  def maybeUnion(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeUnion(r.iterator)
+
+  sealed trait AppliedNamedReference extends AppliedReferenceExceptIntersection with AppliedReferenceExceptUnion {
     def asName: NameReference
     def symName: SymName
     def prefix: Option[AppliedReference]

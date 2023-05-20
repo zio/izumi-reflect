@@ -56,10 +56,15 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertSameStrict(foo, bar)
     }
 
-    "eradicate tautologies with Any/Object" in {
-      assertSameStrict(LTT[Object with Option[String]], LTT[Option[String]])
+    "eradicate intersection tautologies with Any/Object" in {
       assertSameStrict(LTT[Any with Option[String]], LTT[Option[String]])
       assertSameStrict(LTT[AnyRef with Option[String]], LTT[Option[String]])
+      assertSameStrict(LTT[Object with Option[String]], LTT[Option[String]])
+    }
+
+    "do not eradicate intersections with Nothing" in {
+      assertDifferent(LTT[Nothing with Option[String]], LTT[Option[String]])
+      assertSameStrict(LTT[Nothing with Option[String]], LTT[Option[String] with Nothing])
     }
 
     "eradicate self-intersection (X with X)" in {

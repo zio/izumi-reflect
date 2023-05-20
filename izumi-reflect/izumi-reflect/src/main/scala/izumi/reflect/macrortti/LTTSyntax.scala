@@ -112,23 +112,19 @@ private[macrortti] trait LTTSyntax {
     longNameInternalSymbol
   }
 
-  protected[this] final def getPrefixImpl: Option[LightTypeTagRef] = {
+  protected[this] final def getPrefixImpl: Option[AppliedReference] = {
     @tailrec
     @inline
-    def getPrefix(self: LightTypeTagRef): Option[LightTypeTagRef] = {
+    def getPrefix(self: LightTypeTagRef): Option[AppliedReference] = {
       self match {
         case Lambda(_, output) => getPrefix(output)
         case NameReference(_, _, prefix) => prefix
         case FullReference(_, _, prefix) => prefix
         case IntersectionReference(refs) =>
-          val prefixes = refs.flatMap(_.getPrefix).collect {
-            case p: AppliedReference => p
-          }
+          val prefixes = refs.flatMap(_.getPrefix)
           if (prefixes.nonEmpty) Some(maybeIntersection(prefixes)) else None
         case UnionReference(refs) =>
-          val prefixes = refs.flatMap(_.getPrefix).collect {
-            case p: AppliedReference => p
-          }
+          val prefixes = refs.flatMap(_.getPrefix)
           if (prefixes.nonEmpty) Some(maybeUnion(prefixes)) else None
         case Refinement(reference, _) => getPrefix(reference)
         case _: WildcardReference => None
@@ -164,25 +160,25 @@ private[macrortti] trait LTTSyntax {
   }
 
   /** decompose intersection type */
-  protected[this] final def decomposeImpl: Set[AppliedReference] = {
+  protected[this] final def decomposeImpl: Set[AppliedReferenceExceptIntersection] = {
     this match {
       case IntersectionReference(refs) =>
         refs.flatMap(_.decompose)
-      case appliedReference: AppliedReference =>
+      case appliedReference: AppliedReferenceExceptIntersection =>
         Set(appliedReference)
-      // lambdas cannot appear _inside_ intersections
+      // lambdas cannot appear _inside_ intersections in LightTypeTagRef model
       case Lambda(_, _) =>
         Set.empty
     }
   }
 
-  protected[this] final def decomposeUnionImpl: Set[AppliedReference] = {
+  protected[this] final def decomposeUnionImpl: Set[AppliedReferenceExceptUnion] = {
     this match {
       case UnionReference(refs) =>
-        refs.flatMap(_.decompose)
-      case appliedReference: AppliedReference =>
+        refs.flatMap(_.decomposeUnion)
+      case appliedReference: AppliedReferenceExceptUnion =>
         Set(appliedReference)
-      // lambdas cannot appear _inside_ unions
+      // lambdas cannot appear _inside_ unions in LightTypeTagRef model
       case Lambda(_, _) =>
         Set.empty
     }

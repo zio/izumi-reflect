@@ -144,13 +144,13 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   implicit lazy val r_IntersectionReference: Renderable[IntersectionReference] = new Renderable[IntersectionReference] {
     override def render(value: IntersectionReference): String = {
-      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(_.render()).mkString("{", " & ", "}")
+      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(r => (r: AppliedReference).render()).mkString("{", " & ", "}")
     }
   }
 
   implicit lazy val r_UnionReference: Renderable[UnionReference] = new Renderable[UnionReference] {
     override def render(value: UnionReference): String = {
-      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(_.render()).mkString("{", " | ", "}")
+      value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(r => (r: AppliedReference).render()).mkString("{", " | ", "}")
     }
   }
 
