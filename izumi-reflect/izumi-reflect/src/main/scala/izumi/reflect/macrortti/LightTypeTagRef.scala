@@ -18,7 +18,6 @@
 
 package izumi.reflect.macrortti
 
-import izumi.reflect.internal.CollectionCompat
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedReference}
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymTypeName}
 
@@ -152,8 +151,8 @@ object LightTypeTagRef extends LTTOrdering {
     LightTypeTagInheritance.tpeObject
   )
 
-  def maybeIntersection(refs0: CollectionCompat.IterableOnce[_ <: LightTypeTagRef]): AppliedReference = {
-    val refs = refs0.iterator.flatMap(_.decompose).toSet // flatten nested intersections
+  def maybeIntersection(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
+    val refs = refs0.flatMap(_.decompose).toSet // flatten nested intersections
     if (refs.size == 1) {
       refs.head
     } else {
@@ -168,7 +167,7 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  def maybeUnion(refs0: CollectionCompat.IterableOnce[_ <: LightTypeTagRef]): AppliedReference = {
+  def maybeUnion(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
     val refs = refs0.iterator.flatMap(_.decomposeUnion).toSet // flatten nested unions
     val normalized = refs - LightTypeTagInheritance.tpeNothing
     val superTypes = normalized.intersect(ignored)
@@ -190,8 +189,8 @@ object LightTypeTagRef extends LTTOrdering {
   }
 
   // bincompat
-  private[reflect] def maybeIntersection(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeIntersection(r: CollectionCompat.IterableOnce[_ <: LightTypeTagRef])
-  private[reflect] def maybeUnion(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeUnion(r: CollectionCompat.IterableOnce[_ <: LightTypeTagRef])
+  private[reflect] def maybeIntersection(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeIntersection(r.iterator)
+  private[reflect] def maybeUnion(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeUnion(r.iterator)
 
   sealed trait AppliedNamedReference extends AppliedReferenceExceptIntersection with AppliedReferenceExceptUnion {
     def asName: NameReference
