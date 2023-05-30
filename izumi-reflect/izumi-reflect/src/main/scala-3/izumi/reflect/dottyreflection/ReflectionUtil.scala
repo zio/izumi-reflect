@@ -84,6 +84,7 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   import ReflectionUtil.reflectiveUncheckedNonOverloadedSelectable
+  import InternalContext.InternalContext
 
   extension (typeRef: TypeRef | ParamRef) {
     protected final def _underlying: TypeRepr = {
@@ -102,14 +103,16 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 //        )
 //      underlying.asInstanceOf[TypeRepr]
 
-      typeRef.asInstanceOf[InternalTypeRefOrParamRef].underlying(using qctx._ctx)
+      typeRef.asInstanceOf[InternalTypeRefOrParamRef].underlying(qctx._ctx)
     }
   }
 
   extension (typeRepr: TypeRepr) {
-    protected final def _declaredVariancesIfHKTypeLambda: Option[List[Flags]] = {
+    protected final def _paramVariancesIfHKTypeLambda: Option[List[Flags]] = {
       try {
-        Some(typeRepr.asInstanceOf[InternalHKTypeLambda].declaredVariances)
+        val params = typeRepr.asInstanceOf[InternalHKTypeLambda].typeParams
+        val flags = params.map(_.paramVariance(qctx._ctx))
+        Some(flags)
       } catch {
         case _: NoSuchMethodException => None
       }
@@ -208,14 +211,20 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   type InternalTypeRefOrParamRef = {
-    def underlying(using InternalContext): TypeRepr
+    def underlying(ctx: InternalContext): TypeRepr
   }
 
   type InternalHKTypeLambda = {
-    def declaredVariances: List[Flags]
+    val typeParams: List[InternalLambdaParam]
   }
 
-  opaque type InternalContext = Any
+  type InternalLambdaParam = {
+    def paramVariance(ctx: InternalContext): Flags
+  }
+
+  object InternalContext {
+    opaque type InternalContext = Any
+  }
 
 }
 
