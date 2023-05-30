@@ -74,13 +74,16 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
           case Nil =>
             makeNameReferenceFromType(appliedType.tycon)
           case _ =>
-            val symbolVariances = appliedType.tycon.typeSymbol.typeMembers.map(extractVariance)
+            val symbolVariances = appliedType.tycon.typeSymbol.typeMembers.collect {
+              case s if s.isTypeParam =>
+                extractVariance(s)
+            }
             val variances = if (symbolVariances.sizeCompare(appliedType.args) < 0) {
               appliedType.tycon match {
                 case typeParamRef: ParamRef =>
                   typeParamRef._underlying match {
                     case TypeBounds(_, hi) =>
-                      hi._declaredVariancesIfHKTypeLambda.fold(Nil)(_.map(extractVariance))
+                      hi._paramVariancesIfHKTypeLambda.fold(Nil)(_.map(extractVariance))
                     case _ =>
                       Nil
                   }
