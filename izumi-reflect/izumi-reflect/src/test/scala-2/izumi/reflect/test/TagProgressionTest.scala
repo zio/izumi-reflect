@@ -40,8 +40,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
 
     "progression test: type tags with bounds are not currently requested by the macro on Scala 2" in {
       val t = intercept[TestFailedException] {
-        assertCompiles(
-          """
+        assertCompiles("""
         type `TagK<:Dep`[K[_ <: Dep]] = izumi.reflect.HKTag[ { type Arg[A <: Dep] = K[A] } ]
 
         def t[T[_ <: Dep]: `TagK<:Dep`, A <: Dep: Tag] = Tag[T[A]]
@@ -51,7 +50,6 @@ class TagProgressionTest extends SharedTagProgressionTest {
       }
       assert(t.message.get.contains("could not find implicit value"))
     }
-
 
   }
 
