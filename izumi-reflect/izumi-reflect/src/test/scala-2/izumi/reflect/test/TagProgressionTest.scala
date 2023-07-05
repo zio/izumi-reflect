@@ -16,7 +16,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
           Tag[T with that.T]
         }
       }
-      doesntWorkYet {
+      broken {
         assertCompiles(
           """
           trait PDT0 {
@@ -33,7 +33,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
       def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
 
       val badCombine = PDT[Int].badCombine(PDT[Unit])
-      doesntWorkYet {
+      broken {
         assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
       }
     }

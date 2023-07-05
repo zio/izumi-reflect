@@ -428,7 +428,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
       assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
 
-      if (!IsDotty) {
+      if (!IsScala3) {
         assertCompiles("val opt: Option[_ >: H4 <: H2] = None: Option[H5]")
       } else {
         assertCompiles("val opt: Option[_ >: H4 <: H2] = (None: Option[H5]): Option[H4]")

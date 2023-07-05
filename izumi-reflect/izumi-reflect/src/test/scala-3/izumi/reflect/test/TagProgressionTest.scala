@@ -23,12 +23,12 @@ class TagProgressionTest extends SharedTagProgressionTest {
       def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
 
       val badCombine = PDT[Int].badCombine(PDT[Unit])
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
       }
 
       val goodCombine = PDT[Int].goodCombine(PDT[Unit])
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
       }
     }
@@ -44,7 +44,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
       val t10 = Tag[Trait3[Dep] | Trait1].tag
       val t20 = Tag[Trait3[Dep] | Trait4].tag
 
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assertSameStrict(t1, t10)
         assertDebugSame(t1, t10)
       }
@@ -62,7 +62,7 @@ class TagProgressionTest extends SharedTagProgressionTest {
 
       val t10 = t1.removeUnionTautologies
 
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assertSameStrict(t1, t10)
         assertDebugSame(t1, t10)
       }

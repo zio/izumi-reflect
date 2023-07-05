@@ -6,11 +6,11 @@ import izumi.reflect.macrortti._
   * The tests here are *progression* tests, that means they test that something *doesn't work*
   *
   * If a test here starts to fail that's a GOOD thing - that means a new feature is now supported.
-  * When that happens you can remove the `doesntWorkYet` condition inversions and move the test to
+  * When that happens you can remove the `broken` condition inversions and move the test to
   * the non-progression test suite.
   *
-  * All tests must have `doesntWorkYet` clauses wrapping the expected GOOD conditions if a feature
-  * were to work. If a test is missing `doesntWorkYet` clause, it's a probably not a progression test
+  * All tests must have `broken` clauses wrapping the expected GOOD conditions if a feature
+  * were to work. If a test is missing `broken` clause, it's a probably not a progression test
   * anymore and should be moved.
   */
 abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagProgressions {
@@ -22,7 +22,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     "progression test: can't support subtyping of type prefixes" in {
       val a = new C {}
 
-      doesntWorkYet {
+      broken {
         assertChild(LTT[a.A], LTT[C#A])
       }
       assertDifferent(LTT[a.A], LTT[C#A])
@@ -40,7 +40,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
       assertSame(LTT[A#T], LTT[A#T])
       assertDifferent(LTT[B#T], LTT[A#T])
-      doesntWorkYet {
+      broken {
         assertChild(tagB, tagA)
       }
     }
@@ -52,7 +52,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val tagF2 = LTT[F2[Int]]
       assertChild(tagF3, tagF2)
 
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertChild(tagF3, LTT[F2[Any]])
         assertChild(tagF3, LTT[F2[AnyVal]])
       }
@@ -66,7 +66,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
 //      def compare[a >: c <: b, b <: d, c <: d, d, A[x >: a <: b] <: B[x], B[_ >: c <: d], x >: a <: b](s: A[x], t: B[_ >: c <: d]) = null
 
-      doesntWorkYet {
+      broken {
 ////      compare[H5, H5, H4, H2, X2, X, H5](null: Set[H5], null) // error
 ////      (null: Set[H5]): Set[_ >: H4 <: H2] // error
         assertNotChild(`LTT[A,B,_>:B<:A]`[H5, H5, X2], `LTT[A,B,_>:B<:A]`[H2, H4, X])
@@ -89,7 +89,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
       //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
 
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
 //        withDebugOutput {
         assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
 //        }
@@ -98,7 +98,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     "progression test: indirect structural checks do not work" in {
       assertDifferent(LTT[{ type A }], LTT[Object])
-      doesntWorkYet {
+      broken {
         assertChildStrict(LTT[C], LTT[{ type A }])
       }
     }
@@ -111,17 +111,17 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val alias = LTT[T3[Int, Boolean]]
       val direct = LTT[W1 with W4[Boolean] with W5[Int]]
 
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assert(!debugCombined.contains("W4[=scala.Int]"))
       }
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assert(!debugCombined.contains("W3[=scala.Int]"))
       }
 
-      doesntWorkYet {
+      broken {
         assertDebugSame(combined, alias)
       }
-      doesntWorkYet {
+      broken {
         assertDebugSame(combined, direct)
       }
     }
@@ -137,7 +137,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(debug1.contains("* scala.Product"))
       assert(debug1.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
       assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      doesntWorkYet {
+      broken {
         assert(!debug1.contains("λ %1 → scala.util.Right[+scala.Unit,+1]"))
       }
     }
@@ -150,7 +150,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug0.contains("package::List"))
       assert(!debug0.contains("<refinement>"))
       assert(!debug0.contains("<none>"))
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         // FIXME incorrect fullBases parent lambdaification on Scala 3:
         //   contains `scala.collection.immutable.List[+scala.Any]`
         //   instead of `- λ %0 → scala.collection.immutable.List[+0]`
@@ -164,7 +164,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug1.contains("package::List"))
       assert(!debug1.contains("<refinement>"))
       assert(!debug1.contains("<none>"))
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
       }
 
@@ -176,10 +176,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug2.contains("<none>"))
       assert(!debug2.contains("TestModel.E"))
       assert(!debug2.contains("TestModel.A"))
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assert(debug2.contains("- λ %0 → izumi.reflect.test.TestModel::RoleChild[=0]"))
       }
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assert(debug2.contains("* λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
       }
     }
@@ -210,7 +210,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug3.contains("TestModel.E"))
       assert(!debug3.contains("TestModel.A"))
       assert(!debug3.contains("+scala.Nothing"))
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         // FIXME incorrect fullBases parent lambdaification on Scala 3:
         assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       }
@@ -228,7 +228,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug4.contains("TestModel.E"))
       assert(!debug4.contains("TestModel.A"))
       assert(!debug4.contains("+scala.Nothing"))
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assert(debug4.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       }
       assert(debug4.contains("* scala.Product"))
@@ -250,7 +250,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
       assertNotChildStrict(LTT[X { def x[A](a: A): Boolean }], LTT[X { def x[A](a: A): Int }])
       assertChildStrict(LTT[X { def x[A](a: A): Boolean }], LTT[X { def x[A](a: A): AnyVal }])
-      doesntWorkYet {
+      broken {
         assertChildStrict(LTT[X { def x[A](a: A): Boolean }], LTT[X { def x[A](a: A): A }])
       }
     }
@@ -258,21 +258,21 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     "fails to treat tautological refinements as equal to the underlying type" in {
       trait X { def x[A](a: A): A }
 
-      doesntWorkYet {
+      broken {
         assertSameStrict(LTT[X], LTT[X { def x[A](a: A): A }])
         assertSameStrict(LTT[Object], LTT[Object { def equals(obj: Object): Boolean }])
       }
     }
 
     "fails to support methods in refinements with multiple parameter lists" in {
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(b: Boolean): Int }])
       }
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int): Int }])
       }
 
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int, b: Boolean): Int }])
       }
 
@@ -286,7 +286,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
     "progression test: fails to `Any/Object relation is consistent with Scala`" in {
       assertChild(LTT[Object], LTT[Any])
-      doesntWorkYet {
+      broken {
         assertNotChild(LTT[Any], LTT[Object])
       }
       assertDifferent(LTT[Any], LTT[Object])
@@ -296,7 +296,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val t4 = LTT[{ type X >: Any <: Any }]
       val t5 = LTT[{ type X = Any }]
 
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assertDifferent(t4, t5)
       }
     }

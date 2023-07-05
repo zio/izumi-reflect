@@ -4,21 +4,14 @@ import org.scalatest.exceptions.TestFailedException
 
 trait TagProgressions { this: TagAssertions =>
 
-  final def doesntWorkYetOnDotty(f: => Any): Unit = {
-    if (IsDotty) doesntWorkYet(f) else f; ()
+  final def brokenOnScala3(f: => Any): Unit = {
+    if (IsScala3) broken(f) else f; ()
   }
-  final def doesntWorkYetOnScala2(f: => Any): Unit = {
-    if (!IsDotty) doesntWorkYet(f) else f; ()
+  final def brokenOnScala2(f: => Any): Unit = {
+    if (!IsScala3) broken(f) else f; ()
   }
-  final def doesntWorkYet(f: => Any): Unit = {
+  final def broken(f: => Any): Unit = {
     intercept[TestFailedException](f); ()
-  }
-
-  final def succeedsOnDottyButShouldnt(f: => Any): Unit = {
-    doesntWorkYetOnScala2(f)
-  }
-  final def succeedsOnScala2ButShouldnt(f: => Any): Unit = {
-    doesntWorkYetOnDotty(f)
   }
 
 }

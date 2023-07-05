@@ -17,10 +17,10 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
       def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
 
-      doesntWorkYet {
+      broken {
         assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
       }
-      doesntWorkYet {
+      broken {
         assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
       }
     }
@@ -36,15 +36,8 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     """
         )
       })
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assert(t.isFailure)
-      }
-      succeedsOnScala2ButShouldnt {
-        assert(t.isSuccess)
-        assert(
-          t.get.getMessage.contains("could not find implicit value") ||
-          t.get.getMessage.contains("diverging implicit") /*2.11*/
-        )
       }
     }
 
@@ -100,7 +93,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       object B extends B
 
       // Scala 2.12 doesn't handle literal types here
-      if (LTT[B.singleton1.type] != LTT[String] && !IsDotty) {
+      if (LTT[B.singleton1.type] != LTT[String] && !IsScala3) {
         assertDifferent(Tag[A#S1].tag, LTT[String])
       }
       assertSame(Tag[A#S1].tag, B.s1a)
@@ -110,16 +103,16 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
       //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled on Scala 2
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2a)
       }
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2b)
       }
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2a1)
       }
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2b1)
       }
     }
@@ -128,7 +121,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
 //      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
 
-      doesntWorkYetOnScala2 {
+      brokenOnScala2 {
         assertCompiles(
           """
       def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
@@ -146,14 +139,14 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       val tag = mk[Either, IO]
       val tagMono = Tag[IntersectionBlockingIO[Either, IO]]
 
-      doesntWorkYet {
+      broken {
         assertSameStrict(tag.tag, tagMono.tag)
       }
     }
 
     "progression test: Dotty fails to regression test: resolve correct closestClass for Scala vararg AnyVal (https://github.com/zio/izumi-reflect/issues/224)" in {
       val tag = Tag[VarArgsAnyVal]
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assert(tag.closestClass == classOf[scala.Seq[Any]])
       }
     }
@@ -168,7 +161,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       val tres1 = combine1[HigherKindedTypeMember.T, IO[Throwable, *], Int](t1, implicitly, implicitly)
       val tres2 = combine2[HigherKindedTypeMember.T[IO[Throwable, *], *], Int](t2, implicitly)
 
-      doesntWorkYet {
+      broken {
         assertChildStrict(Tag[Unit].tag, tres1.tag)
         assertChildStrict(Tag[Unit].tag, tres2.tag)
       }
@@ -188,7 +181,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       val t10 = Tag[Trait3[Dep] with Trait1].tag
       val t20 = Tag[Trait3[Dep] with Trait4].tag
 
-      doesntWorkYetOnDotty {
+      brokenOnScala3 {
         assertSameStrict(t1, t10)
         assertDebugSame(t1, t10)
       }
@@ -206,7 +199,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       val t10 = t1.removeIntersectionTautologies
 
-      doesntWorkYet {
+      broken {
         assertSameStrict(t1, t10)
         assertDebugSame(t1, t10)
       }

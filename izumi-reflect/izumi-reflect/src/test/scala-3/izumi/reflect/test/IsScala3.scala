@@ -1,3 +1,3 @@
 package izumi.reflect.test
 
-inline val IsDotty = true
+inline val IsScala3 = true
