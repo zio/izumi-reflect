@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.97`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.101`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -23,8 +23,8 @@ object Izumi {
 
   // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
-  final val scala212 = ScalaVersion("2.12.17")
-  final val scala213 = ScalaVersion("2.13.10")
+  final val scala212 = ScalaVersion("2.12.19")
+  final val scala213 = ScalaVersion("2.13.13")
   final val scala300 = ScalaVersion("3.2.2")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
@@ -85,7 +85,7 @@ object Izumi {
     )
     private val jsPlatform = PlatformEnv(
       platform = Platform.Js,
-      language = targetScala,
+      language = targetScala.filterNot(_ == Izumi.scala211),
       settings = Seq(
         "coverageEnabled" := false,
         "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) := "scalaJSLinkerConfig.value.withModuleKind(ModuleKind.CommonJSModule)".raw
@@ -93,7 +93,7 @@ object Izumi {
     )
     private val nativePlatform = PlatformEnv(
       platform = Platform.Native,
-      language = targetScala,
+      language = targetScala.filterNot(_ == Izumi.scala211), // scala-native abandoned 2.11
       settings = Seq(
         "coverageEnabled" := false
       )
@@ -225,7 +225,8 @@ object Izumi {
             val removedOpts = Set[Const](
               "-P:kind-projector:underscore-placeholders",
               "-Vimplicits",
-              "-Xsource:3" // FIXME return after dropping 2.11
+              "-Xsource:3", // FIXME return after dropping 2.11 (NB: may cause bincompat issues)
+              "-Xsource:3-cross" // FIXME return after dropping 2.11 (NB: may cause bincompat issues)
             )
             val addedOpts = Seq[Const](
               "-Wconf:msg=nowarn:silent"
