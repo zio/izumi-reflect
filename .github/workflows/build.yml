@@ -119,7 +119,7 @@ jobs:
   all-good:
     if: always()
     runs-on: ubuntu-latest
-    needs: [ 'build', 'publish-artifacts', 'publish-docs' ]
+    needs: [ 'build' ]
     steps:
       - name: Decide whether the needed jobs succeeded or failed
         uses: re-actors/alls-green@release/v1
