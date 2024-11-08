@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs: {}
   push:
-    branches: [ 'develop' ]
-    tags: [ 'v**' ]
+    branches: [ "develop" ]
+    tags: [ "v**" ]
   pull_request:
-    branches: [ 'develop' ]
+    branches: [ "develop" ]
 
 jobs:
   checksecret:
