@@ -261,7 +261,27 @@ abstract class LightTypeTag private[reflect] (
     * Traditional Scala notation for lambdas, e.g. scala.util.Either[+scala.Int,+_]
     */
   def scalaStyledName: String = {
-    ref.scalaStyledName
+    ref match {
+      case lambda: LightTypeTagRef.Lambda =>
+        // Check if all lambda parameters are applied in the correct order
+        val isTrivial = lambda.input.indices.forall {
+          i =>
+            lambda.output match {
+              case LightTypeTagRef.AppliedReference(args, _) =>
+                args.isDefinedAt(i) && args(i) == lambda.input(i)
+              case _ => false
+            }
+        }
+        if (isTrivialApplication) {
+          // Render with _ placeholders if trivial
+          s"${lambda.output.shortName}[${lambda.input.map(_ => "_").mkString(", ")}]"
+        } else {
+          // Render full form if non-trivial
+          s"[${lambda.input.mkString(", ")}] =>> ${lambda.output.shortName}"
+        }
+      case _ =>
+        ref.scalaStyledName
+    }
   }
 
   @deprecated(
