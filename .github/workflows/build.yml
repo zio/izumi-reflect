@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs: {}
   push:
-    branches: [ "develop" ]
-    tags: [ "v**" ]
+    branches: ["develop"]
+    tags: ["v**"]
   pull_request:
-    branches: [ "develop" ]
+    branches: ["develop"]
 
 jobs:
   checksecret:
@@ -23,11 +23,11 @@ jobs:
           echo "HAVE_SECRETS=${{ env.OPENSSL_IV != '' && env.OPENSSL_KEY != '' }}" >> $GITHUB_OUTPUT
   build:
     runs-on: ubuntu-latest
-    needs: [ 'checksecret' ]
+    needs: ["checksecret"]
     strategy:
       matrix:
-        java: [ '11', '17' ]
-        scala: [ '2.11', '2.12', '2.13', '3' ]
+        java: ["11", "17"]
+        scala: ["2.11", "2.12", "2.13", "3"]
     steps:
       - uses: 7mind/github-env@main
         with:
@@ -40,18 +40,18 @@ jobs:
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
           name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
-          path: '**/target/test-reports/TEST-*.xml'
+          path: "**/target/test-reports/TEST-*.xml"
           reporter: java-junit
       - name: Upload dependency graph
         if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
         uses: scalacenter/sbt-dependency-submission@d3f139371479f7d3ca3db160b9b536cb4f9dcdd5
   publish-artifacts:
     runs-on: ubuntu-latest
-    needs: [ 'build', 'checksecret' ]
+    needs: ["build", "checksecret"]
     if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
     strategy:
       matrix:
-        java: [ '11' ]
+        java: ["11"]
     steps:
       - uses: 7mind/github-env@main
         with:
@@ -62,8 +62,8 @@ jobs:
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
         run: |
           bash sbtgen.sc --js --native
-          
-          
+
+
           COMMAND="sbt +clean +test +mimaReportBinaryIssues"
           if [[ "$GITHUB_REF" == refs/heads/develop || "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
             openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
@@ -73,14 +73,53 @@ jobs:
             if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
               COMMAND="$COMMAND sonatypeBundleRelease"
             fi
-          
+
             echo $COMMAND
             eval $COMMAND
           fi
+  publish-docs:
+    name: Release Docs
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    needs: ["publish-artifacts", "checksecret"]
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: "0"
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish Documentation to NPM
+        run: sbt docs/publishToNpm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Notify Main Repository of New Documentation Release
+        run: |
+          PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')
+          PACKAGE_VERSION=$(npm view $PACKAGE_NAME version)
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+            https://api.github.com/repos/zio/zio/dispatches \
+            -d '{
+                  "event_type": "update-docs",
+                  "client_payload": {
+                    "package_name": "'"${PACKAGE_NAME}"'",
+                    "package_version": "'"${PACKAGE_VERSION}"'"
+                  }
+                }'
   all-good:
     if: always()
     runs-on: ubuntu-latest
-    needs: [ 'build', 'publish-artifacts' ]
+    needs: ["build", "publish-artifacts"]
     steps:
       - name: Decide whether the needed jobs succeeded or failed
         uses: re-actors/alls-green@release/v1
