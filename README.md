@@ -5,7 +5,6 @@
 [![Maven Central](https://img.shields.io/maven-central/v/dev.zio/izumi-reflect_2.13.svg)](https://search.maven.org/search?q=g%3Adev.zio+a%3Aizumi-reflect)
 [![Latest version](https://index.scala-lang.org/zio/izumi-reflect/latest.svg?color=orange)](https://index.scala-lang.org/zio/izumi-reflect)
 
-<!--- docs:start --->
 ---
 
 <p align="center">
@@ -14,6 +13,7 @@
 
 ---
 
+<!--- docs:start --->
 # izumi-reflect
 
 > @quote: Looks a bit similar to TypeTag
