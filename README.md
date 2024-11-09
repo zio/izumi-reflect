@@ -5,6 +5,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/dev.zio/izumi-reflect_2.13.svg)](https://search.maven.org/search?q=g%3Adev.zio+a%3Aizumi-reflect)
 [![Latest version](https://index.scala-lang.org/zio/izumi-reflect/latest.svg?color=orange)](https://index.scala-lang.org/zio/izumi-reflect)
 
+<!--- docs:start --->
 ---
 
 <p align="center">
@@ -74,6 +75,7 @@ Other useful system properties are:
 
 - [`izumi.reflect.rtti.optimized.equals`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.optimized.equals:String(%22izumi.reflect.rtti.optimized.equals%22))
 - [`izumi.reflect.rtti.cache.compile`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.cache.compile:String(%22izumi.reflect.rtti.cache.compile%22))
+<!--- docs:end --->
 
 ## Build
 
@@ -105,6 +107,7 @@ Likewise with Scala 3:
 
 In Intellij, you may also set Scala version by changing the option `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
 
+<!--- docs:start --->
 # Talks
 
 * [Kit Langton — Scala 3 Macro Fun (Open Source Hackery)](https://www.youtube.com/watch?v=wsLhjqCKZuU)
@@ -133,3 +136,4 @@ In Intellij, you may also set Scala version by changing the option `sbt -> sbt s
 
 [Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
+<!--- docs:end --->
