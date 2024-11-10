@@ -78,28 +78,29 @@ jobs:
             eval $COMMAND
           fi
   publish-docs:
-    name: Release Docs
+    name: Release and Notify Docs
     runs-on: ubuntu-latest
     continue-on-error: false
     needs: ['publish-artifacts', 'checksecret']
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ ((github.event_name == 'release') && (github.event.action == 'published')) || (github.event_name == 'workflow_dispatch') }}
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4.1.1
+      - uses: 7mind/github-env@main
         with:
-          fetch-depth: "0"
-
+          java-version: 11
       - name: Setup NodeJS
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
           registry-url: https://registry.npmjs.org
-
+      - name: Update Documentation
+        run: |
+          awk '/<!--- docs:start --->/,/<!--- docs:end --->/' README.md >> docs/index.md
+          sed -i '/<!--- docs:start --->/d' docs/index.md
+          sed -i '/<!--- docs:end --->/d' docs/index.md
       - name: Publish Documentation to NPM
         run: sbt docs/publishToNpm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Notify Main Repository of New Documentation Release
         run: |
           PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')
