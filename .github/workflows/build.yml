@@ -49,8 +49,7 @@ jobs:
 
   publish-artifacts:
     runs-on: ubuntu-latest
-#    needs: [ 'build', 'checksecret' ]
-    needs: [ 'checksecret' ]
+    needs: [ 'build', 'checksecret' ]
     if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
     strategy:
       matrix:
