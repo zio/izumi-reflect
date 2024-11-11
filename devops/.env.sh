@@ -21,6 +21,23 @@ esac
 
 export SCALA_VERSION="$SCALA_VERSION"
 export VERSION_COMMAND="++ $SCALA_VERSION"
-export NUMCPU="$(nproc)"
+
+JDK_VERSION_VAR="JDK${JAVA_VERSION}"
+export JAVA_HOME="${!JDK_VERSION_VAR}"
+export PATH=$JAVA_HOME/bin:$PATH
+
+export _JAVA_OPTIONS="
+  # JVM ignores HOME and relies on getpwuid to determine home directory
+  # That fails when we run self-hosted github agent under non-dynamic user
+  # We need that for rootless docker to work
+  -Duser.home=${HOME}
+  -Xmx4000M
+  -XX:ReservedCodeCacheSize=384M
+  -XX:NonProfiledCodeHeapSize=256M
+  -XX:MaxMetaspaceSize=1024M
+"
+
+_JAVA_OPTIONS="$(echo ${_JAVA_OPTIONS} | grep -v '#' | tr '\n' ' ' | tr -s ' ')"
+
 
 env
