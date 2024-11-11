@@ -12,6 +12,7 @@ source ./devops/.validate-publishing.sh
 
 if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
   sbt -batch -no-colors -v \
+    --java-home "$JAVA_HOME" \
     "show credentials" \
     "+clean" \
     "+test:compile" \
@@ -19,6 +20,7 @@ if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
     "sonatypeBundleRelease"
 else
   sbt -batch -no-colors -v \
+    --java-home "$JAVA_HOME" \
     "show credentials" \
     "+clean" \
     "+test:compile" \
