@@ -37,7 +37,7 @@ export _JAVA_OPTIONS="
   -XX:MaxMetaspaceSize=1024M
 "
 
-_JAVA_OPTIONS="$(echo ${_JAVA_OPTIONS} | grep -v '#' | tr '\n' ' ' | tr -s ' ')"
+_JAVA_OPTIONS="$(echo "${_JAVA_OPTIONS}" | grep -v '#' | tr '\n' ' ' | tr -s ' ')"
 
 
 env
