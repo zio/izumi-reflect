@@ -26,6 +26,8 @@
 
             nodejs
             nodePackages.npm
+
+            gitMinimal
           ];
 
           shellHook = ''
