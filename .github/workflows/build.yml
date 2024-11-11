@@ -7,7 +7,7 @@ on:
     branches: [ "develop" ]
     tags: [ "v**" ]
   pull_request:
-    branches: [ "develop" "wip/**" ]
+    branches: [ "develop", "wip/**" ]
 
 jobs:
   checksecret:
