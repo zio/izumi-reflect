@@ -110,7 +110,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       }
     },
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.2.2") => Seq(
+      case (_, "3.3.4") => Seq(
       
       )
       case (_, _) => (Compile / doc / sources).value
@@ -188,7 +188,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
     } },
     scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.2.2") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
+      case (_, "3.3.4") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
       case (_, _) => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
@@ -213,7 +213,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   )
   .jvmSettings(
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19",
       "2.11.12"
@@ -222,7 +222,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   )
   .jsSettings(
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19"
     ),
@@ -232,7 +232,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   )
   .nativeSettings(
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19"
     ),
@@ -349,7 +349,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       }
     },
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.2.2") => Seq(
+      case (_, "3.3.4") => Seq(
       
       )
       case (_, _) => (Compile / doc / sources).value
@@ -427,7 +427,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     } },
     scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.2.2") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
+      case (_, "3.3.4") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
       case (_, _) => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
@@ -451,7 +451,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .jvmSettings(
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19",
       "2.11.12"
@@ -460,7 +460,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .jsSettings(
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19"
     ),
@@ -470,7 +470,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .nativeSettings(
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19"
     ),
@@ -531,7 +531,7 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
     publish / skip := true,
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19",
       "2.11.12"
@@ -546,7 +546,7 @@ lazy val `izumi-reflect-root-js` = (project in file(".agg/.agg-js"))
   .settings(
     publish / skip := true,
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19",
       "2.11.12"
@@ -561,7 +561,7 @@ lazy val `izumi-reflect-root-native` = (project in file(".agg/.agg-native"))
   .settings(
     publish / skip := true,
     crossScalaVersions := Seq(
-      "3.2.2",
+      "3.3.4",
       "2.13.14",
       "2.12.19",
       "2.11.12"
@@ -598,7 +598,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       "-XDignore.symbol.file"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "3.2.2",
+    scalaVersion := "3.3.4",
     ThisBuild / organization := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
