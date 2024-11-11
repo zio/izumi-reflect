@@ -21,13 +21,18 @@
           nativeBuildInputs = with pkgs.buildPackages; [
             ncurses
 
-            graalvm-ce
             coursier
             sbt
 
             nodejs
             nodePackages.npm
           ];
+
+          shellHook = ''
+            export JDK11=${pkgs.jdk11_headless}
+            export JDK17=${pkgs.jdk17_headless}
+            export JDK21=${pkgs.jdk21_headless}
+          '';
         };
       }
     );

@@ -26,8 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ 'checksecret' ]
     strategy:
+      fail-fast: false
       matrix:
-        java: [ '11', '17', '22' ]
+        java: [ '11', '17', '21' ]
         scala: [ '2.11', '2.12', '2.13', '3' ]
     steps:
       - uses: 7mind/github-env@minimal
