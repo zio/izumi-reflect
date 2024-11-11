@@ -7,7 +7,7 @@ on:
     branches: [ "develop" ]
     tags: [ "v**" ]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "develop" "wip/**" ]
 
 jobs:
   checksecret:
@@ -85,6 +85,7 @@ jobs:
       - uses: 7mind/github-env@minimal
       - name: Publish Docs to NPM Registry
         env:
+          JAVA_VERSION: ${{ matrix.java }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: ./build.sh nix gen publish-ziodocs
       - name: Notify the main repo about the new release of docs package
