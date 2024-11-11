@@ -29,7 +29,6 @@
 
             gitMinimal
             gnupg
-#            tree
           ];
 
           shellHook = ''
