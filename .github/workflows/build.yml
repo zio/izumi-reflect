@@ -67,14 +67,12 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SCALA_VERSION: ${{ matrix.scala }}
         run: |
-           if [[ "$GITHUB_REF" == refs/heads/develop || "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
-             openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
-             tar xvf secrets.tar
-             ln -s .secrets/local.sbt local.sbt
-             rm ./.secrets/credentials.sonatype-nexus.properties
-             printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=oss.sonatype.org" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties          
-           fi
-           ./build.sh nix gen publish-scala
+          openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
+          tar xvf secrets.tar
+          ln -s .secrets/local.sbt local.sbt
+          rm ./.secrets/credentials.sonatype-nexus.properties
+          printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=oss.sonatype.org" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties             
+         ./build.sh nix gen publish-scala
 
   release-and-notify-docs:
     name: Release and Notify Docs
