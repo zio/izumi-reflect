@@ -21,21 +21,21 @@ jobs:
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
         run: |
           echo "HAVE_SECRETS=${{ env.OPENSSL_IV != '' && env.OPENSSL_KEY != '' }}" >> $GITHUB_OUTPUT
+
   build:
     runs-on: ubuntu-latest
     needs: [ 'checksecret' ]
     strategy:
       matrix:
-        java: [ '11', '17' ]
+        java: [ '11', '17' '22' ]
         scala: [ '2.11', '2.12', '2.13', '3' ]
     steps:
-      - uses: 7mind/github-env@main
-        with:
-          java-version: ${{ matrix.java }}
+      - uses: 7mind/github-env@minimal
       - name: Build and Test
-        run: |
-          bash sbtgen.sc --js --native
-          sbt "++ ${{ matrix.scala }} -v" clean test mimaReportBinaryIssues
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          JAVA_VERSION: ${{ matrix.java }}
+        run: ./build.sh nix gen test
       - uses: dorny/test-reporter@v1
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
@@ -45,6 +45,7 @@ jobs:
       - name: Upload dependency graph
         if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
         uses: scalacenter/sbt-dependency-submission@d3f139371479f7d3ca3db160b9b536cb4f9dcdd5
+
   publish-artifacts:
     runs-on: ubuntu-latest
     needs: [ 'build', 'checksecret' ]
@@ -53,35 +54,24 @@ jobs:
       matrix:
         java: [ '17' ]
     steps:
-      - uses: 7mind/github-env@main
-        with:
-          java-version: ${{ matrix.java }}
+      - uses: 7mind/github-env@minimal
       - name: Build and Publish to Sonatype
         env:
+          JAVA_VERSION: ${{ matrix.java }}
           OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
         run: |
-          bash sbtgen.sc --js --native
-          
-          
-          COMMAND="sbt +clean +test +mimaReportBinaryIssues"
-          if [[ "$GITHUB_REF" == refs/heads/develop || "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
-            openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
-            tar xvf secrets.tar
-            ln -s .secrets/local.sbt local.sbt
-            rm ./.secrets/credentials.sonatype-nexus.properties
-            printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=oss.sonatype.org" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties
-  
-            COMMAND="$COMMAND +publishSigned"
-            if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
-              COMMAND="$COMMAND sonatypeBundleRelease"
-            fi
-          
-            echo $COMMAND
-            eval $COMMAND
-          fi
+           if [[ "$GITHUB_REF" == refs/heads/develop || "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
+             openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
+             tar xvf secrets.tar
+             ln -s .secrets/local.sbt local.sbt
+             rm ./.secrets/credentials.sonatype-nexus.properties
+             printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=oss.sonatype.org" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties          
+           fi
+           ./build.sh nix gen publish-scala
+
   release-and-notify-docs:
     name: Release and Notify Docs
     runs-on: ubuntu-latest
@@ -92,25 +82,11 @@ jobs:
       matrix:
         java: [ '17' ]
     steps:
-      - uses: 7mind/github-env@main
-        with:
-          java-version: ${{ matrix.java }}
-      - name: Setup NodeJs
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          registry-url: https://registry.npmjs.org
-      - name: Update Documentation
-        run: |
-          awk '/<!--- docs:start --->/,/<!--- docs:end --->/' README.md >> docs/index.md
-          sed -i '/<!--- docs:start --->/d' docs/index.md
-          sed -i '/<!--- docs:end --->/d' docs/index.md
+      - uses: 7mind/github-env@minimal
       - name: Publish Docs to NPM Registry
-        run: |
-          bash sbtgen.sc --js --native
-          sbt docs/publishToNpm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: ./build.sh nix gen publish-ziodocs
       - name: Notify the main repo about the new release of docs package
         run: |
           PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')
@@ -127,6 +103,7 @@ jobs:
                       "package_version": "'"${PACKAGE_VERSION}"'"
                     }
                   }'
+
   all-good:
     if: always()
     runs-on: ubuntu-latest
