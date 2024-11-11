@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '11', '17' ] # scalac 3.2.2 doesn't work on jdk 21+
+        java: [ '11', '17', '21' ]
         scala: [ '2.11', '2.12', '2.13', '3' ]
     steps:
       - uses: 7mind/github-env@minimal
@@ -49,8 +49,7 @@ jobs:
 
   publish-artifacts:
     runs-on: ubuntu-latest
-#    needs: [ 'build', 'checksecret' ]
-    needs: [ 'checksecret' ]
+    needs: [ 'build', 'checksecret' ]
     if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
     strategy:
       matrix:
@@ -80,8 +79,8 @@ jobs:
     name: Release and Notify Docs
     runs-on: ubuntu-latest
     continue-on-error: false
-#    needs: [ 'build', 'checksecret' ]
-    needs: [ 'checksecret' ]
+    needs: [ 'build', 'checksecret' ]
+    if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
     #if: ${{ ((github.event_name == 'release') && (github.event.action == 'published')) || (github.event_name == 'workflow_dispatch') }}
     strategy:
       matrix:

@@ -28,6 +28,7 @@
             nodePackages.npm
 
             gitMinimal
+            gnupg
           ];
 
           shellHook = ''
