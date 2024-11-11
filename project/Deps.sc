@@ -203,6 +203,7 @@ object Izumi {
         ),
         "mimaFailOnProblem" in SettingScope.Build := true,
         "mimaFailOnNoPrevious" in SettingScope.Build := false,
+        "useGpg" in SettingScope.Build := false,
 
         // scala-steward workaround
         // add sbtgen version to sbt build to allow scala-steward to find it and update it in .sc files
