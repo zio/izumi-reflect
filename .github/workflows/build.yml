@@ -94,7 +94,6 @@ jobs:
           JAVA_VERSION: ${{ matrix.java }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           SCALA_VERSION: ${{ matrix.scala }}
-
         run: ./build.sh nix gen publish-ziodocs
       - name: Notify the main repo about the new release of docs package
         run: |
