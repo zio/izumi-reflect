@@ -9,6 +9,7 @@ source ./devops/.validate-publishing.sh
 [[ -z "$SONATYPE_USERNAME" ]] && echo "Missing SONATYPE_USERNAME" && exit 1
 [[ -z "$SONATYPE_PASSWORD" ]] && echo "Missing SONATYPE_PASSWORD" && exit 1
 
+tree .
 
 if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
   sbt -batch -no-colors -v \

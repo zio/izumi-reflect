@@ -1,4 +1,4 @@
 useGpg := false
 pgpPassphrase := Some("password".toCharArray)
-pgpSecretRing := file(".gnupg/secring.gpg")
-pgpPublicRing := file(".gnupg/pubring.gpg")
+pgpSecretRing := file(".secrets/gnupg/secring.gpg")
+pgpPublicRing := file(".secrets/gnupg/pubring.gpg")
