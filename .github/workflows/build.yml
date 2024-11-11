@@ -55,6 +55,7 @@ jobs:
     strategy:
       matrix:
         java: [ '17' ]
+        scala: [ '2.13' ]
     steps:
       - uses: 7mind/github-env@minimal
       - name: Build and Publish to Sonatype
@@ -64,6 +65,7 @@ jobs:
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SCALA_VERSION: ${{ matrix.scala }}
         run: |
            if [[ "$GITHUB_REF" == refs/heads/develop || "$CI_BRANCH_TAG" =~ ^v.*$ ]] ; then
              openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
@@ -84,12 +86,15 @@ jobs:
     strategy:
       matrix:
         java: [ '17' ]
+        scala: [ '2.13' ]
     steps:
       - uses: 7mind/github-env@minimal
       - name: Publish Docs to NPM Registry
         env:
           JAVA_VERSION: ${{ matrix.java }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          SCALA_VERSION: ${{ matrix.scala }}
+
         run: ./build.sh nix gen publish-ziodocs
       - name: Notify the main repo about the new release of docs package
         run: |
