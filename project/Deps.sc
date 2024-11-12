@@ -25,7 +25,7 @@ object Izumi {
   // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.19")
-  final val scala213 = ScalaVersion("2.13.14")
+  final val scala213 = ScalaVersion("2.13.15")
   final val scala300 = ScalaVersion("3.3.4")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
