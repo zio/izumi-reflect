@@ -479,6 +479,18 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDebugSame(t7, t8)
     }
 
+    "distinguish nested path dependent types (https://github.com/zio/izumi-reflect/issues/363)" in {
+      trait Base {
+        object Nested {
+          trait Member
+        }
+      }
+      object A extends Base
+      object B extends Base
+
+      assertDifferent(LTT[A.Nested.Member],  LTT[B.Nested.Member])
+    }
+
     "properly dealias and assign prefixes to existential types and wildcards" in {
       val withNothing = LTT[TestModel.With[Nothing]]
       val with_ = LTT[TestModel.With[_]]
