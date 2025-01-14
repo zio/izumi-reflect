@@ -43,6 +43,7 @@ jobs:
           name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
           path: '**/target/test-reports/TEST-*.xml'
           reporter: java-junit
+      - uses: sbt/setup-sbt@v1 # setup sbt
       - name: Upload dependency graph
         if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
         uses: scalacenter/sbt-dependency-submission@53544c3e7bf54b0cb7f375f016e5b7446b96b706
