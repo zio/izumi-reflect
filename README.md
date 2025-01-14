@@ -109,6 +109,12 @@ Likewise with Scala 3:
 
 In Intellij, you may also set Scala version by changing the option `sbt -> sbt settings -> Open cross-compiled projects Scala 3 / Scala 2 projects as:`
 
+Provided `flake.nix` can be used to set up the external dependencies necessary to build the project, such as sbt, JDK, coursier, etc:
+
+```bash
+nix develop
+```
+
 <!--- docs:start --->
 
 # Talks
