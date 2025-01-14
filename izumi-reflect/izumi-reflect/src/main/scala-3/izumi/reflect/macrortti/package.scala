@@ -74,6 +74,7 @@ package object macrortti {
   inline def `LTT[_]`[T[_]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[+_]`[T[+_]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[A,B,_>:B<:A]`[A, B <: A, T[_ >: B <: A]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
+  inline def `LTT[A[_],_[_[x] <: A[x]]`[A[_], T[B[x] <: A[x]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_]]`[T[_[_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[+_]]`[T[_[+_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   inline def `LTT[_[_[_]]]`[T[_[_[_]]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]

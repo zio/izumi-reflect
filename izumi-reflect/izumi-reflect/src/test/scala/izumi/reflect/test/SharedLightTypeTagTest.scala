@@ -3,6 +3,7 @@ package izumi.reflect.test
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, FullReference, NameReference, TypeParam}
 import izumi.reflect.macrortti._
 
+import scala.annotation.unused
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
@@ -617,7 +618,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(t2, t1)
     }
 
-    "support higher-kinded intersection type combination isn't supported on Dotty" in {
+    "support higher-kinded intersection type combination" in {
       val tCtor = `LTT[_,_]`[T3]
 
       val combined = tCtor.combine(LTT[Int], LTT[Boolean])
@@ -782,6 +783,152 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
       assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
       assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
+    }
+
+    "covariance of a concrete inheritor to a parent with a higher-kinded type parameter [not ok]" in {
+      trait Container[T] {
+        def tt(): T
+      }
+      final case class AContainer[T](t: T) extends Container[T] {
+        override def tt(): T = t
+      }
+
+      trait Service[+O[x] <: Container[x]] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[AContainer] {
+        def giveHello = "Concrete hello!"
+      }
+
+      withDebugOutput {
+        assertChild(`LTT[_]`[AContainer], `LTT[_]`[Container])
+      }
+
+      assertChild(LTT[AContainer[Int]], LTT[Container[Int]])
+      assertChild(LTT[AContainer[Int]], LTT[Container[?]])
+      assertNotChild(LTT[AContainer[Int]], LTT[Container[Any]])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+      val appliedParent = `LTT[A[_],_[_[x] <: A[x]]`[Container, Service].combine(`LTT[_]`[Container])
+
+      println(concrete.debug())
+      println(parent.debug())
+      println(appliedParent.debug())
+//
+      assertChild(concrete, appliedParent)
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      withDebugOutput {
+        withSanityChecks {
+          assertChild(concrete, parent)
+        }
+      }
+    }
+
+    "covariance of a concrete inheritor to a parent with a complex-shaped higher-kinded type parameter [limited ok]" in {
+      trait Container[T] {
+        def tt(): T
+      }
+      final case class AContainer[T, Y](t: T) extends Container[T] {
+        override def tt(): T = t
+      }
+
+      trait Service[+O[x] <: Container[x]] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[AContainer[*, Int]] {
+        def giveHello = "Concrete hello!"
+      }
+
+      withDebugOutput {
+        assertChild(`LTT[_]`[AContainer[*, Unit]], `LTT[_]`[Container])
+      }
+
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Int]])
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[?]])
+      assertNotChild(LTT[AContainer[Int, Unit]], LTT[Container[Any]])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+      val appliedParent = `LTT[A[_],_[_[x] <: A[x]]`[Container, Service].combine(`LTT[_]`[Container])
+
+      println(concrete.debug())
+      println(parent.debug())
+      println(appliedParent.debug())
+
+      assertChild(concrete, appliedParent)
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      withDebugOutput {
+        withSanityChecks {
+          assertChild(concrete, parent)
+        }
+      }
+    }
+
+    "covariance of a concrete inheritor to a parent with a swap type lambda [not ok]" in {
+      trait Container[T, Y]
+      final case class AContainer[T, Y]() extends Container[Y, T]
+      type SwappedAContainer[T, Y] = AContainer[Y, T]
+
+      trait Service[+O[x, y] <: Container[x, y]] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[SwappedAContainer] {
+        def giveHello = "Concrete hello!"
+      }
+
+      withDebugOutput {
+        assertChild(`LTT[_]`[AContainer[Int, *]], `LTT[_]`[Container[*, Int]])
+      }
+
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Unit, Int]])
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[?, ?]])
+      assertNotChild(LTT[AContainer[Int, Unit]], LTT[Container[Any, Any]])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+
+      println(concrete.debug())
+      println(parent.debug())
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      withDebugOutput {
+        withSanityChecks {
+          assertChild(concrete, parent)
+        }
+      }
+    }
+
+    "covariance of a concrete inheritor to a parent with a proper type parameter [dotty ok]" in {
+      trait Container {
+        def tt(): Any
+      }
+      final case class AContainer(t: Any) extends Container {
+        override def tt(): Any = t
+      }
+
+      trait Service[+O] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[AContainer] {
+        def giveHello = "Concrete hello!"
+      }
+
+      assertChild(LTT[AContainer], LTT[Container])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+
+      println(concrete.debug())
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      assertChild(concrete, parent) // false
     }
 
   }

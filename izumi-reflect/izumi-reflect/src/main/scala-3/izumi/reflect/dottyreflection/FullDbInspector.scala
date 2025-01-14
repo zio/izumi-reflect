@@ -36,14 +36,14 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
     def inspectTypeReprToFullBases(tpe0: TypeRepr): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0._dealiasSimplifiedFull
-      def selfRef: AbstractReference = i.inspectTypeRepr(tpe)
+      def selfRef(): AbstractReference = i.inspectTypeRepr(tpe)
 
       tpe match {
         case a: AppliedType =>
-          extractBase(a, selfRef, recurseIntoBases = false)
+          extractBase(a, selfRef(), recurseIntoBases0 = false)
 
         case typeLambda: TypeLambda =>
-          val selfL = selfRef.asInstanceOf[LightTypeTagRef.Lambda]
+          val selfL = selfRef().asInstanceOf[LightTypeTagRef.Lambda]
 
           val parents = new Run(i.nextLam(typeLambda)).inspectTypeBoundsToFull(typeLambda.resType)
 
@@ -70,7 +70,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
               Seq(
                 (childMaybeAsLambda, parentMaybeAsLambda)
                 // you may debug by inserting some debug trash into dbs:
-//                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
+//                ,NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
 //                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
               )
           }
@@ -83,20 +83,20 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           inspectTypeReprToFullBases(o.left) ++ inspectTypeReprToFullBases(o.right)
 
         case typeRef: TypeRef =>
-          processSymbol(typeRef, selfRef)
+          processSymbol(typeRef, selfRef())
 
         case paramRef: ParamRef =>
           // do not process type parameters for bases db
           Nil
 
         case termRef: TermRef =>
-          extractBase(termRef, selfRef, false)
+          extractBase(termRef, selfRef(), false)
 
         case b: TypeBounds =>
           processTypeBounds(b)
 
         case c: ConstantType =>
-          extractBase(c, selfRef, false)
+          extractBase(c, selfRef(), false)
 
         case t: ThisType =>
           inspectTypeReprToFullBases(t.tref)
@@ -107,16 +107,17 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
         case other =>
           log(s"FullDbInspector: UNSUPPORTED: $other")
-          extractBase(other, selfRef, false)
+          extractBase(other, selfRef(), false)
       }
     }
 
     private def processSymbol(r: TypeRef | ParamRef, selfRef: AbstractReference): List[(AbstractReference, AbstractReference)] = {
       r.typeSymbol match {
         case s if s.isClassDef =>
-          extractBase(r, selfRef, recurseIntoBases = true)
+          extractBase(r, selfRef, recurseIntoBases0 = true)
 
         case s if s.isTypeDef =>
+          println(r -> s -> r._underlying)
           processTypeMemberWithTypeLambdaBounds(r)
 
         case o =>
@@ -124,17 +125,20 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
     }
 
-    private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, recurseIntoBases: Boolean): List[(AbstractReference, AbstractReference)] = {
+    private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, recurseIntoBases0: Boolean): List[(AbstractReference, AbstractReference)] = {
+      val recurseIntoBases = recurseIntoBases0
       val baseTypes = tpe
         .baseClasses
         .iterator.map(tpe.baseType)
         .filterNot(termination)
         .toList
+//      baseTypes.foreach(termination.add)
       log(s"For `$tpe` found base types $baseTypes")
 
       val recursiveParentBases = if (recurseIntoBases) {
         baseTypes.filterNot(_ == tpe).flatMap {
           t =>
+//            termination.add(t)
             inspectTypeReprToFullBases(t)
         }
       } else {
@@ -142,6 +146,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
       val main = recursiveParentBases ++ baseTypes.map {
         bt =>
+//          termination.add(bt)
           val parentRef = i.inspectTypeRepr(bt)
           (selfRef, parentRef)
       }
@@ -176,18 +181,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
 
     private def processTypeMemberWithTypeLambdaBounds(t: TypeRef | ParamRef): List[(AbstractReference, AbstractReference)] = {
-      def replaceUpperBoundWithSelfInUpperBoundBases(selfRef: AbstractReference, upperBound: AbstractReference, upperBoundTpe: TypeRepr)
-        : List[(AbstractReference, AbstractReference)] = {
-        val basesOfUpperBound = inspectTypeReprToFullBases(upperBoundTpe)
-        basesOfUpperBound.map {
-          case (k, v) if k == upperBound =>
-            // bases of upper bound are also bases of the abstract type
-            selfRef -> v
-          case kv =>
-            kv
-        }
-      }
-
       val underlying = t._underlying
       underlying match {
         // handle abstract higher-kinded type members specially,
@@ -210,8 +203,24 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
           replaceUpperBoundWithSelfInUpperBoundBases(selfRef, upperBound, hi)
 
+        // for opaque types
         case _ =>
           inspectTypeReprToFullBases(underlying)
+      }
+    }
+
+    private def replaceUpperBoundWithSelfInUpperBoundBases(
+      selfRef: AbstractReference,
+      upperBound: AbstractReference,
+      upperBoundTpe: TypeRepr
+    ): List[(AbstractReference, AbstractReference)] = {
+      val basesOfUpperBound = inspectTypeReprToFullBases(upperBoundTpe)
+      basesOfUpperBound.map {
+        case (k, v) if k == upperBound =>
+          // bases of upper bound are also bases of the abstract type
+          selfRef -> v
+        case kv =>
+          kv
       }
     }
 

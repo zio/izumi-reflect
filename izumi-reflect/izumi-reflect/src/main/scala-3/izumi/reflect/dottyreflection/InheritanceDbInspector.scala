@@ -4,8 +4,8 @@ import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
-import scala.collection.mutable
 import scala.collection.immutable.Queue
+import scala.collection.mutable
 import scala.quoted.*
 
 object InheritanceDbInspector {
@@ -15,7 +15,7 @@ object InheritanceDbInspector {
 }
 
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
-  import qctx.reflect._
+  import qctx.reflect.*
 
   private lazy val inspector = Inspector.make(qctx)
 
@@ -29,11 +29,11 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
     val baseclassReferences = allReferenceComponents.flatMap {
       i =>
-        val tpef = i._dealiasSimplifiedFull._resultType
-        val targetRef = inspector.makeNameReferenceFromType(tpef)
+        val tpe = i._dealiasSimplifiedFull._resultType
+        val tpeRef = inspector.makeNameReferenceFromType(tpe)
 
-        val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
-        allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
+        val allBases = tpeBases(tpe).filter(!_._takesTypeArgs)
+        allBases.map(base => (tpeRef, inspector.makeNameReferenceFromType(base)))
     }
 
     baseclassReferences
@@ -64,6 +64,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     }
 
     goExtractComponents(tpe0)
+//    println(inh)
 
     inh
   }
@@ -93,7 +94,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
         .filter(_.isType)
         .map(typeRepr.baseType)
 
-    val allbases = onlyParameterizedBases.filterNot(_ =:= typeRepr)
+    val allBases = onlyParameterizedBases.filterNot(_ =:= typeRepr)
 
     val upperBoundBases = typeRepr match {
       case t: TypeRef =>
@@ -110,7 +111,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
         Nil
     }
 
-    upperBoundBases ++ allbases
+    upperBoundBases ++ allBases
   }
 
   extension (t: TypeRepr) {
@@ -130,7 +131,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
     private def _takesTypeArgs: Boolean = {
       t match {
-        case l: LambdaType => true
+        case _: LambdaType => true
         case _ => false
       }
     }
