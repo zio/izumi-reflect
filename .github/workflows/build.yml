@@ -45,7 +45,7 @@ jobs:
           reporter: java-junit
       - name: Upload dependency graph
         if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
-        uses: scalacenter/sbt-dependency-submission@d3f139371479f7d3ca3db160b9b536cb4f9dcdd5
+        uses: scalacenter/sbt-dependency-submission@53544c3e7bf54b0cb7f375f016e5b7446b96b706
 
   publish-artifacts:
     runs-on: ubuntu-latest
