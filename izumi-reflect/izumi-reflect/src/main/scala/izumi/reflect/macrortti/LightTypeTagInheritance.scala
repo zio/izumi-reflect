@@ -101,7 +101,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // parameterized type
       case (s: FullReference, t: FullReference) =>
         (oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
-        || compareParameterizedRefs(ctx)(s, t))
+          || compareParameterizedRefs(ctx)(s, t))
 
       case (s: FullReference, t: NameReference) =>
         any(
@@ -146,7 +146,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         isChild(ctx.next())(s.output, t)
       case (s: Lambda, o: Lambda) =>
         (s.input.size == o.input.size
-        && isChild(ctx.next())(s.normalizedOutput, o.normalizedOutput))
+          && isChild(ctx.next())(s.normalizedOutput, o.normalizedOutput))
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>
@@ -222,12 +222,12 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       ln == rn && lref == rref
     case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
       (ln == rn
-      && lins.iterator.zipAll(rins.iterator, null, null).forall {
-        case (null, _) => false
-        case (_, null) => false
-        case (l, r) => ctx.isChild(r, l) // contravariant
-      }
-      && ctx.isChild(lout, rout)) // covariant
+        && lins.iterator.zipAll(rins.iterator, null, null).forall {
+          case (null, _) => false
+          case (_, null) => false
+          case (l, r) => ctx.isChild(r, l) // contravariant
+        }
+        && ctx.isChild(lout, rout)) // covariant
     case _ =>
       false
   }
