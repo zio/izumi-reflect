@@ -488,7 +488,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       object A extends Base
       object B extends Base
 
-      assertDifferent(LTT[A.Nested.Member],  LTT[B.Nested.Member])
+      assertDifferent(LTT[A.Nested.Member], LTT[B.Nested.Member])
     }
 
     "properly dealias and assign prefixes to existential types and wildcards" in {
@@ -754,23 +754,23 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val txTag = `LTT[_]`[TX]
       assert(
         (txTag.toString // Scala 2
-        == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})")
-        || (txTag.toString // Dotty
-        == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})")
+          == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})")
+          || (txTag.toString // Dotty
+            == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})")
       )
       val txCombinedTag = `LTT[_]`[TX].combine(LTT[Unit])
       assert(
         (txCombinedTag.toString // Scala 2
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})")
-        || (txCombinedTag.toString // Dotty
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})")
+          || (txCombinedTag.toString // Dotty
+            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
       )
       val txUnitTag = LTT[TX[Unit]]
       assert(
         (txUnitTag.toString
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
-        || (txUnitTag.toString
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})")
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
+          || (txUnitTag.toString
+            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})")
       )
       assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
       assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
