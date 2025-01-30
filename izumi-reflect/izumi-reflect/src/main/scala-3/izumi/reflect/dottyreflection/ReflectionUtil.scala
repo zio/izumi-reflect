@@ -86,6 +86,12 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   import ReflectionUtil.reflectiveUncheckedNonOverloadedSelectable
   import InternalContext.InternalContext
 
+  extension (symbol: Symbol) {
+    protected final def _info: TypeRepr = {
+      symbol.asInstanceOf[InternalSymbol].denot(qctx._ctx).info(qctx._ctx)
+    }
+  }
+
   extension (typeRef: TypeRef | ParamRef) {
     protected final def _underlying: TypeRepr = {
       // This works as a substitution for `TypeRef#underlying` call,
@@ -122,7 +128,8 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     protected final def _dealiasSimplifiedFull: TypeRepr = {
 //      val res = typeRepr.dealias.simplified
       // simplified does everything below functions do, with exception of `_removeTautologicalUnions` for some reason
-      // All of these would be more useful, if not for forced type simplification on implicit macro - https://github.com/lampepfl/dotty/issues/17544
+      // All of these would be more useful, if not for forced type simplification on implicit macro
+      // - https://github.com/lampepfl/dotty/issues/17544
       val res = typeRepr.dealias._removeTautologicalIntersections._removeTautologicalUnions._simplifyMatchCase
       if (res.asInstanceOf[AnyRef] eq typeRepr.asInstanceOf[AnyRef]) {
         res
@@ -220,6 +227,14 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 
   type InternalLambdaParam = {
     def paramVariance(ctx: InternalContext): Flags
+  }
+
+  type InternalSymbol = {
+    def denot(ctx: InternalContext): InternalDenot
+  }
+
+  type InternalDenot = {
+    def info(ctx: InternalContext): TypeRepr
   }
 
   object InternalContext {

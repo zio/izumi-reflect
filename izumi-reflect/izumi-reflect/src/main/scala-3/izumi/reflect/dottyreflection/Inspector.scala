@@ -70,16 +70,17 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         inspectTypeRepr(a.underlying)
 
       case appliedType: AppliedType =>
-        appliedType.args match {
+        val tycon: TypeRepr = appliedType.tycon._dealiasSimplifiedFull
+        val args0: List[TypeRepr] = appliedType.args
+        args0 match {
           case Nil =>
-            makeNameReferenceFromType(appliedType.tycon)
+            makeNameReferenceFromType(tycon)
           case _ =>
-            val symbolVariances = appliedType.tycon.typeSymbol.typeMembers.collect {
-              case s if s.isTypeParam =>
-                extractVariance(s)
+            val symbolVariances: List[Variance] = tycon.typeSymbol.declaredTypes.collect {
+              case s if s.isTypeParam => extractVariance(s)
             }
-            val variances = if (symbolVariances.sizeCompare(appliedType.args) < 0) {
-              appliedType.tycon match {
+            val variances: List[Variance] = if (symbolVariances.sizeCompare(appliedType.args) < 0) {
+              tycon match {
                 case typeParamRef: ParamRef =>
                   typeParamRef._underlying match {
                     case TypeBounds(_, hi) =>
@@ -93,9 +94,9 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
             } else {
               symbolVariances
             }
-            val nameRef = makeNameReferenceFromType(appliedType.tycon)
-            val args = appliedType
-              .args.iterator
+            val nameRef = makeNameReferenceFromType(tycon)
+            val args = args0
+              .iterator
               .zipAll(variances, null.asInstanceOf[TypeRepr], Variance.Invariant)
               .takeWhile(_._1 != null)
               .map(next().inspectTypeParam(_, _)).toList

@@ -1,6 +1,6 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, FullReference, NameReference, TypeParam}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, FullReference, NameReference, TypeParam, Variance}
 import izumi.reflect.macrortti._
 
 import scala.collection.immutable.ListSet
@@ -488,7 +488,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       object A extends Base
       object B extends Base
 
-      assertDifferent(LTT[A.Nested.Member],  LTT[B.Nested.Member])
+      assertDifferent(LTT[A.Nested.Member], LTT[B.Nested.Member])
     }
 
     "properly dealias and assign prefixes to existential types and wildcards" in {
@@ -782,6 +782,38 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
       assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
       assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
+    }
+
+    "regression test for https://github.com/zio/izumi-reflect/issues/511" in {
+      class Foo5[-A, B, -C, +DXX, +E]
+      class Foo10[F[_], +G[_], -H[-_, +_], I, +J[+_, +_], B, -A, -C, +E, +DXX] extends Foo5[A, B, C, DXX, E]
+
+      val tag1 = LTT[Foo5[Int, String, Double, Float, Long]]
+
+      assert(tag1.ref.isInstanceOf[FullReference])
+      assert(
+        tag1.ref.asInstanceOf[FullReference].parameters.map(_.variance)
+        == List(Variance.Contravariant, Variance.Invariant, Variance.Contravariant, Variance.Covariant, Variance.Covariant)
+      )
+
+      val tag2 = LTT[Foo10[Option, List, Function1, Boolean, Either, Int, String, Double, Float, Long]]
+
+      assert(tag2.ref.isInstanceOf[FullReference])
+      assert(
+        tag2.ref.asInstanceOf[FullReference].parameters.map(_.variance)
+        == List(
+          Variance.Invariant,
+          Variance.Covariant,
+          Variance.Contravariant,
+          Variance.Invariant,
+          Variance.Covariant,
+          Variance.Invariant,
+          Variance.Contravariant,
+          Variance.Contravariant,
+          Variance.Covariant,
+          Variance.Covariant
+        )
+      )
     }
 
   }
