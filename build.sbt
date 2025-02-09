@@ -209,7 +209,8 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       case (_, _) => Seq.empty
     } },
     Compile / packageBin / packageOptions += Package.ManifestAttributes("Automatic-Module-Name" -> s"${organization.value.replaceAll("-",".")}.${moduleName.value.replaceAll("-",".")}"),
-    Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_")
+    Compile / scalacOptions --= Seq("-Ywarn-value-discard","-Ywarn-unused:_", "-Wvalue-discard", "-Wunused:_"),
+    unmanagedSourceDirectories in Compile += baseDirectory.value / "benchmarks"
   )
   .jvmSettings(
     crossScalaVersions := Seq(
