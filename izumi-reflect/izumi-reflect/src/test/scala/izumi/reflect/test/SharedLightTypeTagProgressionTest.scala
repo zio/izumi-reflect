@@ -89,11 +89,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
       //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
 
-      brokenOnScala3 {
-//        withDebugOutput {
-        assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
-//        }
-      }
+      assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
     }
 
     "progression test: indirect structural checks do not work" in {

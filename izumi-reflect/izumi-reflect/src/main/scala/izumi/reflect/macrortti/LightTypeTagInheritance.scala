@@ -146,7 +146,8 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         isChild(ctx.next())(s.output, t)
       case (s: Lambda, o: Lambda) =>
         (s.input.size == o.input.size
-        && isChild(ctx.next())(s.normalizedOutput, o.normalizedOutput))
+        && (isChild(ctx.next())(s.normalizedOutput, o.normalizedOutput)
+        || oneOfParameterizedParentsIsInheritedFrom(ctx)(s, o)))
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>

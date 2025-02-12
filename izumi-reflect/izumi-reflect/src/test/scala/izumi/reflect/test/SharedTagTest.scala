@@ -542,6 +542,19 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(tagEitherThrowable <:< tagEitherSerializable.tag)
     }
 
+    "regression test: https://github.com/zio/izumi-reflect/issues/469, indirect covariant comparison involving a higher-kinded type argument" in {
+      import TestModel._
+
+      trait Service[+O[_] <: Trait3[_]]
+      final case class AContainer[T](t: T) extends Trait3[T] {
+        override def dep = t
+      }
+      final case class ServiceImpl() extends Service[AContainer]
+
+      implicitly[ServiceImpl <:< Service[Trait3]]
+      assert(Tag[ServiceImpl] <:< Tag[Service[Trait3]])
+    }
+
     "combine Const Lambda to TagK" in {
       def get[F[_, _]: TagKK] = TagK[F[Int, *]]
       val tag = get[Const]
