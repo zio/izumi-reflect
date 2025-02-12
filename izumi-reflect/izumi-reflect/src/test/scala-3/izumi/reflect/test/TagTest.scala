@@ -19,6 +19,19 @@ class TagTest extends SharedTagTest with TagAssertions {
   }
 
   "Tag (Dotty)" should {
+    "Support Array tags" in {
+      case class Bar(bar: Int)
+      type Alias = Array[Byte]
+      object Opaque {
+        opaque type Type <: Array[Byte] = Array[Byte]
+      }
+
+      assertCompiles("Tag.tagFromTagMacro[Array[Byte]].tag")
+      assertCompiles("Tag.tagFromTagMacro[Array[Bar]].tag")
+      assertCompiles("Tag.tagFromTagMacro[Alias].tag")
+      assertCompiles("Tag.tagFromTagMacro[Opaque.Type].tag")
+      assertCompiles("Tag.tagFromTagMacro[Array].tag")
+    }
 
     "Support union subtyping (Scala 3 specific, union types)" in {
       trait Animal

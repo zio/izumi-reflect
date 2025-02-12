@@ -230,7 +230,15 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   }
 
   private def closestClassOfExpr(typeRepr: TypeRepr): Expr[Class[?]] = {
-    Literal(ClassOfConstant(lubClassOf(intersectionUnionRefinementClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+    val arrayTypeSymbol = TypeRepr.of[Array].typeSymbol
+    Literal(
+      ClassOfConstant(
+        if typeRepr.baseClasses.contains(arrayTypeSymbol) then
+          TypeRepr.typeConstructorOf(classOf[Array[?]])
+        else
+          lubClassOf(intersectionUnionRefinementClassPartsOf(typeRepr))
+      )
+    ).asExprOf[Class[?]]
   }
 
   private def lubClassOf(tpes: List[TypeRepr]): TypeRepr = {
