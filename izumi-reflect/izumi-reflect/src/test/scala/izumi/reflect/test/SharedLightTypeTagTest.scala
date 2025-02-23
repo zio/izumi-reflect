@@ -793,7 +793,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(tag1.ref.isInstanceOf[FullReference])
       assert(
         tag1.ref.asInstanceOf[FullReference].parameters.map(_.variance)
-        == List(Variance.Contravariant, Variance.Invariant, Variance.Contravariant, Variance.Covariant, Variance.Covariant)
+          == List(Variance.Contravariant, Variance.Invariant, Variance.Contravariant, Variance.Covariant, Variance.Covariant)
       )
 
       val tag2 = LTT[Foo10[Option, List, Function1, Boolean, Either, Int, String, Double, Float, Long]]
@@ -801,18 +801,18 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(tag2.ref.isInstanceOf[FullReference])
       assert(
         tag2.ref.asInstanceOf[FullReference].parameters.map(_.variance)
-        == List(
-          Variance.Invariant,
-          Variance.Covariant,
-          Variance.Contravariant,
-          Variance.Invariant,
-          Variance.Covariant,
-          Variance.Invariant,
-          Variance.Contravariant,
-          Variance.Contravariant,
-          Variance.Covariant,
-          Variance.Covariant
-        )
+          == List(
+            Variance.Invariant,
+            Variance.Covariant,
+            Variance.Contravariant,
+            Variance.Invariant,
+            Variance.Covariant,
+            Variance.Invariant,
+            Variance.Contravariant,
+            Variance.Contravariant,
+            Variance.Covariant,
+            Variance.Covariant
+          )
       )
     }
 
