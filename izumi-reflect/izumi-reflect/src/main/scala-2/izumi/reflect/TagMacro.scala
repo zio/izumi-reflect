@@ -397,18 +397,24 @@ class TagMacro(val c: blackbox.Context) {
   @inline
   private[this] final def closestClass(properTypeStrongCtor: Type): c.Expr[Class[_]] = {
     // unfortunately .erasure returns trash for intersection types
-    val tpeLub = properTypeStrongCtor match {
+    val tpeLub = ReflectionUtil.norm(c.universe: c.universe.type, logger)(properTypeStrongCtor.dealias) match {
       case r: RefinedTypeApi => lub(r.parents)
-      case _ => properTypeStrongCtor
+      case o => o
     }
     val tpeErased = tpeLub.erasure
     // and for Scala varargs (Scala by names and Java varargs are fine)
     val tpeFixed = if (tpeErased.typeSymbol eq definitions.RepeatedParamClass) {
       typeOf[scala.Seq[Any]].dealias
+    } else if (tpeErased.typeSymbol eq definitions.ArrayClass) {
+      // workaround for a crash that happens when .erasure misfires on Array in case `Tag[Array[List[X]]]`
+      // and produces a tree `classOf[Array[List]]` which fails to compile.
+      // Array is the only type that needs to be parameterized after erasure and stripping its parameters via .erasure
+      // actually breaks it, so we skip this step for Arrays.
+      tpeLub.dealias
     } else {
       tpeErased
     }
-    c.Expr[Class[_]](q"_root_.scala.Predef.classOf[$tpeFixed]")
+    c.Expr[Class[_]](q"${Literal(Constant(tpeFixed))}.asInstanceOf[_root_.java.lang.Class[_]]")
   }
 
   @inline
