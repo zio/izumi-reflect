@@ -205,6 +205,10 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
+    "progression test: null is treated like Nothing, not like a separate type" in {
+      assert(LTT[Null] <:< LTT[Int])
+      assert(LTT[Null] <:< LTT[Nothing])
+    }
   }
 
 }
