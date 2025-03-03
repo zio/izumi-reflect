@@ -30,9 +30,12 @@ import scala.collection.mutable
 
 object LightTypeTagInheritance {
   private[reflect] final val tpeNothing = NameReference(SymTypeName("scala.Nothing"))
+  private[reflect] final val tpeNull = NameReference(SymTypeName("scala.Null"))
+  
   private[reflect] final val tpeAny = NameReference(SymTypeName("scala.Any"))
-  private[reflect] final val tpeMatchable = NameReference(SymTypeName("scala.Matchable"))
   private[reflect] final val tpeAnyRef = NameReference(SymTypeName("scala.AnyRef"))
+  
+  private[reflect] final val tpeMatchable = NameReference(SymTypeName("scala.Matchable"))
   private[reflect] final val tpeObject = NameReference(SymTypeName(classOf[Object].getName))
 
   private final case class Ctx(
@@ -70,6 +73,9 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (s, t) if s == t =>
         true
       case (s, _) if s == tpeNothing =>
+        true
+      case (s, _) if s == tpeNull =>
+        // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)
         true
       case (_, t) if t == tpeAny || t == tpeAnyRef || t == tpeObject || t == tpeMatchable =>
         // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)

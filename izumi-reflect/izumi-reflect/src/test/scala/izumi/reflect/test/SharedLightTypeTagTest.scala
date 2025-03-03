@@ -816,6 +816,11 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       )
     }
 
+    "null type is supported" in {
+      assert(LTT[Null] <:< LTT[I1])
+      assert(LTT[Nothing] <:< LTT[Null])
+    }
+
   }
 
 }
