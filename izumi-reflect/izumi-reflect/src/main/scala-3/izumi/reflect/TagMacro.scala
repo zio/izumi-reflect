@@ -237,9 +237,10 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     tpes.map(_.baseClasses) match {
       case h :: t =>
         val bases = h.to(mutable.LinkedHashSet)
-        t.foreach { b =>
-          val bBases = b.to(mutable.HashSet)
-          bases.filterInPlace(bBases)
+        t.foreach {
+          b =>
+            val bBases = b.to(mutable.HashSet)
+            bases.filterInPlace(bBases)
         }
         // rely on the fact that .baseClasses returns classes in order from most specific to least, therefore most specific class should be first.
         val baseClass = bases.headOption.getOrElse(defn.AnyClass)
