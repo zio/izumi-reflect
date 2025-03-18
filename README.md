@@ -54,7 +54,7 @@ Known limitations are:
 3. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
 4. This-Types such as `X.this.type` are ignored and identical to `X`
 5. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
-6. There are some optimizations in place which reduce correctness, namely: subtype check for `scala.Matchable` will always return true, no distinction is made between `scala.Any` and `scala.AnyRef`,  no distinction is made between `scala.Nothing` and `scala.Null`. In other words, the library does not treat value types in a special way.
+6. There are some optimizations in place which reduce correctness, namely: subtype check for `scala.Matchable` will always return true, no distinction is made between `scala.Any` and `scala.AnyRef`,  no distinction is made between `scala.Nothing` and `scala.Null`. In other words, the library does not recognize that `Null` is not a subtype of `AnyVal`s.
 7. Lower bounds are not preserved in abstract higher-kinded type members which may produce false comparisons.
 8. Type and value members are not preserved in concrete types which may produce false comparisons with refined/structural types. (https://github.com/zio/izumi-reflect/issues/481)
 
