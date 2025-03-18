@@ -31,10 +31,10 @@ import scala.collection.mutable
 object LightTypeTagInheritance {
   private[reflect] final val tpeNothing = NameReference(SymTypeName("scala.Nothing"))
   private[reflect] final val tpeNull = NameReference(SymTypeName("scala.Null"))
-  
+
   private[reflect] final val tpeAny = NameReference(SymTypeName("scala.Any"))
   private[reflect] final val tpeAnyRef = NameReference(SymTypeName("scala.AnyRef"))
-  
+
   private[reflect] final val tpeMatchable = NameReference(SymTypeName("scala.Matchable"))
   private[reflect] final val tpeObject = NameReference(SymTypeName(classOf[Object].getName))
 
