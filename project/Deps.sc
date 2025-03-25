@@ -337,7 +337,7 @@ object Izumi {
     globalPlugins = Plugins(),
     pluginConflictRules = Map.empty,
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
-      SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
+      SbtPlugin("com.github.sbt", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
       SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
       SbtPlugin("dev.zio", "zio-sbt-website", PV.zio_sbt_website)
