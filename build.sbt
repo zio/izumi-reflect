@@ -671,7 +671,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
     ThisBuild / useGpg := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.101" % Provided
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.104" % Provided
   )
   .aggregate(
     `izumi-reflect-aggregate`
