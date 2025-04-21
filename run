@@ -52,7 +52,7 @@ function download-file() {
 
 
 function update-cache() {
-    if [[ "${MOBALA_SELF_UPDATE}" == 1 ]] ; then
+    if [[ "${MOBALA_CACHE_UPDATE}" == 1 ]] ; then
         download-file "${MOBALA_LIB_FILE}" "${MOBALA_CACHE_LIB}"
         download-file "${MOBALA_FILE}" "${MOBALA_CACHE_MAIN}"
     fi
