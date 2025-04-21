@@ -3,10 +3,7 @@
 set -euo pipefail
 if [[ "${DO_VERBOSE}" == 1 ]] ; then set -x ; fi
 
-JDK_VERSION_VAR="JDK${JAVA_VERSION}"
-export JAVA_HOME="${!JDK_VERSION_VAR}"
-export PATH=$JAVA_HOME/bin:$PATH
-
+set_jdk_path
 set_jvm_options
 set_jvm_optimizations
 set_scala_sbtgen_variables
