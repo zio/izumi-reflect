@@ -373,16 +373,27 @@ class TagMacro(val c: blackbox.Context) {
             t =>
               if (exts.contains(t.typeSymbol)) {
                 /// generate top-level existential type for LightTypeTagImpl macro
-                c.internal.existentialType(List(t.typeSymbol), t)
+                t.typeSymbol.typeSignature match {
+                  case tb: TypeBounds =>
+                    val lo = tb.lo
+                    val hi = tb.hi
+                    val loTag = summonLightTypeTagOfAppropriateKind(lo)
+                    val hiTag = summonLightTypeTagOfAppropriateKind(hi)
+                    reify {
+                      LightTypeTag.wildcardType(loTag.splice, hiTag.splice)
+                    }
+                  case _ =>
+                    summonLightTypeTagOfAppropriateKind(c.internal.existentialType(List(t.typeSymbol), t))
+                }
               } else {
-                ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)
+                summonLightTypeTagOfAppropriateKind(ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
               }
           }
         case _ =>
-          tpe.typeArgs.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
+          tpe.typeArgs.map(t => summonLightTypeTagOfAppropriateKind(ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)))
       }
       logger.log(s"Now summoning tags for args=$args")
-      c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(args.map(summonLightTypeTagOfAppropriateKind)))
+      c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(args))
     }
 
     {

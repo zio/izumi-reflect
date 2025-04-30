@@ -56,6 +56,13 @@ private[reflect] object ReflectionUtil {
       case t: Universe#RefinedTypeApi =>
         t.parents.forall(allPartsStrong(outerTypeParams, _)) &&
         t.decls.toSeq.forall((s: Universe#Symbol) => s.isTerm || allPartsStrong(outerTypeParams, s.asType.typeSignature.dealias))
+      case e: Universe#ExistentialTypeApi =>
+        allPartsStrong(outerTypeParams, e.underlying) &&
+          e.underlying.typeArgs.forall(t => t.typeSymbol.typeSignature match {
+            case tb: Universe#TypeBounds => allPartsStrong(outerTypeParams, tb.hi) && allPartsStrong(outerTypeParams, tb.lo)
+            case _ => allPartsStrong(outerTypeParams, t)
+          } ) &&
+          e.quantified.forall((s: Universe#Symbol) => allPartsStrong(outerTypeParams, s.asType.typeSignature.dealias))
       case _ =>
         val resType = dealiased.finalResultType
         if (dealiased.takesTypeArgs && !dealiased.typeParams.forall(outerTypeParams.contains)) {
