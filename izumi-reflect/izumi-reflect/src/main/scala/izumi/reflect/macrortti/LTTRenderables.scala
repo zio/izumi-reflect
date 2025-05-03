@@ -244,10 +244,28 @@ object LTTRenderables {
     }
 
     override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
-      override def render(value: Lambda): String = {
-        s"${value.output.render()}"
+    override def render(value: Lambda): String = {
+      val lambdaParams = value.input.map(_.toString)
+
+      val usedParams = value.output match {
+        case ref: AbstractReference =>
+          ref.typeArgs.collect {
+            case n: NameReference => n.ref.toString
+          }
+        case _ => Nil
+      }
+
+      val canSimplify = lambdaParams == usedParams
+
+      if (canSimplify) {
+        value.output.render()
+      } else {
+        val paramString = value.input.map(_.render()).mkString(", ")
+        s"[${paramString}] =>> ${value.output.render()}"
       }
     }
+  }
+
 
     override implicit lazy val r_Variance: Renderable[Variance] = new Renderable[Variance] {
       override def render(value: Variance): String = value match {
