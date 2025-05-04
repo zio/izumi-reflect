@@ -235,72 +235,92 @@ object LTTRenderables {
     override def prefixSplitter: String = "."
   }
 
-  object ScalaStyledLambdas extends Long {
+  object ScalaStyledLambdas extends Long with WithRenderableSyntax {
 
-    override def prefixSplitter: String = "."
+  override def prefixSplitter: String = "."
 
-    override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
-      override def render(value: SymName.LambdaParamName): String = "_"
-    }
+  override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
+    override def render(value: SymName.LambdaParamName): String = "_"
+  }
 
-    override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
+  override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
     override def render(value: Lambda): String = {
-      val lambdaParams = value.input.map(_.toString)
+      val lambdaParams = value.input
+      val paramNames = lambdaParams.map(_.render())
 
       val usedParams = value.output match {
-        case ref: AbstractReference =>
-          ref.typeArgs.collect {
-            case n: NameReference => n.ref.toString
-          }
-        case _ => Nil
+        case ref: AbstractReference => collectUsedParamRefs(ref)
+        case _ => Set.empty[String]
       }
 
-      val canSimplify = lambdaParams == usedParams
+      val canSimplify =
+        usedParams.size == lambdaParams.size &&
+        usedParams == paramNames.toSet &&
+        paramNames.zip(usedParams.toSeq).forall { case (defined, used) => defined == used }
 
       if (canSimplify) {
         value.output.render()
       } else {
-        val paramString = value.input.map(_.render()).mkString(", ")
+        val paramString = paramNames.mkString(", ")
         s"[${paramString}] =>> ${value.output.render()}"
+      }
+    }
+
+    private def collectUsedParamRefs(ref: AbstractReference): Set[String] = {
+      ref match {
+        case n: NameReference =>
+          Set(r_SymName(n.ref, hasPrefix = false))
+        case f: FullReference =>
+          f.parameters.map(_.ref).flatMap(collectUsedParamRefs).toSet
+        case i: IntersectionReference =>
+          i.refs.flatMap(collectUsedParamRefs).toSet
+        case u: UnionReference =>
+          u.refs.flatMap(collectUsedParamRefs).toSet
+        case r: Refinement =>
+          collectUsedParamRefs(r.reference)
+        case _ => Set.empty
       }
     }
   }
 
+  override implicit lazy val r_Variance: Renderable[Variance] = new Renderable[Variance] {
+    override def render(value: Variance): String = value match {
+      case Variance.Invariant => ""
+      case Variance.Contravariant => "-"
+      case Variance.Covariant => "+"
+    }
+  }
 
-    override implicit lazy val r_Variance: Renderable[Variance] = new Renderable[Variance] {
-      override def render(value: Variance): String = value match {
-        case Variance.Invariant => ""
-        case Variance.Contravariant => "-"
-        case Variance.Covariant => "+"
+  override implicit lazy val r_NameRefRenderer: Renderable[NameReference] = new Renderable[NameReference] {
+    override def render(value: NameReference): String = {
+      val r = r_SymName(value.ref, value.prefix.isDefined)
+
+      val rr = value.boundaries match {
+        case _: Boundaries.Defined =>
+          s"$r ${value.boundaries.render()}"
+        case Boundaries.Empty =>
+          r
+      }
+
+      value.prefix match {
+        case Some(p) =>
+          s"${p.render()}$prefixSplitter$rr"
+        case None =>
+          rr
       }
     }
+  }
 
-    override implicit lazy val r_NameRefRenderer: Renderable[NameReference] = new Renderable[NameReference] {
-      override def render(value: NameReference): String = {
-        val r = r_SymName(value.ref, value.prefix.isDefined)
-
-        val rr = value.boundaries match {
-          case _: Boundaries.Defined =>
-            s"$r ${value.boundaries.render()}"
-          case Boundaries.Empty =>
-            r
-        }
-
-        value.prefix match {
-          case Some(p) =>
-            s"${p.render()}$prefixSplitter$rr"
-          case None =>
-            rr
-        }
-      }
-    }
-
-    override implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
-      override def render(value: Boundaries): String = value match {
-        case Boundaries.Defined(bottom, top) if bottom == tpeNothing || bottom == tpeNull => s"<: ${top.render()}"
-        case Boundaries.Defined(bottom, top) if top == tpeAny || top == tpeAnyRef || top == tpeObject => s">: ${bottom.render()}"
-        case Boundaries.Defined(bottom, top) => s">: ${bottom.render()} <: ${top.render()}"
-        case Boundaries.Empty => ""
+  override implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
+    override def render(value: Boundaries): String = value match {
+      case Boundaries.Defined(bottom, top) if bottom == tpeNothing || bottom == tpeNull =>
+        s"<: ${top.render()}"
+      case Boundaries.Defined(bottom, top) if top == tpeAny || top == tpeAnyRef || top == tpeObject =>
+        s">: ${bottom.render()}"
+      case Boundaries.Defined(bottom, top) =>
+        s">: ${bottom.render()} <: ${top.render()}"
+      case Boundaries.Empty =>
+        ""
       }
     }
   }
