@@ -16,6 +16,6 @@ class LambdaRenderingTest extends org.scalatest.funsuite.AnyFunSuite {
 
   test("Lambda rendering should preserve non-symmetric lambdas") {
     println(s"BA styled: ${ba.scalaStyledName}")
-    assert(ba.scalaStyledName == "[_, _] =>> scala.util.Either[+_,+_]")
+    assert(ba.scalaStyledName == "[A, B] =>> scala.util.Either[+B,+A]")
   }
 }
