@@ -354,7 +354,10 @@ object LightTypeTag {
   }
 
   def wildcardType(lowTag: LightTypeTag, highTag: LightTypeTag): LightTypeTag = {
-    val ref = LightTypeTagRef.WildcardReference(Boundaries.Defined(lowTag.ref.asInstanceOf[AbstractReference], highTag.ref.asInstanceOf[AbstractReference]))
+    val ref = LightTypeTagRef.WildcardReference(Boundaries.Defined(
+      lowTag.ref match { case r: AbstractReference => r },
+      highTag.ref match { case r: AbstractReference => r }
+    ))
 
     def mergedBasesDB: Map[AbstractReference, Set[AbstractReference]] =
       LightTypeTag.mergeIDBs(highTag.basesdb, lowTag.basesdb)
