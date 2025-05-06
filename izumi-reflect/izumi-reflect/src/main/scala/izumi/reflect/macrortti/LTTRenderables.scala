@@ -13,10 +13,9 @@
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
  */
 
- package izumi.reflect.macrortti
+package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.functional.{Renderable, WithRenderableSyntax}
 import izumi.reflect.internal.fundamentals.platform.language.unused
@@ -158,7 +157,7 @@ object LTTRenderables {
     }
   }
 
-    object Long extends Long {
+  object Long extends Long {
     private[macrortti] def renderDb(db: Map[_ <: AbstractReference, Set[_ <: AbstractReference]]): String = {
       import izumi.reflect.internal.fundamentals.platform.strings.IzString._
       db.toList.sortBy(_._1)(OrderingAbstractReferenceInstance).map {
@@ -168,11 +167,9 @@ object LTTRenderables {
     }
   }
 
-    object LongPrefixDot extends Long {
+  object LongPrefixDot extends Long {
     override def prefixSplitter: String = "."
   }
-
-
 
   private[LTTRenderables] trait Long extends LTTRenderables {
     override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
@@ -195,10 +192,31 @@ object LTTRenderables {
       override def render(value: Lambda): String = {
         val lambdaParams = value.input.map(p => NameReference(p, Boundaries.Empty, None))
         val usedParams = collectOrderedUsedParamRefs(value.output)
-        val canSimplify = lambdaParams == usedParams
 
-        if (canSimplify) "scala.util.Either[_, _]"
-        else {
+        def isTrivial(ref: LightTypeTagRef): Boolean = ref match {
+          case _: NameReference => true
+          case _ => false
+        }
+
+        val outputArgsTrivial = value.output match {
+          case a: AppliedNamedReference => a.typeArgs.forall(isTrivial)
+          case _ => false
+        }
+
+        val isSymmetric = usedParams == lambdaParams
+        val useCompact = isSymmetric && outputArgsTrivial
+
+        if (useCompact) {
+          val name = value.output match {
+            case a: AppliedNamedReference =>
+              a.asName.ref match {
+                case SymLiteral(full) => full.split('.').lastOption.getOrElse(full)
+                case _ => a.asName.render()
+              }
+            case _ => value.output.render()
+          }
+          s"$name[_, _]"
+        } else {
           val paramString = value.input.map(_.render()).mkString(", ")
           s"[$paramString] =>> ${value.output.render()}"
         }
