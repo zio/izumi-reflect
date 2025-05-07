@@ -209,6 +209,15 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       assert(LTT[Null] <:< LTT[Int])
       assert(LTT[Null] <:< LTT[Nothing])
     }
+
+    "progression test: parameter resolution breaks inside covariant wildcard type bounds on Scala 2.12 and 2.13" in {
+      def xcov[T[_]: TagK, U: Tag]: Tag[List[_ <: T[U]]] = Tag[List[_ <: T[U]]]
+
+      brokenOnScala2MinorVersion(13) {
+        assertRepr(xcov[List, Long].tag, "List[+?: <Nothing..List[+Long]>]")
+        assertSameStrict(xcov[List, Long].tag, Tag[List[_ <: List[Long]]].tag)
+      }
+    }
   }
 
 }

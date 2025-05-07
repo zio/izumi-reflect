@@ -94,8 +94,6 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   private def makeWeakTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
-    logger.log(s"Got non-strong tag: $tpe")
-
     if (getImplicitError().endsWith(":")) { // yep
       logger.log(s"Got continuation implicit error: ${getImplicitError()}")
     } else {
@@ -104,6 +102,8 @@ class TagMacro(val c: blackbox.Context) {
     }
 
     val tgt = ReflectionUtil.norm(c.universe: c.universe.type, logger)(tpe.dealias)
+
+    logger.log(s"Got non-strong tag: $tpe, dealiased: $tgt")
 
     addImplicitError(s"  deriving Tag for $tpe, dealiased: $tgt:")
 
@@ -116,7 +116,7 @@ class TagMacro(val c: blackbox.Context) {
 
     addImplicitError(s"  succeeded for: $tgt")
 
-    logger.log(s"Final code of Tag[$tpe]:\n ${showCode(res.tree)}")
+    logger.log(s"Final code of Tag[$tpe] (dealiased $tgt):\n ${showCode(res.tree)}")
 
     res
   }

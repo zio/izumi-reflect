@@ -1093,10 +1093,10 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertCompiles("Tag[Array[Byte]]")
     }
 
-    "resolve parameters inside type bounds & wildcards" in { // Issue #31
-      def getUpperBoundTag[T: Tag] = Tag[Set[_ <: T]]
+    "resolve parameters inside type bounds & wildcards" in {
+      def getUpperBoundTag[T: Tag]: Tag[Set[_ <: T]] = Tag[Set[_ <: T]]
 
-      def getLowerBoundTag[T: Tag] = Tag[Set[_ >: T]]
+      def getLowerBoundTag[T: Tag]: Tag[Set[_ >: T]] = Tag[Set[_ >: T]]
 
       assertRepr(getUpperBoundTag[Int].tag, "Set[=?: <Nothing..Int>]")
       assertSame(getUpperBoundTag[Int].tag, Tag[Set[_ <: Int]].tag)
@@ -1105,9 +1105,13 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSame(getLowerBoundTag[Int].tag, Tag[Set[_ >: Int]].tag)
 
       // for recursive bound case
-      def x[T[_]: TagK  , U: Tag] = Tag[Set[_ <: T[U]]]
+      def x[T[_]: TagK, U: Tag]: Tag[Set[_ <: T[U]]] = Tag[Set[_ <: T[U]]]
       assertRepr(x[List, Long].tag, "Set[=?: <Nothing..List[+Long]>]")
-      assertSame(x[List, Long].tag, Tag[Set[_ <: List[Long]]].tag)
+      assertSameStrict(x[List, Long].tag, Tag[Set[_ <: List[Long]]].tag)
+
+      def xcontra[T[_]: TagK, U: Tag]: Tag[(_ <: T[U]) => Int] = Tag[(_ <: T[U]) => Int]
+      assertRepr(xcontra[List, Long].tag, "Function1[-?: <Nothing..List[+Long]>,+Int]")
+      assertSameStrict(xcontra[List, Long].tag, Tag[(_ <: List[Long]) => Int].tag)
     }
   }
 
