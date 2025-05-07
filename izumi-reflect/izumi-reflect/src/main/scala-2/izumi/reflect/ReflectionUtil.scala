@@ -59,7 +59,7 @@ private[reflect] object ReflectionUtil {
       case e: Universe#ExistentialTypeApi =>
         allPartsStrong(outerTypeParams, e.underlying) &&
           e.underlying.typeArgs.forall(t => t.typeSymbol.typeSignature match {
-            case tb: Universe#TypeBounds => allPartsStrong(outerTypeParams, tb.hi) && allPartsStrong(outerTypeParams, tb.lo)
+            case tb: Universe#TypeBoundsApi => allPartsStrong(outerTypeParams, tb.hi) && allPartsStrong(outerTypeParams, tb.lo)
             case _ => allPartsStrong(outerTypeParams, t)
           } ) &&
           e.quantified.forall((s: Universe#Symbol) => allPartsStrong(outerTypeParams, s.asType.typeSignature.dealias))
