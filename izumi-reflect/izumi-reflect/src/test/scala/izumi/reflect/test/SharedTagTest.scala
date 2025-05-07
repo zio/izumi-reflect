@@ -1093,6 +1093,22 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertCompiles("Tag[Array[Byte]]")
     }
 
+    "resolve parameters inside type bounds & wildcards" in { // Issue #31
+      def getUpperBoundTag[T: Tag] = Tag[Set[_ <: T]]
+
+      def getLowerBoundTag[T: Tag] = Tag[Set[_ >: T]]
+
+      assertRepr(getUpperBoundTag[Int].tag, "Set[=?: <Nothing..Int>]")
+      assertSame(getUpperBoundTag[Int].tag, Tag[Set[_ <: Int]].tag)
+
+      assertRepr(getLowerBoundTag[Int].tag, "Set[=?: <Int..Any>]")
+      assertSame(getLowerBoundTag[Int].tag, Tag[Set[_ >: Int]].tag)
+
+      // for recursive bound case
+      def x[T[_]: TagK  , U: Tag] = Tag[Set[_ <: T[U]]]
+      assertRepr(x[List, Long].tag, "Set[=?: <Nothing..List[+Long]>]")
+      assertSame(x[List, Long].tag, Tag[Set[_ <: List[Long]]].tag)
+    }
   }
 
 }

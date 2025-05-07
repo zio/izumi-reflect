@@ -48,8 +48,15 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           case given Type[a] => '{ Inspect.inspect[a] }
         }
       } else {
-        val result = summonTag[T, Any](typeRepr)
-        '{ $result.tag }
+        typeRepr match {
+          case TypeBounds(low, high) =>
+            val lowTag = summonTagAndFastTrackIfNotTypeParam(low)
+            val highTag = summonTagAndFastTrackIfNotTypeParam(high)
+            '{ LightTypeTag.wildcardType( $lowTag.tag, $highTag.tag ) }
+          case _ =>
+            val result = summonTag[T, Any](typeRepr)
+            '{ $result.tag }
+        }
       }
     }
 

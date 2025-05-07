@@ -353,6 +353,21 @@ object LightTypeTag {
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
 
+  def wildcardType(lowTag: LightTypeTag, highTag: LightTypeTag): LightTypeTag = {
+    val ref = LightTypeTagRef.WildcardReference(Boundaries.Defined(
+      lowTag.ref match { case r: AbstractReference => r },
+      highTag.ref match { case r: AbstractReference => r }
+    ))
+
+    def mergedBasesDB: Map[AbstractReference, Set[AbstractReference]] =
+      LightTypeTag.mergeIDBs(highTag.basesdb, lowTag.basesdb)
+
+    def mergedInheritanceDb: Map[NameReference, Set[NameReference]] =
+      LightTypeTag.mergeIDBs(highTag.idb, lowTag.idb)
+      
+    LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
+  }
+  
   def parse(serialized: Serialized): LightTypeTag = {
     parse[LightTypeTag](serialized.hash, serialized.ref, serialized.databases, serialized.version)
   }
