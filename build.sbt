@@ -598,7 +598,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       "-XDignore.symbol.file"
     ),
     crossScalaVersions := Nil,
-    scalaVersion := "3.3.5",
+    scalaVersion := "3.3.6",
     ThisBuild / organization := "dev.zio",
     sonatypeProfileName := "dev.zio",
     sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
