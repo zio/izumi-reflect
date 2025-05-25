@@ -217,16 +217,30 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     } else {
       // Type projections like A#S2 don't get dealiased with .dealias for some reason, so we dereference them manually here
       val outerTpe = outerTypeRef.get
-      boundaries match {
-        case Boundaries.Defined(bottom, top) if outerTpe.typeSymbol.isAliasType && top == bottom =>
-          // type projection, return underlying
-          top
-        case _ =>
-          // abstract type, return TpeName|LowerBound..UpperBound
-          // Boundaries which are not parameters are named types (e.g. type members) and are NOT wildcards
-          // if hi and low boundaries are defined <strike>and distinct</strike>, type is not reducible to one of them
-          val nameRef = makeNameReferenceFromType(outerTypeRef.get).copy(boundaries = boundaries)
-          invertTypeMemberWithTypeLambdaBounds(nameRef)
+      
+      // Check if the outer type is a type parameter
+      val isFromTypeParam = outerTpe match {
+        case ref: ParamRef => true
+        case _ => context.flatMap(_.params.map(_.tpe)).exists(t => outerTpe.typeSymbol.pos == t.typeSymbol.pos)
+      }
+      
+      if (isFromTypeParam) {
+        // For type projections from type parameters, we should fail to materialize a tag
+        // rather than incorrectly creating one for a transient type value
+        val nameRef = makeNameReferenceFromType(outerTypeRef.get).copy(boundaries = boundaries)
+        invertTypeMemberWithTypeLambdaBounds(nameRef)
+      } else {
+        boundaries match {
+          case Boundaries.Defined(bottom, top) if outerTpe.typeSymbol.isAliasType && top == bottom =>
+            // type projection, return underlying
+            top
+          case _ =>
+            // abstract type, return TpeName|LowerBound..UpperBound
+            // Boundaries which are not parameters are named types (e.g. type members) and are NOT wildcards
+            // if hi and low boundaries are defined <strike>and distinct</strike>, type is not reducible to one of them
+            val nameRef = makeNameReferenceFromType(outerTypeRef.get).copy(boundaries = boundaries)
+            invertTypeMemberWithTypeLambdaBounds(nameRef)
+        }
       }
     }
   }
