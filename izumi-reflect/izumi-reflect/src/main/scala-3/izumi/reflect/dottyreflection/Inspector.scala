@@ -3,6 +3,7 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
+import izumi.reflect.dottyreflection.ReflectionUtil.reflectiveUncheckedNonOverloadedSelectable
 
 import scala.annotation.{tailrec, targetName}
 import scala.collection.immutable.Queue
@@ -221,7 +222,15 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       // Check if the outer type is a type parameter
       val isFromTypeParam = outerTpe match {
         case ref: ParamRef => true
-        case _ => context.flatMap(_.params.map(_.tpe)).exists(t => outerTpe.typeSymbol.pos == t.typeSymbol.pos)
+        case _ => 
+          import qctx.reflect.*
+          // Cast outerTpe to TypeRepr to ensure typeSymbol is available
+          val outer = outerTpe.asInstanceOf[TypeRepr]
+          context.flatMap(_.params.map(_.tpe)).exists { t => 
+            // Cast t to TypeRepr to ensure typeSymbol is available
+            val paramType = t.asInstanceOf[TypeRepr]
+            outer.typeSymbol.pos == paramType.typeSymbol.pos
+          }
       }
       
       if (isFromTypeParam) {
