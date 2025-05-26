@@ -821,6 +821,18 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(LTT[Nothing] <:< LTT[Null])
     }
 
+    "support structural & refinement type equality" in {
+      val a1 = new C {
+        override type A = Int
+      }
+      object Z {
+        type X = { type A = Int }
+      }
+      val _ = (a1, Z)
+
+      assertSame(LTT[a1.A], LTT[Z.X#A])
+    }
+
   }
 
 }

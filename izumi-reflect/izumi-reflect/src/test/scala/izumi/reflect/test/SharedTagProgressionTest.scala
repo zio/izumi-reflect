@@ -218,6 +218,41 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         assertSameStrict(xcov[List, Long].tag, Tag[List[_ <: List[Long]]].tag)
       }
     }
+
+    "progression test: combine intersection path-dependent intersection types with inner tags doesn't work on Scala 2" in {
+      trait PDT {
+        type T
+        implicit def tag: Tag[T]
+
+        def badCombine(that: PDT): Tag[T with that.T] = {
+          Tag[T with that.T]
+        }
+      }
+      brokenOnScala3 {
+        val err = intercept[TestFailedException](
+          assertCompiles(
+            """
+          trait PDT0 {
+            type T
+            implicit def tag: Tag[T]
+
+            def goodCombine(that: PDT): Tag[this.T with that.T] = {
+              import that.tag
+              Tag[this.T with that.T]
+            }
+          }"""
+          )
+        )
+        assert(err.getMessage.matches("(.|\\R)*could not find implicit value.*Tag\\[.*this.T](.|\\R)*"))
+      }
+      def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
+
+      val badCombine = PDT[Int].badCombine(PDT[Unit])
+      broken {
+        assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
+      }
+    }
+
   }
 
 }
