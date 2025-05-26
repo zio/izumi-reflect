@@ -675,6 +675,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDifferent(LTT[C { def a: Int }], LTT[C])
 
       assertDifferent(LTT[C { def a: Int }], LTT[C { def a: Int; def b: Int }])
+
+      val a1 = new C {
+        override type A = Int
+      }
+      object Z {
+        type X = { type A = Int }
+      }
+      val _ = (a1, Z)
+
+      assertSame(LTT[a1.A], LTT[Z.X#A])
     }
 
     "strong summons test" in {
@@ -819,18 +829,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     "null type is supported" in {
       assert(LTT[Null] <:< LTT[I1])
       assert(LTT[Nothing] <:< LTT[Null])
-    }
-
-    "support structural & refinement type equality" in {
-      val a1 = new C {
-        override type A = Int
-      }
-      object Z {
-        type X = { type A = Int }
-      }
-      val _ = (a1, Z)
-
-      assertSame(LTT[a1.A], LTT[Z.X#A])
     }
 
   }
