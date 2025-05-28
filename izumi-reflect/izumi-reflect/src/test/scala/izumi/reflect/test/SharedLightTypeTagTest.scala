@@ -491,6 +491,20 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDifferent(LTT[A.Nested.Member], LTT[B.Nested.Member])
     }
 
+    "dealias nested singletons, regression test for singleton dealias regression introduced in 3.0.0 (https://github.com/zio/izumi-reflect/pull/504)" in {
+      object lifecycle {
+        object Lifecycle {
+          trait FromZIO
+        }
+      }
+      object defn {
+        val Lifecycle: lifecycle.Lifecycle.type = lifecycle.Lifecycle
+      }
+      val xa: defn.Lifecycle.type = defn.Lifecycle
+
+      assertSameStrict(LTT[xa.FromZIO], LTT[lifecycle.Lifecycle.FromZIO])
+    }
+
     "properly dealias and assign prefixes to existential types and wildcards" in {
       val withNothing = LTT[TestModel.With[Nothing]]
       val with_ = LTT[TestModel.With[_]]
