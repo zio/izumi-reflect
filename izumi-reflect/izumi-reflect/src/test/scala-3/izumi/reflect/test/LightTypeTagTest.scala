@@ -96,6 +96,18 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       )
     }
 
+    "normalize IT1[List] lambdas to correct de Bruijn depths" in {
+      val tag = LTT[IT1[List]]
+      val debug = tag.toString
+
+      // This will show something like:
+      // λ %1:0 → λ %0:0 → IT1[%1:0[%0:0]]
+      println(s"Normalized tag for IT1[List]:\n$debug")
+
+      assert(debug.contains("%0:0"), "Expected inner lambda parameter to have depth 0")
+      assert(debug.contains("%1:0"), "Expected outer lambda parameter to have depth -1")
+    }
+
     "support top-level abstract types (Scala 3 specific, top level type aliases)" in {
       assertChildStrict(LTT[LightTypeTagTestT], LTT[String])
     }

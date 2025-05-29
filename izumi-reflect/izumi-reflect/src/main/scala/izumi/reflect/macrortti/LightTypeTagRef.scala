@@ -93,8 +93,12 @@ object LightTypeTagRef extends LTTOrdering {
       unusedParamsSize < paramRefs.size
     }
 
-    lazy val normalizedParams: List[NameReference] = makeNormalizedParams.map(_._2)
-    lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeNormalizedParams)
+    // lazy val normalizedParams: List[NameReference] = makeNormalizedParams.map(_._2)
+    // lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeNormalizedParams)
+
+    lazy val normalized: Lambda = LightTypeTagRef.normalizeLambda(this)
+    lazy val normalizedParams: List[NameReference] = normalized.input.map(NameReference(_))
+    lazy val normalizedOutput: AbstractReference = normalized.output
 
     override def equals(obj: Any): Boolean = {
       obj match {
@@ -107,13 +111,13 @@ object LightTypeTagRef extends LTTOrdering {
       }
     }
 
-    private[this] def makeNormalizedParams: List[(LambdaParamName, NameReference)] = {
-      input.zipWithIndex.map {
-        case (p, idx) =>
-          val relativeDepth = -1 * (input.size - idx)
-          p -> NameReference(SymName.LambdaParamName(idx, relativeDepth, input.size)) // s"!FAKE_$idx"
-      }
-    }
+    // private[this] def makeNormalizedParams: List[(LambdaParamName, NameReference)] = {
+    //   input.zipWithIndex.map {
+    //     case (p, idx) =>
+    //       val relativeDepth = -1 * (input.size - idx)
+    //       p -> NameReference(SymName.LambdaParamName(idx, relativeDepth, input.size)) // s"!FAKE_$idx"
+    //   }
+    // }
   }
 
   sealed trait AppliedReference extends AbstractReference
@@ -193,13 +197,16 @@ object LightTypeTagRef extends LTTOrdering {
   def maybeUnion(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeUnion(r.iterator)
 
   private[reflect] def normalizeLambda(lambda: Lambda, parentDepth: Int = 0): Lambda = {
+    val thisDepth = -parentDepth
     val updatedInput = lambda.input.zipWithIndex.map {
-      case (param, idx) =>
-        LambdaParamName(idx, parentDepth - (lambda.input.size - idx), lambda.input.size)
+      case (_, idx) => LambdaParamName(idx, thisDepth, lambda.input.size)
     }
+
     val updatedOutput = lambda.output match {
-      case nestedLambda: Lambda => normalizeLambda(nestedLambda, parentDepth - lambda.input.size)
-      case other => normalizeReferences(other, updatedInput)
+      case nestedLambda: Lambda =>
+        normalizeLambda(nestedLambda, parentDepth + 1)
+      case other =>
+        normalizeReferences(other, updatedInput)
     }
 
     Lambda(updatedInput, updatedOutput)
