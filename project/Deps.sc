@@ -25,7 +25,7 @@ object Izumi {
   // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.20")
-  final val scala213 = ScalaVersion("2.13.16")
+  final val scala213 = ScalaVersion("2.13.14")
   final val scala300 = ScalaVersion("3.3.6")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
@@ -143,7 +143,7 @@ object Izumi {
             |  .filter(_.exists())
             |  .map(Credentials.apply)
             |}""".stripMargin.raw,
-        
+
         // and uncomment this new shiny shtuff
         /*
         "publishTo" in SettingScope.Build :=
@@ -166,7 +166,7 @@ object Izumi {
             |  .filter(_.exists())
             |  .map(Credentials.apply)
             |}""".stripMargin.raw,
-        */
+         */
         "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
         "licenses" in SettingScope.Build := """Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0"))""".raw,
         "developers" in SettingScope.Build :=
