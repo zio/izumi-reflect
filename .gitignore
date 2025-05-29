@@ -1,3 +1,5 @@
+.env
+.direnv
 .hydra
 .idea
 *.jps

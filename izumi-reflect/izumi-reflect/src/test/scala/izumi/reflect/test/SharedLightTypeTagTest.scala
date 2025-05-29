@@ -1,6 +1,6 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, FullReference, NameReference, TypeParam}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, FullReference, NameReference, TypeParam, Variance}
 import izumi.reflect.macrortti._
 
 import scala.collection.immutable.ListSet
@@ -479,6 +479,35 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDebugSame(t7, t8)
     }
 
+    "distinguish nested path dependent types (https://github.com/zio/izumi-reflect/issues/363)" in {
+      trait Base {
+        object Nested {
+          trait Member
+        }
+      }
+      object A extends Base
+      object B extends Base
+
+      assertDifferent(LTT[A.Nested.Member], LTT[B.Nested.Member])
+    }
+    // Workaround for https://github.com/scala/scala3/issues/23279
+    def dealiasTestWrapper(): Unit = {
+      object lifecycle {
+        object Lifecycle {
+          trait FromZIO
+        }
+      }
+      object defn {
+        val Lifecycle: lifecycle.Lifecycle.type = lifecycle.Lifecycle
+      }
+      val xa: defn.Lifecycle.type = defn.Lifecycle
+
+      assertSameStrict(LTT[xa.FromZIO], LTT[lifecycle.Lifecycle.FromZIO])
+    }
+    "dealias nested singletons, regression test for singleton dealias regression introduced in 3.0.0 (https://github.com/zio/izumi-reflect/pull/504)" in {
+      dealiasTestWrapper()
+    }
+
     "properly dealias and assign prefixes to existential types and wildcards" in {
       val withNothing = LTT[TestModel.With[Nothing]]
       val with_ = LTT[TestModel.With[_]]
@@ -663,6 +692,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDifferent(LTT[C { def a: Int }], LTT[C])
 
       assertDifferent(LTT[C { def a: Int }], LTT[C { def a: Int; def b: Int }])
+
+      val a1 = new C {
+        override type A = Int
+      }
+      object Z {
+        type X = { type A = Int }
+      }
+      val _ = (a1, Z)
+
+      assertSame(LTT[a1.A], LTT[Z.X#A])
     }
 
     "strong summons test" in {
@@ -742,23 +781,23 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val txTag = `LTT[_]`[TX]
       assert(
         (txTag.toString // Scala 2
-        == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})")
-        || (txTag.toString // Dotty
-        == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})")
+          == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})")
+          || (txTag.toString // Dotty
+            == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})")
       )
       val txCombinedTag = `LTT[_]`[TX].combine(LTT[Unit])
       assert(
         (txCombinedTag.toString // Scala 2
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})")
-        || (txCombinedTag.toString // Dotty
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})")
+          || (txCombinedTag.toString // Dotty
+            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
       )
       val txUnitTag = LTT[TX[Unit]]
       assert(
         (txUnitTag.toString
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
-        || (txUnitTag.toString
-        == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})")
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
+          || (txUnitTag.toString
+            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})")
       )
       assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
       assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
@@ -770,6 +809,43 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertRepr(`LTT[_]`[L], "λ %0 → List[+0]")
       assertRepr(`LTT[_]`[Either[Unit, *]], "λ %0 → Either[+Unit,+0]")
       assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
+    }
+
+    "regression test for https://github.com/zio/izumi-reflect/issues/511" in {
+      class Foo5[-A, B, -C, +DXX, +E]
+      class Foo10[F[_], +G[_], -H[-_, +_], I, +J[+_, +_], B, -A, -C, +E, +DXX] extends Foo5[A, B, C, DXX, E]
+
+      val tag1 = LTT[Foo5[Int, String, Double, Float, Long]]
+
+      assert(tag1.ref.isInstanceOf[FullReference])
+      assert(
+        tag1.ref.asInstanceOf[FullReference].parameters.map(_.variance)
+          == List(Variance.Contravariant, Variance.Invariant, Variance.Contravariant, Variance.Covariant, Variance.Covariant)
+      )
+
+      val tag2 = LTT[Foo10[Option, List, Function1, Boolean, Either, Int, String, Double, Float, Long]]
+
+      assert(tag2.ref.isInstanceOf[FullReference])
+      assert(
+        tag2.ref.asInstanceOf[FullReference].parameters.map(_.variance)
+          == List(
+            Variance.Invariant,
+            Variance.Covariant,
+            Variance.Contravariant,
+            Variance.Invariant,
+            Variance.Covariant,
+            Variance.Invariant,
+            Variance.Contravariant,
+            Variance.Contravariant,
+            Variance.Covariant,
+            Variance.Covariant
+          )
+      )
+    }
+
+    "null type is supported" in {
+      assert(LTT[Null] <:< LTT[I1])
+      assert(LTT[Nothing] <:< LTT[Null])
     }
 
   }

@@ -30,6 +30,7 @@ trait ZY extends Assertions {
   type U = T
   type V = List[T]
   type A = List[Option[Int]]
+  type O <: List[T]
   val x: String = "5"
   object y
   trait Y
@@ -401,7 +402,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       assert(
         t1[Int, Boolean, ZOB[Unit, Int, Int], TagK[Option], Nothing, ZOB[Unit, Int, *]].tag
-        == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, *]]]
+          == fromRuntime[T1[Int, Boolean, Either[Int, Int], TagK[Option], Nothing, Either[Int, *]]]
       )
 
       def t2[A: Tag, dafg: Tag, adfg: Tag, LS: Tag, L[_]: TagK, SD: Tag, GG[A] <: L[A]: TagK, ZZZ[_, _]: TagKK, S: Tag, SDD: Tag, TG: Tag]
@@ -429,7 +430,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
           SharedTagTest.this.Z,
           SharedTagTest.this.Z
         ].tag
-        == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
+          == fromRuntime[Test[String, String, T1[Either[Int, Byte], String, String, String, String, List], String, XY, String, YX, Either, String, String, String]]
       )
     }
 
@@ -649,15 +650,52 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
       assert(Tag[String].closestClass ne classOf[AnyVal])
       assert(!Tag[String with Int].hasPreciseClass)
+      assert(Tag[String with Int].closestClass eq classOf[Any])
 
-      assert(Tag[List[Int]].closestClass eq classOf[List[_]])
       assert(Tag[List[Int]].hasPreciseClass)
-      assert(Tag[H1].hasPreciseClass)
+      assert(Tag[List[Int]].closestClass eq classOf[List[_]])
 
-      assert(Tag[ZY#T].closestClass eq classOf[Any])
+      assert(Tag[H1].hasPreciseClass)
+      assert(Tag[H1].closestClass eq classOf[H1])
+
       assert(!Tag[ZY#T].hasPreciseClass)
+      assert(Tag[ZY#T].closestClass eq classOf[Any])
 
       assert(Tag[ZY#Y].hasPreciseClass)
+      assert(Tag[ZY#Y].closestClass eq classOf[ZY#Y])
+
+      assert(!Tag[ZY#O].hasPreciseClass)
+      assert(Tag[ZY#O].closestClass eq classOf[List[ZY#T]])
+
+      assert(Tag[Array[Byte]].closestClass eq classOf[Array[Byte]])
+      assert(Tag[Array[Int]].closestClass eq classOf[Array[Int]])
+      assert(Tag[Array[AnyRef]].closestClass eq classOf[Array[AnyRef]])
+      assert(Tag[Array[Boolean]].closestClass eq classOf[Array[Boolean]])
+      assert(Tag[Array[Char]].closestClass eq classOf[Array[Char]])
+      assert(Tag[Array[String]].closestClass eq classOf[Array[String]])
+      assert(Tag[Array[List[Any]]].closestClass eq classOf[Array[List[Any]]])
+
+      object test1 {
+        sealed trait TX0
+        class TX1 extends TX0
+        class TX2 extends TX0
+        class TX3 extends TX0
+
+        type OX[T] = TX1 with TX2 with T
+      }
+
+      assert(!Tag[test1.OX[ZY#Y]].hasPreciseClass)
+      assert(!Tag[test1.OX[test1.TX3]].hasPreciseClass)
+      assert(!Tag[test1.OX[test1.TX0]].hasPreciseClass)
+      assert(Tag[test1.OX[ZY#Y]].closestClass eq classOf[Any])
+      assert(Tag[test1.OX[test1.TX3]].closestClass eq classOf[test1.TX0])
+      assert(Tag[test1.OX[test1.TX0]].closestClass eq classOf[test1.TX0])
+
+      object test2 {
+        type ArrayT <: Array[Byte]
+      }
+      assert(!Tag[test2.ArrayT].hasPreciseClass)
+      assert(Tag[test2.ArrayT].closestClass eq classOf[Array[Byte]])
     }
 
     "Work with term type prefixes" in {
@@ -1051,6 +1089,30 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertDebugSame(Tag[(AnyRef {}) @IdAnnotation("x") with Option[(String with Object) {}]].tag, LTT[Option[String]])
     }
 
+    "regression test for https://github.com/zio/izumi-reflect/issues/474" in {
+      assertCompiles("Tag[Array[Byte]]")
+    }
+
+    "resolve parameters inside type bounds & wildcards" in {
+      def getUpperBoundTag[T: Tag]: Tag[Set[_ <: T]] = Tag[Set[_ <: T]]
+
+      def getLowerBoundTag[T: Tag]: Tag[Set[_ >: T]] = Tag[Set[_ >: T]]
+
+      assertRepr(getUpperBoundTag[Int].tag, "Set[=?: <Nothing..Int>]")
+      assertSame(getUpperBoundTag[Int].tag, Tag[Set[_ <: Int]].tag)
+
+      assertRepr(getLowerBoundTag[Int].tag, "Set[=?: <Int..Any>]")
+      assertSame(getLowerBoundTag[Int].tag, Tag[Set[_ >: Int]].tag)
+
+      // for recursive bound case
+      def x[T[_]: TagK, U: Tag]: Tag[Set[_ <: T[U]]] = Tag[Set[_ <: T[U]]]
+      assertRepr(x[List, Long].tag, "Set[=?: <Nothing..List[+Long]>]")
+      assertSameStrict(x[List, Long].tag, Tag[Set[_ <: List[Long]]].tag)
+
+      def xcontra[T[_]: TagK, U: Tag]: Tag[(_ <: T[U]) => Int] = Tag[(_ <: T[U]) => Int]
+      assertRepr(xcontra[List, Long].tag, "Function1[-?: <Nothing..List[+Long]>,+Int]")
+      assertSameStrict(xcontra[List, Long].tag, Tag[(_ <: List[Long]) => Int].tag)
+    }
   }
 
 }

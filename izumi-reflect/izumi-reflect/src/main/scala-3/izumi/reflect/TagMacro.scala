@@ -34,7 +34,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         // There's probably a missing case where a higher-kinded type is not a type lambda, with splicing inbetween causing fixup by the compiler
         //   val ltt = Inspect.inspectAny[A]
         val ltt = '{ Inspect.inspect[a] }
-        val cls = closestClassOfExpr(typeRepr)
+        val cls = closestClassOfTypeRepr(typeRepr)
         '{ Tag[a]($cls, $ltt) }.asInstanceOf[Expr[Tag[A]]]
     }
   }
@@ -48,8 +48,15 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           case given Type[a] => '{ Inspect.inspect[a] }
         }
       } else {
-        val result = summonTag[T, Any](typeRepr)
-        '{ $result.tag }
+        typeRepr match {
+          case TypeBounds(low, high) =>
+            val lowTag = summonTagAndFastTrackIfNotTypeParam(low)
+            val highTag = summonTagAndFastTrackIfNotTypeParam(high)
+            '{ LightTypeTag.wildcardType( $lowTag.tag, $highTag.tag ) }
+          case _ =>
+            val result = summonTag[T, Any](typeRepr)
+            '{ $result.tag }
+        }
       }
     }
 
@@ -159,7 +166,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       case andType: AndType =>
         val tpes = flattenAnd(andType)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTTAndFastTrackIfNotTypeParam))
-        val cls = Literal(ClassOfConstant(lubClassOf(tpes))).asExprOf[Class[?]]
+        val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExprOf[Class[?]]
         val dummyAnyStructLtt = {
           // FIXME add constructor for intersections without the unused on Scala 3 struct type
           Inspect.inspectAny[Any]
@@ -169,12 +176,12 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       case orType: OrType =>
         val tpes = flattenOr(orType)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTTAndFastTrackIfNotTypeParam))
-        val cls = Literal(ClassOfConstant(lubClassOf(tpes))).asExprOf[Class[?]]
+        val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExprOf[Class[?]]
         '{ Tag.unionTag[T](${ cls }, ${ ltts }) }
 
       case refinement: Refinement =>
         val (members, parent) = flattenRefinements(refinement)
-        val cls = closestClassOfExpr(parent)
+        val cls = closestClassOfTypeRepr(parent)
         val parentLtt = summonLTTAndFastTrackIfNotTypeParam(parent)
 
         val (allTypeMembers, termMembers) = members.partitionMap {
@@ -229,17 +236,24 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
-  private def closestClassOfExpr(typeRepr: TypeRepr): Expr[Class[?]] = {
-    Literal(ClassOfConstant(lubClassOf(intersectionUnionRefinementClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+  private def closestClassOfTypeRepr(typeRepr: TypeRepr): Expr[Class[?]] = {
+    Literal(ClassOfConstant(lubClassOf(typeRepr, intersectionUnionRefinementClassPartsOf(typeRepr)))).asExprOf[Class[?]]
   }
 
-  private def lubClassOf(tpes: List[TypeRepr]): TypeRepr = {
+  private def lubClassOf(specificTpe: TypeRepr, tpes: List[TypeRepr]): TypeRepr = {
     tpes.map(_.baseClasses) match {
       case h :: t =>
         val bases = h.to(mutable.LinkedHashSet)
-        t.foreach(b => bases.filterInPlace(b.to(mutable.HashSet).contains))
+        t.foreach {
+          b =>
+            val bBases = b.to(mutable.HashSet)
+            bases.filterInPlace(bBases)
+        }
         // rely on the fact that .baseClasses returns classes in order from most specific to least, therefore most specific class should be first.
-        bases.headOption.getOrElse(defn.AnyClass).typeRef
+        val baseClass = bases.headOption.getOrElse(defn.AnyClass)
+        // try to recover type parameters of the specific type e.g. to support Arrays
+        // see https://github.com/zio/izumi-reflect/issues/474 & https://github.com/scala/scala3/issues/21916
+        specificTpe.baseType(baseClass)
       // FIXME: below doesn't work, need to treat AnyVals specially
 //        bases.find(!_.typeRef.baseClasses.contains(defn.AnyValClass)).getOrElse(defn.AnyClass).typeRef
       case Nil =>

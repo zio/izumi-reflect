@@ -36,16 +36,17 @@ jobs:
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           JAVA_VERSION: ${{ matrix.java }}
-        run: ./build.sh nix gen test
+        run: ./run --nix :gen :test
       - uses: dorny/test-reporter@v1
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
           name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
           path: '**/target/test-reports/TEST-*.xml'
           reporter: java-junit
+      - uses: sbt/setup-sbt@v1 # setup sbt
       - name: Upload dependency graph
         if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
-        uses: scalacenter/sbt-dependency-submission@d3f139371479f7d3ca3db160b9b536cb4f9dcdd5
+        uses: scalacenter/sbt-dependency-submission@53544c3e7bf54b0cb7f375f016e5b7446b96b706
 
   publish-artifacts:
     runs-on: ubuntu-latest
@@ -71,7 +72,7 @@ jobs:
           ln -s .secrets/local.sbt local.sbt
           rm ./.secrets/credentials.sonatype-nexus.properties
           printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=oss.sonatype.org" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties             
-          ./build.sh nix gen publish-scala
+          ./run --nix :gen :publish-scala
 
   release-and-notify-docs:
     name: Release and Notify Docs
@@ -91,7 +92,7 @@ jobs:
           JAVA_VERSION: ${{ matrix.java }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           SCALA_VERSION: ${{ matrix.scala }}
-        run: ./build.sh nix gen publish-ziodocs
+        run: ./run --nix :gen :publish-ziodocs
       - name: Notify the main repo about the new release of docs package
         run: |
           PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')

@@ -35,6 +35,12 @@
             export JDK11=${pkgs.jdk11_headless}
             export JDK17=${pkgs.jdk17_headless}
             export JDK21=${pkgs.jdk21_headless}
+            export JDK_DEV=${pkgs.graalvm-ce}
+
+            rm ./.env/jdk || true
+            rmdir ./.env || true
+            mkdir -p ./.env
+            ln -s ''${JDK_DEV} ./.env/jdk || true
           '';
         };
       }

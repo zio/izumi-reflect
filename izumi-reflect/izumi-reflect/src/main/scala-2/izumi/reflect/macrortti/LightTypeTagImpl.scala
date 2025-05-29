@@ -646,14 +646,50 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               }
           }
         case k if k.termSymbol != NoSymbol =>
-          val finalSymbol = Dealias.dealiasSingletons(k.termSymbol)
-          val finalSymbolTpe = Dealias.fullNormDealias(finalSymbol.typeSignature.finalResultType)
-          val name = makeSymName(finalSymbol)
-          val prePrefix = makePrefixReference(finalSymbolTpe)
-          Some(NameReference(name, Boundaries.Empty, prePrefix))
+          handleSingletonType(k)
         case o =>
           fromRef(o)
       }
+    }
+
+    def handleSingletonType(initType: Type) = {
+      def dealiasSingletons(tpe: Type) = {
+        val sym = tpe.termSymbol
+        // Using `termSymbol` to convert from a type to a `Symbol` and then back to a type
+        // can be potentially lossy.
+        // This is relevant in cases where the type is a singleton for an effectively
+        // final definition, in which case the symbol we will get is dealiased to the symbol
+        // from the original base class:
+        // ```
+        // trait Base { object Inner }
+        // object Sub extends Base
+        // ```
+        // Calling `termSymbol` on `Sub.Inner.type` will produce `Base.Inner` since
+        // `Inner` is effectively final and `Sub.Inner` can be viewed as an alias for `Base.Inner`.
+        // When we go back to a type to continue building the prefix we will lose the original
+        // type information we started with.
+        // We want to avoid that and maintain the correct `Sub` prefix.
+        // As of writing the `dealiasSingletons` logic below is relevant only
+        // for `val` aliases. In other cases we want to avoid the lossy conversion.
+        // Here we check whether the symbol stands for an `object` (module) if so, we skip
+        // the dealiasing logic for singletons to avoid the potential loss of type information.
+        val shouldDealias = !sym.isModule
+
+        if (shouldDealias) {
+          val dealiasedSym = Dealias.dealiasSingletons(sym)
+          val dealiasedTpe = dealiasedSym.typeSignature.finalResultType
+
+          (dealiasedSym, dealiasedTpe)
+        } else (sym, tpe)
+      }
+
+      val (dealiasedSym, dealiasedTpe) = dealiasSingletons(initType)
+      val finalSymbolTpe = Dealias.fullNormDealias(dealiasedTpe)
+
+      val name = makeSymName(dealiasedSym)
+      val prePrefix = makePrefixReference(finalSymbolTpe)
+
+      Some(NameReference(name, Boundaries.Empty, prePrefix))
     }
 
     def fromRef(o: Type): Option[AppliedReference] = {

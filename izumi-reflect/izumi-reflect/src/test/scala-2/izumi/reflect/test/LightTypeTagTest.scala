@@ -26,7 +26,7 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
 
   "lightweight type tags (Scala 2)" should {
 
-    "support structural & refinement type equality (Scala 2 specific, generic type projection)" in {
+    "support structural & refinement type equality (Scala 2 specific, generic type projection from an abstract type member)" in {
       val a1 = new C {
         override type A = Int
       }
@@ -38,7 +38,7 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertSame(LTT[a1.A], LTT[Z.X#A])
     }
 
-    "strong summons test (Scala 2 specific, generic type projection)" in {
+    "strong summons test (Scala 2 specific, generic type projection from an abstract type member)" in {
       assertCompiles("def x1 = { object x { type T <: { type Array } }; LTag[x.T#Array]; () }")
     }
 
