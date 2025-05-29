@@ -490,6 +490,23 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertDifferent(LTT[A.Nested.Member], LTT[B.Nested.Member])
     }
+    // Workaround for https://github.com/scala/scala3/issues/23279
+    def dealiasTestWrapper(): Unit = {
+      object lifecycle {
+        object Lifecycle {
+          trait FromZIO
+        }
+      }
+      object defn {
+        val Lifecycle: lifecycle.Lifecycle.type = lifecycle.Lifecycle
+      }
+      val xa: defn.Lifecycle.type = defn.Lifecycle
+
+      assertSameStrict(LTT[xa.FromZIO], LTT[lifecycle.Lifecycle.FromZIO])
+    }
+    "dealias nested singletons, regression test for singleton dealias regression introduced in 3.0.0 (https://github.com/zio/izumi-reflect/pull/504)" in {
+      dealiasTestWrapper()
+    }
 
     "properly dealias and assign prefixes to existential types and wildcards" in {
       val withNothing = LTT[TestModel.With[Nothing]]
@@ -675,6 +692,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertDifferent(LTT[C { def a: Int }], LTT[C])
 
       assertDifferent(LTT[C { def a: Int }], LTT[C { def a: Int; def b: Int }])
+
+      val a1 = new C {
+        override type A = Int
+      }
+      object Z {
+        type X = { type A = Int }
+      }
+      val _ = (a1, Z)
+
+      assertSame(LTT[a1.A], LTT[Z.X#A])
     }
 
     "strong summons test" in {

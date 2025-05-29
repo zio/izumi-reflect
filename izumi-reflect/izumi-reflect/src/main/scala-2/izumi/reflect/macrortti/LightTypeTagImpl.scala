@@ -677,7 +677,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
         if (shouldDealias) {
           val dealiasedSym = Dealias.dealiasSingletons(sym)
-          val dealiasedTpe = sym.typeSignature.finalResultType
+          val dealiasedTpe = dealiasedSym.typeSignature.finalResultType
 
           (dealiasedSym, dealiasedTpe)
         } else (sym, tpe)

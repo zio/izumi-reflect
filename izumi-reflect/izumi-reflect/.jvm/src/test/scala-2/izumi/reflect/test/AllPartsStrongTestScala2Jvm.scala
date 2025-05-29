@@ -63,7 +63,7 @@ class AllPartsStrongTestScala2Jvm extends AnyWordSpec {
     assert(res1)
   }
 
-  "allPartsStrong for TC#DiscoveryNode type projection" in {
+  "allPartsStrong is false for TC#DiscoveryNode type projection" in {
     def test1[TC <: DiscoverableService]: Boolean = {
       ReflectionUtil.allPartsStrong(scala.reflect.runtime.universe.weakTypeOf[DiscoveryNodeProvider[GetDiscoveryNode[TC]]])
     }
