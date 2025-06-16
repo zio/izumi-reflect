@@ -114,6 +114,21 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   extension (typeRepr: TypeRepr) {
+
+    inline protected def _resultType: TypeRepr = {
+      typeRepr match {
+        case l: LambdaType => l.resType
+        case _ => typeRepr
+      }
+    }
+
+    inline protected def _takesTypeArgs: Boolean = {
+      typeRepr match {
+        case _: LambdaType => true
+        case _ => false
+      }
+    }
+
     protected final def _paramVariancesIfHKTypeLambda: Option[List[Flags]] = {
       try {
         val params = typeRepr.asInstanceOf[InternalHKTypeLambda].typeParams

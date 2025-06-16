@@ -126,6 +126,37 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChild(LTT[KK2[H2, I2]], LTT[KK1[H1, I1, Unit]])
 
       assertNotChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[H1, *, Unit]])
+
+      type KK1Unit[+A, +B] = KK1[A, B, Unit]
+      type SwappedKK2[+A, +B] = KK2[B, A]
+
+      // FIXME incorrect fullBases parent lambdaification on Scala 3:
+      // fullBases on Scala 3 has 1 type parameter:
+      // - λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+izumi.reflect.test.TestModel::H2,+0] ->
+      //   * λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+izumi.reflect.test.TestModel::H2,+scala.Unit]
+      // While should be 2 type parameters:
+      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
+      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
+
+      // Or... maybe it's Scala 3 that's more correct. See SwappedKK2 parents on Scala 2:
+      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
+      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
+      // VS SwappedKK2 parents on Scala 3, which is correct (it preserves the swappiness):
+      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+1,+0] ->
+      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+1,+scala.Unit]
+
+      // Ok... we just supported both forms in LightTypeTagInheritance in 3.0.4... somehow... ... ...
+
+      val tag = `LTT[_]`[KK2[H2, *]]
+      println(tag.debug())
+      val tag1 = `LTT[_,_]`[SwappedKK2]
+      println(tag1.debug())
+
+      withDebugOutput {
+        assertChild(tag, `LTT[_]`[KK1[*, H1, Unit]])
+        assertChild(`LTT[_,_]`[SwappedKK2], `LTT[_,_]`[KK1Unit])
+        assertNotChild(`LTT[_,_]`[SwappedKK2], `LTT[_,_]`[KK2])
+      }
     }
 
     "support subtyping of parents parameterized with type lambdas" in {
@@ -675,7 +706,9 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertChild(combined, LTT[W5[Int]])
       assertChild(combined, LTT[W4[Boolean]])
-      assertChild(combined, LTT[W3[Boolean]])
+      withDebugOutput {
+        assertChild(combined, LTT[W3[Boolean]])
+      }
       assertChild(combined, LTT[W1])
       assertChild(combined, LTT[W2])
       assertChild(combined, LTT[W1 with W3[Boolean]])
@@ -830,7 +863,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
     }
 
-    "covariance of a concrete inheritor to a parent with a higher-kinded type parameter [not ok]" in {
+    "covariance of a concrete inheritor to a parent with a higher-kinded type parameter [dotty ok]" in {
       trait Container[T] {
         def tt(): T
       }
@@ -860,7 +893,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       println(concrete.debug())
       println(parent.debug())
       println(appliedParent.debug())
-//
+
       assertChild(concrete, appliedParent)
 
       implicitly[MyConcreteService <:< Service[Container]] // true
@@ -872,7 +905,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       }
     }
 
-    "covariance of a concrete inheritor to a parent with a complex-shaped higher-kinded type parameter [limited ok]" in {
+    "covariance of a concrete inheritor to a parent with a complex-shaped higher-kinded type parameter [dotty ok]" in {
       trait Container[T] {
         def tt(): T
       }
@@ -914,7 +947,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       }
     }
 
-    "covariance of a concrete inheritor to a parent with a swap type lambda [not ok]" in {
+    "covariance of a concrete inheritor to a parent with a swap type lambda [dotty ok]" in {
       trait Container[T, Y]
       final case class AContainer[T, Y]() extends Container[Y, T]
       type SwappedAContainer[T, Y] = AContainer[Y, T]
@@ -963,7 +996,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       final case class MyConcreteService() extends Service[AContainer] {
         def giveHello = "Concrete hello!"
       }
-
       assertChild(LTT[AContainer], LTT[Container])
 
       val concrete = LTT[MyConcreteService]
@@ -1009,8 +1041,40 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "null type is supported" in {
-      assert(LTT[Null] <:< LTT[I1])
-      assert(LTT[Nothing] <:< LTT[Null])
+      assertChildStrict(LTT[Null], LTT[I1])
+      assertChild(LTT[Nothing], LTT[Null])
+    }
+
+    "unapplied inheritance db should contain inheritance db of direct type argument" in {
+      class Box[+T]
+
+      val lt = LTT[Box[Int]]
+      val inh = LightTypeTagUnpacker(lt).inheritance
+      assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    "fulldb should contain inheritance db of inherited type argument" in {
+      class Box[+T]
+      class IndirectBox extends Box[Int]
+
+      val lt = LTT[IndirectBox]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    // NB: Inheritance DB of parent itself is almost certainly not necessary for comparisons
+    // - if compared to a tag of parent type, that tag will already have a db for parent type.
+    // However, we have to process parents recursively to add fulldbs of _their arguments_
+    // which may not be available in direct comparison ( see https://github.com/zio/izumi-reflect/issues/469 )
+    // ^ _Maybe_ we should optimize for size and NOT include fulldbs of parents, only of indirect type arguments
+    "both dbs should contain inheritance db of parent type" in {
+      case class CaseClass()
+
+      val lt = LTT[CaseClass]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      val inh = LightTypeTagUnpacker(lt).inheritance
+      assert(fulldb(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
+      assert(inh(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
     }
 
   }

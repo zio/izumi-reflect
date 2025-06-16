@@ -77,25 +77,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertChild(`LTT[A,B,_>:B<:A]`[H3, H3, X1], `LTT[A,B,_>:B<:A]`[H2, H4, X])
     }
 
-    "progression test: a portion of `support swapped parents` fails on Dotty" in {
-      trait KK1[+A, +B, +U]
-      trait KK2[+A, +B] extends KK1[B, A, Unit]
-
-      // FIXME incorrect fullBases parent lambdaification on Scala 3:
-      // fullBases on Scala 3 has 1 type parameter:
-      // - λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+izumi.reflect.test.TestModel::H2,+0] ->
-      //   * λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+izumi.reflect.test.TestModel::H2,+scala.Unit]
-      // While should be 2 type parameters:
-      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
-      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
-
-      brokenOnScala3 {
-//        withDebugOutput {
-        assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
-//        }
-      }
-    }
-
     "progression test: indirect structural checks do not work" in {
       assertDifferent(LTT[{ type A }], LTT[Object])
       broken {
@@ -298,6 +279,27 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
       brokenOnScala3 {
         assertDifferent(t4, t5)
+      }
+    }
+
+    "progression test: Null type is a subtype of Nothing, but shouldn't be" in {
+      broken {
+        assertNotChild(LTT[Null], LTT[Nothing])
+      }
+    }
+
+    // I don't know _why_ we don't recurse over arguments for unapplied db,
+    // but I guess let's just leave it as is, _unless_ we find a test case
+    // that shows that either breaks something or reduces performance of <:<.
+    "progression test: PROBABLY unapplied inheritance db should contain inheritance db of inherited type argument" in {
+      class Box[+T]
+      class IndirectBox extends Box[Int]
+
+      val lt = LTT[IndirectBox]
+      val inh = LightTypeTagUnpacker(lt).inheritance
+
+      broken {
+        assert(inh.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
       }
     }
 

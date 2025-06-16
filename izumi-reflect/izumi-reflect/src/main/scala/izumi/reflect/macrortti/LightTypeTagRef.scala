@@ -116,7 +116,7 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  private[reflect] final val lambdaFakeParamDepth: Int = -2
+  private[reflect] final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
 
   sealed trait AppliedReference extends AbstractReference
 
