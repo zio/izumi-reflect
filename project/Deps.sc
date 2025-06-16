@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.101`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.104`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -24,9 +24,9 @@ object Izumi {
 
   // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
-  final val scala212 = ScalaVersion("2.12.19")
-  final val scala213 = ScalaVersion("2.13.15")
-  final val scala300 = ScalaVersion("3.3.4")
+  final val scala212 = ScalaVersion("2.12.20")
+  final val scala213 = ScalaVersion("2.13.14")
+  final val scala300 = ScalaVersion("3.3.6")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
   var targetScala = Seq(scala300, scala213, scala212, scala211)
@@ -110,7 +110,48 @@ object Izumi {
         enabled = Seq(Plugin("SbtgenVerificationPlugin")),
         disabled = Seq.empty
       )
-      final val settings = Seq()
+      final val topLevelSettings = Seq(
+        "Keys.commands".in(
+          SettingScope.Raw("Global")
+        ) ~= """{
+               |  // Workaround for Intellij "Open cross-compiled projects as Scala 2" option pending upstream merge of https://github.com/JetBrains/sbt-structure/pull/73
+               |  xs =>
+               |    def numbersOf(version: String): (Int, Int, Int) = {
+               |      val prefix = version.split('.').filter(s => s.nonEmpty && s.forall(_.isDigit)).map(_.toInt).take(3)
+               |      val xs = prefix ++ Seq.fill(3 - prefix.length)(0)
+               |      (xs(0), xs(1), xs(2))
+               |    }
+               |
+               |    val preferScala2: Command = Command.command("preferScala2") { state =>
+               |      val (structure, data) = {
+               |        val extracted = Project.extract(state)
+               |        (extracted.structure, extracted.structure.data)
+               |      }
+               |
+               |      val scala3Projects = structure.allProjectRefs.filter { project =>
+               |        (project / Keys.scalaVersion).get(data).exists(_.startsWith("3."))
+               |      }
+               |
+               |      val (scala2Versions, crossScala2And3ProjectsCount) = scala3Projects.foldLeft((Set.empty[String], 0)) {
+               |        case ((scala2Versions, crossCount), project) =>
+               |          val projectScala2Versions = (project / Keys.crossScalaVersions).get(data).getOrElse(Seq.empty).filter(_.startsWith("2."))
+               |          (scala2Versions ++ projectScala2Versions, crossCount + (if (projectScala2Versions.nonEmpty) 1 else 0))
+               |      }
+               |
+               |      // We can only do this when all sbt projects cross-compile to Scala 2 & Scala 3
+               |      // See https://youtrack.jetbrains.com/issue/SCL-22619/
+               |      val canSetScala2VersionGlobally = crossScala2And3ProjectsCount > 0 &&
+               |        scala3Projects.length == crossScala2And3ProjectsCount
+               |      if (canSetScala2VersionGlobally) {
+               |        "++" + scala2Versions.maxBy(numbersOf) :: state
+               |      } else {
+               |        state
+               |      }
+               |    }
+               |
+               |    xs.filterNot(_.nameOption.contains("preferScala2")) :+ preferScala2
+               |}""".stripMargin.raw
+      )
 
       final val sharedAggSettings = Seq(
         "crossScalaVersions" := Targets.targetScala.map(_.value),
@@ -119,8 +160,9 @@ object Izumi {
 
       final val rootSettings = Defaults.RootOptions ++ Seq(
         "crossScalaVersions" := "Nil".raw,
-        "scalaVersion" := Targets.targetScala.head.value,
         "organization" in SettingScope.Build := "dev.zio",
+
+        // remove this legacy stuff
         "sonatypeProfileName" := "dev.zio",
         "sonatypeSessionName" := """s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}"""".raw,
         "publishTo" in SettingScope.Build :=
@@ -134,23 +176,37 @@ object Izumi {
         "credentials" in SettingScope.Build ++=
           """
             |{
-            |val credTarget = Path.userHome / ".sbt" / "secrets" / "credentials.sonatype-nexus.properties"
-            |if (credTarget.exists) {
-            |  Seq(Credentials(credTarget))
-            |} else {
-            |  Seq.empty
-            |}
+            |Seq(
+            |  Path.userHome / ".sbt" / "secrets" / "credentials.sonatype-nexus.properties",
+            |  file(".") / ".secrets" / "credentials.sonatype-nexus.properties"
+            |)
+            |  .filter(_.exists())
+            |  .map(Credentials.apply)
+            |}""".stripMargin.raw,
+
+        // and uncomment this new shiny shtuff
+        /*
+        "publishTo" in SettingScope.Build :=
+          """{
+            |  if (isSnapshot.value) {
+            |    Some(
+            |      "central-snapshots" at "https://central.sonatype.com/repository/maven-snapshots/"
+            |    )
+            |  } else {
+            |    localStaging.value
+            |  }
             |}""".stripMargin.raw,
         "credentials" in SettingScope.Build ++=
           """
             |{
-            |val credTarget = file(".") / ".secrets" / "credentials.sonatype-nexus.properties"
-            |if (credTarget.exists) {
-            |  Seq(Credentials(credTarget))
-            |} else {
-            |  Seq.empty
-            |}
+            |Seq(
+            |  Path.userHome / ".sbt" / "secrets" / "credentials.sonatype-zio-new.properties",
+            |  file(".") / ".secrets" / "credentials.sonatype-nexus.properties"
+            |)
+            |  .filter(_.exists())
+            |  .map(Credentials.apply)
             |}""".stripMargin.raw,
+         */
         "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
         "licenses" in SettingScope.Build := """Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0"))""".raw,
         "developers" in SettingScope.Build :=
@@ -320,7 +376,7 @@ object Izumi {
     aggregates = Seq(
       izumi_reflect_aggregate
     ),
-    topLevelSettings = Projects.root.settings,
+    topLevelSettings = Projects.root.topLevelSettings,
     sharedSettings = Projects.root.sharedSettings,
     sharedAggSettings = Projects.root.sharedAggSettings,
     rootSettings = Projects.root.rootSettings,
@@ -337,7 +393,7 @@ object Izumi {
     globalPlugins = Plugins(),
     pluginConflictRules = Map.empty,
     appendPlugins = Defaults.SbtGenPlugins ++ Seq(
-      SbtPlugin("com.jsuereth", "sbt-pgp", PV.sbt_pgp),
+      SbtPlugin("com.github.sbt", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
       SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
       SbtPlugin("dev.zio", "zio-sbt-website", PV.zio_sbt_website)

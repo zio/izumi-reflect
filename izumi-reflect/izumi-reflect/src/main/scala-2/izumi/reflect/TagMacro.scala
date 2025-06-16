@@ -94,8 +94,6 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   private def makeWeakTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
-    logger.log(s"Got non-strong tag: $tpe")
-
     if (getImplicitError().endsWith(":")) { // yep
       logger.log(s"Got continuation implicit error: ${getImplicitError()}")
     } else {
@@ -104,6 +102,8 @@ class TagMacro(val c: blackbox.Context) {
     }
 
     val tgt = ReflectionUtil.norm(c.universe: c.universe.type, logger)(tpe.dealias)
+
+    logger.log(s"Got non-strong tag: $tpe, dealiased: $tgt")
 
     addImplicitError(s"  deriving Tag for $tpe, dealiased: $tgt:")
 
@@ -116,7 +116,7 @@ class TagMacro(val c: blackbox.Context) {
 
     addImplicitError(s"  succeeded for: $tgt")
 
-    logger.log(s"Final code of Tag[$tpe]:\n ${showCode(res.tree)}")
+    logger.log(s"Final code of Tag[$tpe] (dealiased $tgt):\n ${showCode(res.tree)}")
 
     res
   }
@@ -373,16 +373,27 @@ class TagMacro(val c: blackbox.Context) {
             t =>
               if (exts.contains(t.typeSymbol)) {
                 /// generate top-level existential type for LightTypeTagImpl macro
-                c.internal.existentialType(List(t.typeSymbol), t)
+                t.typeSymbol.typeSignature match {
+                  case tb: TypeBounds =>
+                    val lo = tb.lo
+                    val hi = tb.hi
+                    val loTag = summonLightTypeTagOfAppropriateKind(lo)
+                    val hiTag = summonLightTypeTagOfAppropriateKind(hi)
+                    reify {
+                      LightTypeTag.wildcardType(loTag.splice, hiTag.splice)
+                    }
+                  case _ =>
+                    summonLightTypeTagOfAppropriateKind(c.internal.existentialType(List(t.typeSymbol), t))
+                }
               } else {
-                ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)
+                summonLightTypeTagOfAppropriateKind(ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
               }
           }
         case _ =>
-          tpe.typeArgs.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
+          tpe.typeArgs.map(t => summonLightTypeTagOfAppropriateKind(ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)))
       }
       logger.log(s"Now summoning tags for args=$args")
-      c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(args.map(summonLightTypeTagOfAppropriateKind)))
+      c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(args))
     }
 
     {
@@ -397,18 +408,24 @@ class TagMacro(val c: blackbox.Context) {
   @inline
   private[this] final def closestClass(properTypeStrongCtor: Type): c.Expr[Class[_]] = {
     // unfortunately .erasure returns trash for intersection types
-    val tpeLub = properTypeStrongCtor match {
+    val tpeLub = ReflectionUtil.norm(c.universe: c.universe.type, logger)(properTypeStrongCtor.dealias) match {
       case r: RefinedTypeApi => lub(r.parents)
-      case _ => properTypeStrongCtor
+      case o => o
     }
     val tpeErased = tpeLub.erasure
     // and for Scala varargs (Scala by names and Java varargs are fine)
     val tpeFixed = if (tpeErased.typeSymbol eq definitions.RepeatedParamClass) {
       typeOf[scala.Seq[Any]].dealias
+    } else if (tpeErased.typeSymbol eq definitions.ArrayClass) {
+      // workaround for a crash that happens when .erasure misfires on Array in case `Tag[Array[List[X]]]`
+      // and produces a tree `classOf[Array[List]]` which fails to compile.
+      // Array is the only type that needs to be parameterized after erasure and stripping its parameters via .erasure
+      // actually breaks it, so we skip this step for Arrays.
+      tpeLub.dealias
     } else {
       tpeErased
     }
-    c.Expr[Class[_]](q"_root_.scala.Predef.classOf[$tpeFixed]")
+    c.Expr[Class[_]](q"${Literal(Constant(tpeFixed))}.asInstanceOf[_root_.java.lang.Class[_]]")
   }
 
   @inline

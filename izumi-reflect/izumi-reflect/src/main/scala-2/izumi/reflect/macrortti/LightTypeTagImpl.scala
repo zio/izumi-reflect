@@ -604,7 +604,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             NameReference(SymLiteral(c.value.value), boundaries, None)
 
           case _ =>
-            val sym = Dealias.dealiasSingletons(s.termSymbol)
+            val (sym, _) = Dealias.dealiasSingletons(s.termSymbol, originalType)
             val resultType = Dealias.fullNormDealias(sym.typeSignatureIn(s.pre).finalResultType)
             val newPrefix = if (hasSingletonType(resultType.typeSymbol)) makePrefixReference(resultType) else prefix
             NameReference(makeSymName(sym), boundaries, newPrefix)
@@ -652,9 +652,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    def handleSingletonType(initType: Type) = {
-      def dealiasSingletons(tpe: Type) = {
-        val sym = tpe.termSymbol
+    def handleSingletonType(initType: Type): Some[NameReference] = {
+      def tryDealiasSingletons(tpe: Type): (Symbol, Type) = {
         // Using `termSymbol` to convert from a type to a `Symbol` and then back to a type
         // can be potentially lossy.
         // This is relevant in cases where the type is a singleton for an effectively
@@ -673,21 +672,21 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         // for `val` aliases. In other cases we want to avoid the lossy conversion.
         // Here we check whether the symbol stands for an `object` (module) if so, we skip
         // the dealiasing logic for singletons to avoid the potential loss of type information.
-        val shouldDealias = !sym.isModule
+        val termSym = tpe.termSymbol
+        val shouldDealias = !termSym.isModule
 
         if (shouldDealias) {
-          val dealiasedSym = Dealias.dealiasSingletons(sym)
-          val dealiasedTpe = sym.typeSignature.finalResultType
-
-          (dealiasedSym, dealiasedTpe)
-        } else (sym, tpe)
+          Dealias.dealiasSingletons(termSym, tpe)
+        } else {
+          (termSym, tpe)
+        }
       }
 
-      val (dealiasedSym, dealiasedTpe) = dealiasSingletons(initType)
-      val finalSymbolTpe = Dealias.fullNormDealias(dealiasedTpe)
+      val (dealiasedSym, rawTpe0) = tryDealiasSingletons(initType)
+      val dealiasedTpe = Dealias.fullNormDealias(rawTpe0)
 
       val name = makeSymName(dealiasedSym)
-      val prePrefix = makePrefixReference(finalSymbolTpe)
+      val prePrefix = makePrefixReference(dealiasedTpe)
 
       Some(NameReference(name, Boundaries.Empty, prePrefix))
     }
@@ -850,12 +849,14 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     @tailrec
-    def dealiasSingletons(termSymbol: Symbol): Symbol = {
-      val resultTerm = termSymbol.typeSignature.finalResultType.termSymbol
+    def dealiasSingletons(termSymbol: Symbol, termSymbolTpe: Type): (Symbol, Type) = {
+      val resultTermTpe = termSymbol.typeSignature.finalResultType
+      val resultTerm = resultTermTpe.termSymbol
+
       if (hasSingletonType(resultTerm)) {
-        dealiasSingletons(resultTerm)
+        dealiasSingletons(resultTerm, resultTermTpe)
       } else {
-        termSymbol
+        (termSymbol, termSymbolTpe)
       }
     }
 

@@ -20,7 +20,7 @@ package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.functional.{Renderable, WithRenderableSyntax}
 import izumi.reflect.internal.fundamentals.platform.language.unused
-import izumi.reflect.macrortti.LightTypeTagInheritance.{tpeAny, tpeAnyRef, tpeNothing, tpeObject}
+import izumi.reflect.macrortti.LightTypeTagInheritance.{tpeAny, tpeAnyRef, tpeNothing, tpeNull, tpeObject}
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izumi.reflect.macrortti.LightTypeTagRef._
 
@@ -279,7 +279,7 @@ object LTTRenderables {
 
     override implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
       override def render(value: Boundaries): String = value match {
-        case Boundaries.Defined(bottom, top) if bottom == tpeNothing => s"<: ${top.render()}"
+        case Boundaries.Defined(bottom, top) if bottom == tpeNothing || bottom == tpeNull => s"<: ${top.render()}"
         case Boundaries.Defined(bottom, top) if top == tpeAny || top == tpeAnyRef || top == tpeObject => s">: ${bottom.render()}"
         case Boundaries.Defined(bottom, top) => s">: ${bottom.render()} <: ${top.render()}"
         case Boundaries.Empty => ""

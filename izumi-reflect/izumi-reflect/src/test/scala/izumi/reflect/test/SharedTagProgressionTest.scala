@@ -205,6 +205,54 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
+    "progression test: null is treated like Nothing, not like a separate type" in {
+      assert(LTT[Null] <:< LTT[Int])
+      assert(LTT[Null] <:< LTT[Nothing])
+    }
+
+    "progression test: parameter resolution breaks inside covariant wildcard type bounds on Scala 2.12 and 2.13" in {
+      def xcov[T[_]: TagK, U: Tag]: Tag[List[_ <: T[U]]] = Tag[List[_ <: T[U]]]
+
+      brokenOnScala2MinorVersion(13) {
+        assertRepr(xcov[List, Long].tag, "List[+?: <Nothing..List[+Long]>]")
+        assertSameStrict(xcov[List, Long].tag, Tag[List[_ <: List[Long]]].tag)
+      }
+    }
+
+    "progression test: combine intersection path-dependent intersection types with inner tags doesn't work on Scala 2" in {
+      trait PDT {
+        type T
+        implicit def tag: Tag[T]
+
+        def badCombine(that: PDT): Tag[T with that.T] = {
+          Tag[T with that.T]
+        }
+      }
+      brokenOnScala3 {
+        val err = intercept[TestFailedException](
+          assertCompiles(
+            """
+          trait PDT0 {
+            type T
+            implicit def tag: Tag[T]
+
+            def goodCombine(that: PDT): Tag[this.T with that.T] = {
+              import that.tag
+              Tag[this.T with that.T]
+            }
+          }"""
+          )
+        )
+        assert(err.getMessage.matches("(.|\\R)*could not find implicit value.*Tag\\[.*this.T](.|\\R)*"))
+      }
+      def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
+
+      val badCombine = PDT[Int].badCombine(PDT[Unit])
+      broken {
+        assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
+      }
+    }
+
   }
 
 }
