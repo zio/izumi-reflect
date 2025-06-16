@@ -148,9 +148,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       // Ok... we just supported both forms in LightTypeTagInheritance in 3.0.4... somehow... ... ...
 
       val tag = `LTT[_]`[KK2[H2, *]]
-      println(tag.debug())
       val tag1 = `LTT[_,_]`[SwappedKK2]
-      println(tag1.debug())
 
       withDebugOutput {
         assertChild(tag, `LTT[_]`[KK1[*, H1, Unit]])

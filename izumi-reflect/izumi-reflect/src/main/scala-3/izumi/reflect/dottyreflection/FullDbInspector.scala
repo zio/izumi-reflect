@@ -72,7 +72,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
               Seq(
                 (childMaybeAsLambda, parentMaybeAsLambda)
                 // you may debug by inserting some debug trash into dbs:
-//                ,NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
+//                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
 //                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
               )
           }
