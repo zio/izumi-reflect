@@ -288,21 +288,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    // I don't know _why_ we don't recurse over arguments for unapplied db,
-    // but I guess let's just leave it as is, _unless_ we find a test case
-    // that shows that either breaks something or reduces performance of <:<.
-    "progression test: PROBABLY unapplied inheritance db should contain inheritance db of inherited type argument" in {
-      class Box[+T]
-      class IndirectBox extends Box[Int]
-
-      val lt = LTT[IndirectBox]
-      val inh = LightTypeTagUnpacker(lt).inheritance
-
-      broken {
-        assert(inh.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
-      }
-    }
-
   }
 
 }

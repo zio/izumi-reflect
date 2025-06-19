@@ -22,13 +22,12 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
     new Run(inspector0)
       .inspectTypeReprToFullBases(TypeRepr.of[T])
-      .distinct
-      .toMultimap
-      .map {
-        case (t, parents) =>
-          t -> parents.filterNot(_ == t)
+      .iterator
+      .filterNot {
+        case (t, parent) =>
+          parent == t
       }
-      .filterNot(_._2.isEmpty)
+      .toMultimap
   }
 
   class Run(inspector: Inspector { val qctx: FullDbInspector.this.qctx.type }) {

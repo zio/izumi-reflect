@@ -282,13 +282,13 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       }
     }
 
-    ctx
-      .logger.log(
-        s"⚠️ comparing parameterized references: `${self.repr}` <:< `${that.repr}`, paramsOk = $parametersConform, sameArity = ${self.parameters.size == that.parameters.size}, context = $ctx"
-      )
-
     val selfNameRef = self.asName
     val thatNameRef = that.asName
+
+    ctx
+      .logger.log(
+        s"⚠️ comparing parameterized references: `${self.repr}` <:< `${that.repr}`, paramsOk = $parametersConform, ctorsOk = ${selfNameRef == thatNameRef}, sameArity = ${self.parameters.sizeCompare(that.parameters) == 0}, context = $ctx"
+      )
 
     if (selfNameRef == thatNameRef) {
       parametersConform
@@ -323,10 +323,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       ctx.logger.log {
         s"ℹ️ checking applied lambda parents of self=`${self.repr}`: ${appliedLambdaParents.map(_.repr)} <:< `${that.repr}`"
       }
-      val next = ctx.next()
-      appliedLambdaParents.exists {
-        next.isChild(_, that)
-      }
+      appliedLambdaParents.exists(ctx.isChild(_, that))
     }
   }
 

@@ -1006,6 +1006,88 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(concrete, parent) // false
     }
 
+    "covariance of a parameterized inheritor to a parent with an indirect proper type parameter [dotty ok]" in {
+      trait Container {
+        def tt(): Any
+      }
+      final case class AContainer(t: Any) extends Container {
+        override def tt(): Any = t
+      }
+
+      trait Service[I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[T, AContainer] {
+        def giveHello = "Concrete hello!"
+      }
+      assertChild(LTT[AContainer], LTT[Container])
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Int, Container]]
+
+      println(concrete.debug())
+
+      implicitly[MyParameterizedService[Int] <:< Service[Int, Container]] // true
+
+      assertChild(concrete, parent) // false
+    }
+
+    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter [dotty ok]" in {
+      trait Container[+T] {
+        def tt(): T
+      }
+      final case class AContainer[+T](t: T) extends Container[T] {
+        override def tt(): T = t
+      }
+
+      trait Service[I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[T, AContainer[Int]] {
+        def giveHello = "Concrete hello!"
+      }
+      assertChild(LTT[AContainer[Int]], LTT[Container[AnyVal]])
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Int, Container[AnyVal]]]
+
+      println(concrete.debug())
+
+      implicitly[MyParameterizedService[Int] <:< Service[Int, Container[AnyVal]]] // true
+
+      withDebugOutput {
+        assertChild(concrete, parent) // false
+      }
+    }
+
+    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter with different arity [dotty ok]" in {
+      trait Container[I, +T] {
+        def tt(): T
+      }
+      final case class AContainer[+T](t: T) extends Container[Int, T] {
+        override def tt(): T = t
+      }
+
+      trait Service[I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[T, AContainer[Int]] {
+        def giveHello = "Concrete hello!"
+      }
+      assertChild(LTT[AContainer[Int]], LTT[Container[Int, AnyVal]])
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Int, Container[Int, AnyVal]]]
+
+      println(concrete.debug())
+
+      implicitly[MyParameterizedService[Int] <:< Service[Int, Container[Int, AnyVal]]] // true
+
+      withDebugOutput {
+        assertChild(concrete, parent) // false
+      }
+    }
+
     "regression test for https://github.com/zio/izumi-reflect/issues/511" in {
       class Foo5[-A, B, -C, +DXX, +E]
       class Foo10[F[_], +G[_], -H[-_, +_], I, +J[+_, +_], B, -A, -C, +E, +DXX] extends Foo5[A, B, C, DXX, E]
@@ -1060,19 +1142,31 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
     }
 
+    "unapplied inheritance db should contain inheritance db of inherited type argument" in {
+      class Box[+T]
+      class IndirectBox extends Box[Int]
+
+      val lt = LTT[IndirectBox]
+      val inh = LightTypeTagUnpacker(lt).inheritance
+
+      assert(inh.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+    }
+
     // NB: Inheritance DB of parent itself is almost certainly not necessary for comparisons
     // - if compared to a tag of parent type, that tag will already have a db for parent type.
     // However, we have to process parents recursively to add fulldbs of _their arguments_
     // which may not be available in direct comparison ( see https://github.com/zio/izumi-reflect/issues/469 )
     // ^ _Maybe_ we should optimize for size and NOT include fulldbs of parents, only of indirect type arguments
-    "both dbs should contain inheritance db of parent type" in {
+    "both dbs should (not?) contain inheritance db of parent type" in {
       case class CaseClass()
 
       val lt = LTT[CaseClass]
       val fulldb = LightTypeTagUnpacker(lt).bases
       val inh = LightTypeTagUnpacker(lt).inheritance
       assert(fulldb(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
-      assert(inh(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
+      intercept[Throwable] {
+        assert(inh(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
+      }
     }
 
   }

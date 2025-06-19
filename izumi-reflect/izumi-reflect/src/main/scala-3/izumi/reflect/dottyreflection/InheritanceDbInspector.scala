@@ -27,34 +27,34 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   }
 
   class Run() {
-    private val termination = mutable.HashSet.empty[TypeRepr]
+    private val termination = mutable.HashSet.empty[Symbol]
 
     def makeUnappliedInheritanceDb(tpe0: TypeRepr): Map[NameReference, Set[NameReference]] = {
-      val allReferenceComponents = allTypeReferences(tpe0).filter {
-        case _: ParamRef => false // do not process type parameters for inheritance db
-        case _ => true
-      }
-
-      val baseclassReferences = allReferenceComponents.flatMap(inspectTypeReprToUnappliedBases)
-
-      baseclassReferences
-        .toMultimap
-        .map {
-          case (t, parents) =>
-            t -> parents.filterNot(_ == t)
+      inspectTypeReprToUnappliedBases(tpe0, onlyIndirect = false)
+        .iterator
+        .filterNot {
+          case (parent, t) =>
+            parent == t
         }
-        .filterNot(_._2.isEmpty)
+        .toMultimap
     }
 
-    private def inspectTypeReprToUnappliedBases(i: TypeRepr): List[(NameReference, NameReference)] = {
+    private def inspectTypeReprToUnappliedBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
+      val allReferenceComponents = allTypeReferences(tpe0, onlyIndirect)
+      allReferenceComponents.iterator.flatMap(inspectTypeReprToUnappliedBases0(_, onlyIndirect = false)).toList
+    }
+
+    private def inspectTypeReprToUnappliedBases0(i: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
       val tpe = i._dealiasSimplifiedFull._resultType
       val tpeRef = inspector.makeNameReferenceFromType(tpe)
 
-      tpeBases(tpeRef, tpe)
+      tpeBases(tpeRef, tpe, onlyIndirect = onlyIndirect)
     }
 
-    private def allTypeReferences(tpe0: TypeRepr): collection.Set[TypeRepr] = {
+    private def allTypeReferences(tpe0: TypeRepr, onlyIndirect: Boolean): mutable.Set[TypeRepr] = {
       val inh = mutable.HashSet.empty[TypeRepr]
+
+      val tpeDealiased = tpe0._dealiasSimplifiedFull._resultType
 
       def goExtractComponents(tpeRaw0: TypeRepr): Unit = {
         val tpeRes = tpeRaw0._dealiasSimplifiedFull._resultType
@@ -72,7 +72,12 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
       }
 
       goExtractComponents(tpe0)
-//    println(inh)
+
+      inh.filterInPlace {
+        case _: ParamRef => false // do not process type parameters for inheritance db
+        case t if onlyIndirect => t != tpe0 && t != tpeDealiased && !isTerminatingClsSym(t)
+        case _ => true
+      }
 
       inh
     }
@@ -95,8 +100,8 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
       tpes
     }
 
-    private def tpeBases(tpeRef: NameReference, typeRepr: TypeRepr): List[(NameReference, NameReference)] = {
-      termination.add(typeRepr)
+    private def tpeBases(tpeRef: NameReference, typeRepr: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
+      addTerminatngClsSym(typeRepr)
 
       val typeReprBases = typeRepr
         .baseClasses
@@ -117,16 +122,34 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
           Nil
       }
 
-      val baseTypeBases = (upperBoundBases ++ typeReprBases).filterNot(_ =:= typeRepr)
+      val allTypeReprBases = (upperBoundBases ++ typeReprBases).filterNot(_ =:= typeRepr)
 
-      val recursiveParentBases = baseTypeBases.flatMap {
-        case t if termination.contains(t) => Nil
-        case t => inspectTypeReprToUnappliedBases(t)
+      val recursiveParentBases = allTypeReprBases.flatMap {
+        case t if isTerminatingClsSym(t) => Nil
+        case t => inspectTypeReprToUnappliedBases(t, onlyIndirect = true)
       }
 
-      val mainBases = baseTypeBases.filter(!_._takesTypeArgs).map(base => (tpeRef, inspector.makeNameReferenceFromType(base)))
+      val directBases = if (onlyIndirect) {
+        Nil
+      } else {
+        allTypeReprBases.filter(!_._takesTypeArgs).map(base => (tpeRef, inspector.makeNameReferenceFromType(base)))
+      }
 
-      recursiveParentBases ++ mainBases
+      recursiveParentBases ::: directBases
+    }
+
+    private def addTerminatngClsSym(typeRepr: TypeRepr): AnyVal = {
+      typeRepr.classSymbol match {
+        case Some(clsSym) => termination.add(clsSym)
+        case _ =>
+      }
+    }
+
+    private def isTerminatingClsSym(t: TypeRepr): Boolean = {
+      t.classSymbol match {
+        case Some(clsSym) => termination.contains(clsSym)
+        case None => false
+      }
     }
 
   }
