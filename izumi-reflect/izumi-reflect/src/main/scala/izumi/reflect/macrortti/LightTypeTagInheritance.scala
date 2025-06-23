@@ -297,31 +297,34 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // } else if (ctx.isChild(selfNameRef, thatNameRef)) {
     } else {
       val selfNormalizedLambdaParamsSize = {
-        // 0 unless we're in lambda vs. lambda comparison (s.normalizedOutput <:< t.normalizedOutput)
+        // 0 unless we're in a lambda vs. lambda comparison (s.normalizedOutput <:< t.normalizedOutput)
         self.parameters.count(p => isFakeParam(p.ref))
       }
-      val appliedLambdaParents = basesdb.collect {
-        case (l: Lambda, lparents) if isSameNamedRef(l.output, selfNameRef) =>
-          lparents.collect {
-            case lp: Lambda =>
-              val scala2FullDbFormLambda = {
-                if (lp.input.size == self.parameters.size) {
-                  List(lp.combine(self.parameters.map(_.ref)))
-                } else {
-                  Nil
+      val appliedLambdaParents = basesdb
+        .iterator.collect {
+          case (l: Lambda, lparents) if isSameNamedRef(l.output, selfNameRef) =>
+            lparents.flatMap {
+              case lp: Lambda =>
+                val scala2FullDbFormLambda = {
+                  if (lp.input.size == self.parameters.size) {
+                    List(lp.combine(self.parameters.map(_.ref)))
+                  } else {
+                    Nil
+                  }
                 }
-              }
-              val scala3FullDbFormLambda = if (lp.input.size == selfNormalizedLambdaParamsSize) {
-                val ps = self.parameters.collect { case FakeParam(pRef) => pRef }
-                val selfPs = ps.sortBy(_.ref.asInstanceOf[SymName.LambdaParamName].index)
-                val res = lp.combine(selfPs)
-                List(res)
-              } else Nil
-              scala2FullDbFormLambda ++ scala3FullDbFormLambda
-          }.flatten
-      }.flatten
+                val scala3FullDbFormLambda = if (lp.input.size == selfNormalizedLambdaParamsSize) {
+                  val ps = self.parameters.collect { case FakeParam(pRef) => pRef }
+                  val selfPs = ps.sortBy(_.ref.asInstanceOf[SymName.LambdaParamName].index)
+                  val res = lp.combine(selfPs)
+                  List(res)
+                } else Nil
+                scala2FullDbFormLambda ++ scala3FullDbFormLambda
+              case _ =>
+                Nil
+            }
+        }.flatten.toList
       ctx.logger.log {
-        s"ℹ️ checking applied lambda parents of self=`${self.repr}`: ${appliedLambdaParents.map(_.repr)} <:< `${that.repr}`"
+        s"ℹ️ checking applied lambda parents of self=`${self.repr}`: parents=${appliedLambdaParents.map(_.repr)} <:< that=`${that.repr}`"
       }
       appliedLambdaParents.exists(ctx.isChild(_, that))
     }

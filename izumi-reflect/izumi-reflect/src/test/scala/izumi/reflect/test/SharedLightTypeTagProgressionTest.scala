@@ -131,10 +131,12 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug0.contains("package::List"))
       assert(!debug0.contains("<refinement>"))
       assert(!debug0.contains("<none>"))
+      assert(debug0.contains("- scala.collection.immutable.List[+scala.Any]"))
+
       brokenOnScala3 {
-        // FIXME incorrect fullBases parent lambdaification on Scala 3:
-        //   contains `scala.collection.immutable.List[+scala.Any]`
-        //   instead of `- λ %0 → scala.collection.immutable.List[+0]`
+        // FIXME missing lambdaOnly bases collection on Scala 3:
+        //   contains only `scala.collection.immutable.List[+scala.Any]`
+        //   but should also contain bases for `- λ %0 → scala.collection.immutable.List[+0]`
         assert(debug0.contains("- λ %0 → scala.collection.immutable.List[+0]"))
       }
 
@@ -145,6 +147,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug1.contains("package::List"))
       assert(!debug1.contains("<refinement>"))
       assert(!debug1.contains("<none>"))
+      assert(debug1.contains("- scala.collection.immutable.List[+?]"))
       brokenOnScala3 {
         assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
       }
@@ -191,8 +194,11 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug3.contains("TestModel.E"))
       assert(!debug3.contains("TestModel.A"))
       assert(!debug3.contains("+scala.Nothing"))
+      brokenOnScala2 {
+        assert(debug3.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
+      }
       brokenOnScala3 {
-        // FIXME incorrect fullBases parent lambdaification on Scala 3:
+        // FIXME missing fullBases parent lambdaification on Scala 3:
         assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       }
       assert(debug3.contains("* scala.Product"))
@@ -209,6 +215,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug4.contains("TestModel.E"))
       assert(!debug4.contains("TestModel.A"))
       assert(!debug4.contains("+scala.Nothing"))
+      brokenOnScala2 {
+        assert(debug4.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
+      }
       brokenOnScala3 {
         assert(debug4.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       }
@@ -224,6 +233,8 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(!debug5.contains("scala.package.B"))
       assert(!debug5.contains("+scala.Nothing"))
       assert(debug5.contains("* scala.Product"))
+      assert(debug5.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
+      assert(debug5.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
     }
 
     "progression test: Dotty fails to `support methods with type parameters in structural refinements`" in {
@@ -245,7 +256,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "fails to support methods in refinements with multiple parameter lists" in {
+    "fails to support methods with multiple parameter lists in refinements" in {
       brokenOnScala2 {
         assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(b: Boolean): Int }])
       }
@@ -254,6 +265,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
 
       brokenOnScala3 {
+        // no distinction between method with multiple param lists and one param list
         assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int, b: Boolean): Int }])
       }
 
@@ -273,8 +285,8 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertDifferent(LTT[Any], LTT[Object])
     }
 
-    "progression test: can't distinguish between equal-bounded type and alias inside refinements in dotty" in {
-      val t4 = LTT[{ type X >: Any <: Any }]
+    "progression test: can't distinguish between equal-bounded type and alias inside refinements on dotty" in {
+      val t4 = LTT[{ type X >: Any <: Any }] // (java.lang.Object {type X = Any}), but should be (java.lang.Object {type X::<Any..Any>})
       val t5 = LTT[{ type X = Any }]
 
       brokenOnScala3 {
@@ -285,6 +297,50 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     "progression test: Null type is a subtype of Nothing, but shouldn't be" in {
       broken {
         assertNotChild(LTT[Null], LTT[Nothing])
+      }
+    }
+
+    "progression test: lack of lambdaOnly bases collection on Scala 3 breaks `covariance of a self-parameterized inheritor to a parent with an indirect parameterized type parameter with different arity`" in {
+      trait Container[I, +T] {
+        def tt(): T
+      }
+      final case class AContainer[+T](t: T) extends Container[Int, T] {
+        override def tt(): T = t
+      }
+
+      trait Service[+I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[AContainer[T], AContainer[AContainer[T]]] {
+        def giveHello = "Concrete hello!"
+      }
+      val tag = LTT[AContainer[AContainer[Int]]]
+      val parent0 = LTT[Container[Int, Container[Int, AnyVal]]]
+
+      implicitly[AContainer[AContainer[Int]] <:< Container[Int, Container[Int, AnyVal]]]
+
+      withDebugOutput {
+        brokenOnScala3 {
+          assertChild(tag, parent0)
+        }
+        val tagWithLambda = LightTypeTag.apply(tag.ref, tag.basesdb ++ `LTT[_]`[AContainer[*]].basesdb, tag.idb ++ `LTT[_]`[AContainer[*]].idb)
+        assertChild(tagWithLambda, parent0)
+      }
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Container[Int, AnyVal], Container[Int, Any]]]
+
+      println(concrete.debug())
+
+      implicitly[MyParameterizedService[Int] <:< Service[Container[Int, AnyVal], Container[Int, Any]]] // true
+
+      withDebugOutput {
+        brokenOnScala3 {
+          assertChild(concrete, parent)
+        }
+        // Scala is missing the lambda-only collection phase. Comparison succeeds if we add the missing lambda base
+        val concreteWithLambda = LightTypeTag.apply(concrete.ref, concrete.basesdb ++ `LTT[_]`[AContainer[*]].basesdb, concrete.idb ++ `LTT[_]`[AContainer[*]].idb)
+        assertChild(concreteWithLambda, parent)
       }
     }
 

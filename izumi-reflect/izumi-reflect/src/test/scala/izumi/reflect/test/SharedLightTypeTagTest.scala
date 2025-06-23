@@ -1163,8 +1163,10 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val lt = LTT[CaseClass]
       val fulldb = LightTypeTagUnpacker(lt).bases
       val inh = LightTypeTagUnpacker(lt).inheritance
-      assert(fulldb(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
-      intercept[Throwable] {
+      intercept[NoSuchElementException] {
+        assert(fulldb(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
+      }
+      intercept[NoSuchElementException] {
         assert(inh(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
       }
     }

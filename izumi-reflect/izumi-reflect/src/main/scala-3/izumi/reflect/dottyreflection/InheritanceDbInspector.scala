@@ -101,7 +101,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     }
 
     private def tpeBases(tpeRef: NameReference, typeRepr: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
-      addTerminatngClsSym(typeRepr)
+      addTerminatingClsSym(typeRepr)
 
       val typeReprBases = typeRepr
         .baseClasses
@@ -122,23 +122,24 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
           Nil
       }
 
-      val allTypeReprBases = (upperBoundBases ++ typeReprBases).filterNot(_ =:= typeRepr)
+      val allTypeReprBases = (upperBoundBases ::: typeReprBases)
+        .filterNot(_ =:= typeRepr)
 
-      val recursiveParentBases = allTypeReprBases.flatMap {
+      val recursiveParentRefs = allTypeReprBases.flatMap {
         case t if isTerminatingClsSym(t) => Nil
         case t => inspectTypeReprToUnappliedBases(t, onlyIndirect = true)
       }
 
-      val directBases = if (onlyIndirect) {
+      val directBaseRefs = if (onlyIndirect) {
         Nil
       } else {
         allTypeReprBases.filter(!_._takesTypeArgs).map(base => (tpeRef, inspector.makeNameReferenceFromType(base)))
       }
 
-      recursiveParentBases ::: directBases
+      recursiveParentRefs ::: directBaseRefs
     }
 
-    private def addTerminatngClsSym(typeRepr: TypeRepr): AnyVal = {
+    private def addTerminatingClsSym(typeRepr: TypeRepr): AnyVal = {
       typeRepr.classSymbol match {
         case Some(clsSym) => termination.add(clsSym)
         case _ =>
