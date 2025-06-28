@@ -17,10 +17,8 @@ object FullDbInspector {
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  private lazy val inspector0 = Inspector.make(qctx)
-
   def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
-    new Run(inspector0)
+    new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
       .inspectTypeReprToFullBases(TypeRepr.of[T], onlyIndirect = false)
       .iterator
       .filterNot {
@@ -30,50 +28,23 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       .toMultimap
   }
 
-  class Run(inspector: Inspector { val qctx: FullDbInspector.this.qctx.type }) {
-    private val termination = mutable.HashSet.empty[Symbol]
-
+  class Run(
+    inspector: Inspector { val qctx: FullDbInspector.this.qctx.type },
+    basesTermination: mutable.HashSet[Symbol],
+    toLambdaTermination: mutable.HashSet[Symbol]
+  ) {
     def inspectTypeReprToFullBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0._dealiasSimplifiedFull
       def selfRef(): AbstractReference = inspector.inspectTypeRepr(tpe)
 
       tpe match {
         case appliedType: AppliedType =>
-          extractBase(appliedType, selfRef(), onlyIndirect = onlyIndirect)
+          extractBase(appliedType, selfRef(), onlyIndirect = onlyIndirect) ++ extractLambdaBase(appliedType, onlyIndirect = onlyIndirect)
 
         case typeLambda: TypeLambda =>
-          val selfL = selfRef().asInstanceOf[LightTypeTagRef.Lambda]
+          val resultTypeParents = new Run(inspector.nextLam(typeLambda), basesTermination, toLambdaTermination).inspectTypeBoundsToFull(typeLambda.resType)
 
-          val parents = new Run(inspector.nextLam(typeLambda)).inspectTypeBoundsToFull(typeLambda.resType)
-
-          val out = parents.flatMap {
-            case (child0, parent0) =>
-              val child = if (child0 == selfL.output) { // if child == typeLambda.resType, use typeLambda itself
-                selfL
-              } else {
-                child0
-              }
-
-              // For Scala 2: see LightTypeTagImpl.makeLambdaOnlyBases.makeLambdaParents
-              def lambdify(parentOrChild: LightTypeTagRef): AbstractReference = parentOrChild match {
-                case l: Lambda =>
-                  l
-                case applied: AppliedReference =>
-                  val l = LightTypeTagRef.Lambda(selfL.input, applied)
-                  if (l.someArgumentsReferenced) l else applied
-              }
-
-              val childMaybeAsLambda = lambdify(child)
-              val parentMaybeAsLambda = lambdify(parent0)
-
-              Seq(
-                (childMaybeAsLambda, parentMaybeAsLambda)
-                // you may debug by inserting some trash into the dbs:
-//                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
-//                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
-              )
-          }
-          out
+          makeLambdaParents(selfRef(), resultTypeParents)
 
         case a: AndType =>
           inspectTypeReprToFullBases(a.left, onlyIndirect = false) ++ inspectTypeReprToFullBases(a.right, onlyIndirect = false)
@@ -110,6 +81,61 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
     }
 
+    // Equivalent to Scala 2 LightTypeTagImpl.makeLambdaOnlyBases
+    private def extractLambdaBase(appliedType: AppliedType, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
+      if (onlyIndirect || toLambdaTermination.isTerminatingClsSym(appliedType)) {
+        Nil
+      } else {
+        appliedType._etaExpand match {
+          case None => Nil
+          case Some(typeLambda) =>
+            toLambdaTermination.addTerminatingClsSym(appliedType)
+
+            val resultTypeParents = new Run(inspector.nextLam(typeLambda), basesTermination, toLambdaTermination)
+              .inspectTypeBoundsToFull(typeLambda.resType)
+
+            makeLambdaParents(inspector.inspectTypeRepr(typeLambda), resultTypeParents)
+        }
+      }
+    }
+
+    private def makeLambdaParents(
+      selfRef: AbstractReference,
+      resultTypeParents: List[(AbstractReference, AbstractReference)]
+    ): List[(AbstractReference, AbstractReference)] = {
+      val selfL = selfRef.asInstanceOf[Lambda]
+
+      val out = resultTypeParents.flatMap {
+        case (child0, parent0) =>
+          val child = if (child0 == selfL.output) { // if child == typeLambda.resType, use typeLambda itself
+            selfL
+          } else {
+            child0
+          }
+
+          // For Scala 2: see LightTypeTagImpl.makeLambdaOnlyBases.makeLambdaParents
+          def maybeToLambda(parentOrChild: LightTypeTagRef): AbstractReference = parentOrChild match {
+            case l: Lambda =>
+              l
+            case applied: AppliedReference =>
+              val l = LightTypeTagRef.Lambda(selfL.input, applied)
+              if (l.someArgumentsReferenced) l else applied
+          }
+
+          val childMaybeAsLambda = maybeToLambda(child)
+          val parentMaybeAsLambda = maybeToLambda(parent0)
+
+          Seq(
+            (childMaybeAsLambda, parentMaybeAsLambda)
+            // you may debug by inserting some trash into the dbs:
+            //                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
+            //                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
+          )
+      }
+
+      out
+    }
+
     private def processSymbol(r: TypeRef | ParamRef, selfRef: AbstractReference, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
       r.typeSymbol match {
         case s if s.isClassDef =>
@@ -125,7 +151,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
 
     private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
-      addTerminatingClsSym(tpe)
+      basesTermination.addTerminatingClsSym(tpe)
 
       val baseTypes: List[TypeRepr] = tpe
         .baseClasses
@@ -135,7 +161,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       log(s"For `${tpe.show}` (onlyIndirect=$onlyIndirect) found base types ${baseTypes.map(_.show)}")
 
       val recursiveParentRefs = baseTypes.flatMap {
-        case t if isTerminatingClsSym(t) => Nil
+        case t if basesTermination.isTerminatingClsSym(t) => Nil
         case t => inspectTypeReprToFullBases(t, onlyIndirect = true)
       }
 
@@ -152,7 +178,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
 
       val argBasesRefs = tpe.typeArgs.flatMap {
-        case t if isTerminatingClsSym(t) => Nil
+        case t if basesTermination.isTerminatingClsSym(t) => Nil
         case t =>
           inspectTypeBoundsToFull(t)
       }
@@ -212,18 +238,22 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       }
     }
 
-    private def addTerminatingClsSym(typeRepr: TypeRepr): AnyVal = {
-      typeRepr.classSymbol match {
-        case Some(clsSym) => termination.add(clsSym)
-        case _ =>
-      }
-    }
+    extension (set: mutable.HashSet[Symbol]) {
 
-    private def isTerminatingClsSym(t: TypeRepr): Boolean = {
-      t.classSymbol match {
-        case Some(clsSym) => termination.contains(clsSym)
-        case None => false
+      private def addTerminatingClsSym(typeRepr: TypeRepr): Unit = {
+        typeRepr.classSymbol match {
+          case Some(clsSym) => set.add(clsSym)
+          case _ =>
+        }
       }
+
+      private def isTerminatingClsSym(t: TypeRepr): Boolean = {
+        t.classSymbol match {
+          case Some(clsSym) => set.contains(clsSym)
+          case None => false
+        }
+      }
+
     }
 
   }

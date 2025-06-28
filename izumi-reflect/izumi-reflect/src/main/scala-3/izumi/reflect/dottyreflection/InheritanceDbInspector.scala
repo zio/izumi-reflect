@@ -17,17 +17,17 @@ object InheritanceDbInspector {
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect.*
 
-  private lazy val inspector = Inspector.make(qctx)
-
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe0 = TypeRepr.of[T]._dealiasSimplifiedFull
 
-    new Run()
+    new Run(Inspector.make(qctx), mutable.HashSet.empty)
       .makeUnappliedInheritanceDb(tpe0)
   }
 
-  class Run() {
-    private val termination = mutable.HashSet.empty[Symbol]
+  class Run(
+    inspector: Inspector { val qctx: InheritanceDbInspector.this.qctx.type },
+    termination: mutable.HashSet[Symbol]
+  ) {
 
     def makeUnappliedInheritanceDb(tpe0: TypeRepr): Map[NameReference, Set[NameReference]] = {
       inspectTypeReprToUnappliedBases(tpe0, onlyIndirect = false)
@@ -139,7 +139,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
       recursiveParentRefs ::: directBaseRefs
     }
 
-    private def addTerminatingClsSym(typeRepr: TypeRepr): AnyVal = {
+    private def addTerminatingClsSym(typeRepr: TypeRepr): Unit = {
       typeRepr.classSymbol match {
         case Some(clsSym) => termination.add(clsSym)
         case _ =>
