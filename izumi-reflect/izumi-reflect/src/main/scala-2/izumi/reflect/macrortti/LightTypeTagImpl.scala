@@ -106,7 +106,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private[this] def allTypeReferencesWithBases(tpe0: Type, basesTermination: mutable.HashSet[Symbol], onlyIndirect: Boolean): Iterator[Type] = {
-    val allReferenceComponents = allTypeReferences0(tpe0, basesTermination, onlyIndirect)
+    val allReferenceComponents = allTypeReferences(tpe0, basesTermination, onlyIndirect)
     allReferenceComponents.iterator.flatMap {
       component =>
         if (component.typeSymbol != NoSymbol) {
@@ -123,7 +123,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   // FIXME `allTypeReferences` & `makeRef` should be merged together,
   //  since they both pass over all visible components of a type in a similar way
-  private[this] def allTypeReferences0(mainTpe: Type, basesTermination: mutable.HashSet[Symbol], onlyIndirect: Boolean): collection.Set[Type] = {
+  private[this] def allTypeReferences(mainTpe: Type, basesTermination: mutable.HashSet[Symbol], onlyIndirect: Boolean): collection.Set[Type] = {
 
     @NowarnCompat.nowarn("msg=deprecated")
     @inline def result(): collection.Set[Type] = {
