@@ -163,7 +163,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           } else Nil
       }
 
-      val indirectComponents = intersectionExpansionsArgsBoundsIter /* ++ intersectionWithPreservedLambdas.iterator */ ++ refinementDeclMembersIter
+      val indirectComponents = intersectionExpansionsArgsBoundsIter ++ refinementDeclMembersIter
 
       indirectComponents.foreach(t => if (!current.contains(t) && !inh(t) && !ignored(t)) extractComponents(t, inh))
     }

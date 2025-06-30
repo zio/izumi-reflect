@@ -129,8 +129,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       type KK1Unit[+A, +B] = KK1[A, B, Unit]
       type SwappedKK2[+A, +B] = KK2[B, A]
 
-      // FIXME incorrect fullBases parent lambdaification on Scala 3:
-      // fullBases on Scala 3 has 1 type parameter:
+      // before, we had incorrect fullBases parent lambdaification on Scala 3:
+      // fullBases on Scala 3 has 1 type parameter before extractLambdaBase:
       // - λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+izumi.reflect.test.TestModel::H2,+0] ->
       //   * λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+izumi.reflect.test.TestModel::H2,+scala.Unit]
       // While should be 2 type parameters:
@@ -151,8 +151,8 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       withDebugOutput {
         assertChild(tag, `LTT[_]`[KK1[*, H1, Unit]])
-        assertChild(`LTT[_,_]`[SwappedKK2], `LTT[_,_]`[KK1Unit])
-        assertNotChild(`LTT[_,_]`[SwappedKK2], `LTT[_,_]`[KK2])
+        assertChild(tag1, `LTT[_,_]`[KK1Unit])
+        assertNotChild(tag1, `LTT[_,_]`[KK2])
       }
     }
 
@@ -576,10 +576,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[scala.collection.immutable.List[Int]], list1)
       assertChild(list1, list2)
       assertChild(list2, list1)
-
-      println(list1.debug())
-      println(list2.debug())
-
       assertDebugSame(list1, list2)
     }
 
@@ -972,7 +968,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
     }
 
-    "covariance of a concrete inheritor to a parent with a higher-kinded type parameter [dotty ok]" in {
+    "covariance of a concrete inheritor to a parent with a higher-kinded type parameter" in {
       trait Container[T] {
         def tt(): T
       }
@@ -987,9 +983,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
         def giveHello = "Concrete hello!"
       }
 
-      withDebugOutput {
-        assertChild(`LTT[_]`[AContainer], `LTT[_]`[Container])
-      }
+      assertChild(`LTT[_]`[AContainer], `LTT[_]`[Container])
 
       assertChild(LTT[AContainer[Int]], LTT[Container[Int]])
       assertChild(LTT[AContainer[Int]], LTT[Container[_]])
@@ -999,22 +993,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val parent = LTT[Service[Container]]
       val appliedParent = `LTT[A[_],_[_[x] <: A[x]]`[Container, Service].combine(`LTT[_]`[Container])
 
-      println(concrete.debug())
-      println(parent.debug())
-      println(appliedParent.debug())
-
       assertChild(concrete, appliedParent)
 
       implicitly[MyConcreteService <:< Service[Container]] // true
 
-      withDebugOutput {
-        withSanityChecks {
-          assertChild(concrete, parent)
-        }
+      withSanityChecks {
+        assertChild(concrete, parent)
       }
     }
 
-    "covariance of a concrete inheritor to a parent with a complex-shaped higher-kinded type parameter [dotty ok]" in {
+    "covariance of a concrete inheritor to a parent with a complex-shaped higher-kinded type parameter" in {
       trait Container[T] {
         def tt(): T
       }
@@ -1029,9 +1017,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
         def giveHello = "Concrete hello!"
       }
 
-      withDebugOutput {
-        assertChild(`LTT[_]`[AContainer[*, Unit]], `LTT[_]`[Container])
-      }
+      assertChild(`LTT[_]`[AContainer[*, Unit]], `LTT[_]`[Container])
 
       assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Int]])
       assertChild(LTT[AContainer[Int, Unit]], LTT[Container[_]])
@@ -1041,22 +1027,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val parent = LTT[Service[Container]]
       val appliedParent = `LTT[A[_],_[_[x] <: A[x]]`[Container, Service].combine(`LTT[_]`[Container])
 
-      println(concrete.debug())
-      println(parent.debug())
-      println(appliedParent.debug())
-
       assertChild(concrete, appliedParent)
 
       implicitly[MyConcreteService <:< Service[Container]] // true
 
-      withDebugOutput {
-        withSanityChecks {
-          assertChild(concrete, parent)
-        }
+      withSanityChecks {
+        assertChild(concrete, parent)
       }
     }
 
-    "covariance of a concrete inheritor to a parent with a swap type lambda [dotty ok]" in {
+    "covariance of a concrete inheritor to a parent with a swap type lambda" in {
       trait Container[T, Y]
       final case class AContainer[T, Y]() extends Container[Y, T]
       type SwappedAContainer[T, Y] = AContainer[Y, T]
@@ -1068,9 +1048,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
         def giveHello = "Concrete hello!"
       }
 
-      withDebugOutput {
-        assertChild(`LTT[_]`[AContainer[Int, *]], `LTT[_]`[Container[*, Int]])
-      }
+      assertChild(`LTT[_]`[AContainer[Int, *]], `LTT[_]`[Container[*, Int]])
 
       assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Unit, Int]])
       assertChild(LTT[AContainer[Int, Unit]], LTT[Container[_, _]])
@@ -1079,19 +1057,14 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val concrete = LTT[MyConcreteService]
       val parent = LTT[Service[Container]]
 
-      println(concrete.debug())
-      println(parent.debug())
-
       implicitly[MyConcreteService <:< Service[Container]] // true
 
-      withDebugOutput {
-        withSanityChecks {
-          assertChild(concrete, parent)
-        }
+      withSanityChecks {
+        assertChild(concrete, parent)
       }
     }
 
-    "covariance of a concrete inheritor to a parent with a proper type parameter [dotty ok]" in {
+    "covariance of a concrete inheritor to a parent with a proper type parameter" in {
       trait Container {
         def tt(): Any
       }
@@ -1112,10 +1085,10 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       implicitly[MyConcreteService <:< Service[Container]] // true
 
-      assertChild(concrete, parent) // false
+      assertChild(concrete, parent)
     }
 
-    "covariance of a parameterized inheritor to a parent with an indirect proper type parameter [dotty ok]" in {
+    "covariance of a parameterized inheritor to a parent with an indirect proper type parameter" in {
       trait Container {
         def tt(): Any
       }
@@ -1134,14 +1107,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val concrete = LTT[MyParameterizedService[Int]]
       val parent = LTT[Service[Int, Container]]
 
-      println(concrete.debug())
-
       implicitly[MyParameterizedService[Int] <:< Service[Int, Container]] // true
 
-      assertChild(concrete, parent) // false
+      assertChild(concrete, parent)
     }
 
-    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter [dotty ok]" in {
+    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter" in {
       trait Container[+T] {
         def tt(): T
       }
@@ -1160,16 +1131,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val concrete = LTT[MyParameterizedService[Int]]
       val parent = LTT[Service[Int, Container[AnyVal]]]
 
-      println(concrete.debug())
-
       implicitly[MyParameterizedService[Int] <:< Service[Int, Container[AnyVal]]] // true
 
-      withDebugOutput {
-        assertChild(concrete, parent) // false
-      }
+      assertChild(concrete, parent)
     }
 
-    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter with different arity [dotty ok]" in {
+    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter with different arity" in {
       trait Container[I, +T] {
         def tt(): T
       }
@@ -1188,13 +1155,9 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val concrete = LTT[MyParameterizedService[Int]]
       val parent = LTT[Service[Int, Container[Int, AnyVal]]]
 
-      println(concrete.debug())
-
       implicitly[MyParameterizedService[Int] <:< Service[Int, Container[Int, AnyVal]]] // true
 
-      withDebugOutput {
-        assertChild(concrete, parent) // false
-      }
+      assertChild(concrete, parent)
     }
 
     "covariance of a self-parameterized inheritor to a parent with an indirect parameterized type parameter with different arity" in {
@@ -1216,20 +1179,14 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       implicitly[AContainer[AContainer[Int]] <:< Container[Int, Container[Int, AnyVal]]]
 
-      withDebugOutput {
-        assertChild(tag, parent0)
-      }
+      assertChild(tag, parent0)
 
       val concrete = LTT[MyParameterizedService[Int]]
       val parent = LTT[Service[Container[Int, AnyVal], Container[Int, Any]]]
 
-      println(concrete.debug())
-
       implicitly[MyParameterizedService[Int] <:< Service[Container[Int, AnyVal], Container[Int, Any]]] // true
 
-      withDebugOutput {
-        assertChild(concrete, parent)
-      }
+      assertChild(concrete, parent)
     }
 
     "regression test for https://github.com/zio/izumi-reflect/issues/511" in {
@@ -1291,8 +1248,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val lt = LTT[Box[Box[Int]]]
       val fulldb = LightTypeTagUnpacker(lt).bases
       val inh = LightTypeTagUnpacker(lt).inheritance
-
-      println(lt.debug())
 
       assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
       assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
