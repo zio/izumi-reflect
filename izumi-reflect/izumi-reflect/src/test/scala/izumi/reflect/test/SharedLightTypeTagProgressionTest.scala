@@ -45,19 +45,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: subtype check fails when child type has absorbed a covariant type parameter of the supertype" in {
-      assertChild(LTT[Set[Int]], LTT[Iterable[AnyVal]])
-
-      val tagF3 = LTT[F3]
-      val tagF2 = LTT[F2[Int]]
-      assertChild(tagF3, tagF2)
-
-      brokenOnScala2 {
-        assertChild(tagF3, LTT[F2[Any]])
-        assertChild(tagF3, LTT[F2[AnyVal]])
-      }
-    }
-
     "progression test: bounds-based subtype checks for lambdas do not work properly (LambdaParameter must contain bounds and NameReferences shouldn't for this to work)" in {
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Set[A]
@@ -164,6 +151,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     }
 
     "progression test: fails to `Any/Object relation is consistent with Scala`" in {
+      implicitly[Object <:< Any]
+      def isNoImplicit[A <: AnyRef](implicit ev: A = null): Boolean = ev eq null
+      assert(isNoImplicit[Any <:< Object])
+
       assertChild(LTT[Object], LTT[Any])
       broken {
         assertNotChild(LTT[Any], LTT[Object])

@@ -3,7 +3,6 @@ package izumi.reflect.test
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, Boundaries, FullReference, NameReference, TypeParam, Variance}
 import izumi.reflect.macrortti._
 
-import scala.annotation.unused
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
@@ -456,6 +455,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
       assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
+      assertNotChild(LTT[Option[_ >: H4]], LTT[Option[H3]])
+      assertNotChild(LTT[Option[_ <: H2]], LTT[Option[H3]])
+
+      locally { val o: Option[H1] = None: Option[_ <: H2] }
+      assertTypeError("val o: Option[H1] = None: Option[_ >: H4]")
+      assertChild(LTT[Option[_ <: H2]], LTT[Option[H1]])
+      assertNotChild(LTT[Option[_ >: H4]], LTT[Option[H1]])
       assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
 
       if (!IsScala3) {
@@ -564,13 +570,17 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(with_.debug().contains(": izumi.reflect.test.TestModel::With[=?]"))
       assert(with_.debug().contains("- izumi.reflect.test.TestModel::With[=?]"))
 
-      val list_ = LTT[List[_]]
-      val immutableList_ = LTT[List[_]]
-      assertChild(LTT[List[Int]], immutableList_)
-      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
-      assertChild(list_, immutableList_)
-      assertChild(immutableList_, list_)
-      assertDebugSame(list_, immutableList_)
+      val list1 = LTT[List[_]]
+      val list2 = LTT[List[_]]
+      assertChild(LTT[List[Int]], list2)
+      assertChild(LTT[scala.collection.immutable.List[Int]], list1)
+      assertChild(list1, list2)
+      assertChild(list2, list1)
+
+      println(list1.debug())
+      println(list2.debug())
+
+      assertDebugSame(list1, list2)
     }
 
     "no redundant $ in object names" in {
@@ -986,7 +996,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       }
 
       assertChild(LTT[AContainer[Int]], LTT[Container[Int]])
-      assertChild(LTT[AContainer[Int]], LTT[Container[?]])
+      assertChild(LTT[AContainer[Int]], LTT[Container[_]])
       assertNotChild(LTT[AContainer[Int]], LTT[Container[Any]])
 
       val concrete = LTT[MyConcreteService]
@@ -1028,7 +1038,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       }
 
       assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Int]])
-      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[?]])
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[_]])
       assertNotChild(LTT[AContainer[Int, Unit]], LTT[Container[Any]])
 
       val concrete = LTT[MyConcreteService]
@@ -1067,7 +1077,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       }
 
       assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Unit, Int]])
-      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[?, ?]])
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[_, _]])
       assertNotChild(LTT[AContainer[Int, Unit]], LTT[Container[Any, Any]])
 
       val concrete = LTT[MyConcreteService]
@@ -1103,8 +1113,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       val concrete = LTT[MyConcreteService]
       val parent = LTT[Service[Container]]
-
-      println(concrete.debug())
 
       implicitly[MyConcreteService <:< Service[Container]] // true
 
@@ -1265,11 +1273,32 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(LTT[Nothing], LTT[Null])
     }
 
+    "fulldb should contain inheritance db of direct type argument" in {
+      class Box[+T]
+
+      val lt = LTT[Box[Int]]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
     "unapplied inheritance db should contain inheritance db of direct type argument" in {
       class Box[+T]
 
       val lt = LTT[Box[Int]]
       val inh = LightTypeTagUnpacker(lt).inheritance
+      assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    "both dbs should contain db of direct self-nested type argument" in {
+      class Box[+T]
+
+      val lt = LTT[Box[Box[Int]]]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      val inh = LightTypeTagUnpacker(lt).inheritance
+
+      println(lt.debug())
+
+      assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
       assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
     }
 
@@ -1279,6 +1308,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       val lt = LTT[IndirectBox]
       val fulldb = LightTypeTagUnpacker(lt).bases
+      assert(fulldb.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
       assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
     }
 
@@ -1290,25 +1320,50 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val inh = LightTypeTagUnpacker(lt).inheritance
 
       assert(inh.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+      assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
     }
 
-    // NB: Inheritance DB of parent itself is almost certainly not necessary for comparisons
+    // Inheritance DB of parent itself is almost certainly not necessary for comparisons
     // - if compared to a tag of parent type, that tag will already have a db for parent type.
-    // However, we have to process parents recursively to add fulldbs of _their arguments_
-    // which may not be available in direct comparison ( see https://github.com/zio/izumi-reflect/issues/469 )
-    // ^ _Maybe_ we should optimize for size and NOT include fulldbs of parents, only of indirect type arguments
-    "both dbs should (not?) contain inheritance db of parent type" in {
+    "both dbs should NOT contain inheritance db of direct parent type" in {
       case class CaseClass()
 
       val lt = LTT[CaseClass]
       val fulldb = LightTypeTagUnpacker(lt).bases
       val inh = LightTypeTagUnpacker(lt).inheritance
-      intercept[NoSuchElementException] {
-        assert(fulldb(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
+      val ltProduct = LTT[Product]
+      assert(!fulldb.contains(ltProduct.ref.asInstanceOf[LightTypeTagRef.NameReference]))
+      assert(!inh.contains(ltProduct.ref.asInstanceOf[LightTypeTagRef.NameReference]))
+    }
+
+    "HKT List dbs should not contain superfluous base types" in {
+      val lt = `LTT[_]`[List]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      val inh = LightTypeTagUnpacker(lt).inheritance
+
+      if (Scala2MinorVersion.scala2MinorVersion == 11 || Scala2MinorVersion.scala2MinorVersion == 12) {
+        assert(fulldb.keys.size == 4) // ParSeq + Seq
+        assert(inh.keys.size == 4)
+      } else {
+        assert(fulldb.keys.size == 2)
+        assert(inh.keys.size == 2)
+
+        assert(fulldb.keySet.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+        assert(inh.keySet.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+
+        assert((fulldb.keySet - LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]).map(_.repr) == Set("λ %0 → scala.collection.immutable.List[+0]"))
+        assert((inh.keySet - LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]).map(_.repr) == Set("scala.collection.immutable.List"))
       }
-      intercept[NoSuchElementException] {
-        assert(inh(LTT[Product].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[Equals].ref))
-      }
+    }
+
+    "subtype check succeeds when child type has absorbed a covariant type parameter of the supertype" in {
+      assertChild(LTT[Set[Int]], LTT[Iterable[AnyVal]])
+
+      val tagF3 = LTT[F3]
+      val tagF2 = LTT[F2[Int]]
+      assertChild(tagF3, tagF2)
+      assertChild(tagF3, LTT[F2[Any]])
+      assertChild(tagF3, LTT[F2[AnyVal]])
     }
 
   }

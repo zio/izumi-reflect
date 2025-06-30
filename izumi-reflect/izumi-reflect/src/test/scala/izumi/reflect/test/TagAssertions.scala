@@ -31,7 +31,7 @@ trait TagAssertions extends AnyWordSpec with TagLogging {
     val tDebug = t.debug("assert")
     val expectedDebug = expected.debug("assert")
     val clue = s"${t.repr} debug== ${expected.repr}"
-    def failClue = s"1: $tDebug\n2: $expectedDebug"
+    def failClue = s"debug1: $tDebug\ndebug2: $expectedDebug"
     info(clue)
     assert(tDebug == expectedDebug, s"$clue\n$failClue"); ()
   }
@@ -64,7 +64,7 @@ trait TagAssertions extends AnyWordSpec with TagLogging {
 
   def assertNotChild(child: LightTypeTag, parent: LightTypeTag): Unit = {
     val clue = s"${child.repr} <!< ${parent.repr}"
-    def failClue = s"1: ${child.debug()}\n2: ${parent.debug()}"
+    def failClue = s"notChild 1: ${child.debug()}\nnotChild 2: ${parent.debug()}"
     info(clue)
     assert(!(child <:< parent), s"$clue\n$failClue"); ()
   }

@@ -41,23 +41,27 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
     private def inspectTypeReprToUnappliedBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
       val allReferenceComponents = allTypeReferences(tpe0, onlyIndirect)
-      allReferenceComponents.iterator.flatMap(inspectTypeReprToUnappliedBases0(_, onlyIndirect = false)).toList
+      allReferenceComponents.iterator.flatMap(inspectTypeReprToUnappliedIndirectBases).toList
     }
 
-    private def inspectTypeReprToUnappliedBases0(i: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
+    private def inspectTypeReprToUnappliedIndirectBases(i: TypeRepr): List[(NameReference, NameReference)] = {
       val tpe = i._dealiasSimplifiedFull._resultType
       val tpeRef = inspector.makeNameReferenceFromType(tpe)
 
-      tpeBases(tpeRef, tpe, onlyIndirect = onlyIndirect)
+      tpeBases(tpeRef, tpe, onlyIndirect = false)
     }
 
     private def allTypeReferences(tpe0: TypeRepr, onlyIndirect: Boolean): mutable.Set[TypeRepr] = {
-      val inh = mutable.HashSet.empty[TypeRepr]
+      extension (t: TypeRepr) inline def dealiasPrepare: TypeRepr = {
+        t._dealiasSimplifiedFull._resultType
+      }
 
-      val tpeDealiased = tpe0._dealiasSimplifiedFull._resultType
+      val inh = mutable.LinkedHashSet.empty[TypeRepr]
+
+      val tpeDealiased = tpe0.dealiasPrepare
 
       def goExtractComponents(tpeRaw0: TypeRepr): Unit = {
-        val tpeRes = tpeRaw0._dealiasSimplifiedFull._resultType
+        val tpeRes = tpeRaw0.dealiasPrepare
         val intersectionUnionMembers = breakRefinement(tpeRes)
 
         if (intersectionUnionMembers.sizeIs == 1) {
@@ -83,7 +87,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     }
 
     private def breakRefinement(tpe0: TypeRepr): collection.Set[TypeRepr] = {
-      val tpes = mutable.HashSet.empty[TypeRepr]
+      val tpes = mutable.LinkedHashSet.empty[TypeRepr]
 
       def go(t0: TypeRepr): Unit = t0._dealiasSimplifiedFull match {
         case tpe: AndOrType =>

@@ -287,7 +287,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
     ctx
       .logger.log(
-        s"⚠️ comparing parameterized references: `${self.repr}` <:< `${that.repr}`, paramsOk = $parametersConform, ctorsOk = ${selfNameRef == thatNameRef}, sameArity = ${self.parameters.sizeCompare(that.parameters) == 0}, context = $ctx"
+        s"⚠️ comparing parameterized references: `${self.repr}` <:< `${that.repr}`, paramsOk = $parametersConform, ctorsOk = ${selfNameRef == thatNameRef}, sameArity = ${self.parameters.size == that.parameters.size}, context = $ctx"
       )
 
     if (selfNameRef == thatNameRef) {
