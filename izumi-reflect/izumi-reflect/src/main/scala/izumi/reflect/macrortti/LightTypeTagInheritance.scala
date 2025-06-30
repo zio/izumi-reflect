@@ -294,7 +294,6 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       parametersConform
     } else if (oneOfParameterizedParentsIsInheritedFrom(ctx)(self, that)) {
       true
-      // } else if (ctx.isChild(selfNameRef, thatNameRef)) {
     } else {
       val selfNormalizedLambdaParamsSize = {
         // 0 unless we're in a lambda vs. lambda comparison (s.normalizedOutput <:< t.normalizedOutput)
