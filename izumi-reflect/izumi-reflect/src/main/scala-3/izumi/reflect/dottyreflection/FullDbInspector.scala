@@ -151,12 +151,18 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
 
     private def extractBase(tpe: TypeRepr, selfRef: AbstractReference, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
-      basesTermination.addTerminatingClsSym(tpe)
+      val argBasesRefs = tpe.typeArgs.flatMap {
+        case t if basesTermination.isTerminatingClsSym(t) => Nil
+        case t =>
+          inspectTypeBoundsToFull(t)
+      }
 
       val baseTypes: List[TypeRepr] = tpe
         .baseClasses
         .map(tpe.baseType)
         .filterNot(_ =:= tpe)
+
+      basesTermination.addTerminatingClsSym(tpe)
 
       log(s"For `${tpe.show}` (onlyIndirect=$onlyIndirect) found base types ${baseTypes.map(_.show)}")
 
@@ -177,13 +183,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
       val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
 
-      val argBasesRefs = tpe.typeArgs.flatMap {
-        case t if basesTermination.isTerminatingClsSym(t) => Nil
-        case t =>
-          inspectTypeBoundsToFull(t)
-      }
-
-      mainBasesRefs ::: argBasesRefs
+      argBasesRefs ::: mainBasesRefs
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {

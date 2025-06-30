@@ -698,9 +698,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!debug3.contains("TestModel.E"))
       assert(!debug3.contains("TestModel.A"))
       assert(!debug3.contains("+scala.Nothing"))
-//      brokenOnScala2 {
 //        assert(debug3.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
-//      }
       if (IsScala3) {
         assert(debug3.contains("- λ %1:0,%1:1 → scala.util.Right[+1:0,+1:1]"))
       } else {
@@ -720,9 +718,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!debug4.contains("TestModel.E"))
       assert(!debug4.contains("TestModel.A"))
       assert(!debug4.contains("+scala.Nothing"))
-//      brokenOnScala2 {
 //        assert(debug4.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
-//      }
       if (IsScala3) {
         assert(debug4.contains("- λ %1:0,%1:1 → scala.util.Right[+1:0,+1:1]"))
       } else {
