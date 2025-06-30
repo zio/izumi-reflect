@@ -152,8 +152,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val current = breakResult.maybeUnbrokenType
       inh ++= current
 
-      val intersectionWithPreservedLambdas: Set[Type] = breakResult.intersectionComponents
-      val intersectionExpansionsArgsBoundsIter: Iterator[Type] = intersectionWithPreservedLambdas.iterator.flatMap(collectArgsAndBounds)
+      val intersectionExpansionsArgsBoundsIter: Iterator[Type] = breakResult.intersectionComponents.iterator.flatMap(collectArgsAndBounds)
       val refinementDeclMembersIter: Iterator[Type] = breakResult.decls.iterator.flatMap {
         sym =>
           if (sym.isMethod) {
