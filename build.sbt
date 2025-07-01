@@ -638,19 +638,19 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ),
     crossScalaVersions := Nil,
     ThisBuild / organization := "dev.zio",
-    sonatypeProfileName := "dev.zio",
-    sonatypeSessionName := s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}",
-    ThisBuild / publishTo := 
-    (if (!isSnapshot.value) {
-        sonatypePublishToBundle.value
+    ThisBuild / publishTo := {
+      if (isSnapshot.value) {
+        Some(
+          "central-snapshots" at "https://central.sonatype.com/repository/maven-snapshots/"
+        )
       } else {
-        Some(Opts.resolver.sonatypeSnapshots)
-    })
-    ,
+        localStaging.value
+      }
+    },
     ThisBuild / credentials ++= 
     {
     Seq(
-      Path.userHome / ".sbt" / "secrets" / "credentials.sonatype-nexus.properties",
+      Path.userHome / ".sbt" / "secrets" / "credentials.sonatype-zio-new.properties",
       file(".") / ".secrets" / "credentials.sonatype-nexus.properties"
     )
       .filter(_.exists())
