@@ -9,6 +9,17 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.util.Try
 
+/**
+  * The tests here are *progression* tests, that means they test that something *doesn't work*
+  *
+  * If a test here starts to fail that's a GOOD thing - that means a new feature is now supported.
+  * When that happens you can remove the `broken` condition inversions and move the test to
+  * the non-progression test suite.
+  *
+  * All tests must have `broken` clauses wrapping the expected GOOD conditions if a feature
+  * were to work. If a test is missing `broken` clause, it's a probably not a progression test
+  * anymore and should be moved.
+  */
 abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModel {
 
   "[progression] Tag (all versions)" should {
@@ -210,7 +221,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       assert(LTT[Null] <:< LTT[Nothing])
     }
 
-    "progression test: parameter resolution breaks inside covariant wildcard type bounds on Scala 2.12 and 2.13" in {
+    "progression test: parameter resolution breaks inside covariant wildcard type bounds on Scala 2.13" in {
       def xcov[T[_]: TagK, U: Tag]: Tag[List[_ <: T[U]]] = Tag[List[_ <: T[U]]]
 
       brokenOnScala2MinorVersion(13) {

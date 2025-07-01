@@ -113,7 +113,55 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
+  extension (appliedType: AppliedType) {
+    protected final def _etaExpand: Option[TypeLambda] = {
+      val tycon: TypeRepr = appliedType.tycon._dealiasSimplifiedFull
+      val tparams0: List[TypeRepr] = tycon.typeSymbol.declaredTypes.collect { case s if s.isTypeParam => s._info }
+      val tparams: List[TypeRepr] = if (tparams0.sizeCompare(appliedType.args) < 0) {
+        tycon match {
+          case typeParamRef: ParamRef =>
+            typeParamRef._underlying match {
+              case TypeBounds(_, hi: LambdaType) =>
+                hi.paramTypes
+              case _ =>
+                Nil
+            }
+          case _ =>
+            Nil
+        }
+      } else {
+        tparams0
+      }
+
+      if (tparams.nonEmpty) {
+        val indices = tparams.indices
+        Some(
+          TypeLambda(
+            paramNames = indices.iterator.map(_.toString).toList,
+            boundsFn = _ => tparams.map { case tb: TypeBounds => tb; case t => TypeBounds(t, t) },
+            bodyFn = tl => AppliedType(tycon, indices.iterator.map(tl.param(_)).toList)
+          )
+        )
+      } else None
+    }
+  }
+
   extension (typeRepr: TypeRepr) {
+
+    inline protected def _resultType: TypeRepr = {
+      typeRepr match {
+        case l: LambdaType => l.resType
+        case _ => typeRepr
+      }
+    }
+
+    inline protected def _takesTypeArgs: Boolean = {
+      typeRepr match {
+        case _: LambdaType => true
+        case _ => false
+      }
+    }
+
     protected final def _paramVariancesIfHKTypeLambda: Option[List[Flags]] = {
       try {
         val params = typeRepr.asInstanceOf[InternalHKTypeLambda].typeParams

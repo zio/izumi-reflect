@@ -45,19 +45,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: subtype check fails when child type has absorbed a covariant type parameter of the supertype" in {
-      assertChild(LTT[Set[Int]], LTT[Iterable[AnyVal]])
-
-      val tagF3 = LTT[F3]
-      val tagF2 = LTT[F2[Int]]
-      assertChild(tagF3, tagF2)
-
-      brokenOnScala2 {
-        assertChild(tagF3, LTT[F2[Any]])
-        assertChild(tagF3, LTT[F2[AnyVal]])
-      }
-    }
-
     "progression test: bounds-based subtype checks for lambdas do not work properly (LambdaParameter must contain bounds and NameReferences shouldn't for this to work)" in {
       // I consider this stuff practically useless
       type X[A >: H4 <: H2] = Set[A]
@@ -77,25 +64,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertChild(`LTT[A,B,_>:B<:A]`[H3, H3, X1], `LTT[A,B,_>:B<:A]`[H2, H4, X])
     }
 
-    "progression test: a portion of `support swapped parents` fails on Dotty" in {
-      trait KK1[+A, +B, +U]
-      trait KK2[+A, +B] extends KK1[B, A, Unit]
-
-      // FIXME incorrect fullBases parent lambdaification on Scala 3:
-      // fullBases on Scala 3 has 1 type parameter:
-      // - λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+izumi.reflect.test.TestModel::H2,+0] ->
-      //   * λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+izumi.reflect.test.TestModel::H2,+scala.Unit]
-      // While should be 2 type parameters:
-      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
-      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
-
-      brokenOnScala3 {
-//        withDebugOutput {
-        assertChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[*, H1, Unit]])
-//        }
-      }
-    }
-
     "progression test: indirect structural checks do not work" in {
       assertDifferent(LTT[{ type A }], LTT[Object])
       broken {
@@ -111,10 +79,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       val alias = LTT[T3[Int, Boolean]]
       val direct = LTT[W1 with W4[Boolean] with W5[Int]]
 
-      brokenOnScala2 {
+      broken {
         assert(!debugCombined.contains("W4[=scala.Int]"))
       }
-      brokenOnScala2 {
+      broken {
         assert(!debugCombined.contains("W3[=scala.Int]"))
       }
 
@@ -142,109 +110,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: `applied tags should not contain junk bases` is not supported on Dotty" in {
-      val debug0 = LTT[List[Any]].debug()
-//      val debug0 = PlatformSpecific.fromRuntime[List[Any]].debug()
-
-      assert(!debug0.contains("scala.List"))
-      assert(!debug0.contains("package::List"))
-      assert(!debug0.contains("<refinement>"))
-      assert(!debug0.contains("<none>"))
-      brokenOnScala3 {
-        // FIXME incorrect fullBases parent lambdaification on Scala 3:
-        //   contains `scala.collection.immutable.List[+scala.Any]`
-        //   instead of `- λ %0 → scala.collection.immutable.List[+0]`
-        assert(debug0.contains("- λ %0 → scala.collection.immutable.List[+0]"))
-      }
-
-      //      val debug1 = LTT[List[_]].debug()
-      val debug1 = PlatformSpecific.fromRuntime[List[_]].debug()
-
-      assert(!debug1.contains("scala.List"))
-      assert(!debug1.contains("package::List"))
-      assert(!debug1.contains("<refinement>"))
-      assert(!debug1.contains("<none>"))
-      brokenOnScala3 {
-        assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
-      }
-
-      val debug2 = LTT[Either[RoleChild[IO], Product]].debug()
-//      val debug2 = PlatformSpecific.fromRuntime[Either[RoleChild[IO], Product]].debug()
-
-      assert(!debug2.contains("package::Either"))
-      assert(!debug2.contains("<refinement>"))
-      assert(!debug2.contains("<none>"))
-      assert(!debug2.contains("TestModel.E"))
-      assert(!debug2.contains("TestModel.A"))
-      brokenOnScala3 {
-        assert(debug2.contains("- λ %0 → izumi.reflect.test.TestModel::RoleChild[=0]"))
-      }
-      brokenOnScala3 {
-        assert(debug2.contains("* λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
-      }
-    }
-
-    "progression test: `lambda tags should not contain junk bases` is not supported on Dotty" in {
-      val debug1 = `LTT[_,_]`[Right].debug()
-
-      assert(!debug1.contains("package::Either"))
-      assert(!debug1.contains("scala.package.A"))
-      assert(!debug1.contains("scala.package.B"))
-      assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      assert(debug1.contains("* scala.Product"))
-
-      val debug2 = `LTT[_,_]`[Right].combine(LTT[Int], LTT[Int]).debug()
-
-      assert(!debug2.contains("package::Either"))
-      assert(!debug2.contains("scala.package.A"))
-      assert(!debug2.contains("scala.package.B"))
-      assert(debug2.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      assert(debug2.contains("* scala.Product"))
-
-      val debug3 = LTT[RoleParent[Right[Throwable, *]]].debug()
-//      val debug3 = PlatformSpecific.fromRuntime[RoleParent[Right[Throwable, *]]].debug()
-
-      assert(!debug3.contains("package::Right"))
-      assert(!debug3.contains("<refinement>"))
-      assert(!debug3.contains("<none>"))
-      assert(!debug3.contains("TestModel.E"))
-      assert(!debug3.contains("TestModel.A"))
-      assert(!debug3.contains("+scala.Nothing"))
-      brokenOnScala3 {
-        // FIXME incorrect fullBases parent lambdaification on Scala 3:
-        assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      }
-      assert(debug3.contains("* scala.Product"))
-
-      val debug4 = `LTT[_]`[Right[Throwable, *]].debug()
-//      val debug4 = PlatformSpecific
-//        .fromRuntime(
-//          scala.reflect.runtime.universe.typeOf[{ type l[a] = Right[Throwable, a] }].member(scala.reflect.runtime.universe.TypeName("l")).typeSignature
-//        ).debug()
-
-      assert(!debug4.contains("package::Right"))
-      assert(!debug4.contains("<refinement>"))
-      assert(!debug4.contains("<none>"))
-      assert(!debug4.contains("TestModel.E"))
-      assert(!debug4.contains("TestModel.A"))
-      assert(!debug4.contains("+scala.Nothing"))
-      brokenOnScala3 {
-        assert(debug4.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      }
-      assert(debug4.contains("* scala.Product"))
-
-      val oneArgApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
-      val debug5 = oneArgApplied.debug()
-
-      assert(!debug5.contains("package::Right"))
-      assert(!debug5.contains("<refinement>"))
-      assert(!debug5.contains("<none>"))
-      assert(!debug5.contains("scala.package.A"))
-      assert(!debug5.contains("scala.package.B"))
-      assert(!debug5.contains("+scala.Nothing"))
-      assert(debug5.contains("* scala.Product"))
-    }
-
     "progression test: Dotty fails to `support methods with type parameters in structural refinements`" in {
       trait X { def x[A](a: A): A }
 
@@ -264,7 +129,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "fails to support methods in refinements with multiple parameter lists" in {
+    "fails to support methods with multiple parameter lists in refinements" in {
       brokenOnScala2 {
         assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(b: Boolean): Int }])
       }
@@ -273,6 +138,7 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
 
       brokenOnScala3 {
+        // no distinction between method with multiple param lists and one param list
         assertNotChildStrict(LTT[{ def x(i: Int)(b: Boolean): Int }], LTT[{ def x(i: Int, b: Boolean): Int }])
       }
 
@@ -285,6 +151,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     }
 
     "progression test: fails to `Any/Object relation is consistent with Scala`" in {
+      implicitly[Object <:< Any]
+      def isNoImplicit[A <: AnyRef](implicit ev: A = null): Boolean = ev eq null
+      assert(isNoImplicit[Any <:< Object])
+
       assertChild(LTT[Object], LTT[Any])
       broken {
         assertNotChild(LTT[Any], LTT[Object])
@@ -292,12 +162,18 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertDifferent(LTT[Any], LTT[Object])
     }
 
-    "progression test: can't distinguish between equal-bounded type and alias inside refinements in dotty" in {
-      val t4 = LTT[{ type X >: Any <: Any }]
+    "progression test: can't distinguish between equal-bounded type and alias inside refinements on dotty" in {
+      val t4 = LTT[{ type X >: Any <: Any }] // (java.lang.Object {type X = Any}), but should be (java.lang.Object {type X::<Any..Any>})
       val t5 = LTT[{ type X = Any }]
 
       brokenOnScala3 {
         assertDifferent(t4, t5)
+      }
+    }
+
+    "progression test: Null type is a subtype of Nothing, but shouldn't be" in {
+      broken {
+        assertNotChild(LTT[Null], LTT[Nothing])
       }
     }
 

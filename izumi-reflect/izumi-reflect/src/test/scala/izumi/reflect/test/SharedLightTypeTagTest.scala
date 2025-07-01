@@ -125,6 +125,35 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChild(LTT[KK2[H2, I2]], LTT[KK1[H1, I1, Unit]])
 
       assertNotChild(`LTT[_]`[KK2[H2, *]], `LTT[_]`[KK1[H1, *, Unit]])
+
+      type KK1Unit[+A, +B] = KK1[A, B, Unit]
+      type SwappedKK2[+A, +B] = KK2[B, A]
+
+      // before, we had incorrect fullBases parent lambdaification on Scala 3:
+      // fullBases on Scala 3 has 1 type parameter before extractLambdaBase:
+      // - λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+izumi.reflect.test.TestModel::H2,+0] ->
+      //   * λ %0 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+izumi.reflect.test.TestModel::H2,+scala.Unit]
+      // While should be 2 type parameters:
+      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
+      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
+
+      // Or... maybe it's Scala 3 that's more correct. See SwappedKK2 parents on Scala 2:
+      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK2[+0,+1] ->
+      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest.KK1[+1,+0,+scala.Unit]
+      // VS SwappedKK2 parents on Scala 3, which is correct (it preserves the swappiness):
+      // - λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK2[+1,+0] ->
+      //   * λ %0,%1 → izumi.reflect.test.SharedLightTypeTagProgressionTest._$KK1[+0,+1,+scala.Unit]
+
+      // Ok... we just supported both forms in LightTypeTagInheritance in 3.0.4... somehow... ... ...
+
+      val tag = `LTT[_]`[KK2[H2, *]]
+      val tag1 = `LTT[_,_]`[SwappedKK2]
+
+      withDebugOutput {
+        assertChild(tag, `LTT[_]`[KK1[*, H1, Unit]])
+        assertChild(tag1, `LTT[_,_]`[KK1Unit])
+        assertNotChild(tag1, `LTT[_,_]`[KK2])
+      }
     }
 
     "support subtyping of parents parameterized with type lambdas" in {
@@ -426,6 +455,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertTypeError("val o: Option[H3] = None: Option[_ >: H4 <: H2]")
       assertNotChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H3]])
+      assertNotChild(LTT[Option[_ >: H4]], LTT[Option[H3]])
+      assertNotChild(LTT[Option[_ <: H2]], LTT[Option[H3]])
+
+      locally { val o: Option[H1] = None: Option[_ <: H2] }
+      assertTypeError("val o: Option[H1] = None: Option[_ >: H4]")
+      assertChild(LTT[Option[_ <: H2]], LTT[Option[H1]])
+      assertNotChild(LTT[Option[_ >: H4]], LTT[Option[H1]])
       assertChild(LTT[Option[_ >: H4 <: H2]], LTT[Option[H1]])
 
       if (!IsScala3) {
@@ -534,13 +570,13 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(with_.debug().contains(": izumi.reflect.test.TestModel::With[=?]"))
       assert(with_.debug().contains("- izumi.reflect.test.TestModel::With[=?]"))
 
-      val list_ = LTT[List[_]]
-      val immutableList_ = LTT[List[_]]
-      assertChild(LTT[List[Int]], immutableList_)
-      assertChild(LTT[scala.collection.immutable.List[Int]], list_)
-      assertChild(list_, immutableList_)
-      assertChild(immutableList_, list_)
-      assertDebugSame(list_, immutableList_)
+      val list1 = LTT[List[_]]
+      val list2 = LTT[List[_]]
+      assertChild(LTT[List[Int]], list2)
+      assertChild(LTT[scala.collection.immutable.List[Int]], list1)
+      assertChild(list1, list2)
+      assertChild(list2, list1)
+      assertDebugSame(list1, list2)
     }
 
     "no redundant $ in object names" in {
@@ -565,6 +601,39 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
         `LTT[_[_]]`[({ type l[G[_]] = FM2[G[S[W2, W1]]] })#l]
       )
       assertChild(`LTT[_,_]`[NestedTL[Const, *, *]], `LTT[_,_]`[λ[(A, B) => FM2[(B, A)]]])
+    }
+
+    "applied tags should not contain junk bases" in {
+      val debug0 = LTT[List[Any]].debug()
+//      val debug0 = PlatformSpecific.fromRuntime[List[Any]].debug()
+
+      assert(!debug0.contains("scala.List"))
+      assert(!debug0.contains("package::List"))
+      assert(!debug0.contains("<refinement>"))
+      assert(!debug0.contains("<none>"))
+      assert(debug0.contains("- scala.collection.immutable.List[+scala.Any]"))
+      assert(debug0.contains("- λ %0 → scala.collection.immutable.List[+0]"))
+
+      //      val debug1 = LTT[List[_]].debug()
+      val debug1 = PlatformSpecific.fromRuntime[List[_]].debug()
+
+      assert(!debug1.contains("scala.List"))
+      assert(!debug1.contains("package::List"))
+      assert(!debug1.contains("<refinement>"))
+      assert(!debug1.contains("<none>"))
+      assert(debug1.contains("- scala.collection.immutable.List[+?]"))
+      assert(debug1.contains("- λ %0 → scala.collection.immutable.List[+0]"))
+
+      val debug2 = LTT[Either[RoleChild[IO], Product]].debug()
+//      val debug2 = PlatformSpecific.fromRuntime[Either[RoleChild[IO], Product]].debug()
+
+      assert(!debug2.contains("package::Either"))
+      assert(!debug2.contains("<refinement>"))
+      assert(!debug2.contains("<none>"))
+      assert(!debug2.contains("TestModel.E"))
+      assert(!debug2.contains("TestModel.A"))
+      assert(debug2.contains("- λ %0 → izumi.reflect.test.TestModel::RoleChild[=0]"))
+      assert(debug2.contains("* λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
     }
 
     "intersection lambda tags should not contain junk bases" in {
@@ -597,6 +666,74 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(debugCombined.contains("W5[=scala.Int]"))
 
       assertDebugSame(alias, direct)
+    }
+
+    "lambda tags should not contain junk bases" in {
+      val debug1 = `LTT[_,_]`[Right].debug()
+
+      assert(!debug1.contains("package::Either"))
+      assert(!debug1.contains("scala.package.A"))
+      assert(!debug1.contains("scala.package.B"))
+      assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      assert(debug1.contains("* scala.Product"))
+
+      val debug2 = `LTT[_,_]`[Right].combine(LTT[Int], LTT[Int]).debug()
+
+      assert(!debug2.contains("package::Either"))
+      assert(!debug2.contains("scala.package.A"))
+      assert(!debug2.contains("scala.package.B"))
+      assert(debug2.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      assert(debug2.contains("* scala.Product"))
+
+      val debug3 = LTT[RoleParent[Right[Throwable, *]]].debug()
+//      val debug3 = PlatformSpecific.fromRuntime[RoleParent[Right[Throwable, *]]].debug()
+
+      assert(!debug3.contains("package::Right"))
+      assert(!debug3.contains("<refinement>"))
+      assert(!debug3.contains("<none>"))
+      assert(!debug3.contains("TestModel.E"))
+      assert(!debug3.contains("TestModel.A"))
+      assert(!debug3.contains("+scala.Nothing"))
+//        assert(debug3.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
+      if (IsScala3) {
+        assert(debug3.contains("- λ %1:0,%1:1 → scala.util.Right[+1:0,+1:1]"))
+      } else {
+        assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      }
+      assert(debug3.contains("* scala.Product"))
+
+      val debug4 = `LTT[_]`[Right[Throwable, *]].debug()
+//      val debug4 = PlatformSpecific
+//        .fromRuntime(
+//          scala.reflect.runtime.universe.typeOf[{ type l[a] = Right[Throwable, a] }].member(scala.reflect.runtime.universe.TypeName("l")).typeSignature
+//        ).debug()
+
+      assert(!debug4.contains("package::Right"))
+      assert(!debug4.contains("<refinement>"))
+      assert(!debug4.contains("<none>"))
+      assert(!debug4.contains("TestModel.E"))
+      assert(!debug4.contains("TestModel.A"))
+      assert(!debug4.contains("+scala.Nothing"))
+//        assert(debug4.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
+      if (IsScala3) {
+        assert(debug4.contains("- λ %1:0,%1:1 → scala.util.Right[+1:0,+1:1]"))
+      } else {
+        assert(debug4.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      }
+      assert(debug4.contains("* scala.Product"))
+
+      val oneArgApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
+      val debug5 = oneArgApplied.debug()
+
+      assert(!debug5.contains("package::Right"))
+      assert(!debug5.contains("<refinement>"))
+      assert(!debug5.contains("<none>"))
+      assert(!debug5.contains("scala.package.A"))
+      assert(!debug5.contains("scala.package.B"))
+      assert(!debug5.contains("+scala.Nothing"))
+      assert(debug5.contains("* scala.Product"))
+      assert(debug5.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
+      assert(debug5.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
     }
 
     "No degenerate lambdas (regression test https://github.com/zio/izumi-reflect/issues/345)" in {
@@ -652,7 +789,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChild(t2, t1)
     }
 
-    "support higher-kinded intersection type combination isn't supported on Dotty" in {
+    "support higher-kinded intersection type combination" in {
       val tCtor = `LTT[_,_]`[T3]
 
       val combined = tCtor.combine(LTT[Int], LTT[Boolean])
@@ -674,7 +811,9 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertChild(combined, LTT[W5[Int]])
       assertChild(combined, LTT[W4[Boolean]])
-      assertChild(combined, LTT[W3[Boolean]])
+      withDebugOutput {
+        assertChild(combined, LTT[W3[Boolean]])
+      }
       assertChild(combined, LTT[W1])
       assertChild(combined, LTT[W2])
       assertChild(combined, LTT[W1 with W3[Boolean]])
@@ -829,6 +968,227 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertRepr(`LTT[_]`[S[Unit, *]], "λ %0 → Either[+0,+Unit]")
     }
 
+    "covariance of a concrete inheritor to a parent with a higher-kinded type parameter" in {
+      trait Container[T] {
+        def tt(): T
+      }
+      final case class AContainer[T](t: T) extends Container[T] {
+        override def tt(): T = t
+      }
+
+      trait Service[+O[x] <: Container[x]] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[AContainer] {
+        def giveHello = "Concrete hello!"
+      }
+
+      assertChild(`LTT[_]`[AContainer], `LTT[_]`[Container])
+
+      assertChild(LTT[AContainer[Int]], LTT[Container[Int]])
+      assertChild(LTT[AContainer[Int]], LTT[Container[_]])
+      assertNotChild(LTT[AContainer[Int]], LTT[Container[Any]])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+      val appliedParent = `LTT[A[_],_[_[x] <: A[x]]`[Container, Service].combine(`LTT[_]`[Container])
+
+      assertChild(concrete, appliedParent)
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      withSanityChecks {
+        assertChild(concrete, parent)
+      }
+    }
+
+    "covariance of a concrete inheritor to a parent with a complex-shaped higher-kinded type parameter" in {
+      trait Container[T] {
+        def tt(): T
+      }
+      final case class AContainer[T, Y](t: T) extends Container[T] {
+        override def tt(): T = t
+      }
+
+      trait Service[+O[x] <: Container[x]] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[AContainer[*, Int]] {
+        def giveHello = "Concrete hello!"
+      }
+
+      assertChild(`LTT[_]`[AContainer[*, Unit]], `LTT[_]`[Container])
+
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Int]])
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[_]])
+      assertNotChild(LTT[AContainer[Int, Unit]], LTT[Container[Any]])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+      val appliedParent = `LTT[A[_],_[_[x] <: A[x]]`[Container, Service].combine(`LTT[_]`[Container])
+
+      assertChild(concrete, appliedParent)
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      withSanityChecks {
+        assertChild(concrete, parent)
+      }
+    }
+
+    "covariance of a concrete inheritor to a parent with a swap type lambda" in {
+      trait Container[T, Y]
+      final case class AContainer[T, Y]() extends Container[Y, T]
+      type SwappedAContainer[T, Y] = AContainer[Y, T]
+
+      trait Service[+O[x, y] <: Container[x, y]] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[SwappedAContainer] {
+        def giveHello = "Concrete hello!"
+      }
+
+      assertChild(`LTT[_]`[AContainer[Int, *]], `LTT[_]`[Container[*, Int]])
+
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[Unit, Int]])
+      assertChild(LTT[AContainer[Int, Unit]], LTT[Container[_, _]])
+      assertNotChild(LTT[AContainer[Int, Unit]], LTT[Container[Any, Any]])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      withSanityChecks {
+        assertChild(concrete, parent)
+      }
+    }
+
+    "covariance of a concrete inheritor to a parent with a proper type parameter" in {
+      trait Container {
+        def tt(): Any
+      }
+      final case class AContainer(t: Any) extends Container {
+        override def tt(): Any = t
+      }
+
+      trait Service[+O] {
+        def giveHello: String
+      }
+      final case class MyConcreteService() extends Service[AContainer] {
+        def giveHello = "Concrete hello!"
+      }
+      assertChild(LTT[AContainer], LTT[Container])
+
+      val concrete = LTT[MyConcreteService]
+      val parent = LTT[Service[Container]]
+
+      implicitly[MyConcreteService <:< Service[Container]] // true
+
+      assertChild(concrete, parent)
+    }
+
+    "covariance of a parameterized inheritor to a parent with an indirect proper type parameter" in {
+      trait Container {
+        def tt(): Any
+      }
+      final case class AContainer(t: Any) extends Container {
+        override def tt(): Any = t
+      }
+
+      trait Service[I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[T, AContainer] {
+        def giveHello = "Concrete hello!"
+      }
+      assertChild(LTT[AContainer], LTT[Container])
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Int, Container]]
+
+      implicitly[MyParameterizedService[Int] <:< Service[Int, Container]] // true
+
+      assertChild(concrete, parent)
+    }
+
+    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter" in {
+      trait Container[+T] {
+        def tt(): T
+      }
+      final case class AContainer[+T](t: T) extends Container[T] {
+        override def tt(): T = t
+      }
+
+      trait Service[I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[T, AContainer[Int]] {
+        def giveHello = "Concrete hello!"
+      }
+      assertChild(LTT[AContainer[Int]], LTT[Container[AnyVal]])
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Int, Container[AnyVal]]]
+
+      implicitly[MyParameterizedService[Int] <:< Service[Int, Container[AnyVal]]] // true
+
+      assertChild(concrete, parent)
+    }
+
+    "covariance of a parameterized inheritor to a parent with an indirect parameterized type parameter with different arity" in {
+      trait Container[I, +T] {
+        def tt(): T
+      }
+      final case class AContainer[+T](t: T) extends Container[Int, T] {
+        override def tt(): T = t
+      }
+
+      trait Service[I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[T, AContainer[Int]] {
+        def giveHello = "Concrete hello!"
+      }
+      assertChild(LTT[AContainer[Int]], LTT[Container[Int, AnyVal]])
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Int, Container[Int, AnyVal]]]
+
+      implicitly[MyParameterizedService[Int] <:< Service[Int, Container[Int, AnyVal]]] // true
+
+      assertChild(concrete, parent)
+    }
+
+    "covariance of a self-parameterized inheritor to a parent with an indirect parameterized type parameter with different arity" in {
+      trait Container[I, +T] {
+        def tt(): T
+      }
+      final case class AContainer[+T](t: T) extends Container[Int, T] {
+        override def tt(): T = t
+      }
+
+      trait Service[+I, +O] {
+        def giveHello: String
+      }
+      final case class MyParameterizedService[T]() extends Service[AContainer[T], AContainer[AContainer[T]]] {
+        def giveHello = "Concrete hello!"
+      }
+      val tag = LTT[AContainer[AContainer[Int]]]
+      val parent0 = LTT[Container[Int, Container[Int, AnyVal]]]
+
+      implicitly[AContainer[AContainer[Int]] <:< Container[Int, Container[Int, AnyVal]]]
+
+      assertChild(tag, parent0)
+
+      val concrete = LTT[MyParameterizedService[Int]]
+      val parent = LTT[Service[Container[Int, AnyVal], Container[Int, Any]]]
+
+      implicitly[MyParameterizedService[Int] <:< Service[Container[Int, AnyVal], Container[Int, Any]]] // true
+
+      assertChild(concrete, parent)
+    }
+
     "regression test for https://github.com/zio/izumi-reflect/issues/511" in {
       class Foo5[-A, B, -C, +DXX, +E]
       class Foo10[F[_], +G[_], -H[-_, +_], I, +J[+_, +_], B, -A, -C, +E, +DXX] extends Foo5[A, B, C, DXX, E]
@@ -862,8 +1222,99 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "null type is supported" in {
-      assert(LTT[Null] <:< LTT[I1])
-      assert(LTT[Nothing] <:< LTT[Null])
+      assertChildStrict(LTT[Null], LTT[I1])
+      assertChild(LTT[Nothing], LTT[Null])
+    }
+
+    "fulldb should contain inheritance db of direct type argument" in {
+      class Box[+T]
+
+      val lt = LTT[Box[Int]]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    "unapplied inheritance db should contain inheritance db of direct type argument" in {
+      class Box[+T]
+
+      val lt = LTT[Box[Int]]
+      val inh = LightTypeTagUnpacker(lt).inheritance
+      assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    "both dbs should contain db of direct self-nested type argument" in {
+      class Box[+T]
+
+      val lt = LTT[Box[Box[Int]]]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      val inh = LightTypeTagUnpacker(lt).inheritance
+
+      assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+      assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    "fulldb should contain inheritance db of inherited type argument" in {
+      class Box[+T]
+      class IndirectBox extends Box[Int]
+
+      val lt = LTT[IndirectBox]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      assert(fulldb.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+      assert(fulldb(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    "unapplied inheritance db should contain inheritance db of inherited type argument" in {
+      class Box[+T]
+      class IndirectBox extends Box[Int]
+
+      val lt = LTT[IndirectBox]
+      val inh = LightTypeTagUnpacker(lt).inheritance
+
+      assert(inh.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+      assert(inh(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]) == Set(LTT[AnyVal].ref))
+    }
+
+    // Inheritance DB of parent itself is almost certainly not necessary for comparisons
+    // - if compared to a tag of parent type, that tag will already have a db for parent type.
+    "both dbs should NOT contain inheritance db of direct parent type" in {
+      case class CaseClass()
+
+      val lt = LTT[CaseClass]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      val inh = LightTypeTagUnpacker(lt).inheritance
+      val ltProduct = LTT[Product]
+      assert(!fulldb.contains(ltProduct.ref.asInstanceOf[LightTypeTagRef.NameReference]))
+      assert(!inh.contains(ltProduct.ref.asInstanceOf[LightTypeTagRef.NameReference]))
+    }
+
+    "HKT List dbs should not contain superfluous base types" in {
+      val lt = `LTT[_]`[List]
+      val fulldb = LightTypeTagUnpacker(lt).bases
+      val inh = LightTypeTagUnpacker(lt).inheritance
+
+      if (Scala2MinorVersion.scala2MinorVersion == 11 || Scala2MinorVersion.scala2MinorVersion == 12) {
+        assert(fulldb.keys.size == 4) // ParSeq + Seq
+        assert(inh.keys.size == 4)
+      } else {
+        assert(fulldb.keys.size == 2)
+        assert(inh.keys.size == 2)
+
+        assert(fulldb.keySet.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+        assert(inh.keySet.contains(LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]))
+
+        assert((fulldb.keySet - LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]).map(_.repr) == Set("λ %0 → scala.collection.immutable.List[+0]"))
+        assert((inh.keySet - LTT[Int].ref.asInstanceOf[LightTypeTagRef.NameReference]).map(_.repr) == Set("scala.collection.immutable.List"))
+      }
+    }
+
+    "subtype check succeeds when child type has absorbed a covariant type parameter of the supertype" in {
+      assertChild(LTT[Set[Int]], LTT[Iterable[AnyVal]])
+
+      val tagF3 = LTT[F3]
+      val tagF2 = LTT[F2[Int]]
+      assertChild(tagF3, tagF2)
+      assertChild(tagF3, LTT[F2[Any]])
+      assertChild(tagF3, LTT[F2[AnyVal]])
     }
 
   }

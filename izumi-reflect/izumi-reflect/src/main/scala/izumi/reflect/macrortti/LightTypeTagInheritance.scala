@@ -67,7 +67,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 
   private def isChild(ctx: Ctx)(selfT: LightTypeTagRef, thatT: LightTypeTagRef): Boolean = {
     import ctx._
-    logger.log(s"✴️ ️${selfT.repr} <:< ${thatT.repr}, context = $ctx")
+    logger.log(s"✴️ isChild: `${selfT.repr}` <:< `${thatT.repr}`, context = $ctx")
 
     val result = (selfT, thatT) match {
       case (s, t) if s == t =>
@@ -106,8 +106,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         }
       // parameterized type
       case (s: FullReference, t: FullReference) =>
-        (oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
-          || compareParameterizedRefs(ctx)(s, t))
+        compareParameterizedRefs(ctx)(s, t)
 
       case (s: FullReference, t: NameReference) =>
         any(
@@ -192,7 +191,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (s: AbstractReference, t: Refinement) =>
         oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
     }
-    logger.log(s"${if (result) "✅" else "⛔️"} ${selfT.repr} <:< ${thatT.repr} == $result")
+    logger.log(s"${if (result) "✅" else "⛔️"} isChild: `${selfT.repr}` <:< `${thatT.repr}` == $result")
     result
   }
 
@@ -239,10 +238,11 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def compareParameterizedRefs(ctx: Ctx)(self: FullReference, that: FullReference): Boolean = {
-    def parameterShapeCompatible: Boolean = {
-      self.parameters.zip(that.parameters).forall {
+
+    def parametersConform: Boolean = {
+      self.parameters.zipAll(that.parameters, null, null).forall {
         case (ps, pt) =>
-          pt.variance match {
+          (ps ne null) && (pt ne null) && (pt.variance match {
             case Variance.Invariant =>
               pt.ref match {
                 case wc: LightTypeTagRef.WildcardReference =>
@@ -250,6 +250,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
                 case _ =>
                   ps.ref == pt.ref
               }
+
             case Variance.Contravariant =>
               pt.ref match {
                 case wc: LightTypeTagRef.WildcardReference =>
@@ -277,43 +278,78 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
                 case _ =>
                   ctx.isChild(ps.ref, pt.ref)
               }
-          }
+          })
       }
     }
 
-    def sameArity: Boolean = {
-      self.parameters.size == that.parameters.size
-    }
+    val selfNameRef = self.asName
+    val thatNameRef = that.asName
 
     ctx
       .logger.log(
-        s"⚠️ comparing parameterized references, ${self.repr} <:< ${that.repr}, context = $ctx; sameArity = $sameArity, shapeOk = $parameterShapeCompatible"
+        s"⚠️ comparing parameterized references: `${self.repr}` <:< `${that.repr}`, paramsOk = $parametersConform, ctorsOk = ${selfNameRef == thatNameRef}, sameArity = ${self.parameters.size == that.parameters.size}, context = $ctx"
       )
 
-    if (self.asName == that.asName) {
-      sameArity && parameterShapeCompatible
-    } else if (ctx.isChild(self.asName, that.asName)) {
-      val allParents = parameterizedParentsOf(self)
-      val inferredLambdaParents = basesdb.collect {
-        case (l: Lambda, b) if isSame(l.output, self.asName) =>
-          b.collect {
-            case l: Lambda if l.input.size == self.parameters.size => l
-          }.map(l => l.combine(self.parameters.map(_.ref)))
-      }.flatten
-      ctx.logger.log(s"ℹ️ all parents of ${self.repr}: baseDbParents=${allParents.map(_.repr)} ==> inferredLambdaParents=${inferredLambdaParents.map(_.repr)}")
-      (allParents.iterator ++ inferredLambdaParents)
-        .exists(ctx.isChild(_, that))
+    if (selfNameRef == thatNameRef) {
+      parametersConform
+    } else if (oneOfParameterizedParentsIsInheritedFrom(ctx)(self, that)) {
+      true
     } else {
-      false
+      val selfNormalizedLambdaParamsSize = {
+        // 0 unless we're in a lambda vs. lambda comparison (s.normalizedOutput <:< t.normalizedOutput)
+        self.parameters.count(p => isFakeParam(p.ref))
+      }
+      val appliedLambdaParents = basesdb
+        .iterator.collect {
+          case (l: Lambda, lparents) if isSameNamedRef(l.output, selfNameRef) =>
+            lparents.flatMap {
+              case lp: Lambda =>
+                val scala2FullDbFormLambda = {
+                  if (lp.input.size == self.parameters.size) {
+                    List(lp.combine(self.parameters.map(_.ref)))
+                  } else {
+                    Nil
+                  }
+                }
+                val scala3FullDbFormLambda = if (lp.input.size == selfNormalizedLambdaParamsSize) {
+                  val ps = self.parameters.collect { case FakeParam(pRef) => pRef }
+                  val selfPs = ps.sortBy(_.ref.asInstanceOf[SymName.LambdaParamName].index)
+                  val res = lp.combine(selfPs)
+                  List(res)
+                } else Nil
+                scala2FullDbFormLambda ++ scala3FullDbFormLambda
+              case _ =>
+                Nil
+            }
+        }.flatten.toList
+      ctx.logger.log {
+        s"ℹ️ checking applied lambda parents of self=`${self.repr}`: parents=${appliedLambdaParents.map(_.repr)} <:< that=`${that.repr}`"
+      }
+      appliedLambdaParents.exists(ctx.isChild(_, that))
     }
   }
 
-  private def isSame(a: AbstractReference, b: AbstractReference): Boolean = {
+  private def isSameNamedRef(a: AbstractReference, b: AbstractReference): Boolean = {
     (a, b) match {
       case (an: AppliedNamedReference, ab: AppliedNamedReference) =>
         an.asName == ab.asName
       case _ =>
         false
+    }
+  }
+
+  def isFakeParam(reference: LightTypeTagRef.AbstractReference): Boolean = reference match {
+    case reference: NameReference =>
+      reference.symName match {
+        case l: SymName.LambdaParamName if l.depth == LightTypeTagRef.lambdaFakeParamDepth => true
+        case _ => false
+      }
+    case _ => false
+  }
+
+  object FakeParam {
+    def unapply(tparam: TypeParam): Option[LightTypeTagRef.NameReference] = {
+      if (isFakeParam(tparam.ref)) Some(tparam.ref.asInstanceOf[NameReference]) else None
     }
   }
 
@@ -331,15 +367,15 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def oneOfParameterizedParentsIsInheritedFrom(ctx: Ctx)(child: AbstractReference, parent: AbstractReference): Boolean = {
-    ctx.logger.log(s"Looking up parameterized parents of $child => ${parameterizedParentsOf(child)}")
 //    ctx.logger.log(s"Checking if ${parameterizedParentsOf(child)} has a parent of $parent")
     val parents = parameterizedParentsOf(child)
+    ctx.logger.log(s"Looking up parameterized parents of $child => $parents")
     parents.exists(ctx.isChild(_, parent))
   }
 
   private def oneOfUnparameterizedParentsIsInheritedFrom(ctx: Ctx)(child: NameReference, parent: NameReference): Boolean = {
-    ctx.logger.log(s"Looking up unparameterized parents of $child => ${unparameterizedParentsOf(child)}")
     val parents = unparameterizedParentsOf(child)
+    ctx.logger.log(s"Looking up unparameterized parents of $child => $parents")
     parents.exists(ctx.isChild(_, parent))
   }
 

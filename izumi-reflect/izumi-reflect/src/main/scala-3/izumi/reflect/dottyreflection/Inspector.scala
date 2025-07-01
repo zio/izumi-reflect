@@ -27,9 +27,10 @@ object Inspector {
 abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.LamContext]) extends InspectorBase {
   import qctx.reflect._
 
-  def next(newContext: List[Inspector.LamContext] = Nil): Inspector { val qctx: Inspector.this.qctx.type } = new Inspector(shift + 1, this.context ++ newContext) {
-    val qctx: Inspector.this.qctx.type = Inspector.this.qctx
-  }
+  def next(newContext: Option[Inspector.LamContext] = None): Inspector { val qctx: Inspector.this.qctx.type } =
+    new Inspector(shift + 1, newContext.fold(this.context)(this.context :+ _)) {
+      val qctx: Inspector.this.qctx.type = Inspector.this.qctx
+    }
 
   def nextLam(lambda: TypeLambda): Inspector { val qctx: Inspector.this.qctx.type } = {
     val params = lambda
@@ -40,7 +41,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
           Inspector.LamParam(nme, idx, context.size, lambda.paramNames.size)(qctx)(lambda.param(idx))
       }
       .toList
-    next(List(Inspector.LamContext(params)))
+    next(Some(Inspector.LamContext(params)))
   }
 
   def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {

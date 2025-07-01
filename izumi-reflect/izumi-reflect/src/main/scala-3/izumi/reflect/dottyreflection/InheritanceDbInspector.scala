@@ -4,8 +4,8 @@ import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
-import scala.collection.mutable
 import scala.collection.immutable.Queue
+import scala.collection.mutable
 import scala.quoted.*
 
 object InheritanceDbInspector {
@@ -15,125 +15,148 @@ object InheritanceDbInspector {
 }
 
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
-  import qctx.reflect._
-
-  private lazy val inspector = Inspector.make(qctx)
+  import qctx.reflect.*
 
   def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
     val tpe0 = TypeRepr.of[T]._dealiasSimplifiedFull
 
-    val allReferenceComponents = allTypeReferences(tpe0).filter {
-      case _: ParamRef => false // do not process type parameters for inheritance db
-      case _ => true
+    new Run(Inspector.make(qctx), mutable.HashSet.empty)
+      .makeUnappliedInheritanceDb(tpe0)
+  }
+
+  class Run(
+    inspector: Inspector { val qctx: InheritanceDbInspector.this.qctx.type },
+    termination: mutable.HashSet[Symbol]
+  ) {
+
+    def makeUnappliedInheritanceDb(tpe0: TypeRepr): Map[NameReference, Set[NameReference]] = {
+      inspectTypeReprToUnappliedBases(tpe0, onlyIndirect = false)
+        .iterator
+        .filterNot {
+          case (parent, t) =>
+            parent == t
+        }
+        .toMultimap
     }
 
-    val baseclassReferences = allReferenceComponents.flatMap {
-      i =>
-        val tpef = i._dealiasSimplifiedFull._resultType
-        val targetRef = inspector.makeNameReferenceFromType(tpef)
-
-        val allbases = tpeBases(tpef).filter(!_._takesTypeArgs)
-        allbases.map(b => (targetRef, inspector.makeNameReferenceFromType(b)))
+    private def inspectTypeReprToUnappliedBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
+      val allReferenceComponents = allTypeReferences(tpe0, onlyIndirect)
+      allReferenceComponents.iterator.flatMap(inspectTypeReprToUnappliedIndirectBases).toList
     }
 
-    baseclassReferences
-      .toMultimap
-      .map {
-        case (t, parents) =>
-          t -> parents.filterNot(_ == t)
+    private def inspectTypeReprToUnappliedIndirectBases(i: TypeRepr): List[(NameReference, NameReference)] = {
+      val tpe = i._dealiasSimplifiedFull._resultType
+      val tpeRef = inspector.makeNameReferenceFromType(tpe)
+
+      tpeBases(tpeRef, tpe, onlyIndirect = false)
+    }
+
+    private def allTypeReferences(tpe0: TypeRepr, onlyIndirect: Boolean): mutable.Set[TypeRepr] = {
+      extension (t: TypeRepr) inline def dealiasPrepare: TypeRepr = {
+        t._dealiasSimplifiedFull._resultType
       }
-      .filterNot(_._2.isEmpty)
-  }
 
-  private def allTypeReferences(tpe0: TypeRepr): collection.Set[TypeRepr] = {
-    val inh = mutable.HashSet.empty[TypeRepr]
+      val inh = mutable.LinkedHashSet.empty[TypeRepr]
 
-    def goExtractComponents(tpeRaw0: TypeRepr): Unit = {
-      val tpeRes = tpeRaw0._dealiasSimplifiedFull._resultType
-      val intersectionUnionMembers = breakRefinement(tpeRes)
+      val tpeDealiased = tpe0.dealiasPrepare
 
-      if (intersectionUnionMembers.sizeIs == 1) {
-        inh += intersectionUnionMembers.head
+      def goExtractComponents(tpeRaw0: TypeRepr): Unit = {
+        val tpeRes = tpeRaw0.dealiasPrepare
+        val intersectionUnionMembers = breakRefinement(tpeRes)
+
+        if (intersectionUnionMembers.sizeIs == 1) {
+          inh += intersectionUnionMembers.head
+        }
+
+        (
+          tpeRes.typeArgs.iterator ++
+          intersectionUnionMembers.iterator.flatMap(_.typeArgs) ++
+          intersectionUnionMembers
+        ).foreach(t => if (!inh.contains(t)) goExtractComponents(t))
       }
 
-      (
-        tpeRes._typeArgs.iterator ++
-        intersectionUnionMembers.iterator.flatMap(_._typeArgs) ++
-        intersectionUnionMembers
-      ).foreach(t => if (!inh.contains(t)) goExtractComponents(t))
+      goExtractComponents(tpe0)
+
+      inh.filterInPlace {
+        case _: ParamRef => false // do not process type parameters for inheritance db
+        case t if onlyIndirect => t != tpe0 && t != tpeDealiased && !isTerminatingClsSym(t)
+        case _ => true
+      }
+
+      inh
     }
 
-    goExtractComponents(tpe0)
+    private def breakRefinement(tpe0: TypeRepr): collection.Set[TypeRepr] = {
+      val tpes = mutable.LinkedHashSet.empty[TypeRepr]
 
-    inh
-  }
+      def go(t0: TypeRepr): Unit = t0._dealiasSimplifiedFull match {
+        case tpe: AndOrType =>
+          go(tpe.left)
+          go(tpe.right)
+        case r: Refinement =>
+          refinementInfoToParts(r.info).foreach(go)
+          go(r.parent)
+        case t =>
+          tpes += t
+      }
 
-  private def breakRefinement(tpe0: TypeRepr): collection.Set[TypeRepr] = {
-    val tpes = mutable.HashSet.empty[TypeRepr]
-
-    def go(t0: TypeRepr): Unit = t0._dealiasSimplifiedFull match {
-      case tpe: AndOrType =>
-        go(tpe.left)
-        go(tpe.right)
-      case r: Refinement =>
-        refinementInfoToParts(r.info).foreach(go)
-        go(r.parent)
-      case t =>
-        tpes += t
+      go(tpe0)
+      tpes
     }
 
-    go(tpe0)
-    tpes
-  }
+    private def tpeBases(tpeRef: NameReference, typeRepr: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {
+      addTerminatingClsSym(typeRepr)
 
-  private def tpeBases(typeRepr: TypeRepr): List[TypeRepr] = {
-    val onlyParameterizedBases =
-      typeRepr
+      val typeReprBases = typeRepr
         .baseClasses
-        .filter(_.isType)
         .map(typeRepr.baseType)
 
-    val allbases = onlyParameterizedBases.filterNot(_ =:= typeRepr)
+      val upperBoundBases = typeRepr match {
+        case t: TypeRef =>
+          t._underlying match {
+            // handle abstract higher-kinded type members specially,
+            // move their upper bound into inheritance db, because they
+            // will lose it after application. (Unlike proper type members)
+            case TypeBounds(_, tl: TypeLambda) =>
+              List(tl.resType._dealiasSimplifiedFull)
+            case _ =>
+              Nil
+          }
+        case _ =>
+          Nil
+      }
 
-    val upperBoundBases = typeRepr match {
-      case t: TypeRef =>
-        t._underlying match {
-          // handle abstract higher-kinded type members specially,
-          // move their upper bound into inheritance db, because they
-          // will lose it after application. (Unlike proper type members)
-          case TypeBounds(_, tl: TypeLambda) =>
-            List(tl.resType._dealiasSimplifiedFull)
-          case _ =>
-            Nil
-        }
-      case _ =>
+      val allTypeReprBases = (upperBoundBases ::: typeReprBases)
+        .filterNot(_ =:= typeRepr)
+
+      val recursiveParentRefs = allTypeReprBases.flatMap {
+        case t if isTerminatingClsSym(t) => Nil
+        case t => inspectTypeReprToUnappliedBases(t, onlyIndirect = true)
+      }
+
+      val directBaseRefs = if (onlyIndirect) {
         Nil
+      } else {
+        allTypeReprBases.filter(!_._takesTypeArgs).map(base => (tpeRef, inspector.makeNameReferenceFromType(base)))
+      }
+
+      recursiveParentRefs ::: directBaseRefs
     }
 
-    upperBoundBases ++ allbases
-  }
-
-  extension (t: TypeRepr) {
-    private def _resultType: TypeRepr = {
-      t match {
-        case l: LambdaType => l.resType
-        case _ => t
+    private def addTerminatingClsSym(typeRepr: TypeRepr): Unit = {
+      typeRepr.classSymbol match {
+        case Some(clsSym) => termination.add(clsSym)
+        case _ =>
       }
     }
 
-    private def _typeArgs: List[TypeRepr] = {
-      t match {
-        case a: AppliedType => a.args
-        case _ => Nil
+    private def isTerminatingClsSym(t: TypeRepr): Boolean = {
+      t.classSymbol match {
+        case Some(clsSym) => termination.contains(clsSym)
+        case None => false
       }
     }
 
-    private def _takesTypeArgs: Boolean = {
-      t match {
-        case l: LambdaType => true
-        case _ => false
-      }
-    }
   }
 
 }

@@ -9,7 +9,7 @@ trait InspectorBase extends ReflectionUtil {
 
   protected def shift: Int
 
-  // FIXME reimplement TrivialMacroLogger on Scala 3
+  // FIXME reimplement TrivialMacroLogger for Scala 3
   inline def debug: debug = valueOf[debug]
   final type debug = false
 

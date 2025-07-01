@@ -78,6 +78,7 @@ object LightTypeTagRef extends LTTOrdering {
       normalizedOutput.hashCode()
     }
 
+    lazy val inputSize: Int = input.size
     lazy val paramRefs: Set[NameReference] = input
       .iterator.map {
         n =>
@@ -99,7 +100,7 @@ object LightTypeTagRef extends LTTOrdering {
     override def equals(obj: Any): Boolean = {
       obj match {
         case l: Lambda =>
-          input.size == l.input.size &&
+          inputSize == l.inputSize &&
           (normalizedOutput == l.normalizedOutput)
 
         case _ =>
@@ -110,10 +111,12 @@ object LightTypeTagRef extends LTTOrdering {
     private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, -2, input.size)) // s"!FAKE_$idx"
+          p -> NameReference(SymName.LambdaParamName(idx, lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
       }
     }
   }
+
+  private[reflect] final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
 
   sealed trait AppliedReference extends AbstractReference
 
