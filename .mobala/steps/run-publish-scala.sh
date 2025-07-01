@@ -17,7 +17,8 @@ function run-publish-scala() {
       "+clean" \
       "+test:compile" \
       "+publishSigned" \
-      "sonatypeBundleRelease"
+      "sonaUpload" \
+      "sonaRelease"
   else
     sbt -batch -no-colors -v \
       --java-home "$JAVA_HOME" \
