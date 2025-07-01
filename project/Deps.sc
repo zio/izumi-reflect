@@ -161,31 +161,6 @@ object Izumi {
       final val rootSettings = Defaults.RootOptions ++ Seq(
         "crossScalaVersions" := "Nil".raw,
         "organization" in SettingScope.Build := "dev.zio",
-
-        // remove this legacy stuff
-        "sonatypeProfileName" := "dev.zio",
-        "sonatypeSessionName" := """s"[sbt-sonatype] ${name.value} ${version.value} ${java.util.UUID.randomUUID}"""".raw,
-        "publishTo" in SettingScope.Build :=
-          """
-            |(if (!isSnapshot.value) {
-            |    sonatypePublishToBundle.value
-            |  } else {
-            |    Some(Opts.resolver.sonatypeSnapshots)
-            |})
-            |""".stripMargin.raw,
-        "credentials" in SettingScope.Build ++=
-          """
-            |{
-            |Seq(
-            |  Path.userHome / ".sbt" / "secrets" / "credentials.sonatype-nexus.properties",
-            |  file(".") / ".secrets" / "credentials.sonatype-nexus.properties"
-            |)
-            |  .filter(_.exists())
-            |  .map(Credentials.apply)
-            |}""".stripMargin.raw,
-
-        // and uncomment this new shiny shtuff
-        /*
         "publishTo" in SettingScope.Build :=
           """{
             |  if (isSnapshot.value) {
@@ -206,7 +181,6 @@ object Izumi {
             |  .filter(_.exists())
             |  .map(Credentials.apply)
             |}""".stripMargin.raw,
-         */
         "homepage" in SettingScope.Build := """Some(url("https://zio.dev"))""".raw,
         "licenses" in SettingScope.Build := """Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0"))""".raw,
         "developers" in SettingScope.Build :=
