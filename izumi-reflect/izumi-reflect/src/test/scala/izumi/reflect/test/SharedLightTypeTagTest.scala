@@ -1312,9 +1312,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       val tagF3 = LTT[F3]
       val tagF2 = LTT[F2[Int]]
-      assertChild(tagF3, tagF2)
-      assertChild(tagF3, LTT[F2[Any]])
-      assertChild(tagF3, LTT[F2[AnyVal]])
+      assertChildStrict(tagF3, tagF2)
+      assertChildStrict(tagF3, LTT[F2[Any]])
+      assertChildStrict(tagF3, LTT[F2[AnyVal]])
+    }
+
+    "regression test 3.0.4: subtype check succeeds versus a parent parameterized with Identity type lambda" in {
+      val child = LTT[TargetRole]
+      val parent = LTT[AbstractRole[Id]]
+
+      assertChildStrict(child, parent)
     }
 
   }

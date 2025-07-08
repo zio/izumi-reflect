@@ -209,7 +209,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           doExtractNonParamTypeArgs(o)
       }
 
-      logger.log(s"tparamTypeBoundsAndTypeArgs=$tparamTypeBoundsAndTypeArgs")
+      logger.log(s"tparamTypeBoundsAndTypeArgs of $tpeUnexpanded=$tparamTypeBoundsAndTypeArgs")
 
       /**
         * Don't do this:
@@ -877,10 +877,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     // On Scala 2.12+ .dealias automatically destroys wildcards by using TypeMaps#ExistentialExtrapolation on dealiased existential output
     // This is kinda bad. But whatever, we're stuck with this behavior for this moment, so we should emulate it on 2.11 to make it work too.
+    @tailrec
     private[this] def scala211ExistentialDealiasWorkaround(t0: Type): Type = {
       t0 match {
         case existential: ExistentialTypeApi =>
-          internal.existentialType(existential.quantified, scala211ExistentialDealiasWorkaround(existential.underlying.dealias))
+          internal.existentialType(existential.quantified, scala211ExistentialDealiasWorkaroundLoop(existential.underlying.dealias))
         // internal.existentialAbstraction(existential.quantified, existential.underlying.dealias)
         case t =>
           val next = norm(t).dealias
@@ -891,6 +892,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           }
       }
     }
+
+    private[this] def scala211ExistentialDealiasWorkaroundLoop(t0: Type): Type = scala211ExistentialDealiasWorkaround(t0)
 
     @tailrec
     def dealiasSingletons(termSymbol: Symbol, termSymbolTpe: Type): (Symbol, Type) = {
@@ -914,7 +917,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     isHKTOrPolyType(tpe) || (!ReflectionUtil.isAbstractType(tpe) && tpe.typeArgs.exists {
       targ =>
         val tSym = targ.typeSymbol
-        tSym.isParameter
+        targ.isInstanceOf[Universe#TypeRefApi] && tSym.isParameter && tSym.isType && !ReflectionUtil.isIdentityLikeTypeLambda(targ)
     })
   }
 

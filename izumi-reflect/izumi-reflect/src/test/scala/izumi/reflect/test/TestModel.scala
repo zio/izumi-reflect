@@ -207,4 +207,7 @@ object TestModel {
 
   trait Trait4
 
+  trait AbstractRole[F[_]]
+  class TargetRole extends AbstractRole[Id]
+
 }
