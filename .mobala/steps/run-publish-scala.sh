@@ -17,7 +17,6 @@ function run-publish-scala() {
       "+clean" \
       "+test:compile" \
       "+publishSigned" \
-      "sonaUpload" \
       "sonaRelease"
   else
     sbt -batch -no-colors -v \
