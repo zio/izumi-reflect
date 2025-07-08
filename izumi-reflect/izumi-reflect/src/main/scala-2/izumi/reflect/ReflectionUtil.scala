@@ -116,16 +116,20 @@ private[reflect] object ReflectionUtil {
       isAbstractType(tpe) &&
       tpe.asInstanceOf[Universe#TypeRefApi].pre.isInstanceOf[Universe#ThisTypeApi]
     ))) /*&& intersectionMembersStrong*/ ||
+    isIdentityLikeTypeLambda(tpe)
+  }
+
+  def isAbstractType(tpe: Universe#Type): Boolean = {
+    tpe.isInstanceOf[Universe#TypeRefApi] && tpe.typeSymbol.isAbstract && !tpe.typeSymbol.isClass && isNotDealiasedFurther(tpe)
+  }
+
+  def isIdentityLikeTypeLambda(tpe: Universe#Type): Boolean = {
     tpe.typeParams.exists { // is identity
       t =>
         t == tpe.typeSymbol ||
         t.typeSignature == tpe.typeSymbol.typeSignature ||
         (t.name eq tpe.typeSymbol.name)
     }
-  }
-
-  def isAbstractType(tpe: Universe#Type): Boolean = {
-    tpe.isInstanceOf[Universe#TypeRefApi] && tpe.typeSymbol.isAbstract && !tpe.typeSymbol.isClass && isNotDealiasedFurther(tpe)
   }
 
   def isNotDealiasedFurther(tpe: Universe#Type): Boolean = {
