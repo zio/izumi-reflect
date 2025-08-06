@@ -27,7 +27,7 @@ import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0, LightTypeTagRe
 
 import scala.annotation.implicitNotFound
 import scala.collection.immutable.ListMap
-import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.reflect.api.Universe
 import scala.reflect.macros.{TypecheckException, blackbox, whitebox}
 
@@ -40,29 +40,88 @@ class TagMacro(val c: blackbox.Context) {
 
   protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c)
   private[this] val ltagMacro = new LightTypeTagMacro0[c.type](c)(logger)
+  private[this] val dealiasCache = mutable.HashMap[Type, Type]()
+  private[this] val lttCache = new LRUCache[Type, c.Expr[LightTypeTag]](100)
+  private[this] val kindCache = mutable.HashMap[Type, ReflectionUtil.Kind]()
+  private[this] val normCache = mutable.HashMap[Type, Type]()
+  
+  // Advanced optimization caches
+  private[this] val complexityCache = mutable.HashMap[Type, Int]()
+  private[this] val closestClassCache = mutable.HashMap[Type, c.Expr[Class[_]]]()
+  
+  private[this] def getDealiased(tpe: Type): Type = dealiasCache.getOrElseUpdate(tpe, tpe.dealias)
+  private[this] def getKind(tpe: Type): ReflectionUtil.Kind = kindCache.getOrElseUpdate(tpe, ReflectionUtil.kindOf(tpe))
+  private[this] def getNormalized(tpe: Type): Type = normCache.getOrElseUpdate(tpe, ReflectionUtil.norm(c.universe: c.universe.type, logger)(tpe))
+  
+  private[this] def isWorthCaching(tpe: Type): Boolean = {
+    val complexity = getMemoizedComplexity(tpe)
+    complexity >= 2 // Only cache if complexity score >= 2
+  }
+  
+  private[this] def getMemoizedComplexity(tpe: Type): Int = {
+    complexityCache.getOrElseUpdate(tpe, calculateTypeComplexity(tpe))
+  }
+  
+  private[this] def calculateTypeComplexity(tpe: Type): Int = {
+    tpe match {
+      case t if t.typeArgs.nonEmpty => 
+        val complexities = t.typeArgs.map(getMemoizedComplexity)
+        val nestingDepth = if (complexities.nonEmpty) complexities.max else 0
+        1 + nestingDepth + t.typeArgs.size
+      case t if t.typeSymbol.isClass && t.typeSymbol.asClass.typeParams.nonEmpty => 
+        2 + t.typeSymbol.asClass.typeParams.size
+      case t if t.toString.contains("&") => 3 // Intersection types
+      case t if t.toString.contains("|") => 3 // Union types  
+      case t if t.typeSymbol.isClass => 1
+      case _ => 0 // Simple types like primitives
+    }
+  }
+  
+  private[this] def isSimpleHierarchy(tpe: Type): Boolean = {
+    tpe.typeArgs.isEmpty && (!tpe.typeSymbol.isClass || tpe.typeSymbol.asClass.typeParams.isEmpty)
+  }
+  
+  private[this] def memoizedMakeParsedLightTypeTagImpl(tpe: Type): c.Expr[LightTypeTag] = {
+    lttCache.get(tpe) match {
+      case Some(cached) => cached
+      case None =>
+        val result = ltagMacro.makeParsedLightTypeTagImpl(tpe)
+        lttCache.put(tpe, result)
+        result
+    }
+  }
 
   // workaround for a scalac bug - `Nothing` type is lost when two implicits for it are summoned from one implicit as in:
   //  implicit final def tagFromTypeTag[T](implicit t: TypeTag[T], l: LTag[T]): Tag[T] = Tag(t, l.fullLightTypeTag)
   // https://github.com/scala/bug/issues/11715
   final def makeTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
-    val tpeKey = tpe.dealias
+    val tpeKey = getDealiased(tpe)
     
-    if (TagMacro.compileCacheEnabled) {
+    // Skip caching for simple hierarchies to avoid overhead
+    if (isSimpleHierarchy(tpeKey)) {
+      val tpeDealiased = getDealiased(tpe)
+      if (ReflectionUtil.allPartsStrong(tpeDealiased)) {
+        makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+      } else {
+        makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+      }
+    } else if (TagMacro.compileCacheEnabled && isWorthCaching(tpeKey)) {
       TagMacro.tagCache.get(tpeKey) match {
         case Some(cached) =>
           cached.asInstanceOf[c.Expr[Tag[T]]]
         case None =>
-          val result = if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
+          val result = if (ReflectionUtil.allPartsStrong(tpeKey)) {
             makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
           } else {
             makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
           }
-          TagMacro.tagCache.putIfAbsent(tpeKey, result)
+          TagMacro.tagCache.put(tpeKey, result)
           result
       }
     } else {
-      if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
+      val tpeDealiased = getDealiased(tpe)
+      if (ReflectionUtil.allPartsStrong(tpeDealiased)) {
         makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
       } else {
         makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
@@ -72,13 +131,15 @@ class TagMacro(val c: blackbox.Context) {
 
   final def makeStrongTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
-    assert(ReflectionUtil.allPartsStrong(tpe.dealias))
+    val tpeDealiased = getDealiased(tpe)
+    assert(ReflectionUtil.allPartsStrong(tpeDealiased))
     makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
   }
 
   final def makeWeakTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
-    assert(!ReflectionUtil.allPartsStrong(tpe.dealias))
+    val tpeDealiased = getDealiased(tpe)
+    assert(!ReflectionUtil.allPartsStrong(tpeDealiased))
     makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
   }
 
@@ -88,9 +149,9 @@ class TagMacro(val c: blackbox.Context) {
 
   @inline final def makeHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[HKTag[ArgStruct]] = {
     val argStruct = weakTypeOf[ArgStruct]
-    val argStructKey = argStruct.dealias
+    val argStructKey = getDealiased(argStruct)
     
-    if (TagMacro.compileCacheEnabled) {
+    if (TagMacro.compileCacheEnabled && isWorthCaching(argStructKey)) {
       TagMacro.hktagCache.get(argStructKey) match {
         case Some(cached) =>
           cached.asInstanceOf[c.Expr[HKTag[ArgStruct]]]
@@ -103,7 +164,7 @@ class TagMacro(val c: blackbox.Context) {
               makeHKTagImpl(ctor, implicitly[c.WeakTypeTag[ArgStruct]])
             }
           }
-          TagMacro.hktagCache.putIfAbsent(argStructKey, result)
+          TagMacro.hktagCache.put(argStructKey, result)
           result
       }
     } else {
@@ -118,7 +179,7 @@ class TagMacro(val c: blackbox.Context) {
 
   private def makeStrongTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     logger.log(s"Got strong tag, generating LTT right away: ${tag.tpe}")
-    val ltag = ltagMacro.makeParsedLightTypeTagImpl(tpe)
+    val ltag = memoizedMakeParsedLightTypeTagImpl(tpe)
     val cls = closestClass(tpe)
 
     {
@@ -138,7 +199,7 @@ class TagMacro(val c: blackbox.Context) {
       addImplicitError("\n\n<trace>: ")
     }
 
-    val tgt = ReflectionUtil.norm(c.universe: c.universe.type, logger)(tpe.dealias)
+    val tgt = getNormalized(getDealiased(tpe))
 
     logger.log(s"Got non-strong tag: $tpe, dealiased: $tgt")
 
@@ -212,7 +273,7 @@ class TagMacro(val c: blackbox.Context) {
           logger.log(s"HK Now summoning tags for args=$embeddedMaybeNonParamTypeArgs")
           val argExprs = embeddedMaybeNonParamTypeArgs.map(_.map {
             t =>
-              val dealiased = ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)
+              val dealiased = getNormalized(getDealiased(t))
               summonLightTypeTagOfAppropriateKind(dealiased)
           })
           c.Expr[List[Option[LightTypeTag]]](q"$argExprs")
@@ -290,7 +351,7 @@ class TagMacro(val c: blackbox.Context) {
                       |""".stripMargin)
 
         val argTagsExceptCtor = {
-          val nonParamArgsDealiased = distinctNonParamArgsTypes.map(t => ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
+          val nonParamArgsDealiased = distinctNonParamArgsTypes.map(t => getNormalized(getDealiased(t)))
           logger.log(s"HK COMPLEX Now summoning tags for args=$nonParamArgsDealiased outerLambdaParams=$outerLambdaParamArgsSyms")
 
           c.Expr[List[Option[LightTypeTag]]] {
@@ -332,7 +393,7 @@ class TagMacro(val c: blackbox.Context) {
   protected[this] def mkRefined[T](intersection: List[Type], originalRefinement: Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     val summonedIntersectionTags = intersection.map {
       t0 =>
-        val t = ReflectionUtil.norm(c.universe: c.universe.type, logger)(t0.dealias)
+        val t = getNormalized(getDealiased(t0))
         summonLightTypeTagOfAppropriateKind(t)
     }
     val intersectionTags = c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(summonedIntersectionTags))
@@ -423,11 +484,11 @@ class TagMacro(val c: blackbox.Context) {
                     summonLightTypeTagOfAppropriateKind(c.internal.existentialType(List(t.typeSymbol), t))
                 }
               } else {
-                summonLightTypeTagOfAppropriateKind(ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias))
+                summonLightTypeTagOfAppropriateKind(getNormalized(getDealiased(t)))
               }
           }
         case _ =>
-          tpe.typeArgs.map(t => summonLightTypeTagOfAppropriateKind(ReflectionUtil.norm(c.universe: c.universe.type, logger)(t.dealias)))
+          tpe.typeArgs.map(t => summonLightTypeTagOfAppropriateKind(getNormalized(getDealiased(t))))
       }
       logger.log(s"Now summoning tags for args=$args")
       c.Expr[List[LightTypeTag]](Liftable.liftList[c.Expr[LightTypeTag]].apply(args))
@@ -445,20 +506,20 @@ class TagMacro(val c: blackbox.Context) {
   @inline
   private[this] final def closestClass(properTypeStrongCtor: Type): c.Expr[Class[_]] = {
     // unfortunately .erasure returns trash for intersection types
-    val tpeLub = ReflectionUtil.norm(c.universe: c.universe.type, logger)(properTypeStrongCtor.dealias) match {
+    val tpeLub = getNormalized(getDealiased(properTypeStrongCtor)) match {
       case r: RefinedTypeApi => lub(r.parents)
       case o => o
     }
     val tpeErased = tpeLub.erasure
     // and for Scala varargs (Scala by names and Java varargs are fine)
     val tpeFixed = if (tpeErased.typeSymbol eq definitions.RepeatedParamClass) {
-      typeOf[scala.Seq[Any]].dealias
+      getDealiased(typeOf[scala.Seq[Any]])
     } else if (tpeErased.typeSymbol eq definitions.ArrayClass) {
       // workaround for a crash that happens when .erasure misfires on Array in case `Tag[Array[List[X]]]`
       // and produces a tree `classOf[Array[List]]` which fails to compile.
       // Array is the only type that needs to be parameterized after erasure and stripping its parameters via .erasure
       // actually breaks it, so we skip this step for Arrays.
-      tpeLub.dealias
+      getDealiased(tpeLub)
     } else {
       tpeErased
     }
@@ -520,7 +581,17 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   private[this] def summonLightTypeTagOfAppropriateKind(tpe: Type): c.Expr[LightTypeTag] = {
-    lttFromTag(summonTagForKind(tpe, kindOf(tpe)))
+    if (isWorthCaching(tpe)) {
+      lttCache.get(tpe) match {
+        case Some(cached) => cached
+        case None =>
+          val result = lttFromTag(summonTagForKind(tpe, getKind(tpe)))
+          lttCache.put(tpe, result)
+          result
+      }
+    } else {
+      lttFromTag(summonTagForKind(tpe, getKind(tpe)))
+    }
   }
 
   private[this] def summonHKTag(tpe: Type, kind: Kind): c.Expr[HKTag[_]] = {
@@ -612,8 +683,29 @@ private object TagMacro {
   final val defaultTagImplicitError =
     "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
 
-  private val tagCache = TrieMap.empty[Any, Any]
-  private val hktagCache = TrieMap.empty[Any, Any]
+  private val tagCache = new LRUCache[Any, Any](200)
+  private val hktagCache = new LRUCache[Any, Any](100)
+  
+  class LRUCache[K, V](maxSize: Int) {
+    private val map = mutable.LinkedHashMap[K, V]()
+    
+    def get(key: K): Option[V] = {
+      map.get(key).map { value =>
+        map.remove(key)
+        map.put(key, value)
+        value
+      }
+    }
+    
+    def put(key: K, value: V): Unit = {
+      if (map.contains(key)) {
+        map.remove(key)
+      } else if (map.size >= maxSize) {
+        map.remove(map.head._1)
+      }
+      map.put(key, value)
+    }
+  }
   
   /** caching is enabled by default for compile-time tag creation */
   private val compileCacheEnabled: Boolean = {

@@ -7,7 +7,6 @@ import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, Sy
 import izumi.reflect.DebugProperties
 
 import scala.collection.mutable
-import scala.collection.concurrent.TrieMap
 
 object TagMacro {
   def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
@@ -17,7 +16,86 @@ object TagMacro {
 final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   import qctx.reflect._
 
-  private val tagCache = TrieMap.empty[String, Any]
+  private val tagCache = new LRUCache[TypeRepr, Any](200)
+  private val dealiasCache = mutable.HashMap[TypeRepr, TypeRepr]()
+  private val lttCache = new LRUCache[TypeRepr, Expr[LightTypeTag]](100)
+  private val inspectCache = mutable.HashMap[TypeRepr, Expr[LightTypeTag]]()
+  
+  // Granular memoization caches for sub-computations
+  private val typeArgsCache = mutable.HashMap[TypeRepr, List[TypeRepr]]()
+  private val baseClassCache = mutable.HashMap[TypeRepr, TypeRepr]()
+  private val closestClassCache = mutable.HashMap[TypeRepr, Expr[Class[?]]]()
+  private val complexityCache = mutable.HashMap[TypeRepr, Int]()
+  
+  private def getDealiased(typeRepr: TypeRepr): TypeRepr = dealiasCache.getOrElseUpdate(typeRepr, typeRepr._dealiasSimplifiedFull)
+  
+  private def isWorthCaching(typeRepr: TypeRepr): Boolean = {
+    val complexity = getMemoizedComplexity(typeRepr)
+    complexity >= 2 // Only cache if complexity score >= 2
+  }
+  
+  private def getMemoizedComplexity(typeRepr: TypeRepr): Int = {
+    complexityCache.getOrElseUpdate(typeRepr, calculateTypeComplexity(typeRepr))
+  }
+  
+  private def calculateTypeComplexity(typeRepr: TypeRepr): Int = {
+    typeRepr match {
+      case AppliedType(_, args) => 
+        val nestingDepth = args.map(getMemoizedComplexity).maxOption.getOrElse(0)
+        1 + nestingDepth + args.size
+      case TypeLambda(_, _, body) => 
+        3 + getMemoizedComplexity(body) // Type lambdas are inherently complex
+      case AndType(left, right) => 
+        2 + getMemoizedComplexity(left) + getMemoizedComplexity(right)
+      case OrType(left, right) => 
+        2 + getMemoizedComplexity(left) + getMemoizedComplexity(right)
+      case Refinement(parent, _, _) => 
+        2 + getMemoizedComplexity(parent)
+      case _ if typeRepr.typeSymbol.isClassDef => 
+        val fieldCount = typeRepr.typeSymbol.declaredFields.size
+        val typeParamCount = if (typeRepr.typeSymbol.isTypeDef) 1 else 0
+        fieldCount + typeParamCount
+      case _ => 0 // Simple types like primitives
+    }
+  }
+  
+  private def isSimpleHierarchy(typeRepr: TypeRepr): Boolean = {
+    typeRepr match {
+      case AppliedType(_, args) if args.isEmpty => true
+      case _ if typeRepr.typeSymbol.isClassDef => 
+        typeRepr.typeSymbol.declaredFields.isEmpty
+      case _ => false
+    }
+  }
+  
+  private def memoizedInspect(typeRepr: TypeRepr): Expr[LightTypeTag] = {
+    inspectCache.getOrElseUpdate(typeRepr, {
+      typeRepr.asType match {
+        case given Type[a] => '{ Inspect.inspect[a] }
+      }
+    })
+  }
+  
+  class LRUCache[K, V](maxSize: Int) {
+    private val map = mutable.LinkedHashMap[K, V]()
+    
+    def get(key: K): Option[V] = {
+      map.get(key).map { value =>
+        map.remove(key)
+        map.put(key, value)
+        value
+      }
+    }
+    
+    def put(key: K, value: V): Unit = {
+      if (map.contains(key)) {
+        map.remove(key)
+      } else if (map.size >= maxSize) {
+        map.remove(map.head._1)
+      }
+      map.put(key, value)
+    }
+  }
   
   /** caching is enabled by default for compile-time tag creation */
   private val compileCacheEnabled: Boolean = {
@@ -30,16 +108,18 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   override def shift: Int = 0
 
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
-    val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
-    val typeKey = typeRepr.show
+    val typeRepr = getDealiased(TypeRepr.of[A])
     
-    if (compileCacheEnabled) {
-      tagCache.get(typeKey) match {
+    // Skip caching for simple hierarchies to avoid overhead
+    if (isSimpleHierarchy(typeRepr)) {
+      createTagExprImpl[A]
+    } else if (compileCacheEnabled && isWorthCaching(typeRepr)) {
+      tagCache.get(typeRepr) match {
         case Some(cached) =>
           cached.asInstanceOf[Expr[Tag[A]]]
         case None =>
           val result = createTagExprImpl[A]
-          tagCache.putIfAbsent(typeKey, result)
+          tagCache.put(typeRepr, result)
           result
       }
     } else {
@@ -49,7 +129,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private def createTagExprImpl[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val owners = getClassDefOwners(Symbol.spliceOwner)
-    val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
+    val typeRepr = getDealiased(TypeRepr.of[A])
     if (allPartsStrong(owners, typeRepr)) {
       createTag[A](typeRepr)
     } else {
@@ -72,11 +152,25 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
 
     def summonLTTAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[LightTypeTag] = {
-      if (allPartsStrong(owners, typeRepr)) {
-        typeRepr.asType match {
-          //        case given Type[a] => Inspect.inspectAny[a]
-          case given Type[a] => '{ Inspect.inspect[a] }
+      val dealiasedTypeRepr = getDealiased(typeRepr) // Avoid redundant dealias operations
+      val shouldCache = isWorthCaching(dealiasedTypeRepr)
+      
+      if (shouldCache) {
+        lttCache.get(dealiasedTypeRepr) match {
+          case Some(cached) => cached
+          case None =>
+            val result = computeLTTResult(dealiasedTypeRepr)
+            lttCache.put(dealiasedTypeRepr, result)
+            result
         }
+      } else {
+        computeLTTResult(dealiasedTypeRepr)
+      }
+    }
+    
+    def computeLTTResult(typeRepr: TypeRepr): Expr[LightTypeTag] = {
+      if (allPartsStrong(owners, typeRepr)) {
+        memoizedInspect(typeRepr)
       } else {
         typeRepr match {
           case TypeBounds(low, high) =>
@@ -84,8 +178,8 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
             val highTag = summonTagAndFastTrackIfNotTypeParam(high)
             '{ LightTypeTag.wildcardType( $lowTag.tag, $highTag.tag ) }
           case _ =>
-            val result = summonTag[T, Any](typeRepr)
-            '{ $result.tag }
+            val tagResult = summonTag[T, Any](typeRepr)
+            '{ $tagResult.tag }
         }
       }
     }
@@ -165,7 +259,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
                      |""".stripMargin)
 
               val argTagsExceptCtor = {
-                val nonParamArgsDealiased = distinctNonParamArgsTypes.map(_._dealiasSimplifiedFull)
+                val nonParamArgsDealiased = distinctNonParamArgsTypes.map(getDealiased)
                 log(s"HK COMPLEX Now summoning tags for args=$nonParamArgsDealiased outerLambdaParams=$outerLambdaParamArgsTypeParamRefs")
                 Expr.ofList(
                   nonParamArgsDealiased.map(t => '{ Some(${ summonLTTAndFastTrackIfNotTypeParam(t) }) }) ++ outerLambdaParamArgsTypeParamRefs.map(_ => '{ None })
@@ -267,7 +361,9 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   }
 
   private def closestClassOfTypeRepr(typeRepr: TypeRepr): Expr[Class[?]] = {
-    Literal(ClassOfConstant(lubClassOf(typeRepr, intersectionUnionRefinementClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+    closestClassCache.getOrElseUpdate(typeRepr, {
+      Literal(ClassOfConstant(lubClassOf(typeRepr, intersectionUnionRefinementClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+    })
   }
 
   private def lubClassOf(specificTpe: TypeRepr, tpes: List[TypeRepr]): TypeRepr = {
