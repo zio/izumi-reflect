@@ -4,8 +4,10 @@ import scala.quoted.{Expr, Quotes, Type, Varargs}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
 import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam, Variance}
+import izumi.reflect.DebugProperties
 
 import scala.collection.mutable
+import scala.collection.concurrent.TrieMap
 
 object TagMacro {
   def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
@@ -15,9 +17,37 @@ object TagMacro {
 final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   import qctx.reflect._
 
+  private val tagCache = TrieMap.empty[String, Any]
+  
+  /** caching is enabled by default for compile-time tag creation */
+  private val compileCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+    System
+      .getProperty(izumi.reflect.DebugProperties.`izumi.reflect.rtti.cache.compile`).asBoolean()
+      .getOrElse(true)
+  }
+
   override def shift: Int = 0
 
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
+    val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
+    val typeKey = typeRepr.show
+    
+    if (compileCacheEnabled) {
+      tagCache.get(typeKey) match {
+        case Some(cached) =>
+          cached.asInstanceOf[Expr[Tag[A]]]
+        case None =>
+          val result = createTagExprImpl[A]
+          tagCache.putIfAbsent(typeKey, result)
+          result
+      }
+    } else {
+      createTagExprImpl[A]
+    }
+  }
+
+  private def createTagExprImpl[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val owners = getClassDefOwners(Symbol.spliceOwner)
     val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
     if (allPartsStrong(owners, typeRepr)) {

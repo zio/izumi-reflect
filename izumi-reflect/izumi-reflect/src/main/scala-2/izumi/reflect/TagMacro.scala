@@ -27,6 +27,7 @@ import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0, LightTypeTagRe
 
 import scala.annotation.implicitNotFound
 import scala.collection.immutable.ListMap
+import scala.collection.concurrent.TrieMap
 import scala.reflect.api.Universe
 import scala.reflect.macros.{TypecheckException, blackbox, whitebox}
 
@@ -45,10 +46,27 @@ class TagMacro(val c: blackbox.Context) {
   // https://github.com/scala/bug/issues/11715
   final def makeTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
-    if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
-      makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+    val tpeKey = tpe.dealias
+    
+    if (TagMacro.compileCacheEnabled) {
+      TagMacro.tagCache.get(tpeKey) match {
+        case Some(cached) =>
+          cached.asInstanceOf[c.Expr[Tag[T]]]
+        case None =>
+          val result = if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
+            makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+          } else {
+            makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+          }
+          TagMacro.tagCache.putIfAbsent(tpeKey, result)
+          result
+      }
     } else {
-      makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+      if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
+        makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+      } else {
+        makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
+      }
     }
   }
 
@@ -70,12 +88,31 @@ class TagMacro(val c: blackbox.Context) {
 
   @inline final def makeHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[HKTag[ArgStruct]] = {
     val argStruct = weakTypeOf[ArgStruct]
-    val ctor = ltagMacro.unpackArgStruct(argStruct)
-    if (ReflectionUtil.allPartsStrong(ctor)) {
-      logger.log(s"HK: found Strong ctor=$ctor in ArgStruct, returning $argStruct")
-      makeHKTagFromStrongTpe[ArgStruct](ctor)
+    val argStructKey = argStruct.dealias
+    
+    if (TagMacro.compileCacheEnabled) {
+      TagMacro.hktagCache.get(argStructKey) match {
+        case Some(cached) =>
+          cached.asInstanceOf[c.Expr[HKTag[ArgStruct]]]
+        case None =>
+          val result = {
+            val ctor = ltagMacro.unpackArgStruct(argStruct)
+            if (ReflectionUtil.allPartsStrong(ctor)) {
+              makeHKTagFromStrongTpe[ArgStruct](ctor)
+            } else {
+              makeHKTagImpl(ctor, implicitly[c.WeakTypeTag[ArgStruct]])
+            }
+          }
+          TagMacro.hktagCache.putIfAbsent(argStructKey, result)
+          result
+      }
     } else {
-      makeHKTagImpl(ctor, implicitly[c.WeakTypeTag[ArgStruct]])
+      val ctor = ltagMacro.unpackArgStruct(argStruct)
+      if (ReflectionUtil.allPartsStrong(ctor)) {
+        makeHKTagFromStrongTpe[ArgStruct](ctor)
+      } else {
+        makeHKTagImpl(ctor, implicitly[c.WeakTypeTag[ArgStruct]])
+      }
     }
   }
 
@@ -574,6 +611,17 @@ class TagMacro(val c: blackbox.Context) {
 private object TagMacro {
   final val defaultTagImplicitError =
     "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
+
+  private val tagCache = TrieMap.empty[Any, Any]
+  private val hktagCache = TrieMap.empty[Any, Any]
+  
+  /** caching is enabled by default for compile-time tag creation */
+  private val compileCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString._
+    System
+      .getProperty(izumi.reflect.DebugProperties.`izumi.reflect.rtti.cache.compile`).asBoolean()
+      .getOrElse(true)
+  }
 
   final def tagFormatMap: Map[Kind, String] = {
     Map(
