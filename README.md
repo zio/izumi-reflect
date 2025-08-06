@@ -115,6 +115,16 @@ Provided `flake.nix` can be used to set up the external dependencies necessary t
 nix develop
 ```
 
+Running benchmarks with JMH:
+
+```bash
+# Enable benchmarks in the build
+BENCHMARKS=true ./sbtgen.sc --js --native
+
+# Run benchmarks
+sbt izumi-reflect-benchmarks
+```
+
 <!--- docs:start --->
 
 # Talks

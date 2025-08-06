@@ -7,6 +7,7 @@ object Izumi {
   object V {
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
+    val jmh = Version.VExpr("V.jmh")
     val sbtgen = Version.VExpr("V.sbtgen")
   }
 
@@ -20,6 +21,14 @@ object Izumi {
     val scalajs_bundler_version = Version.VExpr("PV.scalajs_bundler_version")
     val sbt_mima_version = Version.VExpr("PV.sbt_mima_version")
     val zio_sbt_website = Version.VExpr("PV.zio_sbt_website")
+    val sbt_jmh = Version.VExpr("PV.sbt_jmh")
+  }
+
+  // Conditional benchmarks support - set with -Dbenchmarks=true or BENCHMARKS=true
+  lazy val benchmarksEnabled: Boolean = {
+    val sysProp = Option(System.getProperty("benchmarks")).map(_.toBoolean).getOrElse(false)
+    val envVar = Option(System.getenv("BENCHMARKS")).map(_.toBoolean).getOrElse(false)
+    sysProp || envVar
   }
 
   // DON'T REMOVE, these variables are read from CI build (build.sh)
@@ -70,6 +79,9 @@ object Izumi {
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
+
+    final val jmh_core = Library("org.openjdk.jmh", "jmh-core", V.jmh, LibraryType.Invariant)
+    final val jmh_generator = Library("org.openjdk.jmh", "jmh-generator-annprocess", V.jmh, LibraryType.Invariant)
   }
 
   import Deps._
@@ -330,10 +342,31 @@ object Izumi {
       ),
       Artifact(
         name = Projects.izumi_reflect_aggregate.izumi_reflect,
-        libs = Seq.empty,
+        libs = if (benchmarksEnabled) Seq(
+          ScopedLibrary(jmh_core, FullDependencyScope(Scope.Compile, Platform.Jvm)),
+          ScopedLibrary(jmh_generator, FullDependencyScope(Scope.Compile, Platform.Jvm))
+        ) else Seq.empty,
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
-        )
+        ),
+        settings = if (benchmarksEnabled) Seq(
+          SettingDef.RawSettingDef(
+            "Jmh / sourceDirectory := sourceDirectory.value / \"benchmark\"",
+            FullSettingScope(SettingScope.Raw("Jmh"), Platform.Jvm)
+          ),
+          SettingDef.RawSettingDef(
+            "Jmh / javaOptions ++= Seq(\"-server\", \"-Xms2g\", \"-Xmx2g\", \"-XX:+UseG1GC\", \"-XX:+UnlockExperimentalVMOptions\", \"-XX:+UnlockDiagnosticVMOptions\")",
+            FullSettingScope(SettingScope.Raw("Jmh"), Platform.Jvm)
+          ),
+          SettingDef.RawSettingDef(
+            "addCommandAlias(\"izumi-reflect-benchmarks\", \"izumi-reflectJVM/Jmh/run\")",
+            FullSettingScope(SettingScope.Build, Platform.All)
+          )
+        ) else Seq.empty,
+        plugins = if (benchmarksEnabled) Plugins(
+          enabled = Seq(Plugin("JmhPlugin")),
+          disabled = Seq.empty
+        ) else Plugins()
       )
     ),
     pathPrefix = Projects.izumi_reflect_aggregate.basePath,
@@ -371,6 +404,6 @@ object Izumi {
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
       SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
       SbtPlugin("dev.zio", "zio-sbt-website", PV.zio_sbt_website)
-    )
+    ) ++ (if (benchmarksEnabled) Seq(SbtPlugin("pl.project13.scala", "sbt-jmh", PV.sbt_jmh)) else Seq.empty)
   )
 }

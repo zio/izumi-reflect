@@ -3,6 +3,8 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
+import izumi.reflect.DebugProperties
+import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 
 import scala.annotation.{tailrec, targetName}
 import scala.collection.immutable.Queue
@@ -10,6 +12,15 @@ import scala.quoted.{Quotes, Type}
 import scala.reflect.Selectable.reflectiveSelectable
 
 object Inspector {
+  private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
+  
+  /** caching is enabled by default for compile-time light type tag creation */
+  private lazy val cacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`).asBoolean()
+      .getOrElse(true)
+  }
+
   case class LamParam(name: String, index: Int, depth: Int, arity: Int)(val qctx: Quotes)(val tpe: qctx.reflect.TypeRepr) {
     def asParam = SymName.LambdaParamName(index, depth, arity) // s"$depth:$index/$arity")
     // this might be useful for debugging
@@ -52,6 +63,22 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   private[dottyreflection] def inspectTypeRepr(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
+    if (Inspector.cacheEnabled) {
+      val cacheKey = (tpe0, context.size, context.flatMap(_.params.map(_.name)).mkString(","))
+      Inspector.globalCache.synchronized(Inspector.globalCache.get(cacheKey)) match {
+        case null =>
+          val ref = inspectTypeReprImpl(tpe0, outerTypeRef)
+          Inspector.globalCache.synchronized(Inspector.globalCache.put(cacheKey, ref))
+          ref
+        case ref =>
+          ref
+      }
+    } else {
+      inspectTypeReprImpl(tpe0, outerTypeRef)
+    }
+  }
+
+  private def inspectTypeReprImpl(tpe0: TypeRepr, outerTypeRef: Option[TypeRef] = None): AbstractReference = {
     val tpe = tpe0._dealiasSimplifiedFull
 
     if (context.flatMap(_.params.map(_.tpe)).toSet.contains(tpe0)) {
@@ -68,7 +95,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
     tpe match {
       case a: AnnotatedType =>
-        inspectTypeRepr(a.underlying)
+        inspectTypeReprImpl(a.underlying)
 
       case appliedType: AppliedType =>
         val tycon: TypeRepr = appliedType.tycon._dealiasSimplifiedFull
@@ -106,12 +133,12 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
       case l: TypeLambda =>
         val inspector = nextLam(l)
-        val resType = inspector.inspectTypeRepr(l.resType)
+        val resType = inspector.inspectTypeReprImpl(l.resType)
         val paramNames = inspector.context.last.params.map(_.asParam)
         LightTypeTagRef.Lambda(paramNames, resType)
 
       case t: ThisType =>
-        next().inspectTypeRepr(t.tref)
+        next().inspectTypeReprImpl(t.tref)
 
       case a: AndType =>
         val elements = flattenInspectAnd(a)
@@ -161,11 +188,11 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   private def inspectRefinements(ref: Refinement): AbstractReference = {
     val (refinements, nonRefinementParent) = flattenRefinements(ref)
 
-    val parentRef = next().inspectTypeRepr(nonRefinementParent)
+    val parentRef = next().inspectTypeReprImpl(nonRefinementParent)
 
     val refinementDecls = refinements.map {
       case (_, name, ByNameType(tpe)) => // def x(): Int
-        RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
+        RefinementDecl.Signature(name, Nil, next().inspectTypeReprImpl(tpe).asInstanceOf[AppliedReference])
 
       case (_, name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
         // FIXME as of version 2.3.0 RefinementDecl.Signature model is broken
@@ -184,8 +211,8 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
           }
         }
         val (inputTpes, resType) = squashMethodIgnorePolyType(m0)
-        val inputRefs = inputTpes.map(next().inspectTypeRepr(_).asInstanceOf[AppliedReference])
-        val outputRef = next().inspectTypeRepr(resType).asInstanceOf[AppliedReference]
+        val inputRefs = inputTpes.map(next().inspectTypeReprImpl(_).asInstanceOf[AppliedReference])
+        val outputRef = next().inspectTypeReprImpl(resType).asInstanceOf[AppliedReference]
         RefinementDecl.Signature(name, inputRefs, outputRef)
 
       case (_, name, bounds: TypeBounds) => // type T = Int
@@ -201,7 +228,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         RefinementDecl.TypeMember(name, res)
 
       case (_, name, tpe) => // val t: Int
-        RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
+        RefinementDecl.Signature(name, Nil, next().inspectTypeReprImpl(tpe).asInstanceOf[AppliedReference])
     }
 
     val ohOh = parentRef.asInstanceOf[AppliedReference]
@@ -244,8 +271,8 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   private def inspectBoundsImpl(tb: TypeBounds): Boundaries = {
-    val hi = next().inspectTypeRepr(tb.hi)
-    val low = next().inspectTypeRepr(tb.low)
+    val hi = next().inspectTypeReprImpl(tb.hi)
+    val low = next().inspectTypeReprImpl(tb.low)
     if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
       Boundaries.Empty
     } else {
@@ -265,7 +292,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
           case _ => s.typeRef._underlying
         }
         log(s"inspectSymbol: Found TypeDef symbol $s (rhs=$rhs)")
-        next().inspectTypeRepr(rhs, outerTypeRef)
+        next().inspectTypeReprImpl(rhs, outerTypeRef)
 
       case s if s.isDefDef =>
         // We don't support method types, but if we do in the future,
@@ -286,7 +313,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       case t: TypeBounds => // wildcard
         TypeParam(inspectBounds(outerTypeRef = None, tb = t), variance)
       case t: TypeRepr =>
-        TypeParam(inspectTypeRepr(t), variance)
+        TypeParam(inspectTypeReprImpl(t), variance)
     }
   }
 
@@ -306,7 +333,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   private def flattenInspectAnd(and: AndType): Set[AppliedReferenceExceptIntersection] = {
-    flattenAnd(and).toSet.map(inspectTypeRepr(_)).flatMap {
+    flattenAnd(and).toSet.map(inspectTypeReprImpl(_)).flatMap {
       case i: IntersectionReference => i.refs
       case other: AppliedReferenceExceptIntersection => Set(other)
       case _: LightTypeTagRef.Lambda => Set.empty
@@ -314,7 +341,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   }
 
   private def flattenInspectOr(or: OrType): Set[AppliedReferenceExceptUnion] =
-    flattenOr(or).toSet.map(inspectTypeRepr(_)).flatMap {
+    flattenOr(or).toSet.map(inspectTypeReprImpl(_)).flatMap {
       case i: UnionReference => i.refs
       case other: AppliedReferenceExceptUnion => Set(other)
       case _: LightTypeTagRef.Lambda => Set.empty
@@ -420,7 +447,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         if (!typeSymbol.exists || typeSymbol.isNoSymbol || typeSymbol.isPackageDef || typeSymbol.isDefDef || typeSymbol.isTypeDef || typeSymbol.isLocalDummy) {
           None
         } else {
-          inspectTypeRepr(prefix) match {
+          inspectTypeReprImpl(prefix) match {
             case reference: AppliedReference =>
               log(s"Constructed prefix=$reference from prefix=$prefix")
               Some(reference)
