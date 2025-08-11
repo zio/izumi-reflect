@@ -19,4 +19,5 @@
 object V {
   val kind_projector = "0.13.3"
   val scalatest = "3.2.19"
+  val jmh = "1.37"
 }

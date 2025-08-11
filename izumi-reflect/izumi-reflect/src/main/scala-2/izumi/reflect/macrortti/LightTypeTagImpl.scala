@@ -35,7 +35,7 @@ import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
 object LightTypeTagImpl {
-  private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
+  private lazy val globalCache = new java.util.concurrent.ConcurrentHashMap[Any, AbstractReference]
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
@@ -415,11 +415,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] def makeRef(tpe: Type): AbstractReference = {
     if (withCache) {
-      globalCache.synchronized(globalCache.get(tpe)) match {
+      globalCache.get(tpe) match {
         case null =>
           val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
-          globalCache.synchronized(globalCache.put(tpe, ref))
-          ref
+          globalCache.putIfAbsent(tpe, ref)
+          globalCache.get(tpe) // Return the cached value in case another thread computed it first
         case ref =>
           ref
       }

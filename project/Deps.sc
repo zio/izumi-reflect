@@ -8,11 +8,13 @@ object Izumi {
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
     val sbtgen = Version.VExpr("V.sbtgen")
+    val jmh = Version.VExpr("V.jmh")
   }
 
   object PV {
     val sbt_scoverage = Version.VExpr("PV.sbt_scoverage")
     val sbt_pgp = Version.VExpr("PV.sbt_pgp")
+    val sbt_jmh = Version.VExpr("PV.sbt_jmh")
 
     val scala_js_version = Version.VExpr("PV.scala_js_version")
     val scala_native_version = Version.VExpr("PV.scala_native_version")
@@ -32,6 +34,7 @@ object Izumi {
   var targetScala = Seq(scala300, scala213, scala212, scala211)
 
   def entrypoint(args: Seq[String]) = {
+    val benchmarkEnabled = args.contains("--benchmark")
     val newArgs = args diff Seq(
       args
         .collectFirst {
@@ -43,15 +46,17 @@ object Izumi {
           case (s, target) =>
             targetScala = target :: targetScala.filterNot(_ == target).toList
             s
-        }.orNull
-    )
+        }.orNull,
+      if (benchmarkEnabled) "--benchmark" else null
+    ).filter(_ != null)
     if (args.contains("--help")) {
       println(
-        "launch with `./sbtgen.sc 3` to use Scala 3 in IDEA, launch with `./sbtgen.sc 2` to use Scala 2"
+        "launch with `./sbtgen.sc 3` to use Scala 3 in IDEA, launch with `./sbtgen.sc 2` to use Scala 2, launch with `--benchmark` to include benchmarks"
       )
     }
     println(s"Scala targets: $targetScala")
-    Entrypoint.main(izumi_reflect, settings, Seq("-o", ".") ++ newArgs)
+    println(s"Benchmark enabled: $benchmarkEnabled")
+    Entrypoint.main(izumi_reflect(benchmarkEnabled), settings, Seq("-o", ".") ++ newArgs)
   }
 
   val settings = GlobalSettings(
@@ -66,10 +71,16 @@ object Izumi {
     final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto)
 
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
+    final val scala_compiler = Library("org.scala-lang", "scala-compiler", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
     final val scala3_compiler = Library("org.scala-lang", "scala3-compiler", Version.VExpr("scalaVersion.value"), LibraryType.AutoJvm)
+    final val scala3_compiler_runtime = Library("org.scala-lang", "scala3-compiler", Version.VExpr("scalaVersion.value"), LibraryType.AutoJvm)
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
       .more(LibSetting.Raw("cross CrossVersion.full"))
+
+    // JMH dependencies for benchmarking - use Invariant to avoid Scala cross-compilation
+    final val jmh_core = Library("org.openjdk.jmh", "jmh-core", Version.VExpr("V.jmh"), LibraryType.Invariant)
+    final val jmh_generator = Library("org.openjdk.jmh", "jmh-generator-annprocess", Version.VExpr("V.jmh"), LibraryType.Invariant)
   }
 
   import Deps._
@@ -240,6 +251,21 @@ object Izumi {
         // https://github.com/scala-steward-org/scala-steward/issues/696#issuecomment-545800968
         "libraryDependencies" += s""""io.7mind.izumi.sbt" % "sbtgen_2.13" % "${Version.SbtGen.value}" % Provided""".raw
       )
+      
+      def benchmarkCommandAliases = Seq(
+        SettingDef.RawSettingDef(
+          """addCommandAlias("benchmarkHot", "izumi-reflect-benchmark/jmh:run HotTagCacheBenchmark -foe true")""",
+          FullSettingScope(SettingScope.Raw("Global"), Platform.All)
+        ),
+        SettingDef.RawSettingDef(
+          """addCommandAlias("benchmarkWarm", "izumi-reflect-benchmark/jmh:run WarmTagCacheBenchmark -foe true")""",
+          FullSettingScope(SettingScope.Raw("Global"), Platform.All)
+        ),
+        SettingDef.RawSettingDef(
+          """addCommandAlias("benchmarkCold", "izumi-reflect-benchmark/jmh:run ColdTagCacheBenchmark -foe true")""",
+          FullSettingScope(SettingScope.Raw("Global"), Platform.All)
+        )
+      )
 
       final val sharedSettings =
         Defaults.CrossScalaPlusSources ++
@@ -310,13 +336,13 @@ object Izumi {
 
       final val izumi_reflect = ArtifactId("izumi-reflect")
       final val thirdpartyBoopickleShaded = ArtifactId("izumi-reflect-thirdparty-boopickle-shaded")
+      final val benchmark = ArtifactId("izumi-reflect-benchmark")
     }
 
   }
 
-  final lazy val izumi_reflect_aggregate = Aggregate(
-    name = Projects.izumi_reflect_aggregate.id,
-    artifacts = Seq(
+  def izumi_reflect_aggregate(benchmarkEnabled: Boolean) = {
+    val baseArtifacts = Seq(
       Artifact(
         name = Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded,
         libs = Seq.empty,
@@ -335,42 +361,94 @@ object Izumi {
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
         )
       )
-    ),
-    pathPrefix = Projects.izumi_reflect_aggregate.basePath,
-    groups = Groups.izumi_reflect,
-    defaultPlatforms = Targets.crossNative,
-    enableProjectSharedAggSettings = false,
-    settings = Seq(
-      "crossScalaVersions" := "Nil".raw
     )
-  )
+    
+    val benchmarkPlatforms = Seq(
+      PlatformEnv(
+        platform = Platform.Jvm,
+        language = Seq(scala300, scala213)
+      )
+    )
 
-  final lazy val izumi_reflect: Project = Project(
-    name = Projects.root.id,
-    aggregates = Seq(
-      izumi_reflect_aggregate
-    ),
-    topLevelSettings = Projects.root.topLevelSettings,
-    sharedSettings = Projects.root.sharedSettings,
-    sharedAggSettings = Projects.root.sharedAggSettings,
-    rootSettings = Projects.root.rootSettings,
-    imports = Seq(
-      Import("com.typesafe.tools.mima.core._")
-    ),
-    globalLibs = Seq(
-      ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
-      scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
-      scala3_compiler in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3),
-      scalatest in Scope.Test.all
-    ),
-    rootPlugins = Projects.root.plugins,
-    globalPlugins = Plugins(),
-    pluginConflictRules = Map.empty,
-    appendPlugins = Defaults.SbtGenPlugins ++ Seq(
+    val benchmarkArtifact = Artifact(
+      name = Projects.izumi_reflect_aggregate.benchmark,
+      libs = Seq(
+        jmh_core, 
+        jmh_generator, 
+        scala_compiler in Scope.Compile.all.scalaVersion(ScalaVersionScope.AllScala2),
+        scala3_compiler in Scope.Compile.all.scalaVersion(ScalaVersionScope.AllScala3)
+      ),
+      depends = Seq(
+        Projects.izumi_reflect_aggregate.izumi_reflect
+      ),
+      platforms = benchmarkPlatforms,
+      plugins = Plugins(
+        enabled = Seq(Plugin("JmhPlugin")),
+        disabled = Seq.empty
+      ),
+      settings = Seq(
+        "crossScalaVersions" := Seq(scala300.value, scala213.value),
+        "scalaVersion" := scala300.value
+      )
+    )
+    
+    val allArtifacts = if (benchmarkEnabled) baseArtifacts :+ benchmarkArtifact else baseArtifacts
+
+    Aggregate(
+      name = Projects.izumi_reflect_aggregate.id,
+      artifacts = allArtifacts,
+      pathPrefix = Projects.izumi_reflect_aggregate.basePath,
+      groups = Groups.izumi_reflect,
+      defaultPlatforms = Targets.crossNative,
+      enableProjectSharedAggSettings = false,
+      settings = Seq(
+        "crossScalaVersions" := "Nil".raw
+      )
+    )
+  }
+
+  def izumi_reflect(benchmarkEnabled: Boolean): Project = {
+    val basePlugins = Defaults.SbtGenPlugins ++ Seq(
       SbtPlugin("com.github.sbt", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
       SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
       SbtPlugin("dev.zio", "zio-sbt-website", PV.zio_sbt_website)
     )
-  )
+    
+    val allPlugins = if (benchmarkEnabled) {
+      basePlugins :+ SbtPlugin("pl.project13.scala", "sbt-jmh", PV.sbt_jmh)
+    } else {
+      basePlugins
+    }
+    
+    val allRootSettings = if (benchmarkEnabled) {
+      Projects.root.rootSettings ++ Projects.root.benchmarkCommandAliases
+    } else {
+      Projects.root.rootSettings
+    }
+    
+    Project(
+      name = Projects.root.id,
+      aggregates = Seq(
+        izumi_reflect_aggregate(benchmarkEnabled)
+      ),
+      topLevelSettings = Projects.root.topLevelSettings,
+      sharedSettings = Projects.root.sharedSettings,
+      sharedAggSettings = Projects.root.sharedAggSettings,
+      rootSettings = allRootSettings,
+      imports = Seq(
+        Import("com.typesafe.tools.mima.core._")
+      ),
+      globalLibs = Seq(
+        ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
+        scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
+        scala3_compiler in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3),
+        scalatest in Scope.Test.all
+      ),
+      rootPlugins = Projects.root.plugins,
+      globalPlugins = Plugins(),
+      pluginConflictRules = Map.empty,
+      appendPlugins = allPlugins
+    )
+  }
 }
