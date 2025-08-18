@@ -6,16 +6,16 @@ import scala.quoted.{Quotes, Type}
 import scala.collection.immutable.Queue
 
 object TypeInspections {
-  def apply[T <: AnyKind: Type](using qctx0: Quotes): AbstractReference = {
-    Inspector.make(qctx0).buildTypeRef[T]
+  def apply(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): AbstractReference = {
+    Inspector.make(qctx).buildTypeRef(typeRepr)
   }
 
-  def unappliedDb[T <: AnyKind: Type](using qctx0: Quotes): Map[NameReference, Set[NameReference]] = {
-    InheritanceDbInspector.make(qctx0).makeUnappliedInheritanceDb[T]
+  def unappliedDb(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Map[NameReference, Set[NameReference]] = {
+    InheritanceDbInspector.make(qctx).makeUnappliedInheritanceDb(typeRepr)
   }
 
-  def fullDb[T <: AnyKind: Type](using qctx0: Quotes): Map[AbstractReference, Set[AbstractReference]] = {
-    FullDbInspector.make(qctx0).buildFullDb[T]
+  def fullDb(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Map[AbstractReference, Set[AbstractReference]] = {
+    FullDbInspector.make(qctx).buildFullDb(typeRepr)
   }
 
 }

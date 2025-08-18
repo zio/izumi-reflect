@@ -19,6 +19,10 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private val tagSymbol = Symbol.requiredClass("izumi.reflect.Tag")
   private val tagSymbolTypeRef = tagSymbol.typeRef
+
+  private val tagObjSymbol = Symbol.requiredModule("izumi.reflect.Tag")
+  private val tagObjApplyMethodSym = tagObjSymbol.declaredMethod("apply").find(_.paramSymss(1).size == 2).get
+
   private lazy val tagWildCardTpe = Type.of[Tag[?]]
 
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
@@ -31,26 +35,24 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
-  private def createTag[A <: AnyKind](typeRepr: TypeRepr): Expr[Tag[A]] = {
-    typeRepr.asType match {
-      case given Type[a] =>
-        // NB: this should always work, but currently causes `TestModel$::ApplePaymentProvider is not a type lambda, it cannot be parameterized` test failure
-        // There's probably a missing case where a higher-kinded type is not a type lambda, with splicing inbetween causing fixup by the compiler
-        //   val ltt = Inspect.inspectAny[A]
-        val ltt = '{ Inspect.inspect[a] }
-        val cls = closestClassOfTypeRepr(typeRepr)
-        '{ Tag[a]($cls, $ltt) }.asInstanceOf[Expr[Tag[A]]]
-    }
+  private def createTag[A <: AnyKind](typeRepr0: TypeRepr): Expr[Tag[A]] = {
+    val typeRepr = typeRepr0._etaExpandTypeRef // convert HKT type refs to type lambdas manually as an optimization. This required an additional splice level before.
+    val ltt = Inspect.inspectTypeRepr(typeRepr)
+    val cls = closestClassOfTypeRepr(typeRepr)
+    Apply(
+      fun = TypeApply(
+        fun = Select(qualifier = Ref.term(tagObjSymbol.termRef), symbol = tagObjApplyMethodSym),
+        args = List(Inferred(typeRepr))
+      ),
+      args = List(cls.asTerm, ltt.asTerm)
+    ).asExpr.asInstanceOf[Expr[Tag[A]]]
   }
 
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
 
     def summonLTTAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[LightTypeTag] = {
       if (allPartsStrong(owners, typeRepr)) {
-        typeRepr.asType match {
-          //        case given Type[a] => Inspect.inspectAny[a]
-          case given Type[a] => '{ Inspect.inspect[a] }
-        }
+        Inspect.inspectTypeRepr(typeRepr._etaExpandTypeRef)
       } else {
         typeRepr match {
           case TypeBounds(low, high) =>
@@ -210,7 +212,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
             case ((name, tpe), refinement) =>
               Refinement(parent = refinement, name = name, info = tpe)
           }
-          Inspect.inspectAny(using withStrongTpesRefinementTypeRepr.asType, qctx)
+          Inspect.inspectTypeRepr(withStrongTpesRefinementTypeRepr)
         }
         val resolvedTypeMemberLtts = weakTypeMembers.map {
           case (name, tpe) => '{ (${ Expr(name) }, ${ summonLTTAndFastTrackIfNotTypeParam(tpe) }) }

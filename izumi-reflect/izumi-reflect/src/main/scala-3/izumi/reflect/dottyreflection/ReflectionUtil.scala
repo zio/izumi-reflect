@@ -1,6 +1,6 @@
 package izumi.reflect.dottyreflection
 
-import scala.annotation.{tailrec, unused}
+import scala.annotation.{nowarn, tailrec, unused}
 import scala.collection.immutable.Queue
 import scala.quoted.Quotes
 
@@ -115,49 +115,56 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 
   extension (appliedType: AppliedType) {
     protected final def _etaExpand: Option[TypeLambda] = {
-      val tycon: TypeRepr = appliedType.tycon._dealiasSimplifiedFull
-      val tparams0: List[TypeRepr] = tycon.typeSymbol.declaredTypes.collect { case s if s.isTypeParam => s._info }
-      val tparams: List[TypeRepr] = if (tparams0.sizeCompare(appliedType.args) < 0) {
-        tycon match {
-          case typeParamRef: ParamRef =>
-            typeParamRef._underlying match {
-              case TypeBounds(_, hi: LambdaType) =>
-                hi.paramTypes
-              case _ =>
-                Nil
-            }
-          case _ =>
-            Nil
-        }
-      } else {
-        tparams0
-      }
-
-      if (tparams.nonEmpty) {
-        val indices = tparams.indices
-        Some(
-          TypeLambda(
-            paramNames = indices.iterator.map(_.toString).toList,
-            boundsFn = _ => tparams.map { case tb: TypeBounds => tb; case t => TypeBounds(t, t) },
-            bodyFn = tl => AppliedType(tycon, indices.iterator.map(tl.param(_)).toList)
-          )
-        )
-      } else None
+      etaExpandImpl(appliedType.tycon._dealiasSimplifiedFull, tparams0 => tparams0.sizeCompare(appliedType.args) < 0)
     }
+  }
+
+  @nowarn("msg=anonymous class definition will be duplicated")
+  inline private final def etaExpandImpl(tycon: TypeRepr, inline checkIfPartialApplication: List[TypeRepr] => Boolean): Option[TypeLambda] = {
+    val tparams0: List[TypeRepr] = tycon.typeSymbol.declaredTypes.collect { case s if s.isTypeParam => s._info }
+    val tparams: List[TypeRepr] = if (checkIfPartialApplication(tparams0)) {
+      tycon match {
+        case typeParamRef: ParamRef =>
+          typeParamRef._underlying match {
+            case TypeBounds(_, hi: LambdaType) =>
+              hi.paramTypes
+            case _ =>
+              Nil
+          }
+        case _ =>
+          Nil
+      }
+    } else {
+      tparams0
+    }
+
+    if (tparams.nonEmpty) {
+      val indices = tparams.indices
+      Some(
+        TypeLambda(
+          paramNames = indices.iterator.map(_.toString).toList,
+          boundsFn = _ => tparams.map { case tb: TypeBounds => tb; case t => TypeBounds(t, t) },
+          bodyFn = tl => AppliedType(tycon, indices.iterator.map(tl.param(_)).toList)
+        )
+      )
+    } else None
   }
 
   extension (typeRepr: TypeRepr) {
 
-    inline protected def _resultType: TypeRepr = {
+    protected final def _resultType: TypeRepr = {
       typeRepr match {
         case l: LambdaType => l.resType
         case _ => typeRepr
       }
     }
 
-    inline protected def _takesTypeArgs: Boolean = {
+    protected final def _takesTypeArgs: Boolean = {
       typeRepr match {
         case _: LambdaType => true
+        case tref: TypeRef =>
+          val tsym = tref.typeSymbol
+          tsym.isType && tsym.declaredTypes.exists(_.isTypeParam)
         case _ => false
       }
     }
@@ -169,6 +176,17 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
         Some(flags)
       } catch {
         case _: NoSuchMethodException => None
+      }
+    }
+
+    protected final def _etaExpandTypeRef: TypeRepr = {
+      typeRepr match {
+        case tref: TypeRef =>
+          etaExpandImpl(tref, _ => false) match {
+            case Some(typeLambda) => typeLambda
+            case None => typeRepr
+          }
+        case _ => typeRepr
       }
     }
 

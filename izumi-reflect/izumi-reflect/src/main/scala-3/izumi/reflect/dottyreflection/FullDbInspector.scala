@@ -17,9 +17,9 @@ object FullDbInspector {
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
-  def buildFullDb[T <: AnyKind: Type]: Map[AbstractReference, Set[AbstractReference]] = {
+  def buildFullDb(typeRepr: TypeRepr): Map[AbstractReference, Set[AbstractReference]] = {
     new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
-      .inspectTypeReprToFullBases(TypeRepr.of[T], onlyIndirect = false)
+      .inspectTypeReprToFullBases(typeRepr, onlyIndirect = false)
       .iterator
       .filterNot {
         case (t, parent) =>

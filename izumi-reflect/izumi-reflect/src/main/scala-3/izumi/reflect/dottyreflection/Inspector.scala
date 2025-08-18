@@ -44,10 +44,10 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     next(Some(Inspector.LamContext(params)))
   }
 
-  def buildTypeRef[T <: AnyKind: Type]: AbstractReference = {
-    log(s" -------- about to inspect ${TypeTree.of[T].show} (${TypeRepr.of[T]}) --------")
-    val res = inspectTypeRepr(TypeRepr.of[T])
-    log(s" -------- done inspecting ${TypeTree.of[T].show} (${TypeRepr.of[T]}) --------")
+  def buildTypeRef(typeRepr: TypeRepr): AbstractReference = {
+    log(s" -------- about to inspect ${typeRepr.show(using Printer.TypeReprStructure)} ($typeRepr) --------")
+    val res = inspectTypeRepr(typeRepr)
+    log(s" -------- done inspecting ${typeRepr.show(using Printer.TypeReprStructure)} ($typeRepr) --------")
     res
   }
 
