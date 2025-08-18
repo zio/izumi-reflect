@@ -17,6 +17,10 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   override def shift: Int = 0
 
+  private val tagSymbol = Symbol.requiredClass("izumi.reflect.Tag")
+  private val tagSymbolTypeRef = tagSymbol.typeRef
+  private lazy val tagWildCardTpe = Type.of[Tag[?]]
+
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val owners = getClassDefOwners(Symbol.spliceOwner)
     val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
@@ -52,19 +56,19 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           case TypeBounds(low, high) =>
             val lowTag = summonTagAndFastTrackIfNotTypeParam(low)
             val highTag = summonTagAndFastTrackIfNotTypeParam(high)
-            '{ LightTypeTag.wildcardType( $lowTag.tag, $highTag.tag ) }
+            '{ LightTypeTag.wildcardType($lowTag.tag, $highTag.tag) }
           case _ =>
-            val result = summonTag[T, Any](typeRepr)
+            val result = summonTag[T](typeRepr)
             '{ $result.tag }
         }
       }
     }
 
-    def summonTagAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[Tag[Any]] = {
+    def summonTagAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[Tag[?]] = {
       if (allPartsStrong(owners, typeRepr)) {
         createTag[Any](typeRepr)
       } else {
-        summonTag[T, Any](typeRepr)
+        summonTag[T](typeRepr)
       }
     }
 
@@ -93,7 +97,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               case ref: ParamRef if ref.binder == outerLambda => ref.paramNum
             } == paramsRange
 
-            val constructorTag = summonTag[T, Any](ctorTpe)
+            val constructorTag = summonTag[T](ctorTpe)
             if (isSimpleApplication) {
               val argsTags = Expr.ofList(typeArgsTpes.map(a => summonIfNotLambdaParamOf(a, outerLambda)))
               '{ Tag.appliedTagNonPos[T](${ constructorTag }, ${ argsTags }) }
@@ -261,27 +265,26 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
-  private def summonTag[T <: AnyKind, A <: AnyKind](typeRepr: TypeRepr)(using outerCombinedType: Type[T]): Expr[Tag[A]] = {
-    typeRepr.asType match {
-      case given Type[a] =>
-        Expr
-          .summon[Tag[a]]
-          .getOrElse {
-            val aStr = Type.show[a]
-            val implicitMessage = defaultImplicitError.replace("${T}", aStr)
-            val message = s"""Error when creating a combined tag for ${Type.show[T]}, when summoning Tag for part of that type $aStr:
-                             |  $implicitMessage
-                             |Structure of overall type was: `${TypeRepr.of[T]}`
-                             |Structure of part of the type was: `${TypeRepr.of[a]}
-                             |Stack trace: ${locally {
-                              import java.io.{PrintWriter, StringWriter}
-                              val t = new Exception()
-                              val sw = new StringWriter()
-                              t.printStackTrace(new PrintWriter(sw))
-                              sw.toString
-                            }}""".stripMargin
-            report.errorAndAbort(message)
-          }.asInstanceOf[Expr[Tag[A]]]
+  private def summonTag[T <: AnyKind](typeRepr: TypeRepr)(using outerCombinedType: Type[T]): Expr[Tag[?]] = {
+    val tagTypeRepr = AppliedType(tagSymbolTypeRef, List(typeRepr))
+    Implicits.search(tagTypeRepr) match {
+      case s: ImplicitSearchSuccess =>
+        s.tree.asExprOf[Tag[?]](using tagWildCardTpe)
+      case f: ImplicitSearchFailure =>
+        val aStr = typeRepr.show
+        val implicitMessage = defaultImplicitError.replace("${T}", aStr)
+        val message = s"""Error when creating a combined tag for ${Type.show[T]}, when summoning Tag for part of that type $aStr:
+                         |  $implicitMessage
+                         |Structure of overall type was: `${TypeRepr.of[T]}`
+                         |Structure of part of the type was: `$typeRepr
+                         |Stack trace: ${locally {
+                          import java.io.{PrintWriter, StringWriter}
+                          val t = new Exception()
+                          val sw = new StringWriter()
+                          t.printStackTrace(new PrintWriter(sw))
+                          sw.toString
+                        }}""".stripMargin
+        report.errorAndAbort(message)
     }
   }
 
