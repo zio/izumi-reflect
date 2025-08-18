@@ -98,6 +98,12 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertDifferent(LTT[x.OpaqueSub], LTT[x.T])
     }
 
+    "basic support for polymorphic function types" in {
+      val t1 = LTT[[A] => A => A]
+      val t2 = LTT[[B] => B => B]
+      assertSameStrict(t1, t2)
+    }
+
   }
 }
 
