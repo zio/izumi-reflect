@@ -12,10 +12,14 @@ object Inspect {
   inline def inspectStrong[T <: AnyKind]: LightTypeTag = ${ inspectStrong[T] }
 
   def inspectAny[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {
+    inspectTypeRepr(qctx.reflect.TypeRepr.of[T])
+  }
+
+  def inspectTypeRepr(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Expr[LightTypeTag] = {
     val ltt = {
-      val ref = TypeInspections.apply[T]
-      val fullDb = TypeInspections.fullDb[T]
-      val nameDb = TypeInspections.unappliedDb[T]
+      val ref = TypeInspections(typeRepr)
+      val fullDb = TypeInspections.fullDb(typeRepr)
+      val nameDb = TypeInspections.unappliedDb(typeRepr)
       LightTypeTag(ref, fullDb, nameDb)
     }
     makeParsedLightTypeTagImpl(ltt)

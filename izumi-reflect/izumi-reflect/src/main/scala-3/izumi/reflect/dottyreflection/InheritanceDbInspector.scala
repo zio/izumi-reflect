@@ -17,8 +17,8 @@ object InheritanceDbInspector {
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect.*
 
-  def makeUnappliedInheritanceDb[T <: AnyKind: Type]: Map[NameReference, Set[NameReference]] = {
-    val tpe0 = TypeRepr.of[T]._dealiasSimplifiedFull
+  def makeUnappliedInheritanceDb(typeRepr: TypeRepr): Map[NameReference, Set[NameReference]] = {
+    val tpe0 = typeRepr._dealiasSimplifiedFull
 
     new Run(Inspector.make(qctx), mutable.HashSet.empty)
       .makeUnappliedInheritanceDb(tpe0)
@@ -52,8 +52,10 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     }
 
     private def allTypeReferences(tpe0: TypeRepr, onlyIndirect: Boolean): mutable.Set[TypeRepr] = {
-      extension (t: TypeRepr) inline def dealiasPrepare: TypeRepr = {
-        t._dealiasSimplifiedFull._resultType
+      extension (t: TypeRepr) {
+        inline def dealiasPrepare: TypeRepr = {
+          t._dealiasSimplifiedFull._resultType
+        }
       }
 
       val inh = mutable.LinkedHashSet.empty[TypeRepr]
