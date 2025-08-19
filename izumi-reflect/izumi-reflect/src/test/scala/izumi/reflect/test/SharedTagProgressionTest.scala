@@ -239,10 +239,10 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
           Tag[T with that.T]
         }
       }
-      brokenOnScala3 {
-        val err = intercept[TestFailedException](
-          assertCompiles(
-            """
+
+      brokenOnScala2 {
+        assertCompiles(
+          """
           trait PDT0 {
             type T
             implicit def tag: Tag[T]
@@ -252,14 +252,13 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
               Tag[this.T with that.T]
             }
           }"""
-          )
         )
-        assert(err.getMessage.matches("(.|\\R)*could not find implicit value.*Tag\\[.*this.T](.|\\R)*"))
       }
+
       def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
 
       val badCombine = PDT[Int].badCombine(PDT[Unit])
-      broken {
+      brokenOnScala2 {
         assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
       }
     }

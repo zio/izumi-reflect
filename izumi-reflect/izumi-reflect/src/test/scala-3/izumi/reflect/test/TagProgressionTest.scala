@@ -7,32 +7,6 @@ class TagProgressionTest extends SharedTagProgressionTest {
 
   "[progression] Tag (Dotty)" should {
 
-    "progression test: combine intersection path-dependent intersection types with inner tags doesn't work yet (Scala 3)" in {
-      trait PDT {
-        type T
-        implicit def tag: Tag[T]
-
-        def badCombine(that: PDT): Tag[T with that.T] = {
-          Tag[T with that.T]
-        }
-        def goodCombine(that: PDT): Tag[T with that.T] = {
-          import that.tag
-          Tag[T with that.T]
-        }
-      }
-      def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
-
-      val badCombine = PDT[Int].badCombine(PDT[Unit])
-      brokenOnScala3 {
-        assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
-      }
-
-      val goodCombine = PDT[Int].goodCombine(PDT[Unit])
-      brokenOnScala3 {
-        assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
-      }
-    }
-
     // Can't fix this atm because simplification happens even without .simplified call because of https://github.com/lampepfl/dotty/issues/17544
     "progression test: fails to don't lose tautological union components other than Nothing" in {
       def tag1[T: Tag]: Tag[T | Trait1] = Tag[T | Trait1]

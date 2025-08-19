@@ -70,6 +70,28 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(Tag[Nothing | Option[String]].tag, LTT[Option[String]])
     }
 
+    "combine intersection path-dependent intersection types with inner tags works on Scala 3" in {
+      trait PDT {
+        type T
+        implicit def tag: Tag[T]
+
+        def badCombine(that: PDT): Tag[T with that.T] = {
+          Tag[T with that.T]
+        }
+        def goodCombine(that: PDT): Tag[T with that.T] = {
+          import that.tag
+          Tag[T with that.T]
+        }
+      }
+      def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
+
+      val badCombine = PDT[Int].badCombine(PDT[Unit])
+      assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
+
+      val goodCombine = PDT[Int].goodCombine(PDT[Unit])
+      assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
+    }
+
   }
 
 }
