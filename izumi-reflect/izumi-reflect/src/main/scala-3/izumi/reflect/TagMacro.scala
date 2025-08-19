@@ -50,27 +50,15 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
 
-    def summonLTTAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[LightTypeTag] = {
-      if (allPartsStrong(owners, typeRepr)) {
-        Inspect.inspectTypeRepr(typeRepr._etaExpandTypeRef)
-      } else {
-        typeRepr match {
-          case TypeBounds(low, high) =>
-            val lowTag = summonTagAndFastTrackIfNotTypeParam(low)
-            val highTag = summonTagAndFastTrackIfNotTypeParam(high)
-            '{ LightTypeTag.wildcardType($lowTag.tag, $highTag.tag) }
-          case _ =>
-            val result = summonTag[T](typeRepr)
-            '{ $result.tag }
-        }
-      }
-    }
-
-    def summonTagAndFastTrackIfNotTypeParam(typeRepr: TypeRepr): Expr[Tag[?]] = {
-      if (allPartsStrong(owners, typeRepr)) {
-        createTag[Any](typeRepr)
-      } else {
-        summonTag[T](typeRepr)
+    def summonLTT(typeRepr: TypeRepr): Expr[LightTypeTag] = {
+      typeRepr match {
+        case TypeBounds(low, high) =>
+          val lowTag = summonTag[T](low)
+          val highTag = summonTag[T](high)
+          '{ LightTypeTag.wildcardType($lowTag.tag, $highTag.tag) }
+        case _ =>
+          val result = summonTag[T](typeRepr)
+          '{ $result.tag }
       }
     }
 
@@ -78,7 +66,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       if (isLambdaParamOf(typeRepr, lam)) {
         '{ None }
       } else {
-        val tag = summonLTTAndFastTrackIfNotTypeParam(typeRepr)
+        val tag = summonLTT(typeRepr)
         '{ Some($tag) }
       }
     }
@@ -144,7 +132,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
                 val nonParamArgsDealiased = distinctNonParamArgsTypes.map(_._dealiasSimplifiedFull)
                 log(s"HK COMPLEX Now summoning tags for args=$nonParamArgsDealiased outerLambdaParams=$outerLambdaParamArgsTypeParamRefs")
                 Expr.ofList(
-                  nonParamArgsDealiased.map(t => '{ Some(${ summonLTTAndFastTrackIfNotTypeParam(t) }) }) ++ outerLambdaParamArgsTypeParamRefs.map(_ => '{ None })
+                  nonParamArgsDealiased.map(t => '{ Some(${ summonLTT(t) }) }) ++ outerLambdaParamArgsTypeParamRefs.map(_ => '{ None })
                 )
               }
 
@@ -165,13 +153,13 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         }
 
       case AppliedType(ctor, args) =>
-        val ctorTag = summonTagAndFastTrackIfNotTypeParam(ctor)
-        val argsTags = Expr.ofList(args.map(summonLTTAndFastTrackIfNotTypeParam))
+        val ctorTag = summonTag[T](ctor)
+        val argsTags = Expr.ofList(args.map(summonLTT))
         '{ Tag.appliedTag[T](${ ctorTag }, ${ argsTags }) }
 
       case andType: AndType =>
         val tpes = flattenAnd(andType)
-        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTTAndFastTrackIfNotTypeParam))
+        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTT))
         val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExprOf[Class[?]]
         val dummyAnyStructLtt = {
           // FIXME add constructor for intersections without the unused on Scala 3 struct type
@@ -181,14 +169,14 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
       case orType: OrType =>
         val tpes = flattenOr(orType)
-        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTTAndFastTrackIfNotTypeParam))
+        val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTT))
         val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExprOf[Class[?]]
         '{ Tag.unionTag[T](${ cls }, ${ ltts }) }
 
       case refinement: Refinement =>
         val (members, parent) = flattenRefinements(refinement)
         val cls = closestClassOfTypeRepr(parent)
-        val parentLtt = summonLTTAndFastTrackIfNotTypeParam(parent)
+        val parentLtt = summonLTT(parent)
 
         val (allTypeMembers, termMembers) = members.partitionMap {
           case (s, n, tb: TypeBounds) if allPartsStrong(owners, tb) => Left(Left((n, tb)))
@@ -215,7 +203,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           Inspect.inspectTypeRepr(withStrongTpesRefinementTypeRepr)
         }
         val resolvedTypeMemberLtts = weakTypeMembers.map {
-          case (name, tpe) => '{ (${ Expr(name) }, ${ summonLTTAndFastTrackIfNotTypeParam(tpe) }) }
+          case (name, tpe) => '{ (${ Expr(name) }, ${ summonLTT(tpe) }) }
         }
         // NB: we're resolving LTTs anew for all type members here, instead of optimizing
         // to resolve only for 'weak' members as in Scala 2.

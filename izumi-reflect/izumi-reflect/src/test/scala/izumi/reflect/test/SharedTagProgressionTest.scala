@@ -259,7 +259,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
 
       val badCombine = PDT[Int].badCombine(PDT[Unit])
-      broken {
+      brokenOnScala2 {
         assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
       }
     }
