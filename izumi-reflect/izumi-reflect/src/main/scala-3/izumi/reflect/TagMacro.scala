@@ -8,6 +8,9 @@ import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, Sy
 import scala.collection.mutable
 
 object TagMacro {
+  import java.util.concurrent.ConcurrentHashMap
+  private val tagCache = new ConcurrentHashMap[String, scala.quoted.Expr[izumi.reflect.macrortti.LightTypeTag]]()
+
   def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
     new TagMacro().createTagExpr[A]
 }
@@ -36,8 +39,21 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   }
 
   private def createTag[A <: AnyKind](typeRepr0: TypeRepr): Expr[Tag[A]] = {
-    val typeRepr = typeRepr0._etaExpandTypeRef // convert HKT type refs to type lambdas manually as an optimization. This required an additional splice level before.
-    val ltt = Inspect.inspectTypeRepr(typeRepr)
+    val typeRepr = typeRepr0._etaExpandTypeRef
+    val cacheEnabled = sys.props.get("izumi.reflect.cache.enabled").contains("true")
+
+    val ltt = if (cacheEnabled) {
+      val key = typeRepr.show
+      TagMacro.tagCache.computeIfAbsent(
+        key,
+        _ => {
+          Inspect.inspectTypeRepr(typeRepr)
+        }
+      )
+    } else {
+      Inspect.inspectTypeRepr(typeRepr)
+    }
+
     val cls = closestClassOfTypeRepr(typeRepr)
     Apply(
       fun = TypeApply(
