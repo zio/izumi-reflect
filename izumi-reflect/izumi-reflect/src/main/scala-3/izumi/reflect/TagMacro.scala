@@ -1,5 +1,7 @@
 package izumi.reflect
 
+import izumi.reflect.TagMacro.macroCacheEnabled
+
 import scala.quoted.{Expr, Quotes, Type, Varargs}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
@@ -9,6 +11,10 @@ import scala.collection.mutable
 
 object TagMacro {
   import java.util.concurrent.ConcurrentHashMap
+
+  // Toggle for macro-level caching (separate from izumi.reflect.cache.enabled)
+  private val macroCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
+
   private val tagCache = new ConcurrentHashMap[String, scala.quoted.Expr[izumi.reflect.macrortti.LightTypeTag]]()
 
   def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
@@ -42,13 +48,17 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     val typeRepr = typeRepr0._etaExpandTypeRef
     val cacheEnabled = sys.props.get("izumi.reflect.cache.enabled").contains("true")
 
-    val ltt = if (cacheEnabled) {
+    val ltt = if (macroCacheEnabled) {
       val key = typeRepr.show
       TagMacro.tagCache.computeIfAbsent(
         key,
-        _ => {
-          Inspect.inspectTypeRepr(typeRepr)
-        }
+        _ => Inspect.inspectTypeRepr(typeRepr)
+      )
+    } else if (cacheEnabled) {
+      val key = typeRepr.show
+      TagMacro.tagCache.computeIfAbsent(
+        key,
+        _ => Inspect.inspectTypeRepr(typeRepr)
       )
     } else {
       Inspect.inspectTypeRepr(typeRepr)

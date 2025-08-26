@@ -37,6 +37,10 @@ class TagMacro(val c: blackbox.Context) {
 
   import c.universe._
 
+  private val macroCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
+
+  private val tagCache = new java.util.concurrent.ConcurrentHashMap[String, c.Expr[izumi.reflect.macrortti.LightTypeTag]]()
+
   protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c)
   private[this] val ltagMacro = new LightTypeTagMacro0[c.type](c)(logger)
 
@@ -81,7 +85,12 @@ class TagMacro(val c: blackbox.Context) {
 
   private def makeStrongTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     logger.log(s"Got strong tag, generating LTT right away: ${tag.tpe}")
-    val ltag = ltagMacro.makeParsedLightTypeTagImpl(tpe)
+    val ltag = if (macroCacheEnabled) {
+      val key = tpe.toString
+      tagCache.computeIfAbsent(key, _ => ltagMacro.makeParsedLightTypeTagImpl(tpe))
+    } else {
+      ltagMacro.makeParsedLightTypeTagImpl(tpe)
+    }
     val cls = closestClass(tpe)
 
     {
@@ -94,6 +103,18 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   private def makeWeakTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
+    if (macroCacheEnabled) {
+      val key = tpe.toString
+      val cached = tagCache.get(key)
+      if (cached != null) {
+        val cls = closestClass(tpe)
+        implicit val itag: c.WeakTypeTag[T] = tag
+        return c.Expr[Tag[T]] {
+          q"_root_.izumi.reflect.Tag.apply[$tpe]($cls, $cached)"
+        }
+      }
+    }
+
     if (getImplicitError().endsWith(":")) { // yep
       logger.log(s"Got continuation implicit error: ${getImplicitError()}")
     } else {
@@ -117,6 +138,16 @@ class TagMacro(val c: blackbox.Context) {
     addImplicitError(s"  succeeded for: $tgt")
 
     logger.log(s"Final code of Tag[$tpe] (dealiased $tgt):\n ${showCode(res.tree)}")
+
+    if (macroCacheEnabled) {
+      tagCache.putIfAbsent(tpe.toString, {
+        res match {
+          case c.Expr(q "_root_.izumi.reflect.Tag.apply[$_]($_, $ltag)") =>
+            c.Expr[izumi.reflect.macrortti.LightTypeTag](ltag)
+          case _ => null
+        }
+      })
+    }
 
     res
   }

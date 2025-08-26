@@ -509,7 +509,15 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           }
 
         case Broken.Single(t) =>
-          unpackAsProperType(t, rules)
+          val decls = t.decls.filter(_.owner == t.typeSymbol).toSet
+          if (decls.nonEmpty) {
+            val parents = tpeBases(t)
+            val parentRefs = parents.map(p => unpackAsProperType(p, rules): AppliedReference)
+            val intersection = LightTypeTagRef.maybeIntersection(parentRefs.toSet)
+            Refinement(intersection, decls.flatMap(convertDecl(_, rules)))
+          } else {
+            unpackAsProperType(t, rules)
+          }
       }
     }
 
@@ -572,18 +580,20 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           .paramLists.map(_.map {
             param =>
               val paramTpe = UniRefinement.typeOfParam(param)
-              makeRefSub(paramTpe, rules, Set.empty).asInstanceOf[AppliedReference]
+              // USE makeRefTop here
+              makeRefTop(paramTpe, rules, isLambdaOutput = false).asInstanceOf[AppliedReference]
           })
         val paramLists = if (paramLists0.nonEmpty) paramLists0 else List(Nil)
 
         paramLists.map {
           parameterList =>
-            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules, Set.empty).asInstanceOf[AppliedReference])
+            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefTop(returnTpe, rules, isLambdaOutput = false).asInstanceOf[AppliedReference])
         }
       } else if (decl.isType) {
         val tpe = UniRefinement.typeOfTypeMember(decl)
         val declName = decl.name.decodedName.toString
-        val ref = makeRefSub(tpe, rules, Set.empty) match {
+        // AND here
+        val ref = makeRefTop(tpe, rules, isLambdaOutput = false) match {
           // inspecting abstract type will always return a <none> NamedReference
           case n @ NameReference(SymTypeName("<none>"), _, _) => n.copy(ref = SymTypeName(declName))
           case ref => ref
@@ -797,20 +807,29 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    private[this] def breakRefinement0(t0: Type, squashHKTRefToPolyTypeResultType: Boolean): (Set[Type], Set[Symbol]) = {
-      val normalized = if (squashHKTRefToPolyTypeResultType) {
-        Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(t0)
-      } else {
-        Dealias.fullNormDealias(t0)
+    def unpackProperTypeRefinement(t0: Type, rules: Map[String, SymName.LambdaParamName]): AppliedReference = {
+      IzAssert(!isHKTOrPolyType(Dealias.fullNormDealias(t0)))
+
+      val broken = UniRefinement.breakRefinement(t0, squashHKTRefToPolyTypeResultType = false)
+
+      val (components, decls) = broken match {
+        case Broken.Compound(components, decls) =>
+          (components, decls)
+        case Broken.Single(t) =>
+          val decls = t.decls.filter(_.owner == t.typeSymbol).toSet
+          if (decls.nonEmpty) {
+            (t.baseClasses.map(t.baseType).filterNot(ignored).toSet, decls)
+          } else {
+            (Set(t), Set.empty[Symbol])
+          }
       }
-      normalized match {
-        case UniRefinement(parents, decls) =>
-          val parts = parents.map(breakRefinement0(_, squashHKTRefToPolyTypeResultType))
-          val types = parts.flatMap(_._1)
-          val partsDecls = parts.flatMap(_._2)
-          (types.toSet, (decls ++ partsDecls).toSet)
-        case t =>
-          (Set(t), Set.empty)
+
+      val parts = components.map(unpackAsProperType(_, rules): AppliedReference)
+      val intersection = LightTypeTagRef.maybeIntersection(parts.toSet)
+      if (decls.nonEmpty) {
+        Refinement(intersection, decls.flatMap(convertDecl(_, rules)))
+      } else {
+        intersection
       }
     }
 
