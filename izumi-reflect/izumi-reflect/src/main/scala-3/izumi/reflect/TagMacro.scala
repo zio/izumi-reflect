@@ -1,6 +1,6 @@
 package izumi.reflect
 
-import izumi.reflect.TagMacro.macroCacheEnabled
+// import izumi.reflect.TagMacro.macroCacheEnabled
 
 import scala.quoted.{Expr, Quotes, Type, Varargs}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
@@ -10,69 +10,81 @@ import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, Sy
 import scala.collection.mutable
 
 object TagMacro {
-  import java.util.concurrent.ConcurrentHashMap
-
-  // Toggle for macro-level caching (separate from izumi.reflect.cache.enabled)
-  private val macroCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
-
-  private val tagCache = new ConcurrentHashMap[String, scala.quoted.Expr[izumi.reflect.macrortti.LightTypeTag]]()
-
-  def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
+  def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] = {
     new TagMacro().createTagExpr[A]
+  }
 }
 
 final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   import qctx.reflect._
+  import java.util.concurrent.ConcurrentHashMap
+  import java.lang.ref.SoftReference
+
+  private val macroCacheEnabled: Boolean =
+    sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
+
+  private val tagCache =
+    new ConcurrentHashMap[TypeRepr, SoftReference[Expr[izumi.reflect.macrortti.LightTypeTag]]]()
 
   override def shift: Int = 0
 
-  private val tagSymbol = Symbol.requiredClass("izumi.reflect.Tag")
-  private val tagSymbolTypeRef = tagSymbol.typeRef
-
-  private val tagObjSymbol = Symbol.requiredModule("izumi.reflect.Tag")
-  private val tagObjApplyMethodSym = tagObjSymbol.declaredMethod("apply").find(_.paramSymss(1).size == 2).get
+  private val tagSymbol         = Symbol.requiredClass("izumi.reflect.Tag")
+  private val tagSymbolTypeRef  = tagSymbol.typeRef
+  private val tagObjSymbol      = Symbol.requiredModule("izumi.reflect.Tag")
+  private val tagObjApplyMethodSym =
+    tagObjSymbol.declaredMethod("apply").find(_.paramSymss(1).size == 2).get
 
   private lazy val tagWildCardTpe = Type.of[Tag[?]]
 
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
-    val owners = getClassDefOwners(Symbol.spliceOwner)
-    val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
-    if (allPartsStrong(owners, typeRepr)) {
-      createTag[A](typeRepr)
-    } else {
-      summonCombinedTag[A](owners, typeRepr)
-    }
+    val owners    = getClassDefOwners(Symbol.spliceOwner)
+    val typeRepr  = TypeRepr.of[A]._dealiasSimplifiedFull
+
+    if (allPartsStrong(owners, typeRepr)) createTag[A](typeRepr)
+    else summonCombinedTag[A](owners, typeRepr)
   }
 
   private def createTag[A <: AnyKind](typeRepr0: TypeRepr): Expr[Tag[A]] = {
-    val typeRepr = typeRepr0._etaExpandTypeRef
+    val typeRepr     = typeRepr0._etaExpandTypeRef
     val cacheEnabled = sys.props.get("izumi.reflect.cache.enabled").contains("true")
 
-    val ltt = if (macroCacheEnabled) {
-      val key = typeRepr.show
-      TagMacro.tagCache.computeIfAbsent(
-        key,
-        _ => Inspect.inspectTypeRepr(typeRepr)
-      )
-    } else if (cacheEnabled) {
-      val key = typeRepr.show
-      TagMacro.tagCache.computeIfAbsent(
-        key,
-        _ => Inspect.inspectTypeRepr(typeRepr)
-      )
-    } else {
-      Inspect.inspectTypeRepr(typeRepr)
-    }
+    val ltt =
+      if (macroCacheEnabled) {
+        val key = typeRepr
+        val ref = tagCache.get(key)
+        val cached = if (ref != null) ref.get() else null
+
+        if (cached != null) cached
+        else {
+          val built = Inspect.inspectTypeRepr(typeRepr)
+          tagCache.put(key, new SoftReference[Expr[izumi.reflect.macrortti.LightTypeTag]](built))
+          built
+        }
+      } else if (cacheEnabled) {
+        val key = typeRepr
+        val ref = tagCache.get(key)
+        val cached = if (ref != null) ref.get() else null
+
+        if (cached != null) cached
+        else {
+          val built = Inspect.inspectTypeRepr(typeRepr)
+          tagCache.put(key, new SoftReference[Expr[izumi.reflect.macrortti.LightTypeTag]](built))
+          built
+        }
+      } else {
+        Inspect.inspectTypeRepr(typeRepr)
+      }
 
     val cls = closestClassOfTypeRepr(typeRepr)
     Apply(
-      fun = TypeApply(
-        fun = Select(qualifier = Ref.term(tagObjSymbol.termRef), symbol = tagObjApplyMethodSym),
+      fun  = TypeApply(
+        fun  = Select(qualifier = Ref.term(tagObjSymbol.termRef), symbol = tagObjApplyMethodSym),
         args = List(Inferred(typeRepr))
       ),
       args = List(cls.asTerm, ltt.asTerm)
     ).asExpr.asInstanceOf[Expr[Tag[A]]]
   }
+
 
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
 

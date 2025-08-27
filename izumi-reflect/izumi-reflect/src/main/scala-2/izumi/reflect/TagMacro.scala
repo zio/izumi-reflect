@@ -37,9 +37,12 @@ class TagMacro(val c: blackbox.Context) {
 
   import c.universe._
 
+  import java.util.concurrent.ConcurrentHashMap
+  import java.lang.ref.SoftReference
+
   private val macroCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
 
-  private val tagCache = new java.util.concurrent.ConcurrentHashMap[String, c.Expr[izumi.reflect.macrortti.LightTypeTag]]()
+  private val tagCache = new ConcurrentHashMap[c.Type, SoftReference[c.Expr[izumi.reflect.macrortti.LightTypeTag]]]()
 
   protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c)
   private[this] val ltagMacro = new LightTypeTagMacro0[c.type](c)(logger)
@@ -86,8 +89,17 @@ class TagMacro(val c: blackbox.Context) {
   private def makeStrongTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     logger.log(s"Got strong tag, generating LTT right away: ${tag.tpe}")
     val ltag = if (macroCacheEnabled) {
-      val key = tpe.toString
-      tagCache.computeIfAbsent(key, _ => ltagMacro.makeParsedLightTypeTagImpl(tpe))
+      val key    = tpe
+      val ref    = tagCache.get(key)
+      val cached = if (ref != null) ref.get() else null
+
+      if (cached != null) {
+        cached
+      } else {
+        val built = ltagMacro.makeParsedLightTypeTagImpl(tpe)
+        tagCache.put(key, new SoftReference(built))
+        built
+      }
     } else {
       ltagMacro.makeParsedLightTypeTagImpl(tpe)
     }
@@ -104,8 +116,9 @@ class TagMacro(val c: blackbox.Context) {
 
   private def makeWeakTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     if (macroCacheEnabled) {
-      val key = tpe.toString
-      val cached = tagCache.get(key)
+      val key = tpe
+      val ref = tagCache.get(key)
+      val cached = if (ref != null) ref.get() else null
       if (cached != null) {
         val cls = closestClass(tpe)
         implicit val itag: c.WeakTypeTag[T] = tag
@@ -140,13 +153,12 @@ class TagMacro(val c: blackbox.Context) {
     logger.log(s"Final code of Tag[$tpe] (dealiased $tgt):\n ${showCode(res.tree)}")
 
     if (macroCacheEnabled) {
-      tagCache.putIfAbsent(tpe.toString, {
-        res match {
-          case c.Expr(q "_root_.izumi.reflect.Tag.apply[$_]($_, $ltag)") =>
-            c.Expr[izumi.reflect.macrortti.LightTypeTag](ltag)
-          case _ => null
-        }
-      })
+      res match {
+        case c.Expr(q "_root_.izumi.reflect.Tag.apply[$_]($_, $ltag)") =>
+          tagCache.put(tpe, new SoftReference(c.Expr[izumi.reflect.macrortti.LightTypeTag](ltag)))
+        case _ =>
+          () // do nothing if we can't extract the LightTypeTag
+      }
     }
 
     res
