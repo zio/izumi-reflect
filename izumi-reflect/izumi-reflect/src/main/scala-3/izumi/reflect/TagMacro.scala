@@ -20,11 +20,14 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   import java.util.concurrent.ConcurrentHashMap
   import java.lang.ref.SoftReference
 
-  private val macroCacheEnabled: Boolean =
-    sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
+  // --- flags: separate per cache tier ---
+  private val macroCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
 
-  private val tagCache =
-    new ConcurrentHashMap[TypeRepr, SoftReference[Expr[izumi.reflect.macrortti.LightTypeTag]]]()
+  private val lttCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.ltt").exists(_.toBoolean)
+
+  private val dbCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.db").exists(_.toBoolean)
+
+  private val tagCache = new ConcurrentHashMap[TypeRepr, SoftReference[Expr[izumi.reflect.macrortti.LightTypeTag]]]()
 
   override def shift: Int = 0
 
@@ -46,21 +49,10 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private def createTag[A <: AnyKind](typeRepr0: TypeRepr): Expr[Tag[A]] = {
     val typeRepr     = typeRepr0._etaExpandTypeRef
-    val cacheEnabled = sys.props.get("izumi.reflect.cache.enabled").contains("true")
-
+   // val cacheEnabled = sys.props.get("izumi.reflect.cache.enabled").contains("true")
+    
     val ltt =
       if (macroCacheEnabled) {
-        val key = typeRepr
-        val ref = tagCache.get(key)
-        val cached = if (ref != null) ref.get() else null
-
-        if (cached != null) cached
-        else {
-          val built = Inspect.inspectTypeRepr(typeRepr)
-          tagCache.put(key, new SoftReference[Expr[izumi.reflect.macrortti.LightTypeTag]](built))
-          built
-        }
-      } else if (cacheEnabled) {
         val key = typeRepr
         val ref = tagCache.get(key)
         val cached = if (ref != null) ref.get() else null
@@ -77,14 +69,13 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
     val cls = closestClassOfTypeRepr(typeRepr)
     Apply(
-      fun  = TypeApply(
-        fun  = Select(qualifier = Ref.term(tagObjSymbol.termRef), symbol = tagObjApplyMethodSym),
+      fun = TypeApply(
+        fun = Select(qualifier = Ref.term(tagObjSymbol.termRef), symbol = tagObjApplyMethodSym),
         args = List(Inferred(typeRepr))
       ),
       args = List(cls.asTerm, ltt.asTerm)
     ).asExpr.asInstanceOf[Expr[Tag[A]]]
   }
-
 
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
 

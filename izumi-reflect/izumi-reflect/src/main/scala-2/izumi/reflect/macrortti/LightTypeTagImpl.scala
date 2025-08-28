@@ -29,6 +29,10 @@ import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName,
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
 
+import java.util.concurrent.ConcurrentHashMap
+import java.lang.ref.SoftReference
+import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.language.reflectiveCalls
@@ -85,9 +89,10 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
 
+  private val dbCache = new java.util.concurrent.ConcurrentHashMap[Any, java.lang.ref.SoftReference[SubtypeDBs]]()
+
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
-
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
 
     val lttRef = makeRef(tpe)
@@ -99,8 +104,25 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
       }.result()
 
+    // --- DB-level cache check ---
+    val dbCacheEnabled =
+      sys.props.get("izumi.reflect.cache.db").exists(_.toBoolean)
+    val dbKey: Any = tpe
+    if (dbCacheEnabled) {
+      val refDb = dbCache.get(dbKey)
+      val cachedDb = if (refDb != null) refDb.get() else null
+      if (cachedDb != null) {
+        val (cachedBases, cachedIdb) = cachedDb
+        return LightTypeTag(lttRef, cachedBases, cachedIdb)
+      }
+    }
+
     val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
     val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+
+    if (dbCacheEnabled) {
+      dbCache.put(dbKey, new SoftReference((fullDb, unappliedDb)))
+    }
 
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
@@ -951,13 +973,10 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         tSym.isType && tSym.asType.isExistential
     }
   }
-
   private[this] def hasSingletonType(sym: Symbol): Boolean = {
     sym.isTerm || sym.isModuleClass || isSingletonType(sym.typeSignature)
   }
-
   @inline private[this] def isSingletonType(tpe: Type): Boolean = {
     tpe.isInstanceOf[SingletonTypeApi] && !tpe.isInstanceOf[ThisTypeApi]
   }
-
 }

@@ -21,12 +21,21 @@ package izumi.reflect.macrortti
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
 
+import java.util.concurrent.ConcurrentHashMap
+import java.lang.ref.SoftReference
+
 import scala.reflect.macros.blackbox
 
 final class LightTypeTagMacro(override val c: blackbox.Context)
   extends LightTypeTagMacro0[blackbox.Context](c)(
     logger = TrivialMacroLogger.make[LightTypeTagMacro](c)
   )
+
+// Static cache container to persist across macro instances
+private[macrortti] object LightTypeTagMacro0Cache {
+  val lttCache: ConcurrentHashMap[Any, SoftReference[LightTypeTag]] =
+    new ConcurrentHashMap[Any, SoftReference[LightTypeTag]]()
+}
 
 private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
 
@@ -67,8 +76,28 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
     makeParsedLightTypeTagImpl(weakTypeOf[T])
   }
 
+  // LTT-level cache wraps the "build from Type" path; caches LightTypeTag values and re-lifts to Expr
   final def makeParsedLightTypeTagImpl(tpe: Type): c.Expr[LightTypeTag] = {
-    val res = impl.makeFullTagImpl(tpe)
+    val lttCacheEnabled =
+      sys.props.get("izumi.reflect.cache.ltt").exists(_.toBoolean)
+    val key: Any = tpe
+
+    if (lttCacheEnabled) {
+      val ref    = LightTypeTagMacro0Cache.lttCache.get(key)
+      val cached = if (ref != null) ref.get() else null
+      if (cached != null) {
+        // Re-lift cached value into Expr in the current macro context
+        return makeParsedLightTypeTagImpl(cached)
+      }
+    }
+
+    // Build fresh LightTypeTag value
+    val res: LightTypeTag = impl.makeFullTagImpl(tpe)
+
+    if (lttCacheEnabled) {
+      LightTypeTagMacro0Cache.lttCache.put(key, new SoftReference(res))
+    }
+
     makeParsedLightTypeTagImpl(res)
   }
 
