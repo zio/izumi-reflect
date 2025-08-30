@@ -8,12 +8,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.lang.ref.SoftReference
 
 import scala.quoted.{Expr, Quotes, Type}
+// import scala.quoted.reflect.TypeRepr 
 
 object Inspect {
   inline def inspect[T <: AnyKind]: LightTypeTag = ${ inspectAny[T] }
 
   // Cache raw LightTypeTag values, not Exprs
-  private val lttCache = new ConcurrentHashMap[Any, SoftReference[LightTypeTag]]()
+  private val lttCache = new ConcurrentHashMap[scala.quoted.Quotes#reflectModule#TypeRepr, SoftReference[LightTypeTag]]()
 
   inline def inspectStrong[T <: AnyKind]: LightTypeTag = ${ inspectStrong[T] }
 
@@ -23,20 +24,18 @@ object Inspect {
 
   def inspectTypeRepr(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Expr[LightTypeTag] = {
     val lttCacheEnabled = sys.props.get("izumi.reflect.cache.ltt").exists(_.toBoolean)
-    val key: Any = typeRepr
+    val key = typeRepr
 
     if (lttCacheEnabled) {
-      val ref    = lttCache.get(key)
+      val ref = lttCache.get(key)
       val cached = if (ref != null) ref.get() else null
       if (cached != null) {
-        // Re‑lift into Expr within the current macro session
         return makeParsedLightTypeTagImpl(cached)
       }
     }
 
-    // Build LightTypeTag value fresh
     val ltt = {
-      val ref    = TypeInspections(typeRepr)
+      val ref = TypeInspections(typeRepr)
       val fullDb = TypeInspections.fullDb(typeRepr)
       val nameDb = TypeInspections.unappliedDb(typeRepr)
       LightTypeTag(ref, fullDb, nameDb)
@@ -45,13 +44,12 @@ object Inspect {
     if (lttCacheEnabled) {
       lttCache.put(key, new SoftReference(ltt))
     }
-    // Lift to Expr in *this* macro call
     makeParsedLightTypeTagImpl(ltt)
   }
 
   def inspectStrong[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {
     import qctx.reflect.*
-    val tpe    = TypeRepr.of[T]
+    val tpe = TypeRepr.of[T]
     val owners = ReflectionUtil.getClassDefOwners(Symbol.spliceOwner)
     if (ReflectionUtil.allPartsStrong(0, owners, Set.empty, tpe)) {
       inspectAny[T]
@@ -61,10 +59,10 @@ object Inspect {
   }
 
   def makeParsedLightTypeTagImpl(ltt: LightTypeTag)(using qctx: Quotes): Expr[LightTypeTag] = {
-    val serialized   = ltt.serialize()
-    val hashCodeRef  = serialized.hash
-    val strRef       = serialized.ref
-    val strDBs       = serialized.databases
+    val serialized = ltt.serialize()
+    val hashCodeRef = serialized.hash
+    val strRef = serialized.ref
+    val strDBs = serialized.databases
 
     InspectorBase.ifDebug {
       def string2hex(str: String): String = str.toList.map(_.toInt.toHexString).mkString

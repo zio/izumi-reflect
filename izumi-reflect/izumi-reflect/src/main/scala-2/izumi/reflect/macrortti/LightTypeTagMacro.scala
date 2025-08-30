@@ -1,21 +1,3 @@
-/*
- * Copyright 2019-2020 Septimal Mind Ltd
- * Copyright 2020 John A. De Goes and the ZIO Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * You may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- */
-
 package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
@@ -31,30 +13,37 @@ final class LightTypeTagMacro(override val c: blackbox.Context)
     logger = TrivialMacroLogger.make[LightTypeTagMacro](c)
   )
 
-// Static cache container to persist across macro instances
-private[macrortti] object LightTypeTagMacro0Cache {
-  val lttCache: ConcurrentHashMap[Any, SoftReference[LightTypeTag]] =
-    new ConcurrentHashMap[Any, SoftReference[LightTypeTag]]()
-}
-
 private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
 
   import c.universe._
 
-  protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izumi.reflect.rtti.cache.compile`}=false")
-  protected final val impl = new LightTypeTagImpl[c.universe.type](c.universe, withCache = cacheEnabled, logger)
+  // Type‑safe macro‑level cache: key = Type from this macro universe
+  private val lttCache = new ConcurrentHashMap[Type, SoftReference[LightTypeTag]]()
+
+  protected final def cacheEnabled: Boolean =
+    !c.settings.contains(s"${DebugProperties.`izumi.reflect.rtti.cache.compile`}=false")
+
+  protected final val impl =
+    new LightTypeTagImpl[c.universe.type](c.universe, withCache = cacheEnabled, logger)
 
   final def makeStrongHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[LTag.StrongHK[ArgStruct]] = {
     val tpe = unpackArgStruct(weakTypeOf[ArgStruct])
     if (ReflectionUtil.allPartsStrong(tpe)) {
-      c.Expr[LTag.StrongHK[ArgStruct]](q"new ${weakTypeOf[LTag.StrongHK[ArgStruct]]}(${makeParsedLightTypeTagImpl(tpe)})")
+      c.Expr[LTag.StrongHK[ArgStruct]](
+        q"new ${weakTypeOf[LTag.StrongHK[ArgStruct]]}(${makeParsedLightTypeTagImpl(tpe)})"
+      )
     } else {
-      c.abort(c.enclosingPosition, s"Can't materialize LTag.StrongHKTag[$tpe]: found unresolved type parameters in $tpe")
+      c.abort(
+        c.enclosingPosition,
+        s"Can't materialize LTag.StrongHKTag[$tpe]: found unresolved type parameters in $tpe"
+      )
     }
   }
 
   final def makeWeakHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[LTag.WeakHK[ArgStruct]] = {
-    c.Expr[LTag.WeakHK[ArgStruct]](q"new ${weakTypeOf[LTag.WeakHK[ArgStruct]]}(${makeParsedLightTypeTagImpl(unpackArgStruct(weakTypeOf[ArgStruct]))})")
+    c.Expr[LTag.WeakHK[ArgStruct]](
+      q"new ${weakTypeOf[LTag.WeakHK[ArgStruct]]}(${makeParsedLightTypeTagImpl(unpackArgStruct(weakTypeOf[ArgStruct]))})"
+    )
   }
 
   final def makeStrongTag[T: c.WeakTypeTag]: c.Expr[LTag[T]] = {
@@ -63,7 +52,10 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
       val res = makeParsedLightTypeTagImpl(tpe)
       c.Expr[LTag[T]](q"new ${weakTypeOf[LTag[T]]}($res)")
     } else {
-      c.abort(c.enclosingPosition, s"Can't materialize LTag[$tpe]: found unresolved type parameters in $tpe")
+      c.abort(
+        c.enclosingPosition,
+        s"Can't materialize LTag[$tpe]: found unresolved type parameters in $tpe"
+      )
     }
   }
 
@@ -76,17 +68,16 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
     makeParsedLightTypeTagImpl(weakTypeOf[T])
   }
 
-  // LTT-level cache wraps the "build from Type" path; caches LightTypeTag values and re-lifts to Expr
+  // LTT‑level cache wraps the "build from Type" path; caches LightTypeTag values and re‑lifts to Expr
   final def makeParsedLightTypeTagImpl(tpe: Type): c.Expr[LightTypeTag] = {
-    val lttCacheEnabled =
-      sys.props.get("izumi.reflect.cache.ltt").exists(_.toBoolean)
-    val key: Any = tpe
+    val lttCacheEnabled = sys.props.get("izumi.reflect.cache.ltt").exists(_.toBoolean)
+    val key = tpe
 
     if (lttCacheEnabled) {
-      val ref    = LightTypeTagMacro0Cache.lttCache.get(key)
+      val ref = lttCache.get(key)
       val cached = if (ref != null) ref.get() else null
       if (cached != null) {
-        // Re-lift cached value into Expr in the current macro context
+        // Re‑lift cached value into Expr in the current macro context
         return makeParsedLightTypeTagImpl(cached)
       }
     }
@@ -95,7 +86,7 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
     val res: LightTypeTag = impl.makeFullTagImpl(tpe)
 
     if (lttCacheEnabled) {
-      LightTypeTagMacro0Cache.lttCache.put(key, new SoftReference(res))
+      lttCache.put(key, new SoftReference(res))
     }
 
     makeParsedLightTypeTagImpl(res)
@@ -110,26 +101,32 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
     val strDBs = serialized.databases
 
     c.Expr[LightTypeTag](
-      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)"
+      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef: _root_.java.lang.String, $strDBs: _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)"
     )
   }
 
+  // Extract the constructor X from `{ type Arg[...] = X[...] }` in a way
+  // that plays nicely with Scala 2 HKTag materialization.
+  // IMPORTANT: return the type constructor from the type member's info,
+  // not the result type constructor. The latter breaks TagK/TagKK implicits.
   @inline final def unpackArgStruct(t: Type): Type = {
-    def badShapeError() = {
+    def badShapeError(): Nothing = {
       c.abort(
         c.enclosingPosition,
-        s"Expected type shape RefinedType `{ type Arg[A] = X[A] }` for summoning `LTag.StrongHK/WeakHK[X]`, but got $t (raw: ${showRaw(t)} ${t.getClass})"
+        s"Expected refined type `{ type Arg[...] = X[...] }` for HKTag materialization, but got $t (raw: ${showRaw(t)} ${t.getClass})"
       )
     }
+
     t match {
       case r: RefinedTypeApi =>
         r.decl(TypeName("Arg")) match {
           case sym: TypeSymbolApi =>
-            sym.info.typeConstructor
-          case _ => badShapeError()
+            sym.info.dealias.typeConstructor
+          case _ =>
+            badShapeError()
         }
-      case _ => badShapeError()
+      case _ =>
+        badShapeError()
     }
   }
-
 }

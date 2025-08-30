@@ -19,7 +19,6 @@
 package izumi.reflect
 
 import izumi.reflect.ReflectionUtil.{Kind, kindOf}
-import izumi.reflect.TagMacro._
 import izumi.reflect.internal.NowarnCompat
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti.LightTypeTagRef._
@@ -29,6 +28,8 @@ import scala.annotation.implicitNotFound
 import scala.collection.immutable.ListMap
 import scala.reflect.api.Universe
 import scala.reflect.macros.{TypecheckException, blackbox, whitebox}
+import java.util.concurrent.ConcurrentHashMap
+import java.lang.ref.SoftReference
 
 // TODO: benchmark difference between searching all arguments vs. merge strategy
 // TODO: benchmark ProviderMagnet vs. identity macro vs. normal function
@@ -37,8 +38,29 @@ class TagMacro(val c: blackbox.Context) {
 
   import c.universe._
 
-  import java.util.concurrent.ConcurrentHashMap
-  import java.lang.ref.SoftReference
+  // Detects projections like T#X where T is an unresolved type parameter
+  private[this] def hasTypeParamProjection(t0: Type): Boolean = {
+    def loop(t: Type): Boolean = t match {
+      case tr: TypeRefApi =>
+        val badPrefix = tr.pre match {
+          case pr: TypeRefApi => pr.sym.isParameter
+          case _ => false
+        }
+        badPrefix || tr.args.exists(loop)
+      case r: RefinedTypeApi =>
+        r.parents.exists(loop)
+      case e: ExistentialTypeApi =>
+        loop(e.underlying)
+      case a: AnnotatedTypeApi =>
+        loop(a.underlying)
+      case PolyType(_, res) =>
+        loop(res)
+      case _ =>
+        false
+    }
+
+    loop(t0.dealias)
+  }
 
   private val macroCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.macro").exists(_.toBoolean)
 
@@ -46,10 +68,16 @@ class TagMacro(val c: blackbox.Context) {
 
   private val dbCacheEnabled: Boolean = sys.props.get("izumi.reflect.cache.db").exists(_.toBoolean)
 
-  private val tagCache = new ConcurrentHashMap[c.Type, SoftReference[c.Expr[izumi.reflect.macrortti.LightTypeTag]]]()
-
   protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c)
   private[this] val ltagMacro = new LightTypeTagMacro0[c.type](c)(logger)
+  private[this] val tagCache = new ConcurrentHashMap[Type, SoftReference[Tree]]()
+
+  // Local helpers (moved from companion)
+  private[this] val defaultTagImplicitError: String = "could not find implicit value for ${T}"
+
+  private[this] def tagFormat(t: Type): String = t.toString
+
+  private[this] val tagFormatMap: Map[ReflectionUtil.Kind, String] = Map.empty
 
   // workaround for a scalac bug - `Nothing` type is lost when two implicits for it are summoned from one implicit as in:
   //  implicit final def tagFromTypeTag[T](implicit t: TypeTag[T], l: LTag[T]): Tag[T] = Tag(t, l.fullLightTypeTag)
@@ -92,68 +120,70 @@ class TagMacro(val c: blackbox.Context) {
 
   private def makeStrongTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     logger.log(s"Got strong tag, generating LTT right away: ${tag.tpe}")
-    val ltag = if (macroCacheEnabled) {
-      val key    = tpe
-      val ref    = tagCache.get(key)
-      val cached = if (ref != null) ref.get() else null
 
-      if (cached != null) {
-        cached
+    val ltagTree: Tree =
+      if (macroCacheEnabled) {
+        val key = tpe
+        val ref = tagCache.get(key)
+        val cached = if (ref != null) ref.get() else null
+        if (cached != null) cached
+        else {
+          val built = ltagMacro.makeParsedLightTypeTagImpl(tpe)
+          val tree = built.tree
+          tagCache.put(key, new SoftReference(tree))
+          tree
+        }
       } else {
-        val built = ltagMacro.makeParsedLightTypeTagImpl(tpe)
-        tagCache.put(key, new SoftReference(built))
-        built
+        ltagMacro.makeParsedLightTypeTagImpl(tpe).tree
       }
-    } else {
-      ltagMacro.makeParsedLightTypeTagImpl(tpe)
-    }
-    val cls = closestClass(tpe)
+
+    val clsTree = closestClass(tpe).tree
+
     {
-      // compiler always inserts WeakTypeTag, by passing it explicitly we slightly reduce fragility
       implicit val itag: c.WeakTypeTag[T] = tag
-      c.Expr[Tag[T]] {
-        q"_root_.izumi.reflect.Tag.apply[$tpe]($cls, $ltag)"
-      }
+      c.Expr[Tag[T]](
+        q"_root_.izumi.reflect.Tag.apply[$tpe]($clsTree, $ltagTree)"
+      )
     }
   }
 
   private def makeWeakTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
+    if (hasTypeParamProjection(tpe)) {
+      val msg =
+        s"  could not find implicit value for ${tagFormat(tpe)}: $tpe is a type projection off an unresolved type parameter"
+      setImplicitError(msg)
+      abortWithImplicitError()
+    }
+
     if (macroCacheEnabled) {
       val key = tpe
       val ref = tagCache.get(key)
       val cached = if (ref != null) ref.get() else null
       if (cached != null) {
-        val cls = closestClass(tpe)
+        val clsTree = closestClass(tpe).tree
         implicit val itag: c.WeakTypeTag[T] = tag
-        return c.Expr[Tag[T]] {
-          q"_root_.izumi.reflect.Tag.apply[$tpe]($cls, $cached)"
-        }
+        return c.Expr[Tag[T]](
+          q"_root_.izumi.reflect.Tag.apply[$tpe]($clsTree, $cached)"
+        )
       }
     }
-
-    // Build fresh
-    val ltag = ltagMacro.makeParsedLightTypeTagImpl(tpe) // <- LTT-level cache will hook in here later under lttCacheEnabled
-    val cls = closestClass(tpe)
-
+    val ltagTree = ltagMacro.makeParsedLightTypeTagImpl(tpe).tree
+    val clsTree = closestClass(tpe).tree
     val res = {
       implicit val itag: c.WeakTypeTag[T] = tag
-      c.Expr[Tag[T]] {
-        q"_root_.izumi.reflect.Tag.apply[$tpe]($cls, $ltag)"
-      }
+      c.Expr[Tag[T]](
+        q"_root_.izumi.reflect.Tag.apply[$tpe]($clsTree, $ltagTree)"
+      )
     }
-
-    // Store in macro-level cache
     if (macroCacheEnabled) {
       res match {
-        case c.Expr(q "_root_.izumi.reflect.Tag.apply[$_]($_, $ltagExpr)") =>
-          tagCache.put(tpe, new SoftReference(c.Expr[izumi.reflect.macrortti.LightTypeTag](ltagExpr)))
-        case _ =>
-          ()
+        case c.Expr(q"_root_.izumi.reflect.Tag.apply[$_]( $_, $ltagExpr )") =>
+          tagCache.put(tpe, new SoftReference(ltagExpr))
+        case _ => ()
       }
     }
     res
   }
-
 
   // FIXME: nearly a copypaste of mkTagWithTypeParameters, deduplicate?
   private[this] def makeHKTagImpl[ArgStruct](outerLambda: Type, tag: c.WeakTypeTag[ArgStruct]): c.Expr[HKTag[ArgStruct]] = {
@@ -186,7 +216,7 @@ class TagMacro(val c: blackbox.Context) {
         // error: the entire type is just a proper type parameter with no type arguments
         // it cannot be resolved further
         case Some(k) if k == kindOf(outerLambda) && isSimplePartialApplication =>
-          logger.log(s"HK type B $ctorTpe ${ctorTpe.typeSymbol}")
+      //    logger.log(s"HK type B $ctorTpe ${ctorTpe.typeSymbol}")
           val msg = s"  could not find implicit value for ${tagFormat(lambdaResult)}: $lambdaResult is a type parameter without an implicit Tag!"
           addImplicitError(msg)
           abortWithImplicitError()
