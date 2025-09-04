@@ -319,7 +319,7 @@ object Izumi {
     globalLibs = Seq(
       ScopedLibrary(projector, FullDependencyScope(Scope.Compile, Platform.All).scalaVersion(ScalaVersionScope.AllScala2), compilerPlugin = true),
       scala_reflect in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala2),
-      scala3_compiler in Scope.Compile.all.scalaVersion(ScalaVersionScope.AllScala3),
+      scala3_compiler in Scope.Provided.all.scalaVersion(ScalaVersionScope.AllScala3),
       scalatest in Scope.Test.all
     ),
     rootPlugins = Projects.root.plugins,
