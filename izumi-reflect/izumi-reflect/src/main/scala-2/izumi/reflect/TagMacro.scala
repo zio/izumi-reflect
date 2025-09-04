@@ -155,33 +155,35 @@ class TagMacro(val c: blackbox.Context) {
       abortWithImplicitError()
     }
 
-    if (macroCacheEnabled) {
-      val key = tpe
-      val ref = tagCache.get(key)
-      val cached = if (ref != null) ref.get() else null
-      if (cached != null) {
-        val clsTree = closestClass(tpe).tree
-        implicit val itag: c.WeakTypeTag[T] = tag
-        return c.Expr[Tag[T]](
-          q"_root_.izumi.reflect.Tag.apply[$tpe]($clsTree, $cached)"
-        )
-      }
+    if (getImplicitError().endsWith(":")) { // yep
+      logger.log(s"Got continuation implicit error: ${getImplicitError()}")
+    } else {
+      resetImplicitError(tpe)
+      addImplicitError("\n\n<trace>: ")
     }
-    val ltagTree = ltagMacro.makeParsedLightTypeTagImpl(tpe).tree
-    val clsTree = closestClass(tpe).tree
-    val res = {
-      implicit val itag: c.WeakTypeTag[T] = tag
-      c.Expr[Tag[T]](
-        q"_root_.izumi.reflect.Tag.apply[$tpe]($clsTree, $ltagTree)"
-      )
+
+    val tgt = ReflectionUtil.norm(c.universe: c.universe.type, logger)(tpe.dealias)
+    logger.log(s"Got non-strong tag: $tpe, dealiased: $tgt")
+    addImplicitError(s"  deriving Tag for $tpe, dealiased: $tgt:")
+
+    val res = tgt match {
+      case RefinedType(intersection, _) =>
+        mkRefined[T](intersection, tgt, tag)
+      case _ =>
+        mkTagWithTypeParameters[T](tgt, tag)
     }
+
+    addImplicitError(s"  succeeded for: $tgt")
+    logger.log(s"Final code of Tag[$tpe] (dealiased $tgt):\n ${showCode(res.tree)}")
+
     if (macroCacheEnabled) {
       res match {
-        case c.Expr(q"_root_.izumi.reflect.Tag.apply[$_]( $_, $ltagExpr )") =>
+        case c.Expr(q "_root_.izumi.reflect.Tag.apply[$_]( $_, $ltagExpr )") =>
           tagCache.put(tpe, new SoftReference(ltagExpr))
         case _ => ()
       }
     }
+
     res
   }
 

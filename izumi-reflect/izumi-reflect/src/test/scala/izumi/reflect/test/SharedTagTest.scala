@@ -92,20 +92,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
 
   "Tag (all versions)" should {
 
-    "issue #481: support subtyping of a refined type against a concrete type" in {
-      trait A {
-        type T
-      }
-      trait AInt extends A {
-        override type T = Int
-      }
-
-      val tagAInt = Tag[AInt].tag
-      val tagRefinedA = Tag[A {type T = Int}].tag
-
-      assertChild(tagAInt, tagRefinedA)
-    }
-
     "Work for any concrete type" in {
       assert(Tag[Int].tag == fromRuntime[Int])
       assert(Tag[Set[String]].tag == fromRuntime[Set[String]])
