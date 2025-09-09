@@ -166,24 +166,23 @@ class TagMacro(val c: blackbox.Context) {
     logger.log(s"Got non-strong tag: $tpe, dealiased: $tgt")
     addImplicitError(s"  deriving Tag for $tpe, dealiased: $tgt:")
 
-    val res = tgt match {
-      case RefinedType(intersection, _) =>
-        mkRefined[T](intersection, tgt, tag)
-      case _ =>
-        mkTagWithTypeParameters[T](tgt, tag)
-    }
+    //    val res = makeTag(tpe, tgt, tag)
+    val wtt = implicitly[c.WeakTypeTag[T]]
 
-    addImplicitError(s"  succeeded for: $tgt")
-    logger.log(s"Final code of Tag[$tpe] (dealiased $tgt):\n ${showCode(res.tree)}")
+    val res: c.Expr[Tag[T]] =
+      if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
+        makeStrongTagImpl[T](tpe, wtt)
+      } else {
+        makeWeakTagImpl[T](tpe, wtt)
+      }
 
     if (macroCacheEnabled) {
       res match {
-        case c.Expr(q "_root_.izumi.reflect.Tag.apply[$_]( $_, $ltagExpr )") =>
-          tagCache.put(tpe, new SoftReference(ltagExpr))
+        case c.Expr(q"_root_.izumi.reflect.Tag.apply[$_]($_, $ltagExpr)") =>
+      tagCache.put (tpe, new SoftReference(ltagExpr))
         case _ => ()
       }
     }
-
     res
   }
 
