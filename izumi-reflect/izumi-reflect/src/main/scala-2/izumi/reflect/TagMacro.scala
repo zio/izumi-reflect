@@ -142,7 +142,7 @@ class TagMacro(val c: blackbox.Context) {
     {
       implicit val itag: c.WeakTypeTag[T] = tag
       c.Expr[Tag[T]](
-        q"_root_.izumi.reflect.Tag.apply[$tpe]($clsTree, $ltagTree)"
+        q"new _root_.izumi.reflect.Tag[$tpe]($clsTree, $ltagTree)"
       )
     }
   }
@@ -166,20 +166,13 @@ class TagMacro(val c: blackbox.Context) {
     logger.log(s"Got non-strong tag: $tpe, dealiased: $tgt")
     addImplicitError(s"  deriving Tag for $tpe, dealiased: $tgt:")
 
-    //    val res = makeTag(tpe, tgt, tag)
     val wtt = implicitly[c.WeakTypeTag[T]]
-
-    val res: c.Expr[Tag[T]] =
-      if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
-        makeStrongTagImpl[T](tpe, wtt)
-      } else {
-        makeWeakTagImpl[T](tpe, wtt)
-      }
+    val res = makeTag[T]
 
     if (macroCacheEnabled) {
       res match {
         case c.Expr(q"_root_.izumi.reflect.Tag.apply[$_]($_, $ltagExpr)") =>
-      tagCache.put (tpe, new SoftReference(ltagExpr))
+          tagCache.put(tpe, new SoftReference(ltagExpr))
         case _ => ()
       }
     }

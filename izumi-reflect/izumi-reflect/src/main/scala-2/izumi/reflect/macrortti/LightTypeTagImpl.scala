@@ -91,6 +91,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private val dbCache = new java.util.concurrent.ConcurrentHashMap[Type, java.lang.ref.SoftReference[SubtypeDBs]]()
 
+  private val lambdaRefinementCache =
+    new java.util.concurrent.ConcurrentHashMap[Type, java.lang.ref.SoftReference[List[(AbstractReference, AbstractReference)]]]()
+
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
@@ -105,14 +108,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }.result()
 
     // --- DB-level cache check ---
-    val dbCacheEnabled =
-      sys.props.get("izumi.reflect.cache.db").exists(_.toBoolean)
-    val dbKey = tpe
-    if (dbCacheEnabled) {
-      val refDb = dbCache.get(dbKey)
+    if (withCache) {
+      val refDb = dbCache.get(tpe)
       val cachedDb = if (refDb != null) refDb.get() else null
       if (cachedDb != null) {
-        val SubtypeDBs(cachedBases, cachedIdb) = cachedDb
+        val subtypeDBs(cachedBases, cachedIdb) = cachedDb
         return LightTypeTag(lttRef, cachedBases, cachedIdb)
       }
     }
@@ -120,8 +120,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
     val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
 
-    if (dbCacheEnabled) {
-      dbCache.put(dbKey, new SoftReference(SubtypeDBs.make(fullDb, unappliedDb)))
+    if (withCache) {
+      dbCache.put(tpe, new SoftReference(SubtypeDBs.make(fullDb, unappliedDb)))
     }
 
     LightTypeTag(lttRef, fullDb, unappliedDb)
@@ -302,39 +302,50 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def processLambdasReturningRefinements(tpeRaw0: Type): List[(AbstractReference, AbstractReference)] = {
-      val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
+      val ref = lambdaRefinementCache.get(tpeRaw0)
+      val cached = if (ref != null) ref.get() else null
+      if (cached != null) {
+        cached
+      } else {
+        val computed = {
+          val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
 
-      IzAssert(
-        assertion = {
-          if (componentsOfPolyTypeResultType.maybeUnbrokenType.isEmpty) {
-            !componentsOfPolyTypeResultType.intersectionComponents.exists(_.takesTypeArgs)
-          } else {
-            true
-          }
-        },
-        clue = {
-          s"""Unexpected intersection contains a PolyType:
-             |tpeRaw0 = $tpeRaw0
-             |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
-             |takesTypeArgs = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.takesTypeArgs).niceList(prefix = "*")}
-             |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
-             |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
-             |""".stripMargin
-        }
-      )
-
-      componentsOfPolyTypeResultType
-        .intersectionComponents.iterator.flatMap {
-          component =>
-            val componentAsPolyType = component.etaExpand
-            val tparams = componentAsPolyType.typeParams
-
-            if (tparams.isEmpty) {
-              Nil
-            } else {
-              makeLambda(componentAsPolyType, tparams)
+          IzAssert(
+            assertion = {
+              if (componentsOfPolyTypeResultType.maybeUnbrokenType.isEmpty) {
+                !componentsOfPolyTypeResultType.intersectionComponents.exists(_.takesTypeArgs)
+              } else {
+                true
+              }
+            },
+            clue = {
+              s"""Unexpected intersection contains a PolyType:
+                 |tpeRaw0 = $tpeRaw0
+                 |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
+                 |takesTypeArgs = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.takesTypeArgs).niceList(prefix = "*")}
+                 |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
+                 |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
+                 |""".stripMargin
             }
-        }.toList
+          )
+
+          componentsOfPolyTypeResultType
+            .intersectionComponents.iterator.flatMap {
+              component =>
+                val componentAsPolyType = component.etaExpand
+                val tparams = componentAsPolyType.typeParams
+
+                if (tparams.isEmpty) {
+                  Nil
+                } else {
+                  makeLambda(componentAsPolyType, tparams)
+                }
+            }.toList
+        }
+
+        lambdaRefinementCache.put(tpeRaw0, new java.lang.ref.SoftReference(computed))
+        computed
+      }
     }
 
     def makeLambda(componentAsPolyType: Type, tparams: List[Symbol]): List[(AbstractReference, AbstractReference)] = {
