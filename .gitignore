@@ -117,3 +117,4 @@ project/plugins/project/
 hs_err_pid*
 
 .vscode
+bench/
