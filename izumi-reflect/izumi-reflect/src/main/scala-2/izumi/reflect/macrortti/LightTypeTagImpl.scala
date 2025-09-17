@@ -112,7 +112,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val refDb = dbCache.get(tpe)
       val cachedDb = if (refDb != null) refDb.get() else null
       if (cachedDb != null) {
-        val subtypeDBs(cachedBases, cachedIdb) = cachedDb
+        val SubtypeDBs(cachedBases, cachedIdb) = cachedDb
         return LightTypeTag(lttRef, cachedBases, cachedIdb)
       }
     }
