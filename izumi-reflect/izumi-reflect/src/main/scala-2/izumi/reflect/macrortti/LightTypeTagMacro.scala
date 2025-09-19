@@ -87,21 +87,27 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
   }
 
   // LTT‑level cache wraps the "build from Type" path; caches LightTypeTag values and re‑lifts to Expr
+  // Replace the existing body of makeParsedLightTypeTagImpl(tpe: Type)
   final def makeParsedLightTypeTagImpl(tpe: Type): c.Expr[LightTypeTag] = {
+    logger.log(s"[DEBUG] LTT input: ${show(tpe)} | raw=${showRaw(tpe)}")
+
     val lttCacheEnabled = sys.props.get("izumi.reflect.cache.ltt").exists(_.toBoolean)
-    val key = tpe
+
+    val normTpe0 = tpe.dealias
+    val normTpe = normTpe0.finalResultType
+
+    val key = normTpe
 
     if (lttCacheEnabled) {
       val ref = lttCache.get(key)
       val cached = if (ref != null) ref.get() else null
       if (cached != null) {
-        // Re‑lift cached value into Expr in the current macro context
         return makeParsedLightTypeTagImpl(cached)
       }
     }
 
-    // Build fresh LightTypeTag value
-    val res: LightTypeTag = impl.makeFullTagImpl(tpe)
+    val base = if (ReflectionUtil.allPartsStrong(normTpe)) normTpe else tpe
+    val res: LightTypeTag = impl.makeFullTagImpl(base)
 
     if (lttCacheEnabled) {
       lttCache.put(key, new SoftReference(res))
