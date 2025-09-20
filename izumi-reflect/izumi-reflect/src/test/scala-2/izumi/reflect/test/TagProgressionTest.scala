@@ -21,5 +21,4 @@ class TagProgressionTest extends SharedTagProgressionTest {
     }
 
   }
-
 }

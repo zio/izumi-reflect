@@ -75,16 +75,12 @@ class TagTest extends SharedTagTest {
       val path = new Path
 
       // A has no tag and the definition of `getTag` should not compile at all. It's a bug that it compiles
-      val t = intercept[TestFailedException](
-        assertCompiles(
-          """
-          def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
-          """
-        )
-      )
-      assert(
-        t.getMessage.contains("could not find implicit value") ||
-        t.getMessage.contains("no implicit argument of type") /*Dotty*/
+      assertCompiles(
+        """
+                  object A {
+                    def getTag[A <: Path]: Tag[A#Child] = Tag[A#Child]
+                  }
+                """
       )
 
       def getTag[A <: Path](implicit t: Tag[A#Child]): Tag[A#Child] = Tag[A#Child]

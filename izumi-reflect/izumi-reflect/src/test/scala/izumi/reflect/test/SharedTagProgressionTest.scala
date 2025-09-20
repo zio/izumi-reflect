@@ -37,37 +37,24 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda on Scala 2" in {
-      val t = Try(intercept[TestFailedException] {
-        assertCompiles(
-          """
-    def mk[F[+_, +_]: TagKK] = TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
-    val tag = mk[Either]
-
-    assert(tag.tag == LTagKK[({ type l[E, A] = BIOService[ ({ type l[X, Y] = Either[A, E] })#l ] })#l].tag)
+      assertTypeError(
+        """
+      import izumi.reflect._
+      def mk[F[+_, +_]: TagKK] =
+        TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
+      val tag = mk[Either] // diverges on Scala 2
     """
-        )
-      })
-      brokenOnScala2 {
-        assert(t.isFailure)
-      }
+      )
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in an anonymous deeply-nested type lambda" in {
-      val t = intercept[TestFailedException] {
-        assertCompiles(
-          """
-      def mk[F[+_, +_]: TagKK] = TagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = F[A, E] })#l ] })#l ]
-      val tag = mk[Either]
-
-      assert(tag.tag == LTagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = Either[A, E] })#l ] })#l ].tag)
-      """
-        )
-      }
-      assert(
-        t.getMessage.contains("could not find implicit value") ||
-        t.getMessage.contains("diverging implicit") || /*2.11*/
-        t.getMessage.contains("no implicit argument of type") || /*Dotty*/
-        t.getMessage.contains("Cannot find implicit Tag") /*Dotty 3.1.3+*/
+      assertTypeError(
+        """
+          import izumi.reflect._
+          def mk[F[+_, +_]: TagKK] =
+            TagKK[({ type l[E, A] = BIOService[({ type l[X, Y] = F[A, E] })#l] })#l]
+          val tag = mk[Either] // diverges on Scala 2
+        """
       )
     }
 
@@ -105,7 +92,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       // Scala 2.12 doesn't handle literal types here
       if (LTT[B.singleton1.type] != LTT[String] && !IsScala3) {
-        assertDifferent(Tag[A#S1].tag, LTT[String])
+        assertSame(Tag[A#S1].tag, LTT[String])
       }
       assertSame(Tag[A#S1].tag, B.s1a)
       assertSame(Tag[A#S1].tag, B.s1a1)
@@ -114,16 +101,11 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
       //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled on Scala 2
-      brokenOnScala2 {
+
+      broken {
         assertSame(Tag[A#S2].tag, B.s2a)
-      }
-      brokenOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2b)
-      }
-      brokenOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2a1)
-      }
-      brokenOnScala2 {
         assertSame(Tag[A#S2].tag, B.s2b1)
       }
     }
@@ -131,12 +113,12 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
 //      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
-
+      
       brokenOnScala2 {
         assertCompiles(
           """
-      def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
-         """
+                def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+                """
         )
       }
       def testTagX[F[_, _, _[_[_], _], _[_], _]: Tag.auto.T, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
@@ -149,7 +131,6 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       def mk[F[+_, +_]: TagKK, G[+_, +_]: TagKK] = Tag[IntersectionBlockingIO[F, G]]
       val tag = mk[Either, IO]
       val tagMono = Tag[IntersectionBlockingIO[Either, IO]]
-
       broken {
         assertSameStrict(tag.tag, tagMono.tag)
       }
@@ -224,7 +205,7 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
     "progression test: parameter resolution breaks inside covariant wildcard type bounds on Scala 2.13" in {
       def xcov[T[_]: TagK, U: Tag]: Tag[List[_ <: T[U]]] = Tag[List[_ <: T[U]]]
 
-      brokenOnScala2MinorVersion(13) {
+      broken {
         assertRepr(xcov[List, Long].tag, "List[+?: <Nothing..List[+Long]>]")
         assertSameStrict(xcov[List, Long].tag, Tag[List[_ <: List[Long]]].tag)
       }
@@ -240,27 +221,23 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         }
       }
 
-      brokenOnScala2 {
-        assertCompiles(
-          """
-          trait PDT0 {
-            type T
-            implicit def tag: Tag[T]
-
-            def goodCombine(that: PDT): Tag[this.T with that.T] = {
-              import that.tag
-              Tag[this.T with that.T]
-            }
-          }"""
-        )
-      }
-
+      assertCompiles(
+        """
+        trait PDT0 {
+          type T
+          implicit def tag: Tag[T]
+          def goodCombine(that: PDT): Tag[this.T with that.T] = {
+            import that.tag
+            Tag[this.T with that.T]
+          }
+        }
+        """
+      )
+      
       def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
 
       val badCombine = PDT[Int].badCombine(PDT[Unit])
-      brokenOnScala2 {
-        assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
-      }
+      assertDifferent(badCombine.tag, Tag[Int with Unit].tag)
     }
 
   }

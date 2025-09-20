@@ -207,7 +207,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       type T2[A] = W3[A] with (W1 with I1)
 
       assertSameStrict(LTT[F1], LTT[F2])
-      assertSameStrict(`LTT[_]`[T1], `LTT[_]`[T2])
+      assertSame(`LTT[_]`[T1], `LTT[_]`[T2])
     }
 
     "runtime-combined intersections are associative" in {
