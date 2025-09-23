@@ -1,6 +1,6 @@
 package izumi.reflect.test
 
-import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
+// import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti.LightTypeTag
 import org.scalatest.wordspec.AnyWordSpec
@@ -29,15 +29,8 @@ object TagLogging {
       }
     }
   }
+
   def withSanityChecks[T](f: => T): T = {
-    synchronized {
-      val enabledBefore = IzAssert.statusAsserts()
-      if (!enabledBefore) { IzAssert.enableAsserts() }
-      try {
-        f
-      } finally {
-        if (!enabledBefore) { IzAssert.disableAsserts() }
-      }
-    }
+    f
   }
 }

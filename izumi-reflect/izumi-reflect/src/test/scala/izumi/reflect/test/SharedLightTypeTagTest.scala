@@ -6,7 +6,10 @@ import izumi.reflect.macrortti._
 import scala.collection.immutable.ListSet
 import scala.collection.{BitSet, immutable, mutable}
 
-abstract class SharedLightTypeTagTest extends TagAssertions {
+import izumi.reflect.test.ScalaVersion._
+import org.scalatest.wordspec.AnyWordSpec
+
+abstract class SharedLightTypeTagTest extends AnyWordSpec with TagAssertions {
 
   import TestModel._
 
@@ -934,27 +937,27 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "support human-readable representation" in {
-      type TX[B] = Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[B, A] }
+      type TX[B] = Int {def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = _root_.scala.Either[B, A]}
       val txTag = `LTT[_]`[TX]
       assert(
         (txTag.toString // Scala 2
           == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})")
           || (txTag.toString // Dotty
-            == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})")
+          == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})")
       )
       val txCombinedTag = `LTT[_]`[TX].combine(LTT[Unit])
       assert(
         (txCombinedTag.toString // Scala 2
           == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})")
           || (txCombinedTag.toString // Dotty
-            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
       )
       val txUnitTag = LTT[TX[Unit]]
       assert(
-        (txUnitTag.toString
+        (txUnitTag.toString // Scala 2 or Dotty 3.1.3+ format
           == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
-          || (txUnitTag.toString
-            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})")
+          || (txUnitTag.toString // Older Dotty format
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})")
       )
       assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
       assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")

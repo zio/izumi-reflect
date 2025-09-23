@@ -29,10 +29,6 @@ import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName,
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
 
-import java.util.concurrent.ConcurrentHashMap
-import java.lang.ref.SoftReference
-import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.language.reflectiveCalls
@@ -89,13 +85,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
 
-  private val dbCache = new java.util.concurrent.ConcurrentHashMap[Type, java.lang.ref.SoftReference[SubtypeDBs]]()
-
-  private val lambdaRefinementCache =
-    new java.util.concurrent.ConcurrentHashMap[Type, java.lang.ref.SoftReference[List[(AbstractReference, AbstractReference)]]]()
-
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
+
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
 
     val lttRef = makeRef(tpe)
@@ -107,22 +99,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
       }.result()
 
-    // --- DB-level cache check ---
-    if (withCache) {
-      val refDb = dbCache.get(tpe)
-      val cachedDb = if (refDb != null) refDb.get() else null
-      if (cachedDb != null) {
-        val SubtypeDBs(cachedBases, cachedIdb) = cachedDb
-        return LightTypeTag(lttRef, cachedBases, cachedIdb)
-      }
-    }
-
     val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
     val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
-
-    if (withCache) {
-      dbCache.put(tpe, new SoftReference(SubtypeDBs.make(fullDb, unappliedDb)))
-    }
 
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
@@ -302,50 +280,39 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def processLambdasReturningRefinements(tpeRaw0: Type): List[(AbstractReference, AbstractReference)] = {
-      val ref = lambdaRefinementCache.get(tpeRaw0)
-      val cached = if (ref != null) ref.get() else null
-      if (cached != null) {
-        cached
-      } else {
-        val computed = {
-          val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
+      val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
 
-          IzAssert(
-            assertion = {
-              if (componentsOfPolyTypeResultType.maybeUnbrokenType.isEmpty) {
-                !componentsOfPolyTypeResultType.intersectionComponents.exists(_.takesTypeArgs)
-              } else {
-                true
-              }
-            },
-            clue = {
-              s"""Unexpected intersection contains a PolyType:
-                 |tpeRaw0 = $tpeRaw0
-                 |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
-                 |takesTypeArgs = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.takesTypeArgs).niceList(prefix = "*")}
-                 |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
-                 |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
-                 |""".stripMargin
-            }
-          )
-
-          componentsOfPolyTypeResultType
-            .intersectionComponents.iterator.flatMap {
-              component =>
-                val componentAsPolyType = component.etaExpand
-                val tparams = componentAsPolyType.typeParams
-
-                if (tparams.isEmpty) {
-                  Nil
-                } else {
-                  makeLambda(componentAsPolyType, tparams)
-                }
-            }.toList
+      IzAssert(
+        assertion = {
+          if (componentsOfPolyTypeResultType.maybeUnbrokenType.isEmpty) {
+            !componentsOfPolyTypeResultType.intersectionComponents.exists(_.takesTypeArgs)
+          } else {
+            true
+          }
+        },
+        clue = {
+          s"""Unexpected intersection contains a PolyType:
+             |tpeRaw0 = $tpeRaw0
+             |components = ${componentsOfPolyTypeResultType.intersectionComponents.niceList(prefix = "*")}
+             |takesTypeArgs = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.takesTypeArgs).niceList(prefix = "*")}
+             |etaExpand = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand).niceList(prefix = "+")}
+             |tparams = ${componentsOfPolyTypeResultType.intersectionComponents.map(_.etaExpand.typeParams).niceList(prefix = "-")}
+             |""".stripMargin
         }
+      )
 
-        lambdaRefinementCache.put(tpeRaw0, new java.lang.ref.SoftReference(computed))
-        computed
-      }
+      componentsOfPolyTypeResultType
+        .intersectionComponents.iterator.flatMap {
+          component =>
+            val componentAsPolyType = component.etaExpand
+            val tparams = componentAsPolyType.typeParams
+
+            if (tparams.isEmpty) {
+              Nil
+            } else {
+              makeLambda(componentAsPolyType, tparams)
+            }
+        }.toList
     }
 
     def makeLambda(componentAsPolyType: Type, tparams: List[Symbol]): List[(AbstractReference, AbstractReference)] = {
@@ -542,7 +509,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           }
 
         case Broken.Single(t) =>
-            unpackAsProperType(t, rules)
+          unpackAsProperType(t, rules)
       }
     }
 
@@ -616,8 +583,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       } else if (decl.isType) {
         val tpe = UniRefinement.typeOfTypeMember(decl)
         val declName = decl.name.decodedName.toString
-        // AND here
-        val ref = makeRefTop(tpe, rules, isLambdaOutput = false) match {
+        val ref = makeRefSub(tpe, rules, Set.empty) match {
           // inspecting abstract type will always return a <none> NamedReference
           case n @ NameReference(SymTypeName("<none>"), _, _) => n.copy(ref = SymTypeName(declName))
           case ref => ref
@@ -888,6 +854,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         List(decl.typeSignature)
       }
     }
+
   }
 
   private[this] object Dealias {
@@ -965,10 +932,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         tSym.isType && tSym.asType.isExistential
     }
   }
+
   private[this] def hasSingletonType(sym: Symbol): Boolean = {
     sym.isTerm || sym.isModuleClass || isSingletonType(sym.typeSignature)
   }
+
   @inline private[this] def isSingletonType(tpe: Type): Boolean = {
     tpe.isInstanceOf[SingletonTypeApi] && !tpe.isInstanceOf[ThisTypeApi]
   }
+
 }

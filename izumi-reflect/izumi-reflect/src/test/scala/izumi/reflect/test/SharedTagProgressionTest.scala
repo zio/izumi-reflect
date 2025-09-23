@@ -7,113 +7,134 @@ import izumi.reflect.test.PlatformSpecific.fromRuntime
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.language.existentials
+import izumi.reflect.test.ScalaVersion._
+
 import scala.util.Try
 
 /**
-  * The tests here are *progression* tests, that means they test that something *doesn't work*
-  *
-  * If a test here starts to fail that's a GOOD thing - that means a new feature is now supported.
-  * When that happens you can remove the `broken` condition inversions and move the test to
-  * the non-progression test suite.
-  *
-  * All tests must have `broken` clauses wrapping the expected GOOD conditions if a feature
-  * were to work. If a test is missing `broken` clause, it's a probably not a progression test
-  * anymore and should be moved.
-  */
+ * The tests here are *progression* tests, that means they test that something *doesn't work*
+ *
+ * If a test here starts to fail that's a GOOD thing - that means a new feature is now supported.
+ * When that happens you can remove the `broken` condition inversions and move the test to
+ * the non-progression test suite.
+ *
+ * All tests must have `broken` clauses wrapping the expected GOOD conditions if a feature
+ * were to work. If a test is missing `broken` clause, it's a probably not a progression test
+ * anymore and should be moved.
+ */
 abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModel {
-
+  
   "[progression] Tag (all versions)" should {
 
     "progression test: can't substitute type parameters inside defs/vals in structural types" in {
-      def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
-      def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
+      def t1[T: Tag]: Tag[ {def x: T}] = Tag[ {def x: T}]
+
+      def t2[T: Tag]: Tag[ {val x: T}] = Tag[ {val x: T}]
 
       broken {
-        assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
+        assertSameStrict(t1[Int].tag, Tag[ {def x: Int}].tag)
       }
       broken {
-        assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
+        assertSameStrict(t2[Int].tag, Tag[ {val x: Int}].tag)
       }
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda on Scala 2" in {
-      assertTypeError(
-        """
-      import izumi.reflect._
-      def mk[F[+_, +_]: TagKK] =
-        TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
-      val tag = mk[Either] // diverges on Scala 2
-    """
-      )
+      val t = Try(intercept[TestFailedException] {
+        assertCompiles(
+          """
+                import izumi.reflect._ 
+                import izumi.reflect.test.InheritedModel._ 
+                def mk[F[+_, +_]: TagKK] = TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
+                val tag = mk[Either]
+    
+                """
+        )
+      })
+      brokenOnScala2 {
+        assert(t.isFailure)
+      }
+      if (IsScala3) {
+        assert(t.isSuccess)
+      }
     }
 
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in an anonymous deeply-nested type lambda" in {
-      assertTypeError(
-        """
-          import izumi.reflect._
-          def mk[F[+_, +_]: TagKK] =
-            TagKK[({ type l[E, A] = BIOService[({ type l[X, Y] = F[A, E] })#l] })#l]
-          val tag = mk[Either] // diverges on Scala 2
-        """
-      )
+      if (IsScala2) {
+        pending
+      } else {
+        assertCompiles(
+          """
+            import izumi.reflect._
+            def mk[F[+_, +_]: TagKK] =
+              TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
+            val tag = mk[Either]
+          """
+        )
+      }
     }
 
     "progression test: projections into singletons are not handled properly (on Scala 2)" in {
-      trait A {
-        class X
+      if (!IsScala2) {
+        trait A {
+          class X
 
-        final val singleton1 = "bar"
-        type S1 = singleton1.type
+          final val singleton1 = "bar"
+          type S1 = singleton1.type
 
-        val singleton2 = "bar"
-        type S2 = singleton2.type
+          val singleton2 = "bar"
+          type S2 = singleton2.type
 
-//        val s1a = Tag[S1] // class type required but String("bar") found error on 2.11
-        val s1a = LTT[S1]
-        val s1a1 = Tag[singleton1.type].tag
+          //        val s1a = Tag[S1] // class type required but String("bar") found error on 2.11
+          val s1a = LTT[S1]
+          val s1a1 = Tag[singleton1.type].tag
 
-//        val s2a = Tag[S2]
-        val s2a = LTT[S2]
-        val s2a1 = Tag[singleton2.type].tag
-      }
+          //        val s2a = Tag[S2]
+          val s2a = LTT[S2]
+          val s2a1 = Tag[singleton2.type].tag
+        }
 
-      trait B extends A {
-        val xb = Tag[X].tag
+        trait B extends A {
+          val xb = Tag[X].tag
 
-//        val s1b = Tag[S1].tag
-        val s1b = LTT[S1]
-        val s1b1 = Tag[singleton1.type].tag
+          //        val s1b = Tag[S1].tag
+          val s1b = LTT[S1]
+          val s1b1 = Tag[singleton1.type].tag
 
-        val s2b = LTT[S2]
-        val s2b1 = Tag[singleton2.type].tag
-      }
+          val s2b = LTT[S2]
+          val s2b1 = Tag[singleton2.type].tag
+        }
 
-      object B extends B
+        object B extends B
 
-      // Scala 2.12 doesn't handle literal types here
-      if (LTT[B.singleton1.type] != LTT[String] && !IsScala3) {
-        assertSame(Tag[A#S1].tag, LTT[String])
-      }
-      assertSame(Tag[A#S1].tag, B.s1a)
-      assertSame(Tag[A#S1].tag, B.s1a1)
-      assertSame(Tag[A#S1].tag, B.s1b)
-      assertSame(Tag[A#S1].tag, B.s1b1)
+        // Scala 2.12 doesn't handle literal types here
+        if (LTT[B.singleton1.type] != LTT[String] && !IsScala3) {
+          assertSame(Tag[A#S1].tag, LTT[String])
+        }
+        assertSame(Tag[A#S1].tag, B.s1a)
+        assertSame(Tag[A#S1].tag, B.s1a1)
+        assertSame(Tag[A#S1].tag, B.s1b)
+        assertSame(Tag[A#S1].tag, B.s1b1)
 
-      // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
-      //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled on Scala 2
+        // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
+        //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled on Scala 2
 
-      broken {
-        assertSame(Tag[A#S2].tag, B.s2a)
-        assertSame(Tag[A#S2].tag, B.s2b)
-        assertSame(Tag[A#S2].tag, B.s2a1)
-        assertSame(Tag[A#S2].tag, B.s2b1)
+        broken {
+          assertSame(Tag[A#S2].tag, B.s2a)
+          assertSame(Tag[A#S2].tag, B.s2b)
+          assertSame(Tag[A#S2].tag, B.s2a1)
+          assertSame(Tag[A#S2].tag, B.s2b1)
+        }
+      } else {
+        succeed
       }
     }
 
     "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
-//      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
-      
+      //      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
+
       brokenOnScala2 {
         assertCompiles(
           """
@@ -233,11 +254,17 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
         }
         """
       )
-      
+
       def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
 
       val badCombine = PDT[Int].badCombine(PDT[Unit])
-      assertDifferent(badCombine.tag, Tag[Int with Unit].tag)
+      if (!IsScala3) {
+        broken {
+          assertSame(badCombine.tag, Tag[Int with Unit].tag)
+        }
+      } else {
+        assertSame(badCombine.tag, Tag[Int with Unit].tag)
+      }
     }
 
   }
