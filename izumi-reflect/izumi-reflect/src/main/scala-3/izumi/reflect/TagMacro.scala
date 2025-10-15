@@ -160,7 +160,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       case andType: AndType =>
         val tpes = flattenAnd(andType)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTT))
-        val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExprOf[Class[?]]
+        val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExpr.asInstanceOf[Expr[Class[?]]]
         val dummyAnyStructLtt = {
           // FIXME add constructor for intersections without the unused on Scala 3 struct type
           Inspect.inspectAny[Any]
@@ -170,7 +170,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       case orType: OrType =>
         val tpes = flattenOr(orType)
         val ltts: Expr[List[LightTypeTag]] = Expr.ofList(tpes.map(summonLTT))
-        val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExprOf[Class[?]]
+        val cls = Literal(ClassOfConstant(lubClassOf(typeReprDealiased, tpes))).asExpr.asInstanceOf[Expr[Class[?]]]
         '{ Tag.unionTag[T](${ cls }, ${ ltts }) }
 
       case refinement: Refinement =>
@@ -231,7 +231,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   }
 
   private def closestClassOfTypeRepr(typeRepr: TypeRepr): Expr[Class[?]] = {
-    Literal(ClassOfConstant(lubClassOf(typeRepr, intersectionUnionRefinementClassPartsOf(typeRepr)))).asExprOf[Class[?]]
+    Literal(ClassOfConstant(lubClassOf(typeRepr, intersectionUnionRefinementClassPartsOf(typeRepr)))).asExpr.asInstanceOf[Expr[Class[?]]]
   }
 
   private def lubClassOf(specificTpe: TypeRepr, tpes: List[TypeRepr]): TypeRepr = {
@@ -259,7 +259,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     val tagTypeRepr = AppliedType(tagSymbolTypeRef, List(typeRepr))
     Implicits.search(tagTypeRepr) match {
       case s: ImplicitSearchSuccess =>
-        s.tree.asExprOf[Tag[?]](using tagWildCardTpe)
+        s.tree.asExpr.asInstanceOf[Expr[Tag[?]]]
       case f: ImplicitSearchFailure =>
         val aStr = typeRepr.show
         val implicitMessage = defaultImplicitError.replace("${T}", aStr)
