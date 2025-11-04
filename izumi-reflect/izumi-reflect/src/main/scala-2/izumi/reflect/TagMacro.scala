@@ -21,6 +21,7 @@ package izumi.reflect
 import izumi.reflect.ReflectionUtil.{Kind, kindOf}
 import izumi.reflect.TagMacro._
 import izumi.reflect.internal.NowarnCompat
+import izumi.reflect.internal.cache.{CacheContext, CacheKeyGen}
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagMacro0, LightTypeTagRef}
@@ -39,6 +40,7 @@ class TagMacro(val c: blackbox.Context) {
 
   protected[this] val logger: TrivialLogger = TrivialMacroLogger.make[this.type](c)
   private[this] val ltagMacro = new LightTypeTagMacro0[c.type](c)(logger)
+  private[this] val cacheContext: CacheContext = CacheContext.adaptive()
 
   // workaround for a scalac bug - `Nothing` type is lost when two implicits for it are summoned from one implicit as in:
   //  implicit final def tagFromTypeTag[T](implicit t: TypeTag[T], l: LTag[T]): Tag[T] = Tag(t, l.fullLightTypeTag)
@@ -81,6 +83,9 @@ class TagMacro(val c: blackbox.Context) {
 
   private def makeStrongTagImpl[T](tpe: c.Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     logger.log(s"Got strong tag, generating LTT right away: ${tag.tpe}")
+    
+    // Generate LTT for Scala 2 (simplified approach without caching)
+    logger.log(s"Generating strong tag for Scala 2: $tpe")
     val ltag = ltagMacro.makeParsedLightTypeTagImpl(tpe)
     val cls = closestClass(tpe)
 

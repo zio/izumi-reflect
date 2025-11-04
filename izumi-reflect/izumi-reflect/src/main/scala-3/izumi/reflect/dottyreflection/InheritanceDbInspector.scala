@@ -1,5 +1,6 @@
 package izumi.reflect.dottyreflection
 
+import izumi.reflect.internal.cache.CacheContext
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
@@ -9,18 +10,20 @@ import scala.collection.mutable
 import scala.quoted.*
 
 object InheritanceDbInspector {
-  def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
+  def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = make(q, CacheContext.disabled())
+  
+  def make(q: Quotes, cacheContext: CacheContext): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0, cacheContext) {
     override val qctx: q.type = q
   }
 }
 
-abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
+  abstract class InheritanceDbInspector(protected val shift: Int, protected val cacheContext: CacheContext) extends InspectorBase {
   import qctx.reflect.*
 
   def makeUnappliedInheritanceDb(typeRepr: TypeRepr): Map[NameReference, Set[NameReference]] = {
     val tpe0 = typeRepr._dealiasSimplifiedFull
 
-    new Run(Inspector.make(qctx), mutable.HashSet.empty)
+    new Run(Inspector.make(qctx, cacheContext), mutable.HashSet.empty)
       .makeUnappliedInheritanceDb(tpe0)
   }
 

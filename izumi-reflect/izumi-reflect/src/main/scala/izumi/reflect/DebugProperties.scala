@@ -51,6 +51,42 @@ object DebugProperties {
   final val `izumi.reflect.rtti.cache.compile` = "izumi.reflect.rtti.cache.compile"
 
   /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.macro=false` to disable macro-level caching during compilation.
+    * This controls caching of complete Tag expressions at the TagMacro level.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.macro=false"
+    * }}}
+    *
+    * Default: `true` (adaptive based on CPU cores)
+    */
+  final val `izumi.reflect.rtti.cache.compile.macro` = "izumi.reflect.rtti.cache.compile.macro"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.ltt=false` to disable LTT-level caching during compilation.
+    * This controls caching of individual AbstractReference objects during LightTypeTag creation.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.ltt=false"
+    * }}}
+    *
+    * Default: `true` (adaptive based on CPU cores)
+    */
+  final val `izumi.reflect.rtti.cache.compile.ltt` = "izumi.reflect.rtti.cache.compile.ltt"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.db=false` to disable database-level caching during compilation.
+    * This controls caching of inheritance database components and type hierarchy inspections.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.db=false"
+    * }}}
+    *
+    * Default: `true` on high-core machines, `false` otherwise (adaptive)
+    */
+  final val `izumi.reflect.rtti.cache.compile.db` = "izumi.reflect.rtti.cache.compile.db"
+
+  /**
     * Set system property `-Dizumi.reflect.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
     * Caching is enabled by default for runtime light type tag creation.
     *
@@ -61,6 +97,30 @@ object DebugProperties {
     * Default: `true`
     */
   final val `izumi.reflect.rtti.cache.runtime` = "izumi.reflect.rtti.cache.runtime"
+
+  /**
+    * Set system property `-Dizumi.reflect.rtti.cache.runtime.ltt=false` to disable LTT-level caching for runtime creation.
+    * This controls caching of individual AbstractReference objects during runtime LightTypeTag creation.
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.rtti.cache.runtime.ltt=false
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.runtime.ltt` = "izumi.reflect.rtti.cache.runtime.ltt"
+
+  /**
+    * Set system property `-Dizumi.reflect.rtti.cache.runtime.db=false` to disable database-level caching for runtime creation.
+    * This controls caching of inheritance database components during runtime processing.
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.rtti.cache.runtime.db=false
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.runtime.db` = "izumi.reflect.rtti.cache.runtime.db"
 
   /**
     * To see macro debug output during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` system property

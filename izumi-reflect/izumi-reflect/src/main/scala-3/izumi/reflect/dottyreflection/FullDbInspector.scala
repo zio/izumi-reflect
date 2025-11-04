@@ -3,22 +3,25 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
+import izumi.reflect.internal.cache.CacheContext
 
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.quoted.*
 
 object FullDbInspector {
-  def make(q: Quotes): FullDbInspector { val qctx: q.type } = new FullDbInspector(0) {
+  def make(q: Quotes): FullDbInspector { val qctx: q.type } = make(q, CacheContext.disabled())
+  
+  def make(q: Quotes, cacheContext: CacheContext): FullDbInspector { val qctx: q.type } = new FullDbInspector(0, cacheContext) {
     override val qctx: q.type = q
   }
 }
 
-abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
+abstract class FullDbInspector(protected val shift: Int, val cacheContext: CacheContext) extends InspectorBase {
   import qctx.reflect._
 
   def buildFullDb(typeRepr: TypeRepr): Map[AbstractReference, Set[AbstractReference]] = {
-    new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
+    new Run(Inspector.make(qctx, cacheContext), mutable.HashSet.empty, mutable.HashSet.empty)
       .inspectTypeReprToFullBases(typeRepr, onlyIndirect = false)
       .iterator
       .filterNot {

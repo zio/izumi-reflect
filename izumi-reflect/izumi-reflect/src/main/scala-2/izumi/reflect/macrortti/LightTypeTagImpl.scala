@@ -19,6 +19,7 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.internal.{CollectionCompat, NowarnCompat}
+import izumi.reflect.internal.cache.{CacheContext, CacheKeyGen}
 import izumi.reflect.internal.fundamentals.collections.IzCollections._
 import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
@@ -48,7 +49,7 @@ object LightTypeTagImpl {
   def makeLightTypeTag(u: Universe)(typeTag: u.Type): LightTypeTag = {
     ReflectionLock.synchronized {
       val logger = TrivialLogger.make[this.type](config = Config.console)
-      new LightTypeTagImpl[u.type](u, withCache = runtimeCacheEnabled, logger).makeFullTagImpl(typeTag)
+      new LightTypeTagImpl[u.type](u, withCache = runtimeCacheEnabled, logger, cacheContextOpt = None).makeFullTagImpl(typeTag)
     }
   }
 
@@ -76,7 +77,7 @@ object LightTypeTagImpl {
 
 }
 
-final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: Boolean, logger: TrivialLogger) {
+final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: Boolean, logger: TrivialLogger, cacheContextOpt: Option[CacheContext] = None) {
 
   import u._
 
@@ -84,6 +85,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val obj = definitions.ObjectTpe
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
+  
+  // Use provided cache context or disabled cache
+  private[this] final val cacheContext: CacheContext = cacheContextOpt.getOrElse(CacheContext.disabled())
 
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
@@ -415,6 +419,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] def makeRef(tpe: Type): AbstractReference = {
     if (withCache) {
+      // Use existing global cache for Scala 2 (simplified approach)
+      logger.log(s"Using cache for LTT in Scala 2: $tpe")
       globalCache.synchronized(globalCache.get(tpe)) match {
         case null =>
           val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)

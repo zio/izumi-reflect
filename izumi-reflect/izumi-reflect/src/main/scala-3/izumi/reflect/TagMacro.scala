@@ -4,6 +4,7 @@ import scala.quoted.{Expr, Quotes, Type, Varargs}
 import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
 import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
 import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam, Variance}
+import izumi.reflect.internal.cache.{CacheContext, Scala3KeyGen}
 
 import scala.collection.mutable
 
@@ -17,6 +18,9 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   override def shift: Int = 0
 
+  // Initialize cache context for this compilation session
+  private val cacheContext = CacheContext.adaptive()
+
   private val tagSymbol = Symbol.requiredClass("izumi.reflect.Tag")
   private val tagSymbolTypeRef = tagSymbol.typeRef
 
@@ -28,16 +32,22 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val owners = getClassDefOwners(Symbol.spliceOwner)
     val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
-    if (allPartsStrong(owners, typeRepr)) {
-      createTag[A](typeRepr)
-    } else {
-      summonCombinedTag[A](owners, typeRepr)
-    }
+    
+    // Macro-level caching: cache complete Tag expressions
+    val cacheKey = Scala3KeyGen.stableKey(typeRepr)
+    
+    cacheContext.macroCache.getOrCompute(cacheKey) {
+      if (allPartsStrong(owners, typeRepr)) {
+        createTag[A](typeRepr)
+      } else {
+        summonCombinedTag[A](owners, typeRepr)
+      }
+    }.asInstanceOf[Expr[Tag[A]]]
   }
 
   private def createTag[A <: AnyKind](typeRepr0: TypeRepr): Expr[Tag[A]] = {
     val typeRepr = typeRepr0._etaExpandTypeRef // convert HKT type refs to type lambdas manually as an optimization. This required an additional splice level before.
-    val ltt = Inspect.inspectTypeRepr(typeRepr)
+    val ltt = Inspect.inspectTypeRepr(typeRepr, cacheContext)
     val cls = closestClassOfTypeRepr(typeRepr)
     Apply(
       fun = TypeApply(

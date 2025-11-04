@@ -3,6 +3,7 @@ package izumi.reflect.dottyreflection
 import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
+import izumi.reflect.internal.cache.CacheContext
 
 import scala.annotation.{tailrec, targetName}
 import scala.collection.immutable.Queue
@@ -19,16 +20,18 @@ object Inspector {
   }
   case class LamContext(params: List[LamParam])
 
-  def make(q: Quotes): Inspector { val qctx: q.type } = new Inspector(0, Queue.empty) {
+  def make(q: Quotes): Inspector { val qctx: q.type } = make(q, CacheContext.disabled())
+  
+  def make(q: Quotes, cacheContext: CacheContext): Inspector { val qctx: q.type } = new Inspector(0, Queue.empty, cacheContext) {
     override val qctx: q.type = q
   }
 }
 
-abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.LamContext]) extends InspectorBase {
+abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.LamContext], val cacheContext: CacheContext) extends InspectorBase {
   import qctx.reflect._
 
   def next(newContext: Option[Inspector.LamContext] = None): Inspector { val qctx: Inspector.this.qctx.type } =
-    new Inspector(shift + 1, newContext.fold(this.context)(this.context :+ _)) {
+    new Inspector(shift + 1, newContext.fold(this.context)(this.context :+ _), cacheContext) {
       val qctx: Inspector.this.qctx.type = Inspector.this.qctx
     }
 
