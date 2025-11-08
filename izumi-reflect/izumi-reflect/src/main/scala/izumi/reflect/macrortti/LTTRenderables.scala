@@ -279,7 +279,7 @@ object LTTRenderables {
         val char = ('A' + (value.index % 25)).toChar.toString
         val numChars = 1 + value.index / 25
         val suffix = if (value.depth > 0) s"${value.depth}" else ""
-        s"${char.repeat(numChars)}$suffix"
+        s"${char * numChars}$suffix"
       }
     }
 
