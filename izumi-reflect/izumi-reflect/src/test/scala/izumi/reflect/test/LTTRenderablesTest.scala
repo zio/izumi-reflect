@@ -25,6 +25,7 @@ class LTTRenderablesTest extends TagAssertions {
       type SwapOptionT[A, B[_]] = OptionT[B, A]
       type UseInner[A] = OptionT[Either[A, *], A]
       type UseInner2[A, B] = OptionT[Either[A, *], B]
+      type Reuse[A] = Either[A, A]
 
       val identity = `LTT[_]`[ID.Identity].scalaStyledName
       val const = `LTT[_,_]`[Const].scalaStyledName
@@ -32,6 +33,7 @@ class LTTRenderablesTest extends TagAssertions {
       val swapOptionT = `LTT[_]`[SwapOptionT[*, ID.Identity]].scalaStyledName
       val useInner = `LTT[_]`[UseInner].scalaStyledName
       val useInner2 = `LTT[_,_]`[UseInner2].scalaStyledName
+      val reuse = `LTT[_]`[Reuse].scalaStyledName
 
       assert(identity == "[A] ➾ A")
       assert(const == "[A,B] ➾ B")
@@ -39,6 +41,7 @@ class LTTRenderablesTest extends TagAssertions {
       assert(swapOptionT == "izumi.reflect.test.OptionT[=[A1] ➾ A1,=_]")
       assert(useInner == "[A] ➾ izumi.reflect.test.OptionT[[A1] ➾ scala.util.Either[+A,+A1],A]")
       assert(useInner2 == "[A,B] ➾ izumi.reflect.test.OptionT[[A1] ➾ scala.util.Either[+A,+A1],B]")
+      assert(reuse == "[A] ➾ scala.util.Either[+A,+A]")
     }
   }
 
