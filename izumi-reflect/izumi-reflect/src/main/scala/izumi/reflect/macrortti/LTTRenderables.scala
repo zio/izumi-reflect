@@ -236,18 +236,62 @@ object LTTRenderables {
   }
 
   object ScalaStyledLambdas extends Long {
-
-    override def prefixSplitter: String = "."
-
     override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
       override def render(value: SymName.LambdaParamName): String = "_"
     }
 
     override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
       override def render(value: Lambda): String = {
-        s"${value.output.render()}"
+        val isSimpleShape = value match {
+          case Lambda(input, FullReference(_, tparams, _)) =>
+            val (unusedRemaining, suspicious) = tparams.foldLeft((input, List.empty[AbstractReference])) {
+              // params must be applied in definition order
+              case ((all @ unusedArg :: tl, suspicious), TypeParam(p: AppliedNamedReference, variance)) =>
+                if (p.symName == unusedArg) {
+                  p match {
+                    case _: NameReference =>
+                      (tl, suspicious)
+                    case FullReference(symName, parameters, prefix) =>
+                      (tl, parameters.map(_.ref) ++ suspicious)
+                  }
+                } else {
+                  (all, p :: suspicious)
+                }
+              case ((all, suspicious), TypeParam(other, _)) => (all, other :: suspicious)
+            }
+            val innerUses = suspicious.iterator.flatMap(RuntimeAPI.unpack).map(_.symName).toSet
+            unusedRemaining.isEmpty && input.toSet.intersect(innerUses).isEmpty
+          case _ =>
+            false
+        }
+        if (isSimpleShape) {
+          s"${value.output.render()}"
+        } else {
+          ScalaStyledLambdasLong.r_Lambda.render(value)
+        }
       }
     }
+  }
+
+  object ScalaStyledLambdasLong extends ScalaStyledLambdasShared {
+    override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
+      override def render(value: SymName.LambdaParamName): String = {
+        val char = ('A' + (value.index % 25)).toChar.toString
+        val numChars = 1 + value.index / 25
+        val suffix = if (value.depth > 0) s"${value.depth}" else ""
+        s"${char.repeat(numChars)}$suffix"
+      }
+    }
+
+    override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
+      override def render(value: Lambda): String = {
+        s"[${value.input.map(_.render()).mkString(",")}] ➾ ${value.output.render()}"
+      }
+    }
+  }
+
+  private[LTTRenderables] trait ScalaStyledLambdasShared extends Long {
+    override def prefixSplitter: String = "."
 
     override implicit lazy val r_Variance: Renderable[Variance] = new Renderable[Variance] {
       override def render(value: Variance): String = value match {
