@@ -1,6 +1,6 @@
 package izumi.reflect.test
 
-import izumi.reflect.macrortti.*
+import izumi.reflect.macrortti._
 
 class LTTRenderablesTest extends TagAssertions {
 
