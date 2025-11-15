@@ -9,6 +9,9 @@ on:
   pull_request:
     branches: [ "develop" ]
 
+permissions:
+  checks: write
+
 jobs:
   checksecret:
     runs-on: ubuntu-latest
