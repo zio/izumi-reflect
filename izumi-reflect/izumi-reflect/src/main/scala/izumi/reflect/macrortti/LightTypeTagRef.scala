@@ -37,7 +37,9 @@ sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
     * Use [[toString]] for a rendering that omits package names
     */
   final def repr: String = this.reprImpl
-  final def scalaStyledName: String = this.scalaStyledNameImpl
+  final def scalaStyledRepr: String = this.scalaStyledReprImpl
+  @deprecated("Renamed to scalaStyledRepr", "3.0.8")
+  final def scalaStyledName: String = this.scalaStyledReprImpl
   final def shortName: String = this.shortNameImpl
   final def longNameWithPrefix: String = this.longNameWithPrefixImpl
   final def longNameInternalSymbol: String = this.longNameInternalSymbolImpl
@@ -222,7 +224,7 @@ object LightTypeTagRef extends LTTOrdering {
   ) extends AppliedNamedReference {
     override lazy val hashCode: Int = scala.runtime.ScalaRunTime._hashCode(this)
 
-    override def asName: NameReference = NameReference(symName, prefix = prefix)
+    override def asName: NameReference = NameReference(symName, boundaries = Boundaries.Empty, prefix = prefix)
 
     @deprecated("bincompat only", "20.02.2023")
     private[LightTypeTagRef] def ref: String = SymName.forceName(symName)

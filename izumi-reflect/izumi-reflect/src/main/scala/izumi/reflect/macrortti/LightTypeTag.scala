@@ -241,25 +241,39 @@ abstract class LightTypeTag private[reflect] (
     ref.repr
   }
 
-  /** Short class or type-constructor name of this type, without package or prefix names */
-  def shortName: String = {
-    ref.shortName
-  }
-
-  /** Class or type-constructor name of this type, with package and prefix names */
-  def longNameWithPrefix: String = {
-    ref.longNameWithPrefix
-  }
-
-  /** Internal symbol name of type-constructor of this type, with package and containing definition names */
-  def longNameInternalSymbol: String = {
-    ref.longNameInternalSymbol
-  }
-
   /**
     * Fully-qualified rendering of a type, including packages and prefix types.
     * Traditional Scala notation for lambdas, e.g. scala.util.Either[+scala.Int,+_]
     */
+  def scalaStyledRepr: String = {
+    ref.scalaStyledRepr
+  }
+
+  /** Short class or type-constructor name of this type, without package or prefix names
+    *
+    * @note This will produce only a type constructor name, for full rendering of the type use [[toString]], [[repr]] or [[scalaStyledRepr]]
+    */
+  def shortName: String = {
+    ref.shortName
+  }
+
+  /** Class or type-constructor name of this type, with package and prefix names
+    *
+    * @note This will produce only a type constructor name, for full rendering of the type use [[toString]], [[repr]] or [[scalaStyledRepr]]
+    */
+  def longNameWithPrefix: String = {
+    ref.longNameWithPrefix
+  }
+
+  /** Internal symbol name of type-constructor of this type, with package and containing definition names
+    *
+    * @note This will produce only a type constructor name, for full rendering of the type use [[toString]], [[repr]] or [[scalaStyledRepr]]
+    */
+  def longNameInternalSymbol: String = {
+    ref.longNameInternalSymbol
+  }
+
+  @deprecated("Renamed to scalaStyledRepr", "3.0.8")
   def scalaStyledName: String = {
     ref.scalaStyledName
   }
@@ -354,20 +368,22 @@ object LightTypeTag {
   }
 
   def wildcardType(lowTag: LightTypeTag, highTag: LightTypeTag): LightTypeTag = {
-    val ref = LightTypeTagRef.WildcardReference(Boundaries.Defined(
-      lowTag.ref match { case r: AbstractReference => r },
-      highTag.ref match { case r: AbstractReference => r }
-    ))
+    val ref = LightTypeTagRef.WildcardReference(
+      Boundaries.Defined(
+        lowTag.ref match { case r: AbstractReference => r },
+        highTag.ref match { case r: AbstractReference => r }
+      )
+    )
 
     def mergedBasesDB: Map[AbstractReference, Set[AbstractReference]] =
       LightTypeTag.mergeIDBs(highTag.basesdb, lowTag.basesdb)
 
     def mergedInheritanceDb: Map[NameReference, Set[NameReference]] =
       LightTypeTag.mergeIDBs(highTag.idb, lowTag.idb)
-      
+
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
-  
+
   def parse(serialized: Serialized): LightTypeTag = {
     parse[LightTypeTag](serialized.hash, serialized.ref, serialized.databases, serialized.version)
   }

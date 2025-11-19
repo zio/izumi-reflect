@@ -87,21 +87,21 @@ private[macrortti] trait LTTSyntax {
     (this: LightTypeTagRef).render()
   }
 
+  protected[this] final def scalaStyledReprImpl: String = {
+    import izumi.reflect.macrortti.LTTRenderables.ScalaStyledLambdas._
+    (this: LightTypeTagRef).render()
+  }
+
   protected[this] final def shortNameImpl: String = {
     getName(r => LTTRenderables.Short.r_SymName(r.symName, hasPrefix = false))
   }
 
   protected[this] final def longNameWithPrefixImpl: String = {
-    getName(r => LTTRenderables.LongPrefixDot.r_NameRefRenderer.render(NameReference(r.symName, Boundaries.Empty, r.prefix)))
+    getName(r => LTTRenderables.LongPrefixDot.r_NameRefRenderer.render(r.asName.copy(boundaries = Boundaries.Empty)))
   }
 
   protected[this] final def longNameInternalSymbolImpl: String = {
     getName(r => LTTRenderables.Long.r_SymName(r.symName, hasPrefix = false))
-  }
-
-  protected[this] final def scalaStyledNameImpl: String = {
-    import izumi.reflect.macrortti.LTTRenderables.ScalaStyledLambdas._
-    (this: LightTypeTagRef).render()
   }
 
   @deprecated(
