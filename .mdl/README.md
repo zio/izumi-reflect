@@ -9,7 +9,7 @@ This directory contains the [mudyla](https://github.com/7mind/mudyla) build conf
 
 ## Available Actions
 
-Run actions using `./run :action-name` or `mdl :action-name`:
+Run actions using `mdl :action-name` (from within nix shell) or `nix develop --command mdl :action-name`:
 
 - `:gen` - Generate build files using sbtgen
 - `:test` - Run tests and binary compatibility checks
@@ -33,7 +33,7 @@ The following environment variables are used by build actions:
 Use the `--github-actions` flag when running in CI:
 
 ```bash
-./run --github-actions :gen :test
+nix develop --command mdl --github-actions :gen :test
 ```
 
 This enables proper output formatting and progress reporting for GitHub Actions.

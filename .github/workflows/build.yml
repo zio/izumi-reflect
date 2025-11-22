@@ -42,7 +42,7 @@ jobs:
           CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
           CI_BRANCH: ${{ github.ref_name }}
           CI_BRANCH_TAG: ${{ github.ref_name }}
-        run: ./run --github-actions :gen :test
+        run: nix develop --command mdl --github-actions :gen :test
       - uses: dorny/test-reporter@v1
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
@@ -81,7 +81,7 @@ jobs:
           ln -s .secrets/local.sbt local.sbt
           rm ./.secrets/credentials.sonatype-nexus.properties
           printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=central.sonatype.com" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties
-          ./run --github-actions :gen :publish-scala
+          nix develop --command mdl --github-actions :gen :publish-scala
 
   release-and-notify-docs:
     name: Release and Notify Docs
@@ -104,7 +104,7 @@ jobs:
           CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
           CI_BRANCH: ${{ github.ref_name }}
           CI_BRANCH_TAG: ${{ github.ref_name }}
-        run: ./run --github-actions :gen :publish-ziodocs
+        run: nix develop --command mdl --github-actions :gen :publish-ziodocs
       - name: Notify the main repo about the new release of docs package
         run: |
           PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')

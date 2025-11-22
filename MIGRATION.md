@@ -12,6 +12,7 @@ This document describes the migration from mobala to mudyla build system.
 
 **Removed**:
 - `.mobala/` directory (all mobala configuration)
+- `run` script (now use `nix develop --command mdl` directly)
 
 **Added**:
 - `.mdl/defs/actions.md` - Main build action definitions
@@ -26,7 +27,7 @@ This document describes the migration from mobala to mudyla build system.
 
 ## Available Actions
 
-Run actions using `./run :action-name`:
+Run actions using `nix develop --command mdl :action-name` (or just `mdl :action-name` if you're already in the nix shell):
 
 ### Environment Setup Actions
 
@@ -53,9 +54,9 @@ Run actions using `./run :action-name`:
 
 | Old (mobala) | New (mudyla) |
 |--------------|--------------|
-| `./run --nix :gen :test` | `./run --github-actions :gen :test` |
-| `./run --nix :gen :publish-scala` | `./run --github-actions :gen :publish-scala` |
-| `./run --nix :gen :publish-ziodocs` | `./run --github-actions :gen :publish-ziodocs` |
+| `./run --nix :gen :test` | `nix develop --command mdl --github-actions :gen :test` |
+| `./run --nix :gen :publish-scala` | `nix develop --command mdl --github-actions :gen :publish-scala` |
+| `./run --nix :gen :publish-ziodocs` | `nix develop --command mdl --github-actions :gen :publish-ziodocs` |
 
 ## GitHub Actions Changes
 
@@ -65,10 +66,20 @@ The workflow now uses:
 
 ## Local Development
 
-1. Ensure you're using the nix flake environment (via direnv or `nix develop`)
-2. Run `./run --list-actions` to see all available actions
-3. Run `./run :action-name` to execute specific actions
-4. Run `./run --dry-run :action-name` to see what would be executed
+### Option 1: Using nix develop directly
+```bash
+nix develop --command mdl --list-actions  # List all actions
+nix develop --command mdl :gen :test      # Run actions
+nix develop --command mdl --dry-run :gen  # Dry run
+```
+
+### Option 2: Enter nix shell first (recommended)
+```bash
+nix develop  # or use direnv
+mdl --list-actions
+mdl :gen :test
+mdl --dry-run :gen
+```
 
 ## Benefits of Mudyla
 
