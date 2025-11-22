@@ -28,6 +28,17 @@ This document describes the migration from mobala to mudyla build system.
 
 Run actions using `./run :action-name`:
 
+### Environment Setup Actions
+
+| Action | Description |
+|--------|-------------|
+| `:setup-jdk` | Setup JDK path based on JAVA_VERSION |
+| `:setup-jvm-options` | Setup JVM options and optimizations |
+| `:setup-scala` | Setup Scala version variables |
+| `:setup-env` | Complete environment setup (combines all above) |
+
+### Build Actions
+
 | Action | Description |
 |--------|-------------|
 | `:gen` | Generate build files using sbtgen |
@@ -35,6 +46,8 @@ Run actions using `./run :action-name`:
 | `:build` | Full build pipeline (gen + test) |
 | `:publish-scala` | Publish Scala artifacts to Sonatype |
 | `:publish-ziodocs` | Publish documentation to NPM |
+
+**Note**: All build actions automatically depend on the environment setup actions, so you don't need to explicitly run setup actions.
 
 ## Command Equivalents
 
