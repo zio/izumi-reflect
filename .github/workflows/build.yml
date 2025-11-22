@@ -39,7 +39,7 @@ jobs:
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           JAVA_VERSION: ${{ matrix.java }}
-        run: ./run --nix :gen :test
+        run: ./run --github-actions :gen :test
       - uses: dorny/test-reporter@v1
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
@@ -74,8 +74,9 @@ jobs:
           tar xvf secrets.tar
           ln -s .secrets/local.sbt local.sbt
           rm ./.secrets/credentials.sonatype-nexus.properties
-          printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=central.sonatype.com" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties             
-          ./run --nix :gen :publish-scala
+          printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=central.sonatype.com" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties
+          export CI_BRANCH_TAG="${GITHUB_REF#refs/*/}"
+          ./run --github-actions :gen :publish-scala
 
   release-and-notify-docs:
     name: Release and Notify Docs
@@ -95,7 +96,8 @@ jobs:
           JAVA_VERSION: ${{ matrix.java }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           SCALA_VERSION: ${{ matrix.scala }}
-        run: ./run --nix :gen :publish-ziodocs
+          CI_BRANCH_TAG: ${{ github.ref_name }}
+        run: ./run --github-actions :gen :publish-ziodocs
       - name: Notify the main repo about the new release of docs package
         run: |
           PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')

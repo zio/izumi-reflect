@@ -5,11 +5,14 @@
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
+  inputs.mudyla.url = "github:7mind/mudyla";
+  inputs.mudyla.inputs.nixpkgs.follows = "nixpkgs";
+
   outputs =
     { self
     , nixpkgs
     , flake-utils
-    ,
+    , mudyla
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -29,6 +32,8 @@
 
             gitMinimal
             gnupg
+
+            mudyla.packages.${system}.default
           ];
 
           shellHook = ''
