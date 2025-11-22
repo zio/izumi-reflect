@@ -25,8 +25,6 @@
 Setup JDK path based on JAVA_VERSION
 
 ```bash
-set -euo pipefail
-
 # Get JAVA_VERSION from environment (default to 17 if not set - optional)
 JAVA_VERSION_VAL="${JAVA_VERSION:-17}"
 
@@ -68,8 +66,6 @@ ret java-bin:String="$JAVA_HOME/bin"
 Setup JVM options and optimizations
 
 ```bash
-set -euo pipefail
-
 JAVA_OPTIONS="${_JAVA_OPTIONS:-}"
 
 # Add user.home for nix environments
@@ -98,8 +94,6 @@ ret java-options:String="$JAVA_OPTIONS"
 Setup Scala version variables
 
 ```bash
-set -euo pipefail
-
 # Extract Scala versions from Deps.sc
 SCALA212=$(grep 'val scala212 ' ${sys.project-root}/project/Deps.sc | sed -r 's/.*"(.*)".*/\1/')
 SCALA213=$(grep 'val scala213 ' ${sys.project-root}/project/Deps.sc | sed -r 's/.*"(.*)".*/\1/')
@@ -157,7 +151,7 @@ echo "  JAVA_HOME=$JAVA_HOME"
 echo "  SCALA_VERSION=$SCALA_VERSION"
 echo "  VERSION_COMMAND=$VERSION_COMMAND"
 
-ret success:Bool=0
+ret success:bool=0
 ```
 
 # action: gen
@@ -165,11 +159,11 @@ ret success:Bool=0
 Generate build files using sbtgen
 
 ```bash
-# Ensure environment is setup (dependency)
-# setup-env returns: ${action.setup-env.success}
+# Declare dependency on environment setup
+dep action.setup-env
 
 bash sbtgen.sc --js --native
-ret success:Bool=$?
+ret success:bool=$?
 ```
 
 # action: test
@@ -177,7 +171,10 @@ ret success:Bool=$?
 Run tests and binary compatibility checks
 
 ```bash
-# Use environment from setup actions
+dep action.gen
+
+# Declare dependencies and use their outputs
+dep action.setup-env
 JAVA_HOME="${action.setup-jdk.java-home}"
 VERSION_COMMAND="${action.setup-scala.version-command}"
 
@@ -187,7 +184,7 @@ sbt -batch -no-colors -v \
   "$VERSION_COMMAND Test/compile" \
   "$VERSION_COMMAND test" \
   "$VERSION_COMMAND mimaReportBinaryIssues"
-ret success:Bool=$?
+ret success:bool=$?
 ```
 
 # action: publish-scala
@@ -199,20 +196,19 @@ Publish Scala artifacts to Sonatype (only on release branches/tags)
 - `CI_BRANCH`
 
 ```bash
-set -euo pipefail
-
-# Use environment from setup actions
+# Declare dependencies and use their outputs
+dep action.setup-env
 JAVA_HOME="${action.setup-jdk.java-home}"
 
 if [[ -z "${env.SONATYPE_USERNAME:-}" ]]; then
     echo "Missing SONATYPE_USERNAME, skipping publish"
-    ret success:Bool=0
+    ret success:bool=0
     exit 0
 fi
 
 if [[ -z "${env.SONATYPE_PASSWORD:-}" ]]; then
     echo "Missing SONATYPE_PASSWORD, skipping publish"
-    ret success:Bool=0
+    ret success:bool=0
     exit 0
 fi
 
@@ -223,13 +219,13 @@ CI_BRANCH_TAG="${env.CI_BRANCH_TAG:-}"
 
 if [[ "$CI_PULL_REQUEST" == "true" ]]; then
     echo "Publishing not allowed on P/Rs"
-    ret success:Bool=0
+    ret success:bool=0
     exit 0
 fi
 
 if [[ "$CI_BRANCH" != "develop" && ! "$CI_BRANCH_TAG" =~ ^v ]]; then
     echo "Publishing not allowed (CI_BRANCH=$CI_BRANCH, CI_BRANCH_TAG=$CI_BRANCH_TAG)"
-    ret success:Bool=0
+    ret success:bool=0
     exit 0
 fi
 
@@ -252,7 +248,7 @@ else
         "+publishSigned"
 fi
 
-ret success:Bool=$?
+ret success:bool=$?
 ```
 
 # action: publish-ziodocs
@@ -264,14 +260,13 @@ Publish documentation to NPM
 - `CI_BRANCH`
 
 ```bash
-set -euo pipefail
-
-# Use environment from setup actions
+# Declare dependencies and use their outputs
+dep action.setup-env
 JAVA_HOME="${action.setup-jdk.java-home}"
 
 if [[ -z "${env.NODE_AUTH_TOKEN:-}" ]]; then
     echo "Missing NODE_AUTH_TOKEN, skipping docs publish"
-    ret success:Bool=0
+    ret success:bool=0
     exit 0
 fi
 
@@ -282,13 +277,13 @@ CI_BRANCH_TAG="${env.CI_BRANCH_TAG:-}"
 
 if [[ "$CI_PULL_REQUEST" == "true" ]]; then
     echo "Publishing not allowed on P/Rs"
-    ret success:Bool=0
+    ret success:bool=0
     exit 0
 fi
 
 if [[ "$CI_BRANCH" != "develop" && ! "$CI_BRANCH_TAG" =~ ^v ]]; then
     echo "Publishing not allowed (CI_BRANCH=$CI_BRANCH, CI_BRANCH_TAG=$CI_BRANCH_TAG)"
-    ret success:Bool=0
+    ret success:bool=0
     exit 0
 fi
 
@@ -311,7 +306,7 @@ sbt -batch -no-colors -v \
     --java-home "$JAVA_HOME" \
     docs/publishToNpm
 
-ret success:Bool=$?
+ret success:bool=$?
 ```
 
 # action: build
@@ -319,9 +314,13 @@ ret success:Bool=$?
 Full build pipeline - generate and test
 
 ```bash
-# This action depends on gen and test completing successfully
-${action.gen.success}
-${action.test.success}
+# Declare dependencies on gen and test
+dep action.test
 
-ret success:Bool=$?
+# Both gen and test must succeed
+if [[ "${action.gen.success}" == "0" && "${action.test.success}" == "0" ]]; then
+  ret success:bool=0
+else
+  ret success:bool=1
+fi
 ```
