@@ -165,8 +165,8 @@ ret success:Bool=0
 Generate build files using sbtgen
 
 ```bash
-# Setup environment
-${action.setup-env.success}
+# Ensure environment is setup (dependency)
+# setup-env returns: ${action.setup-env.success}
 
 bash sbtgen.sc --js --native
 ret success:Bool=$?
@@ -177,10 +177,7 @@ ret success:Bool=$?
 Run tests and binary compatibility checks
 
 ```bash
-# Setup environment
-${action.setup-env.success}
-
-# Use environment from setup
+# Use environment from setup actions
 JAVA_HOME="${action.setup-jdk.java-home}"
 VERSION_COMMAND="${action.setup-scala.version-command}"
 
@@ -204,8 +201,8 @@ Publish Scala artifacts to Sonatype (only on release branches/tags)
 ```bash
 set -euo pipefail
 
-# Setup environment
-${action.setup-env.success}
+# Use environment from setup actions
+JAVA_HOME="${action.setup-jdk.java-home}"
 
 if [[ -z "${env.SONATYPE_USERNAME:-}" ]]; then
     echo "Missing SONATYPE_USERNAME, skipping publish"
@@ -235,9 +232,6 @@ if [[ "$CI_BRANCH" != "develop" && ! "$CI_BRANCH_TAG" =~ ^v ]]; then
     ret success:Bool=0
     exit 0
 fi
-
-# Use environment from setup
-JAVA_HOME="${action.setup-jdk.java-home}"
 
 if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]]; then
     # Full release with sonaRelease
@@ -272,8 +266,8 @@ Publish documentation to NPM
 ```bash
 set -euo pipefail
 
-# Setup environment
-${action.setup-env.success}
+# Use environment from setup actions
+JAVA_HOME="${action.setup-jdk.java-home}"
 
 if [[ -z "${env.NODE_AUTH_TOKEN:-}" ]]; then
     echo "Missing NODE_AUTH_TOKEN, skipping docs publish"
@@ -297,9 +291,6 @@ if [[ "$CI_BRANCH" != "develop" && ! "$CI_BRANCH_TAG" =~ ^v ]]; then
     ret success:Bool=0
     exit 0
 fi
-
-# Use environment from setup
-JAVA_HOME="${action.setup-jdk.java-home}"
 
 # Copy zio-docs.sbt
 cp ${sys.project-root}/.mdl/resources/zio-docs.sbt ${sys.project-root}/zio-docs.sbt
