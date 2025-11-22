@@ -200,22 +200,31 @@ Publish Scala artifacts to Sonatype (only on release branches/tags)
 dep action.setup-env
 JAVA_HOME="${action.setup-jdk.java-home}"
 
-if [[ -z "${env.SONATYPE_USERNAME:-}" ]]; then
+# Get environment variables from mudyla substitution
+SONATYPE_USERNAME_VAL="${env.SONATYPE_USERNAME}"
+SONATYPE_PASSWORD_VAL="${env.SONATYPE_PASSWORD}"
+CI_PULL_REQUEST_VAL="${env.CI_PULL_REQUEST}"
+CI_BRANCH_VAL="${env.CI_BRANCH}"
+CI_BRANCH_TAG_VAL="${env.CI_BRANCH_TAG}"
+
+# Apply bash defaults
+SONATYPE_USERNAME="${SONATYPE_USERNAME_VAL}"
+SONATYPE_PASSWORD="${SONATYPE_PASSWORD_VAL}"
+CI_PULL_REQUEST="${CI_PULL_REQUEST_VAL:-false}"
+CI_BRANCH="${CI_BRANCH_VAL}"
+CI_BRANCH_TAG="${CI_BRANCH_TAG_VAL}"
+
+if [[ -z "$SONATYPE_USERNAME" ]]; then
     echo "Missing SONATYPE_USERNAME, skipping publish"
     ret success:bool=0
     exit 0
 fi
 
-if [[ -z "${env.SONATYPE_PASSWORD:-}" ]]; then
+if [[ -z "$SONATYPE_PASSWORD" ]]; then
     echo "Missing SONATYPE_PASSWORD, skipping publish"
     ret success:bool=0
     exit 0
 fi
-
-# Validate publishing conditions
-CI_PULL_REQUEST="${env.CI_PULL_REQUEST:-false}"
-CI_BRANCH="${env.CI_BRANCH:-}"
-CI_BRANCH_TAG="${env.CI_BRANCH_TAG:-}"
 
 if [[ "$CI_PULL_REQUEST" == "true" ]]; then
     echo "Publishing not allowed on P/Rs"
@@ -264,16 +273,23 @@ Publish documentation to NPM
 dep action.setup-env
 JAVA_HOME="${action.setup-jdk.java-home}"
 
-if [[ -z "${env.NODE_AUTH_TOKEN:-}" ]]; then
+# Get environment variables from mudyla substitution
+NODE_AUTH_TOKEN_VAL="${env.NODE_AUTH_TOKEN}"
+CI_PULL_REQUEST_VAL="${env.CI_PULL_REQUEST}"
+CI_BRANCH_VAL="${env.CI_BRANCH}"
+CI_BRANCH_TAG_VAL="${env.CI_BRANCH_TAG}"
+
+# Apply bash defaults
+NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN_VAL}"
+CI_PULL_REQUEST="${CI_PULL_REQUEST_VAL:-false}"
+CI_BRANCH="${CI_BRANCH_VAL}"
+CI_BRANCH_TAG="${CI_BRANCH_TAG_VAL}"
+
+if [[ -z "$NODE_AUTH_TOKEN" ]]; then
     echo "Missing NODE_AUTH_TOKEN, skipping docs publish"
     ret success:bool=0
     exit 0
 fi
-
-# Validate publishing conditions
-CI_PULL_REQUEST="${env.CI_PULL_REQUEST:-false}"
-CI_BRANCH="${env.CI_BRANCH:-}"
-CI_BRANCH_TAG="${env.CI_BRANCH_TAG:-}"
 
 if [[ "$CI_PULL_REQUEST" == "true" ]]; then
     echo "Publishing not allowed on P/Rs"
@@ -296,7 +312,7 @@ sed -i '/<!--- docs:start --->/d' ${sys.project-root}/docs/index.md
 sed -i '/<!--- docs:end --->/d' ${sys.project-root}/docs/index.md
 
 # Setup npm auth
-echo "//registry.npmjs.org/:_authToken=${env.NODE_AUTH_TOKEN}" > ~/.npmrc
+echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
 
 # Verify npm authentication
 npm whoami
