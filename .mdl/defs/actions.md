@@ -197,7 +197,8 @@ Publish Scala artifacts to Sonatype (only on release branches/tags)
 
 ```bash
 # Declare dependencies and use their outputs
-dep action.setup-env
+dep action.gen
+
 JAVA_HOME="${action.setup-jdk.java-home}"
 
 # Get environment variables from mudyla substitution
@@ -270,7 +271,8 @@ Publish documentation to NPM
 
 ```bash
 # Declare dependencies and use their outputs
-dep action.setup-env
+dep action.gen
+
 JAVA_HOME="${action.setup-jdk.java-home}"
 
 # Get environment variables from mudyla substitution
