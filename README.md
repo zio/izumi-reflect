@@ -8,6 +8,9 @@
 ---
 
 <p align="center">
+  Please consider supporting our work through <a href="https://github.com/sponsors/7mind">GitHub Sponsors</a>.
+</p>
+<p align="center">
   <a href="https://www.buymeacoffee.com/7mind"><img src="https://bmc-cdn.nyc3.digitaloceanspaces.com/BMC-button-images/custom_images/orange_img.png" alt="Izumi"/></a>
 </p>
 
