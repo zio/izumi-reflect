@@ -150,9 +150,6 @@ echo "Environment setup complete:"
 echo "  JAVA_HOME=$JAVA_HOME"
 echo "  SCALA_VERSION=$SCALA_VERSION"
 echo "  VERSION_COMMAND=$VERSION_COMMAND"
-
-ret success:bool=1
-exit 0
 ```
 
 # action: gen
@@ -164,14 +161,6 @@ Generate build files using sbtgen
 dep action.setup-env
 
 bash sbtgen.sc --js --native
-EXIT_CODE=$?
-# Convert shell exit code (0=success) to boolean (1=true, 0=false)
-if [ $EXIT_CODE -eq 0 ]; then
-  ret success:bool=1
-else
-  ret success:bool=0
-fi
-exit $EXIT_CODE
 ```
 
 # action: test
@@ -192,14 +181,6 @@ sbt -batch -no-colors -v \
   "$VERSION_COMMAND Test/compile" \
   "$VERSION_COMMAND test" \
   "$VERSION_COMMAND mimaReportBinaryIssues"
-EXIT_CODE=$?
-# Convert shell exit code (0=success) to boolean (1=true, 0=false)
-if [ $EXIT_CODE -eq 0 ]; then
-  ret success:bool=1
-else
-  ret success:bool=0
-fi
-exit $EXIT_CODE
 ```
 
 # action: publish-scala
@@ -232,25 +213,21 @@ CI_BRANCH_TAG="${CI_BRANCH_TAG_VAL}"
 
 if [[ -z "$SONATYPE_USERNAME" ]]; then
     echo "Missing SONATYPE_USERNAME, skipping publish"
-    ret success:bool=1
     exit 0
 fi
 
 if [[ -z "$SONATYPE_PASSWORD" ]]; then
     echo "Missing SONATYPE_PASSWORD, skipping publish"
-    ret success:bool=1
     exit 0
 fi
 
 if [[ "$CI_PULL_REQUEST" == "true" ]]; then
     echo "Publishing not allowed on P/Rs"
-    ret success:bool=1
     exit 0
 fi
 
 if [[ "$CI_BRANCH" != "develop" && ! "$CI_BRANCH_TAG" =~ ^v ]]; then
     echo "Publishing not allowed (CI_BRANCH=$CI_BRANCH, CI_BRANCH_TAG=$CI_BRANCH_TAG)"
-    ret success:bool=1
     exit 0
 fi
 
@@ -272,15 +249,6 @@ else
         "+test:compile" \
         "+publishSigned"
 fi
-
-EXIT_CODE=$?
-# Convert shell exit code (0=success) to boolean (1=true, 0=false)
-if [ $EXIT_CODE -eq 0 ]; then
-  ret success:bool=1
-else
-  ret success:bool=0
-fi
-exit $EXIT_CODE
 ```
 
 # action: publish-ziodocs
@@ -311,19 +279,16 @@ CI_BRANCH_TAG="${CI_BRANCH_TAG_VAL}"
 
 if [[ -z "$NODE_AUTH_TOKEN" ]]; then
     echo "Missing NODE_AUTH_TOKEN, skipping docs publish"
-    ret success:bool=1
     exit 0
 fi
 
 if [[ "$CI_PULL_REQUEST" == "true" ]]; then
     echo "Publishing not allowed on P/Rs"
-    ret success:bool=1
     exit 0
 fi
 
 if [[ "$CI_BRANCH" != "develop" && ! "$CI_BRANCH_TAG" =~ ^v ]]; then
     echo "Publishing not allowed (CI_BRANCH=$CI_BRANCH, CI_BRANCH_TAG=$CI_BRANCH_TAG)"
-    ret success:bool=1
     exit 0
 fi
 
@@ -345,15 +310,6 @@ npm whoami
 sbt -batch -no-colors -v \
     --java-home "$JAVA_HOME" \
     docs/publishToNpm
-
-EXIT_CODE=$?
-# Convert shell exit code (0=success) to boolean (1=true, 0=false)
-if [ $EXIT_CODE -eq 0 ]; then
-  ret success:bool=1
-else
-  ret success:bool=0
-fi
-exit $EXIT_CODE
 ```
 
 # action: build
@@ -366,10 +322,8 @@ dep action.test
 
 # Both gen and test must succeed
 if [[ "${action.gen.success}" == "True" && "${action.test.success}" == "True" ]]; then
-  ret success:bool=1
   exit 0
 else
-  ret success:bool=0
   exit 1
 fi
 ```
