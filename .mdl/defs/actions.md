@@ -57,8 +57,11 @@ case "$JAVA_VERSION_VAL" in
     ;;
 esac
 
+JAVA_BIN="$JAVA_HOME/bin"
+PATH="$JAVA_BIN:$PATH"
+
 ret java-home:String="$JAVA_HOME"
-ret java-bin:String="$JAVA_HOME/bin"
+ret path:String="$PATH"
 ```
 
 # action: setup-jvm-options
@@ -119,32 +122,7 @@ PROJECT_VERSION=$(cat ${sys.project-root}/version.sbt | sed -r 's/.*"(.*)".*/\1/
 # Create sbt version command
 VERSION_COMMAND="++ $SCALA_VERSION_FULL"
 
-ret scala-version:String="$SCALA_VERSION_FULL"
 ret version-command:String="$VERSION_COMMAND"
-```
-
-# action: setup-env
-
-Complete environment setup - combines all setup actions
-
-```bash
-# Depend on all setup actions
-JAVA_HOME="${action.setup-jdk.java-home}"
-JAVA_BIN="${action.setup-jdk.java-bin}"
-JAVA_OPTIONS="${action.setup-jvm-options.java-options}"
-VERSION_COMMAND="${action.setup-scala.version-command}"
-SCALA_VERSION="${action.setup-scala.scala-version}"
-
-export PATH="$JAVA_BIN:$PATH"
-export JAVA_HOME="$JAVA_HOME"
-export _JAVA_OPTIONS="$JAVA_OPTIONS"
-export VERSION_COMMAND="$VERSION_COMMAND"
-export SCALA_VERSION="$SCALA_VERSION"
-
-echo "Environment setup complete:"
-echo "  JAVA_HOME=$JAVA_HOME"
-echo "  SCALA_VERSION=$SCALA_VERSION"
-echo "  VERSION_COMMAND=$VERSION_COMMAND"
 ```
 
 # action: gen
@@ -152,8 +130,11 @@ echo "  VERSION_COMMAND=$VERSION_COMMAND"
 Generate build files using sbtgen
 
 ```bash
-# Declare dependency on environment setup
-dep action.setup-env
+# Depend on all setup actions
+JAVA_HOME="${action.setup-jdk.java-home}"
+PATH="${action.setup-jdk.path}"
+JAVA_OPTIONS="${action.setup-jvm-options.java-options}"
+_JAVA_OPTIONS="$JAVA_OPTIONS"
 
 bash sbtgen.sc --js --native
 ```
@@ -163,11 +144,13 @@ bash sbtgen.sc --js --native
 Run tests and binary compatibility checks
 
 ```bash
+# Declare dependencies and use their outputs
 dep action.gen
 
-# Declare dependencies and use their outputs
-dep action.setup-env
 JAVA_HOME="${action.setup-jdk.java-home}"
+PATH="${action.setup-jdk.path}"
+JAVA_OPTIONS="${action.setup-jvm-options.java-options}"
+_JAVA_OPTIONS="$JAVA_OPTIONS"
 VERSION_COMMAND="${action.setup-scala.version-command}"
 
 sbt -batch -no-colors -v \
@@ -191,6 +174,9 @@ Publish Scala artifacts to Sonatype (only on release branches/tags)
 dep action.gen
 
 JAVA_HOME="${action.setup-jdk.java-home}"
+PATH="${action.setup-jdk.path}"
+JAVA_OPTIONS="${action.setup-jvm-options.java-options}"
+_JAVA_OPTIONS="$JAVA_OPTIONS"
 
 # Get environment variables from mudyla substitution
 SONATYPE_USERNAME_VAL="${env.SONATYPE_USERNAME}"
@@ -259,6 +245,9 @@ Publish documentation to NPM
 dep action.gen
 
 JAVA_HOME="${action.setup-jdk.java-home}"
+PATH="${action.setup-jdk.path}"
+JAVA_OPTIONS="${action.setup-jvm-options.java-options}"
+_JAVA_OPTIONS="$JAVA_OPTIONS"
 
 # Get environment variables from mudyla substitution
 NODE_AUTH_TOKEN_VAL="${env.NODE_AUTH_TOKEN}"
