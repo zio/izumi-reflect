@@ -118,6 +118,14 @@ Provided `flake.nix` can be used to set up the external dependencies necessary t
 nix develop
 ```
 
+The project's CI is built with [mudyla](https://github.com/7mind/mudyla), you may reproduce CI build locally with:
+
+```bash
+nix develop --command mdl --github-actions :gen :test
+```
+
+Available mudyla actions are defined in [.mdl/defs/*.md](.mdl/defs/)
+
 <!--- docs:start --->
 
 # Talks

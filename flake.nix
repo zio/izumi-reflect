@@ -5,11 +5,14 @@
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
+  inputs.mudyla.url = "github:7mind/mudyla";
+  inputs.mudyla.inputs.nixpkgs.follows = "nixpkgs";
+
   outputs =
     { self
     , nixpkgs
     , flake-utils
-    ,
+    , mudyla
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -29,6 +32,8 @@
 
             gitMinimal
             gnupg
+
+            mudyla.packages.${system}.default
           ];
 
           shellHook = ''
@@ -37,10 +42,10 @@
             export JDK21=${pkgs.jdk21_headless}
             export JDK_DEV=${pkgs.graalvm-ce}
 
-            rm ./.env/jdk || true
-            rmdir ./.env || true
-            mkdir -p ./.env
-            ln -s ''${JDK_DEV} ./.env/jdk || true
+            # Create .env directory with JDK symlink (ignore errors if already exists)
+            mkdir -p ./.env 2>/dev/null || true
+            rm -f ./.env/jdk 2>/dev/null || true
+            ln -sf ''${JDK_DEV} ./.env/jdk 2>/dev/null || true
           '';
         };
       }

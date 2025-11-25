@@ -39,7 +39,10 @@ jobs:
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           JAVA_VERSION: ${{ matrix.java }}
-        run: ./run --nix :gen :test
+          CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+          CI_BRANCH: ${{ github.ref_name }}
+          CI_BRANCH_TAG: ${{ github.ref_name }}
+        run: nix develop --command mdl --github-actions :gen :test
       - uses: dorny/test-reporter@v1
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
@@ -64,18 +67,21 @@ jobs:
       - name: Build and Publish to Sonatype
         env:
           JAVA_VERSION: ${{ matrix.java }}
+          SCALA_VERSION: ${{ matrix.scala }}
           OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SCALA_VERSION: ${{ matrix.scala }}
+          CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+          CI_BRANCH: ${{ github.ref_name }}
+          CI_BRANCH_TAG: ${{ github.ref_name }}
         run: |
           openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
           tar xvf secrets.tar
           ln -s .secrets/local.sbt local.sbt
           rm ./.secrets/credentials.sonatype-nexus.properties
-          printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=central.sonatype.com" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties             
-          ./run --nix :gen :publish-scala
+          printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=central.sonatype.com" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties
+          nix develop --command mdl --github-actions :gen :publish-scala
 
   release-and-notify-docs:
     name: Release and Notify Docs
@@ -93,9 +99,12 @@ jobs:
       - name: Publish Docs to NPM Registry
         env:
           JAVA_VERSION: ${{ matrix.java }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           SCALA_VERSION: ${{ matrix.scala }}
-        run: ./run --nix :gen :publish-ziodocs
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+          CI_BRANCH: ${{ github.ref_name }}
+          CI_BRANCH_TAG: ${{ github.ref_name }}
+        run: nix develop --command mdl --github-actions :gen :publish-ziodocs
       - name: Notify the main repo about the new release of docs package
         run: |
           PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')
