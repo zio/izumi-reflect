@@ -121,11 +121,6 @@ VERSION_COMMAND="++ $SCALA_VERSION_FULL"
 
 ret scala-version:String="$SCALA_VERSION_FULL"
 ret version-command:String="$VERSION_COMMAND"
-ret project-version:String="$PROJECT_VERSION"
-ret scala212:String="$SCALA212"
-ret scala213:String="$SCALA213"
-ret scala211:String="$SCALA211"
-ret scala3:String="$SCALA3"
 ```
 
 # action: setup-env
