@@ -317,13 +317,7 @@ sbt -batch -no-colors -v \
 Full build pipeline - generate and test
 
 ```bash
-# Declare dependencies on gen and test
+dep action.gen
 dep action.test
-
-# Both gen and test must succeed
-if [[ "${action.gen.success}" == "True" && "${action.test.success}" == "True" ]]; then
-  exit 0
-else
-  exit 1
-fi
+exit 0
 ```
