@@ -115,10 +115,6 @@ case "$SCALA_VERSION_SHORT" in
   *) SCALA_VERSION_FULL="$SCALA_VERSION_SHORT" ;;
 esac
 
-# Extract project version (CI_BUILD_UNIQ_SUFFIX is optional)
-CI_BUILD_UNIQ_SUFFIX_VAL="${CI_BUILD_UNIQ_SUFFIX:-SNAPSHOT}"
-PROJECT_VERSION=$(cat ${sys.project-root}/version.sbt | sed -r 's/.*"(.*)".*/\1/' | sed -E "s/SNAPSHOT/build.${CI_BUILD_UNIQ_SUFFIX_VAL}/")
-
 # Create sbt version command
 VERSION_COMMAND="++ $SCALA_VERSION_FULL"
 
