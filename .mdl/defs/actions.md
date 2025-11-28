@@ -97,25 +97,8 @@ ret java-options:String="$JAVA_OPTIONS"
 Setup Scala version variables
 
 ```bash
-# Extract Scala versions from Deps.sc
-SCALA212=$(grep 'val scala212 ' ${sys.project-root}/project/Deps.sc | sed -r 's/.*"(.*)".*/\1/')
-SCALA213=$(grep 'val scala213 ' ${sys.project-root}/project/Deps.sc | sed -r 's/.*"(.*)".*/\1/')
-SCALA211=$(grep 'val scala211 ' ${sys.project-root}/project/Deps.sc | sed -r 's/.*"(.*)".*/\1/')
-SCALA3=$(grep 'val scala300 ' ${sys.project-root}/project/Deps.sc | sed -r 's/.*"(.*)".*/\1/')
+SCALA_VERSION="${SCALA_VERSION:-2.13}"
 
-# Get SCALA_VERSION from environment (default to 2.13 if not set - optional)
-SCALA_VERSION_SHORT="${SCALA_VERSION:-2.13}"
-
-# Resolve SCALA_VERSION to full version
-case "$SCALA_VERSION_SHORT" in
-  2.11) SCALA_VERSION_FULL="$SCALA211" ;;
-  2.12) SCALA_VERSION_FULL="$SCALA212" ;;
-  2.13) SCALA_VERSION_FULL="$SCALA213" ;;
-  3) SCALA_VERSION_FULL="$SCALA3" ;;
-  *) SCALA_VERSION_FULL="$SCALA_VERSION_SHORT" ;;
-esac
-
-# Create sbt version command
 VERSION_COMMAND="++ $SCALA_VERSION_FULL"
 
 ret version-command:String="$VERSION_COMMAND"

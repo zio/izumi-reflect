@@ -22,7 +22,6 @@ object Izumi {
     val zio_sbt_website = Version.VExpr("PV.zio_sbt_website")
   }
 
-  // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.20")
   final val scala213 = ScalaVersion("2.13.14")
