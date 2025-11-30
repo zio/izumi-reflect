@@ -214,6 +214,21 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(b4)
     }
 
+    "support HKTag for unapplied type lambdas with type bounds" in {
+      trait X
+      trait XAble[A <: X]
+      class Y extends X
+
+      def getTag[F[A <: X]: Tag.auto.T] = {
+        val ev = implicitly[Tag.auto.T[F]]
+        Tag[F[Y]]
+      }
+
+      val tag = getTag[XAble]
+      assert(tag.tag == Tag[XAble[Y]].tag)
+    }
+
+
     "Shouldn't work for any abstract type without available TypeTag or Tag or TagK" in {
       assertTypeError("""
       def testTag[T] = Tag[T]
