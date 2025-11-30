@@ -453,9 +453,42 @@ class TagMacro(val c: blackbox.Context) {
     tpeSymbol
   }
 
+  protected[this] def mkTypeParameter(owner: Symbol, tpe: Type): Symbol = {
+    import internal.reificationSupport._
+    import internal.{polyType, typeBounds}
+
+    val tpeSymbol = newNestedSymbol(owner, freshTypeName(""), NoPosition, Flag.PARAM | Flag.DEFERRED, isClass = false)
+
+    val tpeTpe = tpe match {
+      case PolyType(params, _) =>
+        val newParams = params.map(p => mkTypeParameter(tpeSymbol, p.typeSignature))
+        polyType(newParams, typeBounds(definitions.NothingTpe, definitions.AnyTpe))
+      case TypeBounds(lo, hi) =>
+        typeBounds(lo, hi)
+      case _ if tpe.typeParams.nonEmpty =>
+        val newParams = tpe.typeParams.map(p => mkTypeParameter(tpeSymbol, p.typeSignature))
+        polyType(newParams, typeBounds(definitions.NothingTpe, definitions.AnyTpe))
+      case _ =>
+        typeBounds(definitions.NothingTpe, definitions.AnyTpe)
+    }
+
+    setInfo(tpeSymbol, tpeTpe)
+
+    tpeSymbol
+  }
+
   @inline
   protected[this] def mkHKTagArgStruct(tpe: Type, kind: Kind): Type = {
     import internal.reificationSupport._
+
+    val tpeParams = if (tpe.typeParams.nonEmpty) {
+      tpe.typeParams
+    } else {
+      tpe.typeSymbol.info match {
+        case PolyType(params, _) => params
+        case _ => Nil
+      }
+    }
 
     val staticOwner = c.prefix.tree.symbol.owner
 
@@ -465,7 +498,11 @@ class TagMacro(val c: blackbox.Context) {
     val mutRefinementSymbol: Symbol = newNestedSymbol(staticOwner, TypeName("<refinement>"), NoPosition, FlagsRepr(0L), isClass = true)
 
     val mutArg: Symbol = newNestedSymbol(mutRefinementSymbol, TypeName("Arg"), NoPosition, FlagsRepr(0L), isClass = false)
-    val params = kind.args.map(mkTypeParameter(mutArg, _))
+    val params = if (tpeParams.size == kind.args.size) {
+      tpeParams.map(p => mkTypeParameter(mutArg, p.typeSignature))
+    } else {
+      kind.args.map(mkTypeParameter(mutArg, _))
+    }
     setInfo(mutArg, mkPolyType(tpe, params))
 
     val scope = newScopeWith(mutArg)
@@ -609,14 +646,13 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
     val targetTpe = c
       .enclosingUnit.body.collect {
         case AppliedTypeTree(t, arg :: _) if t.exists(_.pos == pos) =>
-          c.typecheck(
+          val checked = c.typecheck(
             tree = arg,
             mode = c.TYPEmode,
             pt = c.universe.definitions.NothingTpe,
-            silent = false,
-            withImplicitViewsDisabled = true,
-            withMacrosDisabled = true
-          ).tpe
+            silent = false
+          )
+          checked.tpe
       }.headOption match {
       case None =>
         c.abort(
@@ -631,7 +667,7 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
 
     logger.log(s"Found position $pos, target type $targetTpe, target kind $kind")
 
-    val ctorParam = mkTypeParameter(NoSymbol, kind)
+    val ctorParam = mkTypeParameter(NoSymbol, targetTpe)
     val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind)
 
     val resultType = c
