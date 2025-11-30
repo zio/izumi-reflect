@@ -7,8 +7,6 @@
 ## passthrough
 - `HOME`
 - `USER`
-- `SCALA_VERSION`
-- `JAVA_VERSION`
 - `OPENSSL_IV`
 - `OPENSSL_KEY`
 - `SONATYPE_USERNAME`
@@ -19,14 +17,17 @@
 - `CI_PULL_REQUEST`
 - `CI_BRANCH`
 
+# Axis
+
+- `java_version`=`{11|17*|21}`
+- `scala_version`=`{2.12|2.13*|3}`
 
 # action: setup-jdk
 
 Setup JDK path based on JAVA_VERSION
 
 ```bash
-# Get JAVA_VERSION from environment (default to 17 if not set - optional)
-JAVA_VERSION_VAL="${JAVA_VERSION:-17}"
+JAVA_VERSION_VAL=${sys.axis.java_version}
 
 # Determine JAVA_HOME based on JDK version from nix flake environment
 # These are set by flake.nix shellHook
@@ -97,9 +98,9 @@ ret java-options:String="$JAVA_OPTIONS"
 Setup Scala version variables
 
 ```bash
-SCALA_VERSION="${SCALA_VERSION:-2.13}"
+SCALA_VERSION_VAL=${sys.axis.scala_version}
 
-VERSION_COMMAND="++ $SCALA_VERSION_FULL"
+VERSION_COMMAND="++ $SCALA_VERSION_VAL"
 
 ret version-command:String="$VERSION_COMMAND"
 ```
