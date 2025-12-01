@@ -844,15 +844,6 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertSameStrict(tag.tag, tagMono.tag)
     }
 
-    "combine inside type lambdas where the type constructor of the type lambda result is a type lambda type parameter" in {
-      def mk[T: Tag] = Tag[LambdaParamCtorBlockingIOT[Int]]
-
-      val tag = mk[Int]
-      val tagMono = Tag[LambdaParamCtorBlockingIOT[Int]]
-
-      assertSameStrict(tag.tag, tagMono.tag)
-    }
-
     "regression test: https://github.com/zio/izumi-reflect/issues/82, convert trifunctor hkt to bifunctor when combining tags" in {
       def tag[F[-_, +_, +_]: TagK3] = Tag[BIO2[F[Any, +*, +*]]]
 

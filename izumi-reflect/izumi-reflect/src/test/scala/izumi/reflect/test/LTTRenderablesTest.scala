@@ -5,12 +5,12 @@ import izumi.reflect.macrortti._
 class LTTRenderablesTest extends TagAssertions {
 
   "LTT renderables" should {
-    "render simple lambdas using placeholders when using scalaStyledName" in {
-      val list = `LTT[_]`[List].scalaStyledName
-      val either = `LTT[_,_]`[Either].scalaStyledName
-      val either2 = `LTT[_]`[Either[Int, *]].scalaStyledName
-      val either3 = `LTT[_]`[Either[*, Int]].scalaStyledName
-      val optionT = `LTT[_]`[OptionT[List, *]].scalaStyledName
+    "render simple lambdas using placeholders when using scalaStyledRepr" in {
+      val list = `LTT[_]`[List].scalaStyledRepr
+      val either = `LTT[_,_]`[Either].scalaStyledRepr
+      val either2 = `LTT[_]`[Either[Int, *]].scalaStyledRepr
+      val either3 = `LTT[_]`[Either[*, Int]].scalaStyledRepr
+      val optionT = `LTT[_]`[OptionT[List, *]].scalaStyledRepr
 
       assert(list == "scala.collection.immutable.List[+_]")
       assert(either == "scala.util.Either[+_,+_]")
@@ -19,7 +19,7 @@ class LTTRenderablesTest extends TagAssertions {
       assert(optionT == "izumi.reflect.test.OptionT[=scala.collection.immutable.List[+_],=_]")
     }
 
-    "render complex lambdas using long form when using scalaStyledName" in {
+    "render complex lambdas using long form when using scalaStyledRepr" in {
       type Const[+A, +B] = B
       type SwapEither[+A, +B] = Either[B, A]
       type SwapOptionT[A, B[_]] = OptionT[B, A]
@@ -27,13 +27,13 @@ class LTTRenderablesTest extends TagAssertions {
       type UseInner2[A, B] = OptionT[Either[A, *], B]
       type Reuse[A] = Either[A, A]
 
-      val identity = `LTT[_]`[ID.Identity].scalaStyledName
-      val const = `LTT[_,_]`[Const].scalaStyledName
-      val swapEither = `LTT[_,_]`[SwapEither].scalaStyledName
-      val swapOptionT = `LTT[_]`[SwapOptionT[*, ID.Identity]].scalaStyledName
-      val useInner = `LTT[_]`[UseInner].scalaStyledName
-      val useInner2 = `LTT[_,_]`[UseInner2].scalaStyledName
-      val reuse = `LTT[_]`[Reuse].scalaStyledName
+      val identity = `LTT[_]`[ID.Identity].scalaStyledRepr
+      val const = `LTT[_,_]`[Const].scalaStyledRepr
+      val swapEither = `LTT[_,_]`[SwapEither].scalaStyledRepr
+      val swapOptionT = `LTT[_]`[SwapOptionT[*, ID.Identity]].scalaStyledRepr
+      val useInner = `LTT[_]`[UseInner].scalaStyledRepr
+      val useInner2 = `LTT[_,_]`[UseInner2].scalaStyledRepr
+      val reuse = `LTT[_]`[Reuse].scalaStyledRepr
 
       assert(identity == "[A] ➾ A")
       assert(const == "[A,B] ➾ B")

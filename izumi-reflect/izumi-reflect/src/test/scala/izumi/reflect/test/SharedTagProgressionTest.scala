@@ -263,6 +263,25 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
+    "progression test: `combine inside type lambdas where the type constructor of the type lambda result is a type lambda type parameter` doesn't work" in {
+      val res = Try(assertCompiles("""
+      def mk[T: Tag] = Tag[LambdaParamCtorBlockingIOT[T]]
+      val tag = mk[Int]
+      val tagMono = Tag[LambdaParamCtorBlockingIOT[Int]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
+      """))
+      broken {
+        assert(res.isSuccess)
+      }
+      broken {
+        assert(
+          !(res.failed.get.getMessage.contains("Error when creating a combined tag")
+            || res.failed.get.getMessage.contains("could not find implicit value for izumi.reflect.Tag"))
+        )
+      }
+    }
+
   }
 
 }
