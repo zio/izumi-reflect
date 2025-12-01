@@ -18,7 +18,7 @@
 
 package izumi.reflect
 
-import izumi.reflect.ReflectionUtil.{Kind, KindParam, kindOf}
+import izumi.reflect.ReflectionUtil.{Kind, kindOf}
 import izumi.reflect.TagMacro._
 import izumi.reflect.internal.NowarnCompat
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
@@ -434,20 +434,23 @@ class TagMacro(val c: blackbox.Context) {
     else None
   }
 
-  protected[this] def mkTypeParameter(owner: Symbol, kindParam: KindParam): Symbol = {
+  protected[this] def mkTypeParameter(owner: Symbol, kind: Kind): Symbol = {
     import internal.reificationSupport._
     import internal.{polyType, typeBounds}
 
     val tpeSymbol = newNestedSymbol(owner, freshTypeName(""), NoPosition, Flag.PARAM | Flag.DEFERRED, isClass = false)
 
-    val tpeTpe = if (kindParam.kind.params.nonEmpty) {
-      val params = kindParam.kind.params.map(mkTypeParameter(tpeSymbol, _))
+    val tpeTpe = if (kind.args.nonEmpty) {
+      val params = kind.args.map(mkTypeParameter(tpeSymbol, _))
       polyType(params, typeBounds(definitions.NothingTpe, definitions.AnyTpe))
     } else {
-      // Use bounds from KindParam if available, otherwise default to Nothing..Any
-      val lo = kindParam.lo.map(_.asInstanceOf[Type]).getOrElse(definitions.NothingTpe)
-      val hi = kindParam.hi.map(_.asInstanceOf[Type]).getOrElse(definitions.AnyTpe)
-      typeBounds(lo, hi)
+      // Use bounds from Kind if available, otherwise default to Nothing..Any
+      kind.bounds match {
+        case Some(tb) =>
+          typeBounds(tb.lo.asInstanceOf[Type], tb.hi.asInstanceOf[Type])
+        case None =>
+          typeBounds(definitions.NothingTpe, definitions.AnyTpe)
+      }
     }
 
     setInfo(tpeSymbol, tpeTpe)
@@ -467,7 +470,7 @@ class TagMacro(val c: blackbox.Context) {
     val mutRefinementSymbol: Symbol = newNestedSymbol(staticOwner, TypeName("<refinement>"), NoPosition, FlagsRepr(0L), isClass = true)
 
     val mutArg: Symbol = newNestedSymbol(mutRefinementSymbol, TypeName("Arg"), NoPosition, FlagsRepr(0L), isClass = false)
-    val params = kind.params.map(mkTypeParameter(mutArg, _))
+    val params = kind.args.map(mkTypeParameter(mutArg, _))
     setInfo(mutArg, mkPolyType(tpe, params))
 
     val scope = newScopeWith(mutArg)
@@ -633,13 +636,13 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
 
     logger.log(s"Found position $pos, target type $targetTpe, target kind $kind")
 
-    // Create a single KindParam wrapping the entire kind with bounds from targetTpe
-    val targetBounds: (Option[Type], Option[Type]) = targetTpe match {
-      case tb: TypeBoundsApi => (Some(tb.lo), Some(tb.hi))
-      case _ => (None, None)
+    // Create a Kind with bounds from targetTpe if available
+    val targetBounds: Option[Universe#TypeBounds] = targetTpe match {
+      case tb: TypeBoundsApi => Some(tb.asInstanceOf[Universe#TypeBounds])
+      case _ => None
     }
-    val ctorKindParam = KindParam(kind, targetBounds._1.asInstanceOf[Option[Universe#Type]], targetBounds._2.asInstanceOf[Option[Universe#Type]])
-    val ctorParam = mkTypeParameter(NoSymbol, ctorKindParam)
+    val ctorKind = Kind(kind.args, targetBounds)
+    val ctorParam = mkTypeParameter(NoSymbol, ctorKind)
     val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind)
 
     val resultType = c

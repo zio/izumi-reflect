@@ -139,39 +139,36 @@ private[reflect] object ReflectionUtil {
   }
 
   def kindOf(tpe: Universe#Type): Kind = {
-    Kind(tpe.typeParams.map { param =>
-      val sig = param.typeSignature
-      val (lo, hi) = sig match {
-        case tb: Universe#TypeBoundsApi => (Some(tb.lo.asInstanceOf[Universe#Type]), Some(tb.hi.asInstanceOf[Universe#Type]))
-        case _ => (None, None)
-      }
-      KindParam(kindOf(sig), lo, hi)
-    })
+    Kind(
+      tpe.typeParams.map { param =>
+        val sig = param.typeSignature
+        val bounds = sig match {
+          case tb: Universe#TypeBoundsApi => Some(tb.asInstanceOf[Universe#TypeBounds])
+          case _ => None
+        }
+        Kind(kindOf(sig).args, bounds)
+      },
+      None
+    )
   }
 
-  /** Stores bounds for a type parameter. lo/hi are None for default bounds (Nothing..Any) */
-  final case class KindParam(
-    kind: Kind,
-    lo: Option[Universe#Type],
-    hi: Option[Universe#Type]
-  )
-
-  /** Represents the kind of a type, including bounds for each type parameter */
-  final case class Kind(params: List[KindParam]) {
-    // Backwards compatible accessor - returns just the nested Kind structure
-    def args: List[Kind] = params.map(_.kind)
-    def format(typeName: String) = s"$typeName${if (params.nonEmpty) args.mkString("[", ", ", "]") else ""}"
+  /** Represents the kind of a type, including bounds.
+    * @param args nested kinds for each type parameter
+    * @param bounds optional type bounds (None for default bounds Nothing..Any)
+    */
+  final case class Kind(args: List[Kind], bounds: Option[Universe#TypeBounds]) {
+    def format(typeName: String) = s"$typeName${if (args.nonEmpty) args.mkString("[", ", ", "]") else ""}"
     override def toString: String = format("_")
   }
 
   object Kind {
-    /** Create a simple Kind with default bounds (Nothing..Any) for all type parameters */
+    /** Create a simple Kind with default bounds for all type parameters */
     def fromArgs(args: List[Kind]): Kind = {
-      Kind(args.map(k => KindParam(k, None, None)))
+      Kind(args, None)
     }
 
     /** The simple/proper kind with no type parameters */
-    val `*` : Kind = Kind(List.empty[KindParam])
+    val `*` : Kind = Kind(Nil, None)
   }
 
 }
