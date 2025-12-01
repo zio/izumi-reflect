@@ -646,13 +646,14 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
     val targetTpe = c
       .enclosingUnit.body.collect {
         case AppliedTypeTree(t, arg :: _) if t.exists(_.pos == pos) =>
-          val checked = c.typecheck(
+          c.typecheck(
             tree = arg,
             mode = c.TYPEmode,
             pt = c.universe.definitions.NothingTpe,
-            silent = false
-          )
-          checked.tpe
+            silent = false,
+            withImplicitViewsDisabled = true,
+            withMacrosDisabled = true
+          ).tpe
       }.headOption match {
       case None =>
         c.abort(
