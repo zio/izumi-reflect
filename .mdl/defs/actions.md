@@ -208,7 +208,7 @@ Publish Scala artifacts to Sonatype (only on release branches/tags)
 
 ```bash
 # Declare dependencies and use their outputs
-dep action.gen
+soft action.gen
 
 JAVA_HOME="${action.setup-jdk.java-home}"
 PATH="${action.setup-jdk.path}"
@@ -279,7 +279,7 @@ Publish documentation to NPM
 
 ```bash
 # Declare dependencies and use their outputs
-dep action.gen
+soft action.gen
 
 JAVA_HOME="${action.setup-jdk.java-home}"
 PATH="${action.setup-jdk.path}"
