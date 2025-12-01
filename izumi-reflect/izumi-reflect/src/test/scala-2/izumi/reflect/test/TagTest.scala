@@ -63,6 +63,15 @@ class TagTest extends SharedTagTest {
       implicitly[`TagK<:Dep`[Trait3]].tag.withoutArgs =:= LTag[Trait3[Nothing]].tag.withoutArgs
     }
 
+    "support HKTag for unapplied type lambdas with type bounds (Issue #30 fix)" in {
+      // HKTag with type bounds now works on Scala 2 (Issue #30 fix)
+      type `TagK<:Dep`[K[_ <: Dep]] = HKTag[{ type Arg[A <: Dep] = K[A] }]
+
+      def t[T[_ <: Dep]: `TagK<:Dep`, A <: Dep: Tag] = Tag[T[A]]
+
+      assert(t[Trait3, Dep].tag == Tag[Trait3[Dep]].tag)
+    }
+
     "can find HKTag when obscured by type lambda (Scala 2 HKTag Syntax)" in {
       assertCompiles("HKTag.hktagFromTagMacro[{ type Arg[C] = Option[C] }]")
       assertCompiles("HKTag.hktagFromTagMacro[({ type l[F[_]] = { type Arg[C] = F[C] } })#l[Option]]")
