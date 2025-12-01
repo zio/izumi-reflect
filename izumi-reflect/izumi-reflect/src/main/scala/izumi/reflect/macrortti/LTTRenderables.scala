@@ -235,7 +235,7 @@ object LTTRenderables {
     override def prefixSplitter: String = "."
   }
 
-  object ScalaStyledLambdas extends Long {
+  object ScalaStyledLambdas extends ScalaStyledLambdasShared {
     override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
       override def render(value: SymName.LambdaParamName): String = "_"
     }

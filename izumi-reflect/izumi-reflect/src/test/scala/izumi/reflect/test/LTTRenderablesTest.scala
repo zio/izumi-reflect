@@ -4,6 +4,12 @@ import izumi.reflect.macrortti._
 
 class LTTRenderablesTest extends TagAssertions {
 
+  object X {
+    object Y {
+      class C
+    }
+  }
+
   "LTT renderables" should {
     "render simple lambdas using placeholders when using scalaStyledRepr" in {
       val list = `LTT[_]`[List].scalaStyledRepr
@@ -43,6 +49,10 @@ class LTTRenderablesTest extends TagAssertions {
       assert(useInner == s"[A] ➾ izumi.reflect.test.OptionT[[A$expectedDepth] ➾ scala.util.Either[+A,+A$expectedDepth],A]")
       assert(useInner2 == s"[A,B] ➾ izumi.reflect.test.OptionT[[A$expectedDepth] ➾ scala.util.Either[+A,+A$expectedDepth],B]")
       assert(reuse == "[A] ➾ scala.util.Either[+A,+A]")
+    }
+
+    "types in nested objects should be rendered with dot separator" in {
+      assert(LTT[X.Y.C].scalaStyledRepr == "izumi.reflect.test.LTTRenderablesTest.X.Y.C")
     }
   }
 
