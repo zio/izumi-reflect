@@ -40,7 +40,7 @@
             export JDK11=${pkgs.jdk11_headless}
             export JDK17=${pkgs.jdk17_headless}
             export JDK21=${pkgs.jdk21_headless}
-            export JDK_DEV=${pkgs.graalvm-ce}
+            export JDK_DEV=${pkgs.graalvmPackages.graalvm-ce}
 
             # Create .env directory with JDK symlink (ignore errors if already exists)
             mkdir -p ./.env 2>/dev/null || true
