@@ -350,8 +350,7 @@ class TagMacro(val c: blackbox.Context) {
           makeHKTagFromTpe(ctor)
 
         // error: the entire type is just a proper type parameter with no type arguments
-        // it cannot be resolved further
-        case Some(k) if k == Kind.`*` =>
+        case Some(k) if k.args.isEmpty =>
           logger.log(s"type B $ctor ${ctor.typeSymbol}")
           val msg = s"  could not find implicit value for ${tagFormat(tpe)}: $tpe is a type parameter without an implicit Tag!"
           addImplicitError(msg)
@@ -442,7 +441,11 @@ class TagMacro(val c: blackbox.Context) {
 
     val tpeTpe = if (kind.args.nonEmpty) {
       val params = kind.args.map(mkTypeParameter(tpeSymbol, _))
-      polyType(params, typeBounds(definitions.NothingTpe, definitions.AnyTpe))
+      val resultBounds = kind.bounds match {
+        case Some(tb) => typeBounds(tb.lo.asInstanceOf[Type], tb.hi.asInstanceOf[Type])
+        case None => typeBounds(definitions.NothingTpe, definitions.AnyTpe)
+      }
+      polyType(params, resultBounds)
     } else {
       // Use bounds from Kind if available, otherwise default to Nothing..Any
       kind.bounds match {
@@ -498,7 +501,7 @@ class TagMacro(val c: blackbox.Context) {
   @inline
   protected[this] def summonTagForKind(tpe: c.Type, kind: Kind): c.Tree = {
     try {
-      if (kind == Kind.`*`) {
+      if (kind.args.isEmpty) {
         c.inferImplicitValue(appliedType(weakTypeOf[Tag[Nothing]].typeConstructor, tpe), silent = false)
       } else {
         val ArgStruct = mkHKTagArgStruct(tpe, kind)
@@ -636,13 +639,7 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
 
     logger.log(s"Found position $pos, target type $targetTpe, target kind $kind")
 
-    // Create a Kind with bounds from targetTpe if available
-    val targetBounds: Option[Universe#TypeBounds] = targetTpe match {
-      case tb: TypeBoundsApi => Some(tb.asInstanceOf[Universe#TypeBounds])
-      case _ => None
-    }
-    val ctorKind = Kind(kind.args, targetBounds)
-    val ctorParam = mkTypeParameter(NoSymbol, ctorKind)
+    val ctorParam = mkTypeParameter(NoSymbol, kind)
     val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind)
 
     val resultType = c

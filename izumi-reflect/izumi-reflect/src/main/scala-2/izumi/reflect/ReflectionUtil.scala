@@ -144,6 +144,11 @@ private[reflect] object ReflectionUtil {
         val sig = param.typeSignature
         val bounds = sig match {
           case tb: Universe#TypeBoundsApi => Some(tb.asInstanceOf[Universe#TypeBounds])
+          case pt: Universe#PolyTypeApi =>
+            pt.resultType match {
+              case tb: Universe#TypeBoundsApi => Some(tb.asInstanceOf[Universe#TypeBounds])
+              case _ => None
+            }
           case _ => None
         }
         Kind(kindOf(sig).args, bounds)
