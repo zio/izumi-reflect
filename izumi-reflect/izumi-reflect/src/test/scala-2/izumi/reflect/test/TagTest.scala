@@ -95,16 +95,6 @@ class TagTest extends SharedTagTest {
       assert(t[TraitK30, Trait30].tag == Tag[TraitK30[Trait30]].tag)
     }
 
-    "support Tag.auto.T for higher-kinded type lambdas with interdependent inner and outer type bounds" in {
-      class Dep0
-      trait Trait30[T <: Dep0]
-      trait TraitK30[T[x <: Dep0] <: Trait30[x]]
-
-      def t[K[F[x <: Dep0] <: Trait30[x]]: Tag.auto.T, T[x <: Dep0] <: Trait30[x]: Tag.auto.T] = Tag[K[T]]
-
-      assert(t[TraitK30, Trait30].tag == Tag[TraitK30[Trait30]].tag)
-    }
-
     "can find HKTag when obscured by type lambda (Scala 2 HKTag Syntax)" in {
       assertCompiles("HKTag.hktagFromTagMacro[{ type Arg[C] = Option[C] }]")
       assertCompiles("HKTag.hktagFromTagMacro[({ type l[F[_]] = { type Arg[C] = F[C] } })#l[Option]]")

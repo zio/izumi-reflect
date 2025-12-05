@@ -141,9 +141,6 @@ class TagMacro(val c: blackbox.Context) {
     }
 
     val constructorTag: c.Expr[HKTag[_]] = {
-      // Check if we're dealing with an identity-like application: `K[T]` where K is a type param
-      // and T exactly matches the lambda's type parameters. In this case, we cannot summon
-      // another HKTag because K doesn't have one - we ARE the implicit being created for K.
       val isIdentityCtorApplication = {
         getCtorKindIfCtorIsTypeParameter(ctorTpe).isDefined &&
         isSimplePartialApplication &&
@@ -158,13 +155,10 @@ class TagMacro(val c: blackbox.Context) {
           logger.log(s"HK type A ctor=$ctorTpe sym=${ctorTpe.typeSymbol}")
           makeHKTagFromTpe(ctorTpe)
 
-        // error: the entire type is just a proper type parameter with no type arguments
-        // it cannot be resolved further. This includes identity applications like `K[T]` in `[T] => K[T]`
-        case Some(k) if isIdentityCtorApplication =>
-          logger.log(s"HK type B (identity) $ctorTpe ${ctorTpe.typeSymbol}")
-          val msg = s"  could not find implicit value for ${tagFormat(lambdaResult)}: $lambdaResult is a type parameter without an implicit Tag!"
-          addImplicitError(msg)
-          abortWithImplicitError()
+        // Identity application `[F] => K[F]` - return tag for outer lambda
+        case Some(_) if isIdentityCtorApplication =>
+          logger.log(s"HK type B (identity) $ctorTpe ${ctorTpe.typeSymbol} - returning tag for outer lambda")
+          return makeHKTagFromStrongTpe[ArgStruct](outerLambda)
 
         // type constructor is a type parameter AND has type arguments
         // we should resolve type constructor separately from an HKTag
@@ -452,8 +446,11 @@ class TagMacro(val c: blackbox.Context) {
     def mkBounds(tb: Option[Universe#TypeBounds], subst: List[Symbol] = Nil) = tb match {
       case Some(b) =>
         val (lo, hi) = (b.lo.asInstanceOf[Type], b.hi.asInstanceOf[Type])
-        if (subst.nonEmpty) typeBounds(lo.substituteSymbols(origInner, subst), hi.substituteSymbols(origInner, subst))
-        else typeBounds(lo, hi)
+        if (subst.nonEmpty) {
+          val newLo = lo.substituteSymbols(origInner, subst)
+          val newHi = hi.substituteSymbols(origInner, subst)
+          typeBounds(newLo, newHi)
+        } else typeBounds(lo, hi)
       case None => typeBounds(definitions.NothingTpe, definitions.AnyTpe)
     }
 
@@ -467,7 +464,7 @@ class TagMacro(val c: blackbox.Context) {
   }
 
   @inline
-  protected[this] def mkHKTagArgStruct(tpe: Type, kind: Kind): Type = {
+  protected[this] def mkHKTagArgStruct(tpe: Type, kind: Kind, origTpeSym: Option[Symbol] = None): Type = {
     import internal.reificationSupport._
 
     val staticOwner = c.prefix.tree.symbol.owner
@@ -478,9 +475,21 @@ class TagMacro(val c: blackbox.Context) {
     val mutRefinementSymbol: Symbol = newNestedSymbol(staticOwner, TypeName("<refinement>"), NoPosition, FlagsRepr(0L), isClass = true)
 
     val mutArg: Symbol = newNestedSymbol(mutRefinementSymbol, TypeName("Arg"), NoPosition, FlagsRepr(0L), isClass = false)
-    val origParams = tpe.typeParams
-    val params = kind.args.zipWithIndex.map { case (k, i) => mkTypeParameter(mutArg, k, origParams.lift(i)) }
-    setInfo(mutArg, mkPolyType(tpe, params))
+
+    val isTypeParameter = !ReflectionUtil.isSelfStrong(Set.empty, tpe)
+    val polyType = if (isTypeParameter && tpe.takesTypeArgs) {
+      logger.log(s"mkHKTagArgStruct: using etaExpand for type parameter $tpe")
+      tpe.etaExpand
+    } else {
+      val origParams = origTpeSym.flatMap(_.typeSignature match {
+        case pt: PolyTypeApi => Some(pt.typeParams)
+        case _ => None
+      }).getOrElse(tpe.typeParams)
+      val params = kind.args.zipWithIndex.map { case (k, i) => mkTypeParameter(mutArg, k, origParams.lift(i)) }
+      mkPolyType(tpe, params)
+    }
+
+    setInfo(mutArg, polyType)
 
     val scope = newScopeWith(mutArg)
 
@@ -645,8 +654,9 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
 
     logger.log(s"Found position $pos, target type $targetTpe, target kind $kind")
 
-    val ctorParam = mkTypeParameter(NoSymbol, kind, if (targetTpe.takesTypeArgs) Some(targetTpe.typeSymbol) else None)
-    val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind)
+    val origSym = if (targetTpe.takesTypeArgs) Some(targetTpe.typeSymbol) else None
+    val ctorParam = mkTypeParameter(NoSymbol, kind, origSym)
+    val ArgStruct = mkHKTagArgStruct(ctorParam.asType.toType, kind, origSym)
 
     val resultType = c
       .typecheck(
