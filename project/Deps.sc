@@ -172,6 +172,7 @@ object Izumi {
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.=:=")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.<:<")""".raw,
           // compile-time only
+          """ProblemFilters.exclude[Problem]("izumi.reflect.ReflectionUtil*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagImpl#*")""".raw,
