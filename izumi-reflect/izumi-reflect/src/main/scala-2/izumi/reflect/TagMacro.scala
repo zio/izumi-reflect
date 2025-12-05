@@ -141,6 +141,15 @@ class TagMacro(val c: blackbox.Context) {
     }
 
     val constructorTag: c.Expr[HKTag[_]] = {
+      // Check if we're dealing with an identity-like application: `K[T]` where K is a type param
+      // and T exactly matches the lambda's type parameters. In this case, we cannot summon
+      // another HKTag because K doesn't have one - we ARE the implicit being created for K.
+      val isIdentityCtorApplication = {
+        getCtorKindIfCtorIsTypeParameter(ctorTpe).isDefined &&
+        isSimplePartialApplication &&
+        typeArgsTpes.corresponds(outerLambda.typeParams)((arg, param) => arg.typeSymbol == param)
+      }
+      
       getCtorKindIfCtorIsTypeParameter(ctorTpe) match {
         // type constructor of this type is not a type parameter
         // BUT can be an intersection type
@@ -150,9 +159,9 @@ class TagMacro(val c: blackbox.Context) {
           makeHKTagFromTpe(ctorTpe)
 
         // error: the entire type is just a proper type parameter with no type arguments
-        // it cannot be resolved further
-        case Some(k) if k == kindOf(outerLambda) && isSimplePartialApplication =>
-          logger.log(s"HK type B $ctorTpe ${ctorTpe.typeSymbol}")
+        // it cannot be resolved further. This includes identity applications like `K[T]` in `[T] => K[T]`
+        case Some(k) if isIdentityCtorApplication =>
+          logger.log(s"HK type B (identity) $ctorTpe ${ctorTpe.typeSymbol}")
           val msg = s"  could not find implicit value for ${tagFormat(lambdaResult)}: $lambdaResult is a type parameter without an implicit Tag!"
           addImplicitError(msg)
           abortWithImplicitError()
