@@ -82,6 +82,15 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
     }
 
+    "support combining with Tag for higher-kinded type lambdas with inner and outer type bounds" in {
+      trait Trait3[T <: Dep]
+      trait TraitK3[T[x <: Dep] <: Trait3[x]]
+
+      def t[K[F[x <: Dep] <: Trait3[x]]: Tag.auto.T, T[x <: Dep] <: Trait3[x]: Tag.auto.T] = Tag[K[T]]
+
+      assert(t[TraitK3, Trait3].tag == Tag[TraitK3[Trait3]].tag)
+    }
+
   }
 
 }

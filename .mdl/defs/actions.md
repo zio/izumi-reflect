@@ -105,6 +105,63 @@ VERSION_COMMAND="++ $SCALA_VERSION_VAL"
 ret version-command:String="$VERSION_COMMAND"
 ```
 
+# action: check-sbtgen-staleness
+
+Decide whether sbt build files need regeneration
+
+```bash
+PROJECT_ROOT="${sys.project-root}"
+
+readonly SBTGEN_INPUTS=(
+  "$PROJECT_ROOT/sbtgen.sc"
+  "$PROJECT_ROOT/project/Deps.sc"
+  "$PROJECT_ROOT/project/Settings.scala"
+  "$PROJECT_ROOT/project/Versions.scala"
+  "$PROJECT_ROOT/project/project/PluginVersions.scala"
+)
+
+readonly GENERATED_SBT_FILES=(
+  "$PROJECT_ROOT/build.sbt"
+  "$PROJECT_ROOT/project/plugins.sbt"
+)
+
+readonly EPOCH_START=0
+
+for input_file in "${SBTGEN_INPUTS[@]}"; do
+  if [[ ! -f "$input_file" ]]; then
+    echo "Missing sbtgen input: $input_file"
+    exit 1
+  fi
+done
+
+for generated_file in "${GENERATED_SBT_FILES[@]}"; do
+  if [[ ! -f "$generated_file" ]]; then
+    retain
+    exit 0
+  fi
+done
+
+newest_input_mtime="$EPOCH_START"
+for input_file in "${SBTGEN_INPUTS[@]}"; do
+  modified_at=$(stat -c %Y "$input_file")
+  if (( modified_at > newest_input_mtime )); then
+    newest_input_mtime="$modified_at"
+  fi
+done
+
+oldest_generated_mtime=$(stat -c %Y "${GENERATED_SBT_FILES[0]}")
+for generated_file in "${GENERATED_SBT_FILES[@]:1}"; do
+  modified_at=$(stat -c %Y "$generated_file")
+  if (( modified_at < oldest_generated_mtime )); then
+    oldest_generated_mtime="$modified_at"
+  fi
+done
+
+if (( newest_input_mtime > oldest_generated_mtime )); then
+  retain
+fi
+```
+
 # action: gen
 
 Generate build files using sbtgen
@@ -125,7 +182,7 @@ Run tests and binary compatibility checks
 
 ```bash
 # Declare dependencies and use their outputs
-dep action.gen
+soft action.gen retain.action.check-sbtgen-staleness
 
 JAVA_HOME="${action.setup-jdk.java-home}"
 PATH="${action.setup-jdk.path}"
@@ -151,7 +208,7 @@ Publish Scala artifacts to Sonatype (only on release branches/tags)
 
 ```bash
 # Declare dependencies and use their outputs
-dep action.gen
+soft action.gen
 
 JAVA_HOME="${action.setup-jdk.java-home}"
 PATH="${action.setup-jdk.path}"
@@ -222,7 +279,7 @@ Publish documentation to NPM
 
 ```bash
 # Declare dependencies and use their outputs
-dep action.gen
+soft action.gen
 
 JAVA_HOME="${action.setup-jdk.java-home}"
 PATH="${action.setup-jdk.path}"
@@ -281,7 +338,7 @@ sbt -batch -no-colors -v \
 Full build pipeline - generate and test
 
 ```bash
-dep action.gen
+soft action.gen retain.action.check-sbtgen-staleness
 dep action.test
 exit 0
 ```

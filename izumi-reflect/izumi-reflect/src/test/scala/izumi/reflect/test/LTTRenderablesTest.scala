@@ -4,6 +4,12 @@ import izumi.reflect.macrortti._
 
 class LTTRenderablesTest extends TagAssertions {
 
+  object X {
+    object Y {
+      class C
+    }
+  }
+
   "LTT renderables" should {
     "render simple lambdas using placeholders when using scalaStyledRepr" in {
       val list = `LTT[_]`[List].scalaStyledRepr
@@ -16,7 +22,7 @@ class LTTRenderablesTest extends TagAssertions {
       assert(either == "scala.util.Either[+_,+_]")
       assert(either2 == "scala.util.Either[+scala.Int,+_]")
       assert(either3 == "scala.util.Either[+_,+scala.Int]")
-      assert(optionT == "izumi.reflect.test.OptionT[=scala.collection.immutable.List[+_],=_]")
+      assert(optionT == "izumi.reflect.test.OptionT[scala.collection.immutable.List[+_],_]")
     }
 
     "render complex lambdas using long form when using scalaStyledRepr" in {
@@ -39,10 +45,14 @@ class LTTRenderablesTest extends TagAssertions {
       assert(const == "[A,B] ➾ B")
       assert(swapEither == "[A,B] ➾ scala.util.Either[+B,+A]")
       val expectedDepth = if (IsScala3) 1 else 2
-      assert(swapOptionT == s"izumi.reflect.test.OptionT[=[A$expectedDepth] ➾ A$expectedDepth,=_]")
+      assert(swapOptionT == s"izumi.reflect.test.OptionT[[A$expectedDepth] ➾ A$expectedDepth,_]")
       assert(useInner == s"[A] ➾ izumi.reflect.test.OptionT[[A$expectedDepth] ➾ scala.util.Either[+A,+A$expectedDepth],A]")
       assert(useInner2 == s"[A,B] ➾ izumi.reflect.test.OptionT[[A$expectedDepth] ➾ scala.util.Either[+A,+A$expectedDepth],B]")
       assert(reuse == "[A] ➾ scala.util.Either[+A,+A]")
+    }
+
+    "types in nested objects should be rendered with dot separator" in {
+      assert(LTT[X.Y.C].scalaStyledRepr == "izumi.reflect.test.LTTRenderablesTest.X.Y.C")
     }
   }
 

@@ -149,11 +149,11 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val tag = `LTT[_]`[KK2[H2, *]]
       val tag1 = `LTT[_,_]`[SwappedKK2]
 
-      withDebugOutput {
-        assertChild(tag, `LTT[_]`[KK1[*, H1, Unit]])
-        assertChild(tag1, `LTT[_,_]`[KK1Unit])
-        assertNotChild(tag1, `LTT[_,_]`[KK2])
-      }
+//      withDebugOutput {
+      assertChild(tag, `LTT[_]`[KK1[*, H1, Unit]])
+      assertChild(tag1, `LTT[_,_]`[KK1Unit])
+      assertNotChild(tag1, `LTT[_,_]`[KK2])
+//      }
     }
 
     "support subtyping of parents parameterized with type lambdas" in {
@@ -811,9 +811,9 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
 
       assertChild(combined, LTT[W5[Int]])
       assertChild(combined, LTT[W4[Boolean]])
-      withDebugOutput {
-        assertChild(combined, LTT[W3[Boolean]])
-      }
+//      withDebugOutput {
+      assertChild(combined, LTT[W3[Boolean]])
+//      }
       assertChild(combined, LTT[W1])
       assertChild(combined, LTT[W2])
       assertChild(combined, LTT[W1 with W3[Boolean]])
