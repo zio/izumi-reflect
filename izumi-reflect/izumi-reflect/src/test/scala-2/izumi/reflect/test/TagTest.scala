@@ -64,7 +64,6 @@ class TagTest extends SharedTagTest {
     }
 
     "support HKTag for unapplied type lambdas with type bounds" in {
-      // HKTag with type bounds now works on Scala 2 (Issue #30 fix)
       type `TagK<:Dep`[K[_ <: Dep]] = HKTag[{ type Arg[A <: Dep] = K[A] }]
 
       def t[T[_ <: Dep]: `TagK<:Dep`, A <: Dep: Tag] = Tag[T[A]]
@@ -81,6 +80,19 @@ class TagTest extends SharedTagTest {
       def t[T[_[_] <: Dep]: `TagKT<:Dep`, A[_] <: Dep: TagK] = Tag[T[A]]
 
       assert(t[Trait5, Trait4].tag == Tag[Trait5[Trait4]].tag)
+    }
+
+    "support HKTag for higher-kinded type lambdas with interdependent inner and outer type bounds" in {
+      class Dep0
+      trait Trait30[T <: Dep0]
+      trait TraitK30[T[x <: Dep0] <: Trait30[x]]
+
+      type `TagK<:Dep0`[K[_ <: Dep0]] = HKTag[{ type Arg[A <: Dep0] = K[A] }]
+      type `TagKT<:Dep0`[K[T[x <: Dep0] <: Trait30[x]]] = HKTag[{ type Arg[T[x <: Dep0] <: Trait30[x]] = K[T] }]
+
+      def t[K[F[x <: Dep0] <: Trait30[x]]: `TagKT<:Dep0`, T[x <: Dep0] <: Trait30[x]: `TagK<:Dep0`] = Tag[K[T]]
+
+      assert(t[TraitK30, Trait30].tag == Tag[TraitK30[Trait30]].tag)
     }
 
     "can find HKTag when obscured by type lambda (Scala 2 HKTag Syntax)" in {
