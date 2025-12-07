@@ -130,25 +130,15 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
     "Progression test: Scala 2 partially fails to Handle Tags outside of a predefined set when using TagX alias (Tag.auto.T works directly)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
-
-      assertCompiles(
-        """
-      def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
-         """
-      )
-
       brokenOnScala2 {
         assertCompiles(
           """
-      type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
-      def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
-      testTagX[TXU, Int, String, OptionT, List, Boolean]
-           """
+          def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+             """
         )
       }
 
       def testTagXDirect[F[_, _, _[_[_], _], _[_], _]: Tag.auto.T, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
-
       val value = testTagXDirect[TXU, Int, String, OptionT, List, Boolean]
       assert(value.tag == fromRuntime[TXU[Int, String, OptionT, List, Boolean]])
     }
@@ -279,12 +269,14 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
       assertSameStrict(tag.tag, tagMono.tag)
       """))
-      if (Scala2MinorVersion.scala2MinorVersion >= 0) {
+      broken {
         assert(res.isSuccess)
-      } else {
-        assertDoesNotCompile("""
-          def mk[T: Tag] = Tag[LambdaParamCtorBlockingIOT[T]]
-        """)
+      }
+      broken {
+        assert(
+          !(res.failed.get.getMessage.contains("Error when creating a combined tag")
+            || res.failed.get.getMessage.contains("could not find implicit value for izumi.reflect.Tag"))
+        )
       }
     }
 

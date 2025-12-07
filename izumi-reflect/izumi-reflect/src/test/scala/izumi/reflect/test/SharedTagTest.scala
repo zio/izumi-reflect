@@ -220,7 +220,7 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       class Y extends X
 
       def getTag[F[A <: X]: Tag.auto.T] = {
-        val ev = implicitly[Tag.auto.T[F]]
+        val _ = implicitly[Tag.auto.T[F]]
         Tag[F[Y]]
       }
 

@@ -68,14 +68,14 @@ class TagMacro(val c: blackbox.Context) {
     c.Expr[HKTagMaterializer[ArgStruct]](q"new ${weakTypeOf[HKTagMaterializer[ArgStruct]]}(${makeHKTag[ArgStruct]})")
   }
 
-  @inline final def makeHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[HKTag[ArgStruct]] = {
+  @inline final def makeHKTag[ArgStruct](implicit argStructTag: c.WeakTypeTag[ArgStruct]): c.Expr[HKTag[ArgStruct]] = {
     val argStruct = weakTypeOf[ArgStruct]
     val ctor = ltagMacro.unpackArgStruct(argStruct)
     if (ReflectionUtil.allPartsStrong(ctor)) {
       logger.log(s"HK: found Strong ctor=$ctor in ArgStruct, returning $argStruct")
       makeHKTagFromStrongTpe[ArgStruct](ctor)
     } else {
-      makeHKTagImpl(ctor, implicitly[c.WeakTypeTag[ArgStruct]])
+      makeHKTagImpl(ctor, argStructTag)
     }
   }
 
@@ -134,31 +134,36 @@ class TagMacro(val c: blackbox.Context) {
     val typeArgsTpes = lambdaResult.typeArgs
 
     val isSimplePartialApplication = {
-      // all parameters are consumed exactly once, in left-to-right order
+      // all parameters are consumed exactly once, in left-to-right order,
+      // but there could be type arguments applied to the left of parameters
       typeArgsTpes
         .map(_.typeSymbol)
         .filter(outerLambda.typeParams.contains) == outerLambda.typeParams
     }
 
     val constructorTag: c.Expr[HKTag[_]] = {
-      val isIdentityCtorApplication = {
-        getCtorKindIfCtorIsTypeParameter(ctorTpe).isDefined &&
+      // outer lambda is just a forwarding lambda `[A, B, C] =>> F[A, B, C]`, exactly equivalent to `F` itself
+      val outerLambdaEqualsCtorEtaExpand = {
         isSimplePartialApplication &&
-        typeArgsTpes.corresponds(outerLambda.typeParams)((arg, param) => arg.typeSymbol == param)
+        typeArgsTpes.corresponds(outerLambda.typeParams)(_.typeSymbol == _)
       }
-      
+
       getCtorKindIfCtorIsTypeParameter(ctorTpe) match {
         // type constructor of this type is not a type parameter
         // BUT can be an intersection type
         // some of its arguments are type parameters that we should resolve
         case None =>
           logger.log(s"HK type A ctor=$ctorTpe sym=${ctorTpe.typeSymbol}")
-          makeHKTagFromTpe(ctorTpe)
+          makeHKTagFromStrongTpe[Any](ctorTpe)
 
-        // Identity application `[F] => K[F]` - return tag for outer lambda
-        case Some(_) if isIdentityCtorApplication =>
-          logger.log(s"HK type B (identity) $ctorTpe ${ctorTpe.typeSymbol} - returning tag for outer lambda")
-          return makeHKTagFromStrongTpe[ArgStruct](outerLambda)
+        // outerLambda is a simple forwarder `[A, B, C] =>> F[A, B, C]` AND `F` is a type parameter
+        // We can't progress here: we must find HKTag[F] to progress, but we ARE in the process of
+        // deriving HKTag[F], which means it doesn't already exist.
+        case Some(_) if outerLambdaEqualsCtorEtaExpand =>
+          logger.log(s"HK type B (error) $ctorTpe ${ctorTpe.typeSymbol} - can't find tag for ctor=${showRaw(ctorTpe)}, etaExpand=${showRaw(outerLambda)}")
+          val msg = s"  could not find implicit value for ${tagFormat(lambdaResult)}: $lambdaResult is a type parameter without an implicit Tag!"
+          addImplicitError(msg)
+          abortWithImplicitError()
 
         // type constructor is a type parameter AND has type arguments
         // we should resolve type constructor separately from an HKTag
@@ -290,10 +295,6 @@ class TagMacro(val c: blackbox.Context) {
     }
   }
 
-  private[this] def makeHKTagFromTpe(strongCtorType: Type): c.Expr[HKTag[_]] = {
-    makeHKTagFromStrongTpe[Any](strongCtorType)
-  }
-
   @inline
   protected[this] def mkRefined[T](intersection: List[Type], originalRefinement: Type, tag: c.WeakTypeTag[T]): c.Expr[Tag[T]] = {
     val summonedIntersectionTags = intersection.map {
@@ -350,7 +351,7 @@ class TagMacro(val c: blackbox.Context) {
         // some of its arguments are type parameters that we should resolve
         case None =>
           logger.log(s"type A $ctor  ${ctor.typeSymbol}")
-          makeHKTagFromTpe(ctor)
+          makeHKTagFromStrongTpe[Any](ctor)
 
         // error: the entire type is just a proper type parameter with no type arguments
         case Some(k) if k.args.isEmpty =>
