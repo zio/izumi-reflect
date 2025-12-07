@@ -151,17 +151,23 @@ private[reflect] object ReflectionUtil {
             }
           case _ => None
         }
-        Kind(kindOf(sig).args, bounds)
+        val innerParams = sig match {
+          case pt: Universe#PolyTypeApi => pt.typeParams.map(_.asInstanceOf[Universe#Symbol])
+          case _ => Nil
+        }
+        Kind(kindOf(sig).args, bounds, innerParams)
       },
-      None
+      None,
+      tpe.typeParams.map(_.asInstanceOf[Universe#Symbol])
     )
   }
 
   /** Represents the kind of a type, including bounds.
     * @param args nested kinds for each type parameter
     * @param bounds optional type bounds (None for default bounds Nothing..Any)
+    * @param typeParams original type parameter symbols (for substitution during type construction)
     */
-  final case class Kind(args: List[Kind], bounds: Option[Universe#TypeBounds]) {
+  final case class Kind(args: List[Kind], bounds: Option[Universe#TypeBounds], typeParams: List[Universe#Symbol] = Nil) {
     def format(typeName: String) = s"$typeName${if (args.nonEmpty) args.mkString("[", ", ", "]") else ""}"
     override def toString: String = format("_")
   }
@@ -169,11 +175,11 @@ private[reflect] object ReflectionUtil {
   object Kind {
     /** Create a simple Kind with default bounds for all type parameters */
     def fromArgs(args: List[Kind]): Kind = {
-      Kind(args, None)
+      Kind(args, None, Nil)
     }
 
     /** The simple/proper kind with no type parameters */
-    val `*` : Kind = Kind(Nil, None)
+    val `*` : Kind = Kind(Nil, None, Nil)
   }
 
 }
