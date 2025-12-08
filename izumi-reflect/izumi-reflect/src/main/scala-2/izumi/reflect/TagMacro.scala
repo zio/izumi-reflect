@@ -442,7 +442,7 @@ class TagMacro(val c: blackbox.Context) {
     import internal.{polyType, typeBounds}
 
     val sym = newNestedSymbol(owner, freshTypeName(""), NoPosition, Flag.PARAM | Flag.DEFERRED, isClass = false)
-    val origInner = kind.typeParams.map(_.asInstanceOf[Symbol])
+    val origInner = kind.args.map(_.symbol.asInstanceOf[Symbol])
 
     def mkBounds(tb: Option[Universe#TypeBounds], subst: List[Symbol] = Nil) = tb match {
       case Some(b) =>
