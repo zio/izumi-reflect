@@ -139,11 +139,11 @@ private[reflect] object ReflectionUtil {
   }
 
   /** Represents the kind of a type, including bounds.
-    * @param args nested kinds for each type parameter
+    * @param params nested kinds for each type parameter
     * @param bounds optional type bounds (None for default bounds Nothing..Any)
     * @param symbol original type parameter symbol (for substitution during type construction)
     */
-  final case class KindInfo[+U <: Universe](args: List[KindInfo[U]], bounds: Option[U#TypeBoundsApi], symbol: U#Symbol)
+  final case class KindInfo[+U <: Universe](params: List[KindInfo[U]], bounds: Option[U#TypeBoundsApi], symbol: U#Symbol)
   object KindInfo {
     def ofType[U <: Universe with Singleton](tpe: U#Type): KindInfo[U] = {
       KindInfo.of(tpe, tpe.typeSymbol)

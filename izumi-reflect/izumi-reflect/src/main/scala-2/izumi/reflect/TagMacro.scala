@@ -354,7 +354,7 @@ class TagMacro(val c: blackbox.Context) {
           makeHKTagFromStrongTpe[Any](ctor)
 
         // error: the entire type is just a proper type parameter with no type arguments
-        case Some(k) if k.args.isEmpty =>
+        case Some(k) if k.params.isEmpty =>
           logger.log(s"type B $ctor ${ctor.typeSymbol}")
           val msg = s"  could not find implicit value for ${tagFormat(tpe)}: $tpe is a type parameter without an implicit Tag!"
           addImplicitError(msg)
@@ -442,7 +442,7 @@ class TagMacro(val c: blackbox.Context) {
     import internal.{polyType, typeBounds}
 
     val sym = newNestedSymbol(owner, freshTypeName(""), NoPosition, Flag.PARAM | Flag.DEFERRED, isClass = false)
-    val origInner = kindInfo.args.map(_.symbol)
+    val origInner = kindInfo.params.map(_.symbol)
 
     def mkBounds(tb: Option[TypeBoundsApi], subst: List[Symbol] = Nil) = tb match {
       case Some(b) =>
@@ -455,8 +455,8 @@ class TagMacro(val c: blackbox.Context) {
       case None => typeBounds(definitions.NothingTpe, definitions.AnyTpe)
     }
 
-    val tpe = if (kindInfo.args.nonEmpty) {
-      val params = kindInfo.args.map(mkTypeParameter(sym, _))
+    val tpe = if (kindInfo.params.nonEmpty) {
+      val params = kindInfo.params.map(mkTypeParameter(sym, _))
       polyType(params, mkBounds(kindInfo.bounds, params))
     } else mkBounds(kindInfo.bounds)
 
@@ -482,7 +482,7 @@ class TagMacro(val c: blackbox.Context) {
       logger.log(s"mkHKTagArgStruct: using etaExpand for type parameter $tpe")
       tpe.etaExpand
     } else {
-      val params = kindInfo.args.map(mkTypeParameter(mutArg, _))
+      val params = kindInfo.params.map(mkTypeParameter(mutArg, _))
       mkPolyType(tpe, params)
     }
 
@@ -513,7 +513,7 @@ class TagMacro(val c: blackbox.Context) {
   @inline
   protected[this] def summonTagForKind(tpe: c.Type, kindInfo: KindInfo[c.universe.type]): c.Tree = {
     try {
-      if (kindInfo.args.isEmpty) {
+      if (kindInfo.params.isEmpty) {
         c.inferImplicitValue(appliedType(weakTypeOf[Tag[Nothing]].typeConstructor, tpe), silent = false)
       } else {
         val ArgStruct = mkHKTagArgStruct(tpe, kindInfo)
@@ -574,7 +574,7 @@ class TagMacro(val c: blackbox.Context) {
       case Some(_) => ""
       case None =>
         val (typaramsWithKinds, appliedParams) = kind
-          .args.zipWithIndex.map {
+          .params.zipWithIndex.map {
             case (k, i) =>
               val name = s"T${i + 1}"
               k.format(name) -> name
@@ -599,11 +599,11 @@ private object TagMacro {
     Kind(tpe.typeParams.map(t => kindOf(t.typeSignature)))
   }
   def kindOf(kindInfo: KindInfo[Universe]): Kind = {
-    Kind(kindInfo.args.map(kindOf))
+    Kind(kindInfo.params.map(kindOf))
   }
 
-  final case class Kind(args: List[Kind]) {
-    def format(typeName: String) = s"$typeName${if (args.nonEmpty) args.mkString("[", ", ", "]") else ""}"
+  final case class Kind(params: List[Kind]) {
+    def format(typeName: String) = s"$typeName${if (params.nonEmpty) params.mkString("[", ", ", "]") else ""}"
     override def toString: String = format("_")
   }
   object Kind {
