@@ -444,9 +444,9 @@ class TagMacro(val c: blackbox.Context) {
     val sym = newNestedSymbol(owner, freshTypeName(""), NoPosition, Flag.PARAM | Flag.DEFERRED, isClass = false)
     val origInner = kindInfo.args.map(_.symbol)
 
-    def mkBounds(tb: Option[Universe#TypeBoundsApi], subst: List[Symbol] = Nil) = tb match {
+    def mkBounds(tb: Option[TypeBoundsApi], subst: List[Symbol] = Nil) = tb match {
       case Some(b) =>
-        val (lo, hi) = (b.lo.asInstanceOf[Type], b.hi.asInstanceOf[Type])
+        val (lo, hi) = (b.lo, b.hi)
         if (subst.nonEmpty) {
           val newLo = lo.substituteSymbols(origInner, subst)
           val newHi = hi.substituteSymbols(origInner, subst)

@@ -151,8 +151,8 @@ private[reflect] object ReflectionUtil {
     def ofSymbol[U <: Universe with Singleton](sym: U#Symbol): KindInfo[U] = {
       KindInfo.of(sym.typeSignature, sym)
     }
-    def of[U <: Universe with Singleton](tpe0: U#Type, sym: U#Symbol): KindInfo[U] = {
-      val bounds: Option[U#TypeBoundsApi] = tpe0 match {
+    def of[U <: Universe with Singleton](tpe: U#Type, sym: U#Symbol): KindInfo[U] = {
+      val bounds: Option[U#TypeBoundsApi] = tpe match {
         case tb: U#TypeBoundsApi => Some(tb)
         case pt: U#PolyTypeApi =>
           pt.resultType match {
@@ -161,7 +161,7 @@ private[reflect] object ReflectionUtil {
           }
         case _ => None
       }
-      KindInfo[U](tpe0.typeParams.map(KindInfo.ofSymbol), bounds, sym)
+      KindInfo[U](tpe.typeParams.map(KindInfo.ofSymbol), bounds, sym)
     }
   }
 
