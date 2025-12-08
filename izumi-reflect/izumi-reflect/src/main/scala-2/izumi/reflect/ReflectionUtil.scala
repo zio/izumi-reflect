@@ -167,7 +167,7 @@ private[reflect] object ReflectionUtil {
     * @param bounds optional type bounds (None for default bounds Nothing..Any)
     * @param typeParams original type parameter symbols (for substitution during type construction)
     */
-  final case class Kind(args: List[Kind], bounds: Option[Universe#TypeBounds], typeParams: List[Universe#Symbol] = Nil) {
+  final case class Kind(args: List[Kind], bounds: Option[Universe#TypeBounds], symbol: Universe#Symbol) {
     def format(typeName: String) = s"$typeName${if (args.nonEmpty) args.mkString("[", ", ", "]") else ""}"
     override def toString: String = format("_")
   }
