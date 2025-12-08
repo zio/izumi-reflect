@@ -179,6 +179,7 @@ object Izumi {
           // private packages
           """ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.internal.*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.ReflectionUtil*")""".raw,
           // private methods
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.norm")""".raw,
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.izumi$reflect$macrortti$LightTypeTagImpl$$*")""".raw,

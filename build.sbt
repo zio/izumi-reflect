@@ -650,6 +650,7 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[Problem]("izumi.reflect.dottyreflection.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*"),
       ProblemFilters.exclude[Problem]("izumi.reflect.internal.*"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.ReflectionUtil*"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.norm"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.izumi$reflect$macrortti$LightTypeTagImpl$$*"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagInheritance.CtxExt"),

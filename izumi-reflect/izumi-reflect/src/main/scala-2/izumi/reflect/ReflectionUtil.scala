@@ -139,12 +139,45 @@ private[reflect] object ReflectionUtil {
   }
 
   def kindOf(tpe: Universe#Type): Kind = {
-    Kind(tpe.typeParams.map(t => kindOf(t.typeSignature)))
+    Kind(
+      tpe.typeParams.map { param =>
+        val sig = param.typeSignature
+        val bounds = sig match {
+          case tb: Universe#TypeBoundsApi => Some(tb.asInstanceOf[Universe#TypeBounds])
+          case pt: Universe#PolyTypeApi =>
+            pt.resultType match {
+              case tb: Universe#TypeBoundsApi => Some(tb.asInstanceOf[Universe#TypeBounds])
+              case _ => None
+            }
+          case _ => None
+        }
+        Kind(kindOf(sig).args, bounds, param.asInstanceOf[Universe#Symbol])
+      },
+      None,
+      scala.reflect.runtime.universe.NoSymbol
+    )
   }
 
-  final case class Kind(args: List[Kind]) {
+  /** Represents the kind of a type, including bounds.
+    * @param args nested kinds for each type parameter
+    * @param bounds optional type bounds (None for default bounds Nothing..Any)
+    * @param symbol original type parameter symbol (for substitution during type construction)
+    */
+  final case class Kind(args: List[Kind], bounds: Option[Universe#TypeBounds], symbol: Universe#Symbol) {
     def format(typeName: String) = s"$typeName${if (args.nonEmpty) args.mkString("[", ", ", "]") else ""}"
     override def toString: String = format("_")
+  }
+
+  object Kind {
+    private val noSymbol: Universe#Symbol = scala.reflect.runtime.universe.NoSymbol
+
+    /** Create a simple Kind with default bounds for all type parameters */
+    def fromArgs(args: List[Kind]): Kind = {
+      Kind(args, None, noSymbol)
+    }
+
+    /** The simple/proper kind with no type parameters */
+    val `*` : Kind = Kind(Nil, None, noSymbol)
   }
 
 }
