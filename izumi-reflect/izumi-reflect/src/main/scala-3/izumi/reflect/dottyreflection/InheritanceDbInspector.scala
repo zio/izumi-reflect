@@ -64,72 +64,16 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   }
 
   private def makeStructuralKey(typeRepr: TypeRepr): String = {
-    def normalizedPrefixKey(qualifier: TypeRepr, symbol: Symbol, depth: Int): String = {
-      qualifier match {
-        case _: ThisType | _: SuperType | _: RecursiveThis =>
-          val maybeOwner = symbol.maybeOwner
-          if (maybeOwner.exists && !maybeOwner.isNoSymbol && !maybeOwner.isPackageDef && !maybeOwner.isDefDef && !maybeOwner.isTypeDef && !maybeOwner.isLocalDummy) {
-            maybeOwner.fullName + "::"
-          } else {
-            ""
-          }
-        case NoPrefix() => ""
-        case other => loop(other, depth + 1) + "::"
+    val dealiased = typeRepr.dealias.simplified
+    val baseTypesKey = dealiased.baseClasses
+      .map { sym =>
+        val numTypeParams = sym.typeMembers.count(_.isTypeParam)
+        val posKey = sym.pos.map(p => s"@${p.sourceFile.path}:${p.start}").getOrElse("")
+        s"${sym.fullName}#$numTypeParams$posKey"
       }
-    }
-
-    def loop(tpe: TypeRepr, depth: Int): String = {
-      if (depth > 100) return tpe.show
-
-      val dealiased = tpe.dealias.simplified
-      dealiased match {
-        case AppliedType(tycon, args) =>
-          val tyconKey = loop(tycon, depth + 1)
-          val argsKey = args.map(arg => loop(arg, depth + 1)).mkString(",")
-          s"$tyconKey[$argsKey]"
-
-        case AndType(left, right) =>
-          s"(${loop(left, depth + 1)}&${loop(right, depth + 1)})"
-
-        case OrType(left, right) =>
-          s"(${loop(left, depth + 1)}|${loop(right, depth + 1)})"
-
-        case TypeBounds(lo, hi) =>
-          s"[${loop(lo, depth + 1)}..${loop(hi, depth + 1)}]"
-
-        case TypeLambda(paramNames, paramBounds, resType) =>
-          val params = paramNames.zip(paramBounds).map { case (n, b) => s"$n:${loop(b, depth + 1)}" }.mkString(",")
-          s"λ($params)=>${loop(resType, depth + 1)}"
-
-        case ref @ TypeRef(qualifier, name) =>
-          val prefixKey = normalizedPrefixKey(qualifier, ref.typeSymbol, depth)
-          s"$prefixKey$name"
-
-        case ref @ TermRef(qualifier, name) =>
-          val prefixKey = normalizedPrefixKey(qualifier, ref.termSymbol, depth)
-          s"$prefixKey$name.type"
-
-        case ThisType(tref) =>
-          loop(tref, depth + 1)
-
-        case Refinement(parent, name, info) =>
-          s"(${loop(parent, depth + 1)}{$name:${loop(info, depth + 1)}})"
-
-        case ByNameType(underlying) =>
-          s"=>${loop(underlying, depth + 1)}"
-
-        case ConstantType(const) =>
-          s"const(${const.show})"
-
-        case ParamRef(binder, idx) =>
-          s"$$param$idx"
-
-        case _ =>
-          tpe.typeSymbol.fullName
-      }
-    }
-
-    loop(typeRepr, 0)
+      .sorted
+      .mkString(";")
+    s"${dealiased.show}|bases:$baseTypesKey"
   }
 
   class Run(

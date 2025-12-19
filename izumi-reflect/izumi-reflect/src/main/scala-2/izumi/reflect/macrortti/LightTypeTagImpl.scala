@@ -122,69 +122,22 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
 
-  /** Generate a structural key for cache lookup that normalizes types */
   private[this] def makeStructuralKey(tpe: Type): String = {
-    def normalizedPrefixKey(qualifier: Type, symbol: Symbol, depth: Int): String = {
-      qualifier match {
-        case _: ThisType | _: SuperType =>
-          val maybeOwner = symbol.owner
-          if (maybeOwner != NoSymbol && !maybeOwner.isPackage && !maybeOwner.isMethod && !maybeOwner.isType) {
-            maybeOwner.fullName + "::"
-          } else {
-            ""
-          }
-        case NoPrefix => ""
-        case other => loop(other, depth + 1) + "::"
+    val dealiased = Dealias.fullNormDealias(tpe)
+    val baseTypesKey = dealiased.baseClasses
+      .map { sym =>
+        val numTypeParams = sym.typeSignature.typeParams.size
+        val pos = sym.pos
+        val posKey = if (pos != null && pos != NoPosition && pos.source != null) {
+          s"@${pos.source.path}:${pos.point}"
+        } else {
+          ""
+        }
+        s"${sym.fullName}#$numTypeParams$posKey"
       }
-    }
-
-    def loop(t: Type, depth: Int): String = {
-      if (depth > 100) return t.toString
-
-      val dealiased = Dealias.fullNormDealias(t)
-      dealiased match {
-        case TypeRef(pre, sym, args) =>
-          val prefixKey = normalizedPrefixKey(pre, sym, depth)
-          val argsKey = if (args.isEmpty) "" else args.map(arg => loop(arg, depth + 1)).mkString("[", ",", "]")
-          s"$prefixKey${sym.fullName}$argsKey"
-
-        case RefinedType(parents, decls) =>
-          val parentsKey = parents.map(p => loop(p, depth + 1)).mkString("&")
-          val declsKey = if (decls.isEmpty) "" else {
-            decls.toList.sortBy(_.name.toString).map { d =>
-              s"${d.name}:${loop(d.typeSignature, depth + 1)}"
-            }.mkString("{", ",", "}")
-          }
-          s"($parentsKey$declsKey)"
-
-        case ExistentialType(_, underlying) =>
-          s"∃${loop(underlying, depth + 1)}"
-
-        case TypeBounds(lo, hi) =>
-          s"[${loop(lo, depth + 1)}..${loop(hi, depth + 1)}]"
-
-        case PolyType(tparams, resultType) =>
-          val params = tparams.map { p =>
-            s"${p.name}:${loop(p.typeSignature, depth + 1)}"
-          }.mkString(",")
-          s"λ($params)=>${loop(resultType, depth + 1)}"
-
-        case ConstantType(const) =>
-          s"const(${const.value})"
-
-        case SingleType(pre, sym) =>
-          val prefixKey = normalizedPrefixKey(pre, sym, depth)
-          s"$prefixKey${sym.fullName}.type"
-
-        case ThisType(sym) =>
-          s"${sym.fullName}.this"
-
-        case _ =>
-          dealiased.typeSymbol.fullName
-      }
-    }
-
-    loop(tpe, 0)
+      .sorted
+      .mkString(";")
+    s"${dealiased.toString}|bases:$baseTypesKey"
   }
 
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
@@ -192,7 +145,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
 
-    // Check LTT cache first (compile-time only)
     val structuralKey = makeStructuralKey(tpe)
     if (withCache && LightTypeTagImpl.compileCacheEnabled) {
       val cached = Option(LightTypeTagImpl.lttCache.get(structuralKey))
@@ -218,7 +170,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
       }.result()
 
-    // Try to get fullDb from cache
     val fullDb: Map[AbstractReference, Set[AbstractReference]] = if (withCache && LightTypeTagImpl.compileCacheEnabled) {
       Option(LightTypeTagImpl.fullDbCache.get(structuralKey))
         .flatMap(sr => Option(sr.get())) match {
@@ -235,7 +186,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       makeFullDb(tpe, allReferenceComponents).toMultimap
     }
 
-    // Try to get inheritanceDb from cache
     val unappliedDb: Map[NameReference, Set[NameReference]] = if (withCache && LightTypeTagImpl.compileCacheEnabled) {
       Option(LightTypeTagImpl.inheritanceDbCache.get(structuralKey))
         .flatMap(sr => Option(sr.get())) match {
@@ -254,7 +204,6 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     val ltt = LightTypeTag(lttRef, fullDb, unappliedDb)
 
-    // Cache the final LTT
     if (withCache && LightTypeTagImpl.compileCacheEnabled) {
       LightTypeTagImpl.lttCache.put(structuralKey, new java.lang.ref.SoftReference(LightTypeTagImpl.LttCacheEntry(ltt, structuralKey)))
     }
