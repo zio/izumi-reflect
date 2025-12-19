@@ -84,4 +84,28 @@ object DebugProperties {
     */
   final val `izumi.reflect.debug.macro.rtti.assertions` = "izumi.reflect.debug.macro.rtti.assertions"
 
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.macro=false` to disable TagMacro-level caching.
+    * This cache stores completed Tag expression trees to avoid re-computation for the same type.
+    *
+    * Default: `true` (enabled)
+    */
+  final val `izumi.reflect.rtti.cache.macro` = "izumi.reflect.rtti.cache.macro"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.ltt=false` to disable LightTypeTag-level caching.
+    * This cache stores serialized LightTypeTag values before expression tree generation.
+    *
+    * Default: `true` (enabled)
+    */
+  final val `izumi.reflect.rtti.cache.ltt` = "izumi.reflect.rtti.cache.ltt"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.db=false` to disable database-level caching.
+    * This cache stores inheritance hierarchy data (basesDb/inheritanceDb) to avoid re-inspecting shared parent types.
+    *
+    * Default: `true` (enabled)
+    */
+  final val `izumi.reflect.rtti.cache.db` = "izumi.reflect.rtti.cache.db"
+
 }

@@ -1,14 +1,31 @@
 package izumi.reflect.dottyreflection
 
+import izumi.reflect.DebugProperties
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
+import java.lang.ref.SoftReference
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.quoted.*
 
 object InheritanceDbInspector {
+  private val dbCache = new ConcurrentHashMap[String, SoftReference[Map[NameReference, Set[NameReference]]]]()
+  private val cacheHits = new java.util.concurrent.atomic.AtomicLong(0)
+  private val cacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
+
+  def getCacheStats: (Long, Long, Int) = (cacheHits.get(), cacheMisses.get(), dbCache.size())
+  def resetCacheStats(): Unit = { cacheHits.set(0); cacheMisses.set(0) }
+
+  private def dbCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
+    Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`))
+      .flatMap(_.asBoolean())
+      .getOrElse(true)
+  }
+
   def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
     override val qctx: q.type = q
   }
@@ -18,10 +35,101 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   import qctx.reflect.*
 
   def makeUnappliedInheritanceDb(typeRepr: TypeRepr): Map[NameReference, Set[NameReference]] = {
-    val tpe0 = typeRepr._dealiasSimplifiedFull
+    val key = makeStructuralKey(typeRepr)
 
-    new Run(Inspector.make(qctx), mutable.HashSet.empty)
-      .makeUnappliedInheritanceDb(tpe0)
+    val cachedResult: Option[Map[NameReference, Set[NameReference]]] =
+      if (InheritanceDbInspector.dbCacheEnabled) {
+        Option(InheritanceDbInspector.dbCache.get(key)).flatMap(sr => Option(sr.get()))
+      } else {
+        None
+      }
+
+    cachedResult match {
+      case Some(cached) =>
+        InheritanceDbInspector.cacheHits.incrementAndGet()
+        cached
+      case None =>
+        InheritanceDbInspector.cacheMisses.incrementAndGet()
+        val tpe0 = typeRepr._dealiasSimplifiedFull
+
+        val result = new Run(Inspector.make(qctx), mutable.HashSet.empty)
+          .makeUnappliedInheritanceDb(tpe0)
+
+        if (InheritanceDbInspector.dbCacheEnabled) {
+          InheritanceDbInspector.dbCache.put(key, new SoftReference(result))
+        }
+
+        result
+    }
+  }
+
+  private def makeStructuralKey(typeRepr: TypeRepr): String = {
+    def normalizedPrefixKey(qualifier: TypeRepr, symbol: Symbol, depth: Int): String = {
+      qualifier match {
+        case _: ThisType | _: SuperType | _: RecursiveThis =>
+          val maybeOwner = symbol.maybeOwner
+          if (maybeOwner.exists && !maybeOwner.isNoSymbol && !maybeOwner.isPackageDef && !maybeOwner.isDefDef && !maybeOwner.isTypeDef && !maybeOwner.isLocalDummy) {
+            maybeOwner.fullName + "::"
+          } else {
+            ""
+          }
+        case NoPrefix() => ""
+        case other => loop(other, depth + 1) + "::"
+      }
+    }
+
+    def loop(tpe: TypeRepr, depth: Int): String = {
+      if (depth > 100) return tpe.show
+
+      val dealiased = tpe.dealias.simplified
+      dealiased match {
+        case AppliedType(tycon, args) =>
+          val tyconKey = loop(tycon, depth + 1)
+          val argsKey = args.map(arg => loop(arg, depth + 1)).mkString(",")
+          s"$tyconKey[$argsKey]"
+
+        case AndType(left, right) =>
+          s"(${loop(left, depth + 1)}&${loop(right, depth + 1)})"
+
+        case OrType(left, right) =>
+          s"(${loop(left, depth + 1)}|${loop(right, depth + 1)})"
+
+        case TypeBounds(lo, hi) =>
+          s"[${loop(lo, depth + 1)}..${loop(hi, depth + 1)}]"
+
+        case TypeLambda(paramNames, paramBounds, resType) =>
+          val params = paramNames.zip(paramBounds).map { case (n, b) => s"$n:${loop(b, depth + 1)}" }.mkString(",")
+          s"λ($params)=>${loop(resType, depth + 1)}"
+
+        case ref @ TypeRef(qualifier, name) =>
+          val prefixKey = normalizedPrefixKey(qualifier, ref.typeSymbol, depth)
+          s"$prefixKey$name"
+
+        case ref @ TermRef(qualifier, name) =>
+          val prefixKey = normalizedPrefixKey(qualifier, ref.termSymbol, depth)
+          s"$prefixKey$name.type"
+
+        case ThisType(tref) =>
+          loop(tref, depth + 1)
+
+        case Refinement(parent, name, info) =>
+          s"(${loop(parent, depth + 1)}{$name:${loop(info, depth + 1)}})"
+
+        case ByNameType(underlying) =>
+          s"=>${loop(underlying, depth + 1)}"
+
+        case ConstantType(const) =>
+          s"const(${const.show})"
+
+        case ParamRef(binder, idx) =>
+          s"$$param$idx"
+
+        case _ =>
+          tpe.typeSymbol.fullName
+      }
+    }
+
+    loop(typeRepr, 0)
   }
 
   class Run(

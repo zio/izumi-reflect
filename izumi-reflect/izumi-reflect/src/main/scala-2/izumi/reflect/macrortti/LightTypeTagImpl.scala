@@ -35,12 +35,49 @@ import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
 object LightTypeTagImpl {
+  // AbstractReference cache (existing)
   private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
+
+  // LightTypeTag cache - caches the entire LTT for a type (compile-time only)
+  private case class LttCacheEntry(ltt: LightTypeTag, structuralKey: String)
+  private val lttCache = new java.util.concurrent.ConcurrentHashMap[String, java.lang.ref.SoftReference[LttCacheEntry]]()
+  private val lttCacheHits = new java.util.concurrent.atomic.AtomicLong(0)
+  private val lttCacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
+
+  // FullDB cache - caches makeFullDb results
+  private val fullDbCache = new java.util.concurrent.ConcurrentHashMap[String, java.lang.ref.SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
+  private val fullDbCacheHits = new java.util.concurrent.atomic.AtomicLong(0)
+  private val fullDbCacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
+
+  // InheritanceDB cache - caches makeClassOnlyInheritanceDb results  
+  private val inheritanceDbCache = new java.util.concurrent.ConcurrentHashMap[String, java.lang.ref.SoftReference[Map[NameReference, Set[NameReference]]]]()
+  private val inheritanceDbCacheHits = new java.util.concurrent.atomic.AtomicLong(0)
+  private val inheritanceDbCacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
+
+  /** Get cache statistics for all caches: (lttHits, lttMisses, lttSize, fullDbHits, fullDbMisses, fullDbSize, inhDbHits, inhDbMisses, inhDbSize) */
+  def getCacheStats: (Long, Long, Int, Long, Long, Int, Long, Long, Int) = (
+    lttCacheHits.get(), lttCacheMisses.get(), lttCache.size(),
+    fullDbCacheHits.get(), fullDbCacheMisses.get(), fullDbCache.size(),
+    inheritanceDbCacheHits.get(), inheritanceDbCacheMisses.get(), inheritanceDbCache.size()
+  )
+
+  def resetCacheStats(): Unit = {
+    lttCacheHits.set(0); lttCacheMisses.set(0)
+    fullDbCacheHits.set(0); fullDbCacheMisses.set(0)
+    inheritanceDbCacheHits.set(0); inheritanceDbCacheMisses.set(0)
+  }
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
     System
       .getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** compile-time caching is enabled by default */
+  private[macrortti] lazy val compileCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`).asBoolean()
       .getOrElse(true)
   }
 
@@ -85,10 +122,92 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
 
+  /** Generate a structural key for cache lookup that normalizes types */
+  private[this] def makeStructuralKey(tpe: Type): String = {
+    def normalizedPrefixKey(qualifier: Type, symbol: Symbol, depth: Int): String = {
+      qualifier match {
+        case _: ThisType | _: SuperType =>
+          val maybeOwner = symbol.owner
+          if (maybeOwner != NoSymbol && !maybeOwner.isPackage && !maybeOwner.isMethod && !maybeOwner.isType) {
+            maybeOwner.fullName + "::"
+          } else {
+            ""
+          }
+        case NoPrefix => ""
+        case other => loop(other, depth + 1) + "::"
+      }
+    }
+
+    def loop(t: Type, depth: Int): String = {
+      if (depth > 100) return t.toString
+
+      val dealiased = Dealias.fullNormDealias(t)
+      dealiased match {
+        case TypeRef(pre, sym, args) =>
+          val prefixKey = normalizedPrefixKey(pre, sym, depth)
+          val argsKey = if (args.isEmpty) "" else args.map(arg => loop(arg, depth + 1)).mkString("[", ",", "]")
+          s"$prefixKey${sym.fullName}$argsKey"
+
+        case RefinedType(parents, decls) =>
+          val parentsKey = parents.map(p => loop(p, depth + 1)).mkString("&")
+          val declsKey = if (decls.isEmpty) "" else {
+            decls.toList.sortBy(_.name.toString).map { d =>
+              s"${d.name}:${loop(d.typeSignature, depth + 1)}"
+            }.mkString("{", ",", "}")
+          }
+          s"($parentsKey$declsKey)"
+
+        case ExistentialType(_, underlying) =>
+          s"∃${loop(underlying, depth + 1)}"
+
+        case TypeBounds(lo, hi) =>
+          s"[${loop(lo, depth + 1)}..${loop(hi, depth + 1)}]"
+
+        case PolyType(tparams, resultType) =>
+          val params = tparams.map { p =>
+            s"${p.name}:${loop(p.typeSignature, depth + 1)}"
+          }.mkString(",")
+          s"λ($params)=>${loop(resultType, depth + 1)}"
+
+        case ConstantType(const) =>
+          s"const(${const.value})"
+
+        case SingleType(pre, sym) =>
+          val prefixKey = normalizedPrefixKey(pre, sym, depth)
+          s"$prefixKey${sym.fullName}.type"
+
+        case ThisType(sym) =>
+          s"${sym.fullName}.this"
+
+        case _ =>
+          dealiased.typeSymbol.fullName
+      }
+    }
+
+    loop(tpe, 0)
+  }
+
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
 
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
+
+    // Check LTT cache first (compile-time only)
+    val structuralKey = makeStructuralKey(tpe)
+    if (withCache && LightTypeTagImpl.compileCacheEnabled) {
+      val cached = Option(LightTypeTagImpl.lttCache.get(structuralKey))
+        .flatMap(sr => Option(sr.get()))
+        .filter(_.structuralKey == structuralKey)
+        .map(_.ltt)
+
+      cached match {
+        case Some(ltt) =>
+          LightTypeTagImpl.lttCacheHits.incrementAndGet()
+          return ltt
+        case None =>
+          LightTypeTagImpl.lttCacheMisses.incrementAndGet()
+      }
+    }
 
     val lttRef = makeRef(tpe)
 
@@ -99,10 +218,48 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
       }.result()
 
-    val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
-    val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    // Try to get fullDb from cache
+    val fullDb: Map[AbstractReference, Set[AbstractReference]] = if (withCache && LightTypeTagImpl.compileCacheEnabled) {
+      Option(LightTypeTagImpl.fullDbCache.get(structuralKey))
+        .flatMap(sr => Option(sr.get())) match {
+          case Some(cached) =>
+            LightTypeTagImpl.fullDbCacheHits.incrementAndGet()
+            cached
+          case None =>
+            LightTypeTagImpl.fullDbCacheMisses.incrementAndGet()
+            val result = makeFullDb(tpe, allReferenceComponents).toMultimap
+            LightTypeTagImpl.fullDbCache.put(structuralKey, new java.lang.ref.SoftReference(result))
+            result
+        }
+    } else {
+      makeFullDb(tpe, allReferenceComponents).toMultimap
+    }
 
-    LightTypeTag(lttRef, fullDb, unappliedDb)
+    // Try to get inheritanceDb from cache
+    val unappliedDb: Map[NameReference, Set[NameReference]] = if (withCache && LightTypeTagImpl.compileCacheEnabled) {
+      Option(LightTypeTagImpl.inheritanceDbCache.get(structuralKey))
+        .flatMap(sr => Option(sr.get())) match {
+          case Some(cached) =>
+            LightTypeTagImpl.inheritanceDbCacheHits.incrementAndGet()
+            cached
+          case None =>
+            LightTypeTagImpl.inheritanceDbCacheMisses.incrementAndGet()
+            val result = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+            LightTypeTagImpl.inheritanceDbCache.put(structuralKey, new java.lang.ref.SoftReference(result))
+            result
+        }
+    } else {
+      makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    }
+
+    val ltt = LightTypeTag(lttRef, fullDb, unappliedDb)
+
+    // Cache the final LTT
+    if (withCache && LightTypeTagImpl.compileCacheEnabled) {
+      LightTypeTagImpl.lttCache.put(structuralKey, new java.lang.ref.SoftReference(LightTypeTagImpl.LttCacheEntry(ltt, structuralKey)))
+    }
+
+    ltt
   }
 
   private[this] def allTypeReferencesWithBases(tpe0: Type, basesTermination: mutable.HashSet[Symbol], onlyIndirect: Boolean): Iterator[Type] = {
