@@ -35,37 +35,12 @@ import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
 object LightTypeTagImpl {
-  // AbstractReference cache (existing)
   private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
 
-  // LightTypeTag cache - caches the entire LTT for a type (compile-time only)
   private case class LttCacheEntry(ltt: LightTypeTag, structuralKey: String)
   private val lttCache = new java.util.concurrent.ConcurrentHashMap[String, java.lang.ref.SoftReference[LttCacheEntry]]()
-  private val lttCacheHits = new java.util.concurrent.atomic.AtomicLong(0)
-  private val lttCacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
-
-  // FullDB cache - caches makeFullDb results
   private val fullDbCache = new java.util.concurrent.ConcurrentHashMap[String, java.lang.ref.SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
-  private val fullDbCacheHits = new java.util.concurrent.atomic.AtomicLong(0)
-  private val fullDbCacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
-
-  // InheritanceDB cache - caches makeClassOnlyInheritanceDb results  
   private val inheritanceDbCache = new java.util.concurrent.ConcurrentHashMap[String, java.lang.ref.SoftReference[Map[NameReference, Set[NameReference]]]]()
-  private val inheritanceDbCacheHits = new java.util.concurrent.atomic.AtomicLong(0)
-  private val inheritanceDbCacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
-
-  /** Get cache statistics for all caches: (lttHits, lttMisses, lttSize, fullDbHits, fullDbMisses, fullDbSize, inhDbHits, inhDbMisses, inhDbSize) */
-  def getCacheStats: (Long, Long, Int, Long, Long, Int, Long, Long, Int) = (
-    lttCacheHits.get(), lttCacheMisses.get(), lttCache.size(),
-    fullDbCacheHits.get(), fullDbCacheMisses.get(), fullDbCache.size(),
-    inheritanceDbCacheHits.get(), inheritanceDbCacheMisses.get(), inheritanceDbCache.size()
-  )
-
-  def resetCacheStats(): Unit = {
-    lttCacheHits.set(0); lttCacheMisses.set(0)
-    fullDbCacheHits.set(0); fullDbCacheMisses.set(0)
-    inheritanceDbCacheHits.set(0); inheritanceDbCacheMisses.set(0)
-  }
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
@@ -152,13 +127,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         .filter(_.structuralKey == structuralKey)
         .map(_.ltt)
 
-      cached match {
-        case Some(ltt) =>
-          LightTypeTagImpl.lttCacheHits.incrementAndGet()
-          return ltt
-        case None =>
-          LightTypeTagImpl.lttCacheMisses.incrementAndGet()
-      }
+      if (cached.isDefined) return cached.get
     }
 
     val lttRef = makeRef(tpe)
@@ -172,15 +141,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     val fullDb: Map[AbstractReference, Set[AbstractReference]] = if (withCache && LightTypeTagImpl.compileCacheEnabled) {
       Option(LightTypeTagImpl.fullDbCache.get(structuralKey))
-        .flatMap(sr => Option(sr.get())) match {
-          case Some(cached) =>
-            LightTypeTagImpl.fullDbCacheHits.incrementAndGet()
-            cached
-          case None =>
-            LightTypeTagImpl.fullDbCacheMisses.incrementAndGet()
-            val result = makeFullDb(tpe, allReferenceComponents).toMultimap
-            LightTypeTagImpl.fullDbCache.put(structuralKey, new java.lang.ref.SoftReference(result))
-            result
+        .flatMap(sr => Option(sr.get()))
+        .getOrElse {
+          val result = makeFullDb(tpe, allReferenceComponents).toMultimap
+          LightTypeTagImpl.fullDbCache.put(structuralKey, new java.lang.ref.SoftReference(result))
+          result
         }
     } else {
       makeFullDb(tpe, allReferenceComponents).toMultimap
@@ -188,15 +153,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     val unappliedDb: Map[NameReference, Set[NameReference]] = if (withCache && LightTypeTagImpl.compileCacheEnabled) {
       Option(LightTypeTagImpl.inheritanceDbCache.get(structuralKey))
-        .flatMap(sr => Option(sr.get())) match {
-          case Some(cached) =>
-            LightTypeTagImpl.inheritanceDbCacheHits.incrementAndGet()
-            cached
-          case None =>
-            LightTypeTagImpl.inheritanceDbCacheMisses.incrementAndGet()
-            val result = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
-            LightTypeTagImpl.inheritanceDbCache.put(structuralKey, new java.lang.ref.SoftReference(result))
-            result
+        .flatMap(sr => Option(sr.get()))
+        .getOrElse {
+          val result = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+          LightTypeTagImpl.inheritanceDbCache.put(structuralKey, new java.lang.ref.SoftReference(result))
+          result
         }
     } else {
       makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)

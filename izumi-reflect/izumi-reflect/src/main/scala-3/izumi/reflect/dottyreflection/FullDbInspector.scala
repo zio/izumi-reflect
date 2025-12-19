@@ -13,11 +13,6 @@ import scala.quoted.*
 
 object FullDbInspector {
   private val dbCache = new ConcurrentHashMap[String, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
-  private val cacheHits = new java.util.concurrent.atomic.AtomicLong(0)
-  private val cacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
-
-  def getCacheStats: (Long, Long, Int) = (cacheHits.get(), cacheMisses.get(), dbCache.size())
-  def resetCacheStats(): Unit = { cacheHits.set(0); cacheMisses.set(0) }
 
   private def dbCacheEnabled: Boolean = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
@@ -46,10 +41,8 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
     cachedResult match {
       case Some(cached) =>
-        FullDbInspector.cacheHits.incrementAndGet()
         cached
       case None =>
-        FullDbInspector.cacheMisses.incrementAndGet()
         val result = new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
           .inspectTypeReprToFullBases(typeRepr, onlyIndirect = false)
           .iterator

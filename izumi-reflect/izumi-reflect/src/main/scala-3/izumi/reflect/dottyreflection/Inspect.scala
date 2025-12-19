@@ -12,11 +12,6 @@ import scala.quoted.{Expr, Quotes, Type}
 object Inspect {
   private case class CacheEntry(ltt: LightTypeTag, structuralKey: String)
   private val lttCache = new ConcurrentHashMap[String, SoftReference[CacheEntry]]()
-  private val cacheHits = new java.util.concurrent.atomic.AtomicLong(0)
-  private val cacheMisses = new java.util.concurrent.atomic.AtomicLong(0)
-
-  def getCacheStats: (Long, Long, Int) = (cacheHits.get(), cacheMisses.get(), lttCache.size())
-  def resetCacheStats(): Unit = { cacheHits.set(0); cacheMisses.set(0) }
 
   private def lttCacheEnabled: Boolean = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
@@ -47,11 +42,6 @@ object Inspect {
       } else {
         None
       }
-
-    cachedLtt match {
-      case Some(_) => cacheHits.incrementAndGet()
-      case None => cacheMisses.incrementAndGet()
-    }
 
     val ltt = cachedLtt.getOrElse {
       val ref = TypeInspections(typeRepr)
