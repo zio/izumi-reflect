@@ -94,8 +94,28 @@ object LightTypeTagRef extends LTTOrdering {
       unusedParamsSize < paramRefs.size
     }
 
-    lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
-    lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)
+    // Normalization helper for lambda parameters and output
+    private def normalize(ref: AbstractReference, currentDepth: Int): AbstractReference = {
+      ref match {
+        case NameReference(
+              SymName.LambdaParamName(index, depth, arity),
+              boundaries,
+              prefix
+            ) =>
+          NameReference(
+            SymName.LambdaParamName(index, depth - currentDepth, arity),
+            boundaries,
+            prefix
+          )
+        case l @ Lambda(_, out) =>
+          l.copy(output = normalize(out, currentDepth + 1))
+        case other =>
+          RuntimeAPI.mapReferences(other)(normalize(_, currentDepth))
+      }
+    }
+
+    lazy val normalizedOutput: AbstractReference =
+      normalize(output, currentDepth = 0)
 
     override def equals(obj: Any): Boolean = {
       obj match {
@@ -108,15 +128,7 @@ object LightTypeTagRef extends LTTOrdering {
       }
     }
 
-    private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
-      input.zipWithIndex.map {
-        case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
-      }
-    }
   }
-
-  private[reflect] final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
 
   sealed trait AppliedReference extends AbstractReference
 
