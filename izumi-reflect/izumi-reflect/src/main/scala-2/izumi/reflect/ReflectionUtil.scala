@@ -138,13 +138,31 @@ private[reflect] object ReflectionUtil {
     tpe1.dealias =:= tpe1
   }
 
-  def kindOf(tpe: Universe#Type): Kind = {
-    Kind(tpe.typeParams.map(t => kindOf(t.typeSignature)))
-  }
-
-  final case class Kind(args: List[Kind]) {
-    def format(typeName: String) = s"$typeName${if (args.nonEmpty) args.mkString("[", ", ", "]") else ""}"
-    override def toString: String = format("_")
+  /** Represents the kind of a type, including bounds.
+    * @param params nested kinds for each type parameter
+    * @param bounds optional type bounds (None for default bounds Nothing..Any)
+    * @param symbol original type parameter symbol (for substitution during type construction)
+    */
+  final case class KindInfo[+U <: Universe](params: List[KindInfo[U]], bounds: Option[U#TypeBoundsApi], symbol: U#Symbol)
+  object KindInfo {
+    def ofType[U <: Universe with Singleton](tpe: U#Type): KindInfo[U] = {
+      KindInfo.of(tpe, tpe.typeSymbol)
+    }
+    def ofSymbol[U <: Universe with Singleton](sym: U#Symbol): KindInfo[U] = {
+      KindInfo.of(sym.typeSignature, sym)
+    }
+    def of[U <: Universe with Singleton](tpe: U#Type, sym: U#Symbol): KindInfo[U] = {
+      val bounds: Option[U#TypeBoundsApi] = tpe match {
+        case tb: U#TypeBoundsApi => Some(tb)
+        case pt: U#PolyTypeApi =>
+          pt.resultType match {
+            case tb: U#TypeBoundsApi => Some(tb)
+            case _ => None
+          }
+        case _ => None
+      }
+      KindInfo[U](tpe.typeParams.map(KindInfo.ofSymbol), bounds, sym)
+    }
   }
 
 }

@@ -22,7 +22,6 @@ object Izumi {
     val zio_sbt_website = Version.VExpr("PV.zio_sbt_website")
   }
 
-  // DON'T REMOVE, these variables are read from CI build (build.sh)
   final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.20")
   final val scala213 = ScalaVersion("2.13.14")
@@ -169,6 +168,7 @@ object Izumi {
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.symName")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.prefix")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledName")""".raw,
+          """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledRepr")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.=:=")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.<:<")""".raw,
           // compile-time only
@@ -179,6 +179,7 @@ object Izumi {
           // private packages
           """ProblemFilters.exclude[Problem]("izumi.reflect.thirdparty.*")""".raw,
           """ProblemFilters.exclude[Problem]("izumi.reflect.internal.*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.ReflectionUtil*")""".raw,
           // private methods
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.norm")""".raw,
           """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagImpl.izumi$reflect$macrortti$LightTypeTagImpl$$*")""".raw,

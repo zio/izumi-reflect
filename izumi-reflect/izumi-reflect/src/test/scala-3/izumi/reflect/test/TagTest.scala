@@ -28,16 +28,6 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertNotChild(Tag[Animal | String].tag, Tag[Dog | String].tag)
     }
 
-    "Support HKTag for unapplied type lambdas with type bounds (Scala 3 specific, union types)" in {
-      trait X
-      trait XAble[A <: X]
-      class Y extends X
-
-      def getTag[F[_ <: X]: Tag.auto.T] = Tag[F[Y]]
-
-      assertSame(getTag[XAble].tag, Tag[XAble[Y]].tag)
-    }
-
     "Can create custom type tags to support bounded generics, e.g. <: Dep in TagK (Scala 3 HKTag Syntax)" in {
       type `TagK<:Dep`[K[_ <: Dep]] = Tag[K]
 

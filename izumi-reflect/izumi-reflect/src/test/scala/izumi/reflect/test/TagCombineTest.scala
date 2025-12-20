@@ -3,7 +3,7 @@ package izumi.reflect.test
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.{Tag, TagK, TagK3}
 
-object TagMacroTest {
+object TagCombineTest {
   trait P
   trait C extends P
   trait HuIO[-R, +E, +I]
@@ -18,8 +18,8 @@ object TagMacroTest {
 
 }
 
-class TagMacroTest extends TagAssertions {
-  import TagMacroTest._
+class TagCombineTest extends TagAssertions {
+  import TagCombineTest._
   "Tag macro" should {
     "reconstruct lambda tags" in {
       val expected = Tag[HuIO[Any, Int, C]].tag

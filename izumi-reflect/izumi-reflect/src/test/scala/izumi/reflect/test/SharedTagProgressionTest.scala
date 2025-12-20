@@ -128,20 +128,18 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
-    "Progression test: Scala 2 fails to Handle Tags outside of a predefined set (Somehow raw Tag.auto.T works on Scala 2, but not when defined as an alias)" in {
+    "Progression test: Scala 2 partially fails to Handle Tags outside of a predefined set when using TagX alias (Tag.auto.T works directly)" in {
       type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
-//      type TagX[K[_, _, _[_[_], _], _[_], _]] = HKTag[{ type Arg[T1, T2, T3[_[_], _], T4[_], T5] = K[T1, T2, T3, T4, T5] }]
-
       brokenOnScala2 {
         assertCompiles(
           """
-      def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
-         """
+          def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+             """
         )
       }
-      def testTagX[F[_, _, _[_[_], _], _[_], _]: Tag.auto.T, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
 
-      val value = testTagX[TXU, Int, String, OptionT, List, Boolean]
+      def testTagXDirect[F[_, _, _[_[_], _], _[_], _]: Tag.auto.T, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+      val value = testTagXDirect[TXU, Int, String, OptionT, List, Boolean]
       assert(value.tag == fromRuntime[TXU[Int, String, OptionT, List, Boolean]])
     }
 
@@ -260,6 +258,25 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       val badCombine = PDT[Int].badCombine(PDT[Unit])
       brokenOnScala2 {
         assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
+      }
+    }
+
+    "progression test: `combine inside type lambdas where the type constructor of the type lambda result is a type lambda type parameter` doesn't work" in {
+      val res = Try(assertCompiles("""
+      def mk[T: Tag] = Tag[LambdaParamCtorBlockingIOT[T]]
+      val tag = mk[Int]
+      val tagMono = Tag[LambdaParamCtorBlockingIOT[Int]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
+      """))
+      broken {
+        assert(res.isSuccess)
+      }
+      broken {
+        assert(
+          !(res.failed.get.getMessage.contains("Error when creating a combined tag")
+            || res.failed.get.getMessage.contains("could not find implicit value for izumi.reflect.Tag"))
+        )
       }
     }
 

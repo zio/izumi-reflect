@@ -1,20 +1,26 @@
 {
   description = "izumi-reflect build environment";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/24.05";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/25.11";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
+
+  inputs.mudyla.url = "github:7mind/mudyla";
+  inputs.mudyla.inputs.nixpkgs.follows = "nixpkgs";
 
   outputs =
     { self
     , nixpkgs
     , flake-utils
-    ,
+    , mudyla
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -29,18 +35,20 @@
 
             gitMinimal
             gnupg
+
+            mudyla.packages.${system}.default
           ];
 
           shellHook = ''
             export JDK11=${pkgs.jdk11_headless}
             export JDK17=${pkgs.jdk17_headless}
             export JDK21=${pkgs.jdk21_headless}
-            export JDK_DEV=${pkgs.graalvm-ce}
+            export JDK_DEV=${pkgs.graalvmPackages.graalvm-ce}
 
-            rm ./.env/jdk || true
-            rmdir ./.env || true
-            mkdir -p ./.env
-            ln -s ''${JDK_DEV} ./.env/jdk || true
+            # Create .env directory with JDK symlink (ignore errors if already exists)
+            mkdir -p ./.env 2>/dev/null || true
+            rm -f ./.env/jdk 2>/dev/null || true
+            ln -sf ''${JDK_DEV} ./.env/jdk 2>/dev/null || true
           '';
         };
       }

@@ -8,6 +8,9 @@
 ---
 
 <p align="center">
+  Please consider supporting our work through <a href="https://github.com/sponsors/7mind">GitHub Sponsors</a>.
+</p>
+<p align="center">
   <a href="https://www.buymeacoffee.com/7mind"><img src="https://bmc-cdn.nyc3.digitaloceanspaces.com/BMC-button-images/custom_images/orange_img.png" alt="Izumi"/></a>
 </p>
 
@@ -114,6 +117,14 @@ Provided `flake.nix` can be used to set up the external dependencies necessary t
 ```bash
 nix develop
 ```
+
+The project's CI is built with [mudyla](https://github.com/7mind/mudyla), you may reproduce CI build locally with:
+
+```bash
+nix develop --command mdl --github-actions :gen :test
+```
+
+Available mudyla actions are defined in [.mdl/defs/*.md](.mdl/defs/)
 
 <!--- docs:start --->
 
