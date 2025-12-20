@@ -55,6 +55,7 @@ sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
 }
 
 object LightTypeTagRef extends LTTOrdering {
+  private[reflect] final val lambdaFakeParamDepth: Int = -2
   import LTTRenderables.Short._
 //  import LTTRenderables.Long._
 
@@ -110,12 +111,51 @@ object LightTypeTagRef extends LTTOrdering {
         case l @ Lambda(_, out) =>
           l.copy(output = normalize(out, currentDepth + 1))
         case other =>
-          RuntimeAPI.mapReferences(other)(normalize(_, currentDepth))
+          other match {
+            case FullReference(sym, params, prefix) =>
+              FullReference(
+                sym,
+                params.map(p => p.copy(ref = normalize(p.ref, currentDepth))),
+                prefix.map(p => normalize(p, currentDepth).asInstanceOf[AppliedReference])
+              )
+
+            case IntersectionReference(refs) =>
+              IntersectionReference(
+                refs.map(r => normalize(r, currentDepth).asInstanceOf[AppliedReferenceExceptIntersection])
+              )
+
+            case UnionReference(refs) =>
+              UnionReference(
+                refs.map(r => normalize(r, currentDepth).asInstanceOf[AppliedReferenceExceptUnion])
+              )
+
+            case Refinement(ref, decls) =>
+              Refinement(
+                normalize(ref, currentDepth).asInstanceOf[AppliedReference],
+                decls.map {
+                  case RefinementDecl.Signature(n, in, out) =>
+                    RefinementDecl.Signature(
+                      n,
+                      in.map(i => normalize(i, currentDepth).asInstanceOf[AppliedReference]),
+                      normalize(out, currentDepth).asInstanceOf[AppliedReference]
+                    )
+                  case RefinementDecl.TypeMember(n, r) =>
+                    RefinementDecl.TypeMember(n, normalize(r, currentDepth))
+                }
+              )
+
+            case _ =>
+              other
+          }
       }
     }
 
     lazy val normalizedOutput: AbstractReference =
       normalize(output, currentDepth = 0)
+
+    @deprecated("Binary compatibility shim. Do not use.", "2.3.0")
+    def normalizedParams: List[AbstractReference] =
+      Nil
 
     override def equals(obj: Any): Boolean = {
       obj match {
