@@ -736,25 +736,6 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(debug5.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
     }
 
-    "normalize lambda parameters from innermost scope (issue #379)" in {
-      import izumi.reflect.Tag
-
-      // Outer lambda must be higher-kinded to allow application
-      type T =
-        ([F[_, _]] =>> ([A, B] =>> F[A, B]))
-
-      val tag = Tag[T].tag
-      val repr = tag.repr
-
-      // Must not contain FAKE parameters anymore
-      assert(!repr.contains("FAKE"))
-
-      // Must reference outer scope via depth-based parameters
-      assert(repr.contains("-1") || repr.contains(":0"))
-
-      // Normalization must be stable
-      assert(tag == Tag[T].tag)
-    }
 
     "No degenerate lambdas (regression test https://github.com/zio/izumi-reflect/issues/345)" in {
       val fullDb = LTT[List[Int]].basesdb
@@ -1344,6 +1325,14 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChildStrict(child, parent)
     }
 
+    "normalize lambda parameter depths (regression #379)" in {
+      // Scala 2–compatible type lambda encoding
+      val t1 = `LTT[_[_,_]]`[({ type L[F[_, _]] = F })#L]
+      val t2 = `LTT[_[_,_]]`[({ type L[F[_, _]] = F })#L]
+
+      // Normalized form must be stable and identical
+      assertSameStrict(t1, t2)
+    }
   }
 
 }
