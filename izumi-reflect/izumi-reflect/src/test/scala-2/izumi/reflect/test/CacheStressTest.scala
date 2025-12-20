@@ -37,7 +37,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t4 = Tag[ComplexType]; val t5 = Tag[ComplexType]; val t6 = Tag[ComplexType]
       val t7 = Tag[ComplexType]; val t8 = Tag[ComplexType]; val t9 = Tag[ComplexType]
       val t10 = Tag[ComplexType]
-      assertSameStrict(t1.tag, t10.tag)
+      val tags = List(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 11-20" in {
@@ -45,7 +46,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t14 = Tag[ComplexType]; val t15 = Tag[ComplexType]; val t16 = Tag[ComplexType]
       val t17 = Tag[ComplexType]; val t18 = Tag[ComplexType]; val t19 = Tag[ComplexType]
       val t20 = Tag[ComplexType]
-      assertSameStrict(t11.tag, t20.tag)
+      val tags = List(t11, t12, t13, t14, t15, t16, t17, t18, t19, t20)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 21-30" in {
@@ -53,7 +55,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t24 = Tag[ComplexType]; val t25 = Tag[ComplexType]; val t26 = Tag[ComplexType]
       val t27 = Tag[ComplexType]; val t28 = Tag[ComplexType]; val t29 = Tag[ComplexType]
       val t30 = Tag[ComplexType]
-      assertSameStrict(t21.tag, t30.tag)
+      val tags = List(t21, t22, t23, t24, t25, t26, t27, t28, t29, t30)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 31-40" in {
@@ -61,7 +64,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t34 = Tag[ComplexType]; val t35 = Tag[ComplexType]; val t36 = Tag[ComplexType]
       val t37 = Tag[ComplexType]; val t38 = Tag[ComplexType]; val t39 = Tag[ComplexType]
       val t40 = Tag[ComplexType]
-      assertSameStrict(t31.tag, t40.tag)
+      val tags = List(t31, t32, t33, t34, t35, t36, t37, t38, t39, t40)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 41-50" in {
@@ -69,7 +73,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t44 = Tag[ComplexType]; val t45 = Tag[ComplexType]; val t46 = Tag[ComplexType]
       val t47 = Tag[ComplexType]; val t48 = Tag[ComplexType]; val t49 = Tag[ComplexType]
       val t50 = Tag[ComplexType]
-      assertSameStrict(t41.tag, t50.tag)
+      val tags = List(t41, t42, t43, t44, t45, t46, t47, t48, t49, t50)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
   }
 

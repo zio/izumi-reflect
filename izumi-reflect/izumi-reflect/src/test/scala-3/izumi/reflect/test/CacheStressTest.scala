@@ -37,7 +37,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t4 = Tag[ComplexType]; val t5 = Tag[ComplexType]; val t6 = Tag[ComplexType]
       val t7 = Tag[ComplexType]; val t8 = Tag[ComplexType]; val t9 = Tag[ComplexType]
       val t10 = Tag[ComplexType]
-      assertSameStrict(t1.tag, t10.tag)
+      val tags = List(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 11-20" in {
@@ -45,7 +46,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t14 = Tag[ComplexType]; val t15 = Tag[ComplexType]; val t16 = Tag[ComplexType]
       val t17 = Tag[ComplexType]; val t18 = Tag[ComplexType]; val t19 = Tag[ComplexType]
       val t20 = Tag[ComplexType]
-      assertSameStrict(t11.tag, t20.tag)
+      val tags = List(t11, t12, t13, t14, t15, t16, t17, t18, t19, t20)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 21-30" in {
@@ -53,7 +55,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t24 = Tag[ComplexType]; val t25 = Tag[ComplexType]; val t26 = Tag[ComplexType]
       val t27 = Tag[ComplexType]; val t28 = Tag[ComplexType]; val t29 = Tag[ComplexType]
       val t30 = Tag[ComplexType]
-      assertSameStrict(t21.tag, t30.tag)
+      val tags = List(t21, t22, t23, t24, t25, t26, t27, t28, t29, t30)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 31-40" in {
@@ -61,7 +64,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t34 = Tag[ComplexType]; val t35 = Tag[ComplexType]; val t36 = Tag[ComplexType]
       val t37 = Tag[ComplexType]; val t38 = Tag[ComplexType]; val t39 = Tag[ComplexType]
       val t40 = Tag[ComplexType]
-      assertSameStrict(t31.tag, t40.tag)
+      val tags = List(t31, t32, t33, t34, t35, t36, t37, t38, t39, t40)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
 
     "handle repeated complex type 41-50" in {
@@ -69,7 +73,8 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val t44 = Tag[ComplexType]; val t45 = Tag[ComplexType]; val t46 = Tag[ComplexType]
       val t47 = Tag[ComplexType]; val t48 = Tag[ComplexType]; val t49 = Tag[ComplexType]
       val t50 = Tag[ComplexType]
-      assertSameStrict(t41.tag, t50.tag)
+      val tags = List(t41, t42, t43, t44, t45, t46, t47, t48, t49, t50)
+      tags.foreach(t => assertSameStrict(tags.head.tag, t.tag))
     }
   }
 
@@ -117,6 +122,15 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val vec1 = Tag[Vector[Int]]; val vec2 = Tag[Vector[Int]]; val vec3 = Tag[Vector[Int]]
       val set1 = Tag[Set[Int]]; val set2 = Tag[Set[Int]]; val set3 = Tag[Set[Int]]
       
+      // Verify repeated materializations produce identical tags
+      assertSameStrict(list1.tag, list2.tag)
+      assertSameStrict(list1.tag, list3.tag)
+      assertSameStrict(vec1.tag, vec2.tag)
+      assertSameStrict(vec1.tag, vec3.tag)
+      assertSameStrict(set1.tag, set2.tag)
+      assertSameStrict(set1.tag, set3.tag)
+      
+      // Verify all collection types are children of Iterable
       val iterTag = Tag[Iterable[Int]]
       assertChild(list1.tag, iterTag.tag)
       assertChild(vec1.tag, iterTag.tag)
@@ -129,7 +143,16 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val either1 = Tag[Either[Int, String]]; val either2 = Tag[Either[Int, String]]
       val either3 = Tag[Either[Int, String]]; val either4 = Tag[Either[Int, String]]
       
+      // Verify all Option materializations produce identical tags
+      assertSameStrict(opt1.tag, opt2.tag)
+      assertSameStrict(opt1.tag, opt3.tag)
+      assertSameStrict(opt1.tag, opt4.tag)
+      assertSameStrict(opt1.tag, opt5.tag)
       assertSameStrict(opt1.tag, opt6.tag)
+      
+      // Verify all Either materializations produce identical tags
+      assertSameStrict(either1.tag, either2.tag)
+      assertSameStrict(either1.tag, either3.tag)
       assertSameStrict(either1.tag, either4.tag)
     }
   }
@@ -142,7 +165,9 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val tk7 = TagK[List]; val tk8 = TagK[List]; val tk9 = TagK[List]
       val tk10 = TagK[List]
       
-      assertSameStrict(tk1.tag, tk10.tag)
+      // Verify all TagK materializations produce identical tags
+      val allTagKs = List(tk1, tk2, tk3, tk4, tk5, tk6, tk7, tk8, tk9, tk10)
+      allTagKs.foreach(tk => assertSameStrict(tk1.tag, tk.tag))
     }
 
     "handle TagKK repeated materializations" in {
@@ -151,7 +176,9 @@ class CacheStressTest extends AnyWordSpec with TagAssertions {
       val tkk7 = TagKK[Either]; val tkk8 = TagKK[Either]; val tkk9 = TagKK[Either]
       val tkk10 = TagKK[Either]
       
-      assertSameStrict(tkk1.tag, tkk10.tag)
+      // Verify all TagKK materializations produce identical tags
+      val allTagKKs = List(tkk1, tkk2, tkk3, tkk4, tkk5, tkk6, tkk7, tkk8, tkk9, tkk10)
+      allTagKKs.foreach(tkk => assertSameStrict(tkk1.tag, tkk.tag))
     }
   }
 }
