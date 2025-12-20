@@ -95,77 +95,60 @@ object LightTypeTagRef extends LTTOrdering {
       unusedParamsSize < paramRefs.size
     }
 
-    // Helper methods for normalization
-    private def maxLambdaDepth(ref: AbstractReference): Int = ref match {
-      case NameReference(SymName.LambdaParamName(_, depth, _), _, _) =>
-        depth
+    // New normalization logic
+    private def normalizeLambda(
+      ref: AbstractReference,
+      currentDepth: Int
+    ): AbstractReference = ref match {
 
-      case Lambda(_, out) =>
-        maxLambdaDepth(out)
-
-      case FullReference(_, params, prefix) =>
-        (params.map(p => maxLambdaDepth(p.ref)) ++ prefix.map(maxLambdaDepth))
-          .foldLeft(0)(math.max)
-
-      case IntersectionReference(refs) =>
-        refs.map(maxLambdaDepth).foldLeft(0)(math.max)
-
-      case UnionReference(refs) =>
-        refs.map(maxLambdaDepth).foldLeft(0)(math.max)
-
-      case Refinement(ref, decls) =>
-        (maxLambdaDepth(ref) ::
-          decls.map {
-            case RefinementDecl.Signature(_, in, out) =>
-              (in.map(maxLambdaDepth) :+ maxLambdaDepth(out)).max
-            case RefinementDecl.TypeMember(_, r) =>
-              maxLambdaDepth(r)
-          }.toList).max
-
-      case _ =>
-        0
-    }
-
-    private def renumber(ref: AbstractReference, maxDepth: Int): AbstractReference = ref match {
-      case NameReference(SymName.LambdaParamName(i, d, a), b, p) =>
+      case NameReference(SymName.LambdaParamName(i, _, a), b, p) =>
         NameReference(
-          SymName.LambdaParamName(i, d - maxDepth, a),
+          SymName.LambdaParamName(i, currentDepth, a),
           b,
           p
         )
 
       case Lambda(in, out) =>
-        Lambda(in, renumber(out, maxDepth))
+        Lambda(
+          in,
+          normalizeLambda(out, currentDepth + 1)
+        )
 
       case FullReference(sym, params, prefix) =>
         FullReference(
           sym,
-          params.map(p => p.copy(ref = renumber(p.ref, maxDepth))),
-          prefix.map(p => renumber(p, maxDepth).asInstanceOf[AppliedReference])
+          params.map(p => p.copy(ref = normalizeLambda(p.ref, currentDepth))),
+          prefix.map(p => normalizeLambda(p, currentDepth).asInstanceOf[AppliedReference])
         )
 
       case IntersectionReference(refs) =>
         IntersectionReference(
-          refs.map(r => renumber(r, maxDepth).asInstanceOf[AppliedReferenceExceptIntersection])
+          refs.map(r =>
+            normalizeLambda(r, currentDepth)
+              .asInstanceOf[AppliedReferenceExceptIntersection]
+          )
         )
 
       case UnionReference(refs) =>
         UnionReference(
-          refs.map(r => renumber(r, maxDepth).asInstanceOf[AppliedReferenceExceptUnion])
+          refs.map(r =>
+            normalizeLambda(r, currentDepth)
+              .asInstanceOf[AppliedReferenceExceptUnion]
+          )
         )
 
       case Refinement(ref, decls) =>
         Refinement(
-          renumber(ref, maxDepth).asInstanceOf[AppliedReference],
+          normalizeLambda(ref, currentDepth).asInstanceOf[AppliedReference],
           decls.map {
             case RefinementDecl.Signature(n, in, out) =>
               RefinementDecl.Signature(
                 n,
-                in.map(i => renumber(i, maxDepth).asInstanceOf[AppliedReference]),
-                renumber(out, maxDepth).asInstanceOf[AppliedReference]
+                in.map(i => normalizeLambda(i, currentDepth).asInstanceOf[AppliedReference]),
+                normalizeLambda(out, currentDepth).asInstanceOf[AppliedReference]
               )
             case RefinementDecl.TypeMember(n, r) =>
-              RefinementDecl.TypeMember(n, renumber(r, maxDepth))
+              RefinementDecl.TypeMember(n, normalizeLambda(r, currentDepth))
           }
         )
 
@@ -173,10 +156,8 @@ object LightTypeTagRef extends LTTOrdering {
         other
     }
 
-    lazy val normalizedOutput: AbstractReference = {
-      val depth = maxLambdaDepth(output)
-      renumber(output, depth)
-    }
+    lazy val normalizedOutput: AbstractReference =
+      normalizeLambda(output, currentDepth = 0)
 
     @deprecated("Binary compatibility shim. Do not use.", "2.3.0")
     def normalizedParams: List[AbstractReference] =
