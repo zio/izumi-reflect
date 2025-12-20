@@ -156,8 +156,10 @@ object LightTypeTagRef extends LTTOrdering {
         other
     }
 
-    lazy val normalizedOutput: AbstractReference =
-      normalizeLambda(output, currentDepth = 0)
+    lazy val normalizedOutput: AbstractReference = {
+      val applied = RuntimeAPI.applyLambda(this, makeFakeParams)
+      normalizeLambda(applied, currentDepth = 0)
+    }
 
     @deprecated("Binary compatibility shim. Do not use.", "2.3.0")
     def normalizedParams: List[AbstractReference] =
@@ -171,6 +173,15 @@ object LightTypeTagRef extends LTTOrdering {
 
         case _ =>
           false
+      }
+    }
+
+    private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
+      input.zipWithIndex.map {
+        case (p, idx) =>
+          p -> NameReference(
+            SymName.LambdaParamName(idx, lambdaFakeParamDepth, inputSize)
+          )
       }
     }
 
