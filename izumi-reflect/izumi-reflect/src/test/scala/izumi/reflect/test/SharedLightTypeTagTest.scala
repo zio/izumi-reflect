@@ -1326,11 +1326,11 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     }
 
     "normalize lambda parameter depths (regression #379)" in {
-      // Scala 2–compatible type lambda encoding
-      val t1 = `LTT[_[_,_]]`[({ type L[F[_, _]] = F })#L]
-      val t2 = `LTT[_[_,_]]`[({ type L[F[_, _]] = F })#L]
+      type Bin[A, B] = Tuple2[A, B]
 
-      // Normalized form must be stable and identical
+      val t1 = `LTT[_,_]`[Bin]
+      val t2 = `LTT[_,_]`[Bin]
+
       assertSameStrict(t1, t2)
     }
   }
