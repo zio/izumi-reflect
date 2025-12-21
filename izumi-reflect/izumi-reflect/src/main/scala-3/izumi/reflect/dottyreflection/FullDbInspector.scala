@@ -14,9 +14,18 @@ import scala.quoted.*
 object FullDbInspector {
   private val dbCache = new ConcurrentHashMap[String, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
 
-  private def dbCacheEnabled: Boolean = {
+  // Master switch for all compile-time caching
+  private def compileCacheEnabled: Boolean = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
     Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`))
+      .flatMap(_.asBoolean())
+      .getOrElse(true)
+  }
+
+  // Individual FullDB cache flag
+  private def fullDbCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
+    Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.full`))
       .flatMap(_.asBoolean())
       .getOrElse(true)
   }
@@ -30,10 +39,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
   def buildFullDb(typeRepr: TypeRepr): Map[AbstractReference, Set[AbstractReference]] = {
-    val key = makeStructuralKey(typeRepr)
+    val cacheEnabled = FullDbInspector.compileCacheEnabled && FullDbInspector.fullDbCacheEnabled
+    
+    // Use type's symbol-based key for correctness
+    val key = if (cacheEnabled) makeTypeKey(typeRepr) else ""
 
     val cachedResult: Option[Map[AbstractReference, Set[AbstractReference]]] =
-      if (FullDbInspector.dbCacheEnabled) {
+      if (cacheEnabled) {
         Option(FullDbInspector.dbCache.get(key)).flatMap(sr => Option(sr.get()))
       } else {
         None
@@ -52,7 +64,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           }
           .toMultimap
 
-        if (FullDbInspector.dbCacheEnabled) {
+        if (cacheEnabled) {
           FullDbInspector.dbCache.put(key, new SoftReference(result))
         }
 
@@ -60,17 +72,11 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
-  private def makeStructuralKey(typeRepr: TypeRepr): String = {
+  private def makeTypeKey(typeRepr: TypeRepr): String = {
     val dealiased = typeRepr.dealias.simplified
-    val baseTypesKey = dealiased.baseClasses
-      .map { sym =>
-        val numTypeParams = sym.typeMembers.count(_.isTypeParam)
-        val posKey = sym.pos.map(p => s"@${p.sourceFile.path}:${p.start}").getOrElse("")
-        s"${sym.fullName}#$numTypeParams$posKey"
-      }
-      .sorted
-      .mkString(";")
-    s"${dealiased.show}|bases:$baseTypesKey"
+    val sym = dealiased.typeSymbol
+    val posKey = sym.pos.map(p => s"@${p.sourceFile.path.hashCode}:${p.start}").getOrElse("")
+    s"${dealiased.show}$posKey"
   }
 
   class Run(

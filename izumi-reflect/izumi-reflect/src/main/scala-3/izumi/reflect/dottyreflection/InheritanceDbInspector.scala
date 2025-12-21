@@ -14,9 +14,18 @@ import scala.quoted.*
 object InheritanceDbInspector {
   private val dbCache = new ConcurrentHashMap[String, SoftReference[Map[NameReference, Set[NameReference]]]]()
 
-  private def dbCacheEnabled: Boolean = {
+  // Master switch for all compile-time caching
+  private def compileCacheEnabled: Boolean = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
     Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`))
+      .flatMap(_.asBoolean())
+      .getOrElse(true)
+  }
+
+  // Individual InheritanceDB cache flag
+  private def inheritanceDbCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
+    Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.inheritance`))
       .flatMap(_.asBoolean())
       .getOrElse(true)
   }
@@ -30,10 +39,13 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   import qctx.reflect.*
 
   def makeUnappliedInheritanceDb(typeRepr: TypeRepr): Map[NameReference, Set[NameReference]] = {
-    val key = makeStructuralKey(typeRepr)
+    val cacheEnabled = InheritanceDbInspector.compileCacheEnabled && InheritanceDbInspector.inheritanceDbCacheEnabled
+    
+    // Use type's symbol-based key for correctness
+    val key = if (cacheEnabled) makeTypeKey(typeRepr) else ""
 
     val cachedResult: Option[Map[NameReference, Set[NameReference]]] =
-      if (InheritanceDbInspector.dbCacheEnabled) {
+      if (cacheEnabled) {
         Option(InheritanceDbInspector.dbCache.get(key)).flatMap(sr => Option(sr.get()))
       } else {
         None
@@ -48,7 +60,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
         val result = new Run(Inspector.make(qctx), mutable.HashSet.empty)
           .makeUnappliedInheritanceDb(tpe0)
 
-        if (InheritanceDbInspector.dbCacheEnabled) {
+        if (cacheEnabled) {
           InheritanceDbInspector.dbCache.put(key, new SoftReference(result))
         }
 
@@ -56,17 +68,12 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
     }
   }
 
-  private def makeStructuralKey(typeRepr: TypeRepr): String = {
+  // Build a cache key from the type that includes position info to avoid collisions
+  private def makeTypeKey(typeRepr: TypeRepr): String = {
     val dealiased = typeRepr.dealias.simplified
-    val baseTypesKey = dealiased.baseClasses
-      .map { sym =>
-        val numTypeParams = sym.typeMembers.count(_.isTypeParam)
-        val posKey = sym.pos.map(p => s"@${p.sourceFile.path}:${p.start}").getOrElse("")
-        s"${sym.fullName}#$numTypeParams$posKey"
-      }
-      .sorted
-      .mkString(";")
-    s"${dealiased.show}|bases:$baseTypesKey"
+    val sym = dealiased.typeSymbol
+    val posKey = sym.pos.map(p => s"@${p.sourceFile.path.hashCode}:${p.start}").getOrElse("")
+    s"${dealiased.show}$posKey"
   }
 
   class Run(

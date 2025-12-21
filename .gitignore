@@ -26,7 +26,11 @@ project/metals.sbt
 .java-version
 
 #Metals bug/issue - it's creating its workspace data directory at a path called null instead of the proper workspace path
-null/
+null
+
+# Generated stress test files for benchmarking (too large for regular CI)
+izumi-reflect/izumi-reflect/src/test/scala-3/izumi/reflect/test/CacheStressTest.scala
+izumi-reflect/izumi-reflect/src/test/scala-2/izumi/reflect/test/CacheStressTest.scala
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Scala template

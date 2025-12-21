@@ -8,17 +8,60 @@
 **Target**: `izumi-reflectJVM/Test/compile`  
 **Date**: December 20, 2025
 
-### Scala 3.3.6
+| Scala Version | With Cache | Without Cache | Improvement |
+|---------------|------------|---------------|-------------|
+| Scala 2.13.14 | 42.35s     | 54.26s        | **21.9%**   |
+| Scala 3.3.6   | 55.55s     | 103.73s       | **46.4%**   |
 
-| Build Type | No Cache | With Cache | Improvement |
-|------------|----------|------------|-------------|
-| Clean | 49.07s | 47.95s | **2.3%** |
+### 12/21/2025 5:38 PM
 
-### Scala 2.13.14
+PS C:\all\Open-Source\izumi-reflect> .\scripts\benchmark-compile-time.ps1
+==============================================
+  izumi-reflect Compile-Time Cache Benchmark
+==============================================
 
-| Build Type | No Cache | With Cache | Improvement |
-|------------|----------|------------|-------------|
-| Clean | 43.90s | 41.02s | **6.6%** |
+Cleaning build artifacts...
+
+Benchmarking Scala 2...
+  With cache 1/3...
+    41.84s
+  With cache 2/3...
+    41.87s
+  With cache 3/3...
+    41.85s
+  Without cache 1/3...
+    45.58s
+  Without cache 2/3...
+    46.34s
+  Without cache 3/3...
+    44.78s
+
+Benchmarking Scala 3...
+  With cache 1/3...
+    47.02s
+  With cache 2/3...
+    46.49s
+  With cache 3/3...
+    46.55s
+  Without cache 1/3...
+    51.14s
+  Without cache 2/3...
+    50.21s
+  Without cache 3/3...
+    57.16s
+
+==============================================
+                 RESULTS
+==============================================
+
+Scala 2 cache: 41.85s
+Scala 2 without cache: 45.56s
+Improved: 8.1%
+
+Scala 3 cache: 46.69s
+Scala 3 without cache: 52.84s
+Improved: 11.6%
+PS C:\all\Open-Source\izumi-reflect> 
 
 ## Methodology
 
@@ -103,3 +146,11 @@ sbt "++ 2.13.14" "izumi-reflectJVM/clean" \
 sbt "++ 2.13.14" "izumi-reflectJVM/clean" "izumi-reflectJVM/Test/compile"
 ```
 
+### How to Reproduce
+
+```powershell
+# First
+.\scripts\generate-stress-test.ps1
+# Then
+.\scripts\benchmark-compile-time.ps1
+```
