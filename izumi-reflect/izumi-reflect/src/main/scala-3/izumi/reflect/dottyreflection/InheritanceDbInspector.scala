@@ -12,9 +12,9 @@ import scala.collection.mutable
 import scala.quoted.*
 
 object InheritanceDbInspector {
-  private val dbCache = new ConcurrentHashMap[String, SoftReference[Map[NameReference, Set[NameReference]]]]()
+  private type TypeReprKey = Quotes#reflectModule#TypeRepr
+  private val dbCache = new ConcurrentHashMap[TypeReprKey, SoftReference[Map[NameReference, Set[NameReference]]]]()
 
-  // Master switch for all compile-time caching
   private def compileCacheEnabled: Boolean = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
     Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`))
@@ -22,7 +22,6 @@ object InheritanceDbInspector {
       .getOrElse(true)
   }
 
-  // Individual InheritanceDB cache flag
   private def inheritanceDbCacheEnabled: Boolean = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
     Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.inheritance`))
@@ -40,9 +39,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
   def makeUnappliedInheritanceDb(typeRepr: TypeRepr): Map[NameReference, Set[NameReference]] = {
     val cacheEnabled = InheritanceDbInspector.compileCacheEnabled && InheritanceDbInspector.inheritanceDbCacheEnabled
-    
-    // Use type's symbol-based key for correctness
-    val key = if (cacheEnabled) makeTypeKey(typeRepr) else ""
+    val key: InheritanceDbInspector.TypeReprKey = typeRepr.dealias.simplified
 
     val cachedResult: Option[Map[NameReference, Set[NameReference]]] =
       if (cacheEnabled) {
@@ -66,14 +63,6 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
         result
     }
-  }
-
-  // Build a cache key from the type that includes position info to avoid collisions
-  private def makeTypeKey(typeRepr: TypeRepr): String = {
-    val dealiased = typeRepr.dealias.simplified
-    val sym = dealiased.typeSymbol
-    val posKey = sym.pos.map(p => s"@${p.sourceFile.path.hashCode}:${p.start}").getOrElse("")
-    s"${dealiased.show}$posKey"
   }
 
   class Run(

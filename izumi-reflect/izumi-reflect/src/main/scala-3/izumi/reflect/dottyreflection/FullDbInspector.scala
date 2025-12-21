@@ -12,9 +12,9 @@ import scala.collection.mutable
 import scala.quoted.*
 
 object FullDbInspector {
-  private val dbCache = new ConcurrentHashMap[String, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
+  private type TypeReprKey = Quotes#reflectModule#TypeRepr
+  private val dbCache = new ConcurrentHashMap[TypeReprKey, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
 
-  // Master switch for all compile-time caching
   private def compileCacheEnabled: Boolean = {
     import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
     Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`))
@@ -41,8 +41,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   def buildFullDb(typeRepr: TypeRepr): Map[AbstractReference, Set[AbstractReference]] = {
     val cacheEnabled = FullDbInspector.compileCacheEnabled && FullDbInspector.fullDbCacheEnabled
     
-    // Use type's symbol-based key for correctness
-    val key = if (cacheEnabled) makeTypeKey(typeRepr) else ""
+    val key: FullDbInspector.TypeReprKey = typeRepr.dealias.simplified
 
     val cachedResult: Option[Map[AbstractReference, Set[AbstractReference]]] =
       if (cacheEnabled) {
@@ -70,13 +69,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
         result
     }
-  }
-
-  private def makeTypeKey(typeRepr: TypeRepr): String = {
-    val dealiased = typeRepr.dealias.simplified
-    val sym = dealiased.typeSymbol
-    val posKey = sym.pos.map(p => s"@${p.sourceFile.path.hashCode}:${p.start}").getOrElse("")
-    s"${dealiased.show}$posKey"
   }
 
   class Run(
