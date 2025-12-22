@@ -95,6 +95,13 @@ class TagTest extends SharedTagTest {
       assert(t[TraitK30, Trait30].tag == Tag[TraitK30[Trait30]].tag)
     }
 
+    "example in 3.0.9 release notes works" in {
+      def printColType[F[+x] <: Iterable[x]: Tag.auto.T]: LightTypeTag = {
+        Tag[F[Int]].tag
+      }
+      assert(printColType[List] == LTT[List[Int]])
+    }
+
     "can find HKTag when obscured by type lambda (Scala 2 HKTag Syntax)" in {
       assertCompiles("HKTag.hktagFromTagMacro[{ type Arg[C] = Option[C] }]")
       assertCompiles("HKTag.hktagFromTagMacro[({ type l[F[_]] = { type Arg[C] = F[C] } })#l[Option]]")
