@@ -10,8 +10,13 @@ import scala.quoted.{Expr, Quotes, Type}
 
 object Inspect {
   private type TypeReprKey = Quotes#reflectModule#TypeRepr
+  private type TermValue = Quotes#reflectModule#Term
+  
+  // Tree-level cache: stores the generated Term for reuse across macro invocations
+  private val termCache = new ConcurrentHashMap[TypeReprKey, TermValue]()
+  
+  // Value caches (fallback)
   private val lttCache = new ConcurrentHashMap[TypeReprKey, SoftReference[LightTypeTag]]()
-
   private val serializedCache = new java.util.IdentityHashMap[LightTypeTag, LightTypeTag.Serialized]()
 
   // Master switch for all compile-time caching
@@ -53,6 +58,13 @@ object Inspect {
     
     val cacheKey: TypeReprKey = typeRepr.dealias.simplified
 
+    if (cacheEnabled) {
+      val cachedTerm = termCache.get(cacheKey)
+      if (cachedTerm != null) {
+        return cachedTerm.asInstanceOf[qctx.reflect.Term].asExprOf[LightTypeTag]
+      }
+    }
+
     val cachedLtt: Option[LightTypeTag] =
       if (cacheEnabled) {
         Option(lttCache.get(cacheKey)).flatMap(sr => Option(sr.get()))
@@ -73,7 +85,7 @@ object Inspect {
       newLtt
     }
 
-    makeParsedLightTypeTagImpl(ltt)
+    makeParsedLightTypeTagImpl(ltt, cacheKey, cacheEnabled)
   }
 
   def inspectStrong[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {
@@ -87,7 +99,51 @@ object Inspect {
     }
   }
 
+  private def makeParsedLightTypeTagImpl(ltt: LightTypeTag, cacheKey: TypeReprKey, cacheEnabled: Boolean)(using qctx: Quotes): Expr[LightTypeTag] = {
+    import qctx.reflect.*
+    
+    val serCacheEnabled = compileCacheEnabled && serializedCacheEnabled
+    
+    // Try to get cached serialized form (synchronized because IdentityHashMap is not thread-safe)
+    val serialized = if (serCacheEnabled) {
+      serializedCache.synchronized {
+        val cached = serializedCache.get(ltt)
+        if (cached != null) {
+          cached
+        } else {
+          val ser = ltt.serialize()
+          serializedCache.put(ltt, ser)
+          ser
+        }
+      }
+    } else {
+      ltt.serialize()
+    }
+    
+    val hashCodeRef = serialized.hash
+    val strRef = serialized.ref
+    val strDBs = serialized.databases
+
+    InspectorBase.ifDebug {
+      def string2hex(str: String): String = str.toList.map(_.toInt.toHexString).mkString
+
+      println(s"${ltt.ref} => ${strRef.size} bytes, ${string2hex(strRef)}")
+      println(s"${SubtypeDBs.make(ltt.basesdb, ltt.idb)} => ${strDBs.size} bytes, ${string2hex(strDBs)}")
+      println(strDBs)
+    }
+
+    val resultExpr = '{ LightTypeTag.parse(${ Expr(hashCodeRef) }, ${ Expr(strRef) }, ${ Expr(strDBs) }, ${ Expr(LightTypeTag.currentBinaryFormatVersion) }) }
+
+    if (cacheEnabled) {
+      termCache.put(cacheKey, resultExpr.asTerm.asInstanceOf[TermValue])
+    }
+
+    resultExpr
+  }
+
   def makeParsedLightTypeTagImpl(ltt: LightTypeTag)(using qctx: Quotes): Expr[LightTypeTag] = {
+    import qctx.reflect.*
+    
     val serCacheEnabled = compileCacheEnabled && serializedCacheEnabled
     
     // Try to get cached serialized form (synchronized because WeakHashMap is not thread-safe)
