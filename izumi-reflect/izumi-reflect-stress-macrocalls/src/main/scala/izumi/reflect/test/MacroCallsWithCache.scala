@@ -17,7 +17,6 @@ case class CustomCaseClass(id: Int, name: String, value: Double)
  * WITH cache enabled: should approach baseline time
  * WITHOUT cache: should be significantly slower
  */
-@annotation.nowarn
 object MacroCallsWithCache {
   def batch0(): Unit = {
     val t1 = (implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]], implicitly[Tag[CustomCaseClass]])

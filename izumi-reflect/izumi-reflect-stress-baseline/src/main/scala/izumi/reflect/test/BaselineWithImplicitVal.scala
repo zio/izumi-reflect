@@ -13,7 +13,6 @@ case class CustomCaseClass(id: Int, name: String, value: Double)
  * Compile this module ALONE to get baseline time:
  *   sbt "izumi-reflect-stress-baselineJVM / compile"
  */
-@annotation.nowarn
 object BaselineWithImplicitVal {
   implicit val cachedTag: Tag[CustomCaseClass] = Tag[CustomCaseClass]
   def batch0(): Unit = {
