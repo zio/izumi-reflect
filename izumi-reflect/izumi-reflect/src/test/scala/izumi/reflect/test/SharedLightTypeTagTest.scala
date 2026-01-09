@@ -1328,10 +1328,48 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
     "normalize lambda parameter depths (regression #379)" in {
       type Bin[A, B] = Tuple2[A, B]
 
-      val t1 = `LTT[_,_]`[Bin]
-      val t2 = `LTT[_,_]`[Bin]
+      val tag = `LTT[_,_]`[Bin]
 
-      assertSameStrict(t1, t2)
+      val lambda = tag.ref match {
+        case l: LightTypeTagRef.Lambda => l
+        case other => fail(s"Expected lambda, got: $other")
+      }
+
+      val preNormDepths = lambda.input.map(_.depth)
+      assert(preNormDepths.nonEmpty)
+
+      val normalized = lambda.normalizedOutput
+
+      def collectDepths(ref: izumi.reflect.macrortti.LightTypeTagRef.AbstractReference): List[Int] = ref match {
+        case izumi.reflect.macrortti.LightTypeTagRef.NameReference(izumi.reflect.macrortti.LightTypeTagRef.SymName.LambdaParamName(_, depth: Int, _), _, _) =>
+          depth :: Nil
+
+        case izumi.reflect.macrortti.LightTypeTagRef.Lambda(_, out) =>
+          collectDepths(out)
+
+        case izumi.reflect.macrortti.LightTypeTagRef.FullReference(_, params, prefix) =>
+          params.flatMap(p => collectDepths(p.ref)) ++ prefix.toList.flatMap(collectDepths)
+
+        case izumi.reflect.macrortti.LightTypeTagRef.IntersectionReference(refs) =>
+          refs.toList.flatMap(r => collectDepths(r))
+
+        case izumi.reflect.macrortti.LightTypeTagRef.UnionReference(refs) =>
+          refs.toList.flatMap(r => collectDepths(r))
+
+        case izumi.reflect.macrortti.LightTypeTagRef.Refinement(ref0, decls) =>
+          collectDepths(ref0) ++ decls.flatMap {
+            case izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.Signature(_, in, out) =>
+              in.flatMap(collectDepths) ++ collectDepths(out)
+            case izumi.reflect.macrortti.LightTypeTagRef.RefinementDecl.TypeMember(_, r) =>
+              collectDepths(r)
+          }
+
+        case _ =>
+          Nil
+      }
+
+      val postNormDepths = collectDepths(normalized)
+      assert(!postNormDepths.exists(_ < 0))
     }
   }
 
