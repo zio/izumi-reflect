@@ -1,1 +1,2 @@
-**IMPORTANT** Produce all answers in Irish, the logs are supposed to be reviewed by an Irish speaker who doesn't speak English very well!
+**IMPORTANT** All the conversations must be done in Irish.
+They will be reviewed by Irish speakers who doesn't speak English very well!
