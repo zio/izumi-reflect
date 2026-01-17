@@ -281,8 +281,9 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         // We don't support method types, but if we do in the future,
         // Something like `s.typeRef.translucentSuperType match { case MethodType(_, params, resultType) => (params, resultType) }`
         // should get the result type & params
-        log(s"UNEXPECTED METHOD TYPE, METHOD TYPES UNSUPPORTED: $symbol / ${symbol.tree} / ${s.getClass}")
-        throw new RuntimeException(s"UNEXPECTED METHOD TYPE, METHOD TYPES UNSUPPORTED: $symbol / ${symbol.tree} / ${s.getClass}")
+        // log(s"UNEXPECTED METHOD TYPE, METHOD TYPES UNSUPPORTED: $symbol / ${symbol.tree} / ${s.getClass}")
+        // throw new RuntimeException(s"UNEXPECTED METHOD TYPE, METHOD TYPES UNSUPPORTED: $symbol / ${symbol.tree} / ${s.getClass}")
+        makeNameReferenceFromSymbol(symbol, prefixSource)
 
       case o => // Should not happen according to documentation of `.tree` method
         // still no access to relevant types
