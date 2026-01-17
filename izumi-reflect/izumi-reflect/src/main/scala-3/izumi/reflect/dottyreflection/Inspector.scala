@@ -177,7 +177,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
     val refinementDecls = refinements.map {
       case (_, name, ByNameType(tpe)) => // def x(): Int
-        RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
+        RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe))
 
       case (_, name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
         // Handle polymorphic methods by tracking their type parameters in context
@@ -188,11 +188,11 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
               val nextInspector = inspector.nextPoly(p)
               inspectMethodOrPoly(nextInspector, p.resType)
             case mt: MethodType =>
-              val inputs = mt.paramTypes.map(inspector.next().inspectTypeRepr(_).asInstanceOf[AppliedReference])
+              val inputs = mt.paramTypes.map(inspector.next().inspectTypeRepr(_))
               val (inputs2, res) = inspectMethodOrPoly(inspector, mt.resType)
               (inputs ++ inputs2, res)
             case tpe =>
-              (Nil, inspector.next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
+              (Nil, inspector.next().inspectTypeRepr(tpe))
           }
         }
         val (inputRefs, outputRef) = inspectMethodOrPoly(this, m0)
@@ -211,7 +211,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         RefinementDecl.TypeMember(name, res)
 
       case (_, name, tpe) => // val t: Int
-        RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
+        RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe))
     }
 
     val ohOh = parentRef.asInstanceOf[AppliedReference]
