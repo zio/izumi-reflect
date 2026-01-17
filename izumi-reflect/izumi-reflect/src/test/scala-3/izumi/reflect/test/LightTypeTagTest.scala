@@ -159,12 +159,12 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     }
 
     "support polymorphic function types with bounds and variance" in {
-      trait Upper {}
-      trait Lower <: Upper {}
-      // [A <: Upper, B >: Lower] => A => B
-      val t1 = LTT[[A <: Upper, B >: Lower] => A => B]
-      val t2 = LTT[[X <: Upper, Y >: Lower] => X => Y]
-       assertSameStrict(t1, t2)
+       trait Upper {}
+       trait Lower extends Upper {}
+       // [A <: Upper, B >: Lower] => A => B
+       val t1 = LTT[[A <: Upper, B >: Lower] => A => B]
+       val t2 = LTT[[X <: Upper, Y >: Lower] => X => Y]
+        assertSameStrict(t1, t2)
     }
 
     "support polymorphic function types in intersection types" in {
