@@ -123,6 +123,67 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertSameStrict(t1, t2)
     }
 
+    "support nested polymorphic function types" in {
+      val t1 = LTT[[A] => A => [B] => B => Either[A, B]]
+      val t2 = LTT[[X] => X => [Y] => Y => Either[X, Y]]
+      assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types as type arguments" in {
+       val t1 = LTT[List[[A] => A => A]]
+       val t2 = LTT[List[[B] => B => B]]
+       assertSameStrict(t1, t2)
+    }
+
+    "support structural types with polymorphic function members" in {
+      type T1 = { def foo: [A] => A => A }
+      type T2 = { def foo: [B] => B => B }
+      
+      val t1 = LTT[T1]
+      val t2 = LTT[T2]
+      assertSameStrict(t1, t2)
+    }
+
+    "support deeply nested polymorphic function types" in {
+       val t1 = LTT[[A] => [B] => [C] => (A, B, C) => (C, B, A)]
+       val t2 = LTT[[X] => [Y] => [Z] => (X, Y, Z) => (Z, Y, X)]
+       assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic functions taking polymorphic functions as arguments" in {
+       // [A] => ( [X] => X => A ) => A
+       val t1 = LTT[[A] => ([X] => X => A) => A]
+       val t2 = LTT[[B] => ([Y] => Y => B) => B]
+       assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types with bounds and variance" in {
+      trait Upper
+      trait Lower <: Upper
+      // [A <: Upper, B >: Lower] => A => B
+      val t1 = LTT[[A <: Upper, B >: Lower] => A => B]
+      val t2 = LTT[[X <: Upper, Y >: Lower] => X => Y]
+       assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types in intersection types" in {
+      trait F1 { def f: [A] => A => A }
+      trait F2 { def g: [B] => B => List[B] }
+      
+      val t1 = LTT[{ def f: [A] => A => A } & { def g: [B] => B => List[B] }]
+      val t2 = LTT[{ def f: [X] => X => X } & { def g: [Y] => Y => List[Y] }]
+      
+      assertChildStrict(t1, t2)
+      assertChildStrict(t2, t1)
+    }
+
+    "support structural types with complex polymorphic members" in {
+      type T1 = { def complex: [A] => List[A] => Option[A] }
+      type T2 = { def complex: [B] => List[B] => Option[B] }
+      
+      assertSameStrict(LTT[T1], LTT[T2])
+    }
+
 
   }
 }
