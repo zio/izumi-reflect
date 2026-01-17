@@ -145,8 +145,9 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     }
 
     "support deeply nested polymorphic function types" in {
-       val t1 = LTT[[A] => [B] => [C] => (A, B, C) => (C, B, A)]
-       val t2 = LTT[[X] => [Y] => [Z] => (X, Y, Z) => (Z, Y, X)]
+       // [A] => A => [B] => B => [C] => (A, B, C) => (C, B, A)
+       val t1 = LTT[[A] => A => [B] => B => [C] => (A, B, C) => (C, B, A)]
+       val t2 = LTT[[X] => X => [Y] => Y => [Z] => (X, Y, Z) => (Z, Y, X)]
        assertSameStrict(t1, t2)
     }
 
@@ -158,8 +159,8 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
     }
 
     "support polymorphic function types with bounds and variance" in {
-      trait Upper
-      trait Lower <: Upper
+      trait Upper {}
+      trait Lower <: Upper {}
       // [A <: Upper, B >: Lower] => A => B
       val t1 = LTT[[A <: Upper, B >: Lower] => A => B]
       val t2 = LTT[[X <: Upper, Y >: Lower] => X => Y]
