@@ -44,6 +44,18 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     next(Some(Inspector.LamContext(params)))
   }
 
+  def nextPoly(poly: PolyType): Inspector { val qctx: Inspector.this.qctx.type } = {
+    val params = poly
+      .paramNames
+      .zipWithIndex
+      .map {
+        case (nme, idx) =>
+          Inspector.LamParam(nme, idx, context.size, poly.paramNames.size)(qctx)(poly.param(idx))
+      }
+      .toList
+    next(Some(Inspector.LamContext(params)))
+  }
+
   def buildTypeRef(typeRepr: TypeRepr): AbstractReference = {
     log(s" -------- about to inspect ${typeRepr.show(using Printer.TypeReprStructure)} ($typeRepr) --------")
     val res = inspectTypeRepr(typeRepr)
@@ -168,24 +180,22 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         RefinementDecl.Signature(name, Nil, next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
 
       case (_, name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
-        // FIXME as of version 2.3.0 RefinementDecl.Signature model is broken
-        //   it doesn't support either multiple parameter lists or type parameters
-        //   on methods, so this is a hacky to avoid fixing that for now.
-        def squashMethodIgnorePolyType(m: TypeRepr): (List[TypeRepr], TypeRepr) = {
+        // Handle polymorphic methods by tracking their type parameters in context
+        def inspectMethodOrPoly(inspector: Inspector { val qctx: Inspector.this.qctx.type }, m: TypeRepr): (List[AppliedReference], AppliedReference) = {
           m match {
             case p: PolyType =>
-              squashMethodIgnorePolyType(p.resType)
-            case m: MethodType =>
-              val inputs = m.paramTypes
-              val (inputs2, res) = squashMethodIgnorePolyType(m.resType)
+              // Track PolyType parameters in context so ParamRef resolution works
+              val nextInspector = inspector.nextPoly(p)
+              inspectMethodOrPoly(nextInspector, p.resType)
+            case mt: MethodType =>
+              val inputs = mt.paramTypes.map(inspector.next().inspectTypeRepr(_).asInstanceOf[AppliedReference])
+              val (inputs2, res) = inspectMethodOrPoly(inspector, mt.resType)
               (inputs ++ inputs2, res)
             case tpe =>
-              (Nil, tpe)
+              (Nil, inspector.next().inspectTypeRepr(tpe).asInstanceOf[AppliedReference])
           }
         }
-        val (inputTpes, resType) = squashMethodIgnorePolyType(m0)
-        val inputRefs = inputTpes.map(next().inspectTypeRepr(_).asInstanceOf[AppliedReference])
-        val outputRef = next().inspectTypeRepr(resType).asInstanceOf[AppliedReference]
+        val (inputRefs, outputRef) = inspectMethodOrPoly(this, m0)
         RefinementDecl.Signature(name, inputRefs, outputRef)
 
       case (_, name, bounds: TypeBounds) => // type T = Int

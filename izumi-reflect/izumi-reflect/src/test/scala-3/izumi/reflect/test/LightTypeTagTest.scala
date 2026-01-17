@@ -104,6 +104,26 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertSameStrict(t1, t2)
     }
 
+    "support polymorphic function types with multiple type parameters" in {
+      val t1 = LTT[[A, B] => A => B => (A, B)]
+      val t2 = LTT[[X, Y] => X => Y => (X, Y)]
+      assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types with bounds" in {
+      trait Base
+      val t1 = LTT[[A <: Base] => A => A]
+      val t2 = LTT[[B <: Base] => B => B]
+      assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types with complex return types" in {
+      val t1 = LTT[[A] => A => Option[A]]
+      val t2 = LTT[[B] => B => Option[B]]
+      assertSameStrict(t1, t2)
+    }
+
+
   }
 }
 
