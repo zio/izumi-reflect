@@ -181,7 +181,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
       case (_, name, m0: MethodOrPoly) => // def x(i: Int): Int; def x[A](a: A): A
         // Handle polymorphic methods by tracking their type parameters in context
-        def inspectMethodOrPoly(inspector: Inspector { val qctx: Inspector.this.qctx.type }, m: TypeRepr): (List[AppliedReference], AppliedReference) = {
+        def inspectMethodOrPoly(inspector: Inspector { val qctx: Inspector.this.qctx.type }, m: TypeRepr): (List[AbstractReference], AbstractReference) = {
           m match {
             case p: PolyType =>
               // Track PolyType parameters in context so ParamRef resolution works
@@ -195,6 +195,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
               (Nil, inspector.next().inspectTypeRepr(tpe))
           }
         }
+
         val (inputRefs, outputRef) = inspectMethodOrPoly(this, m0)
         RefinementDecl.Signature(name, inputRefs, outputRef)
 
