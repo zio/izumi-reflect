@@ -197,7 +197,9 @@ object Izumi {
           """ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.this")""".raw,
           """ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.apply")""".raw,
           """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.input")""".raw,
-          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy$default$2")""".raw
+          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy$default$2")""".raw,
+          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature._3")""".raw
+
 
         ),
         "mimaFailOnProblem" in SettingScope.Build := true,
