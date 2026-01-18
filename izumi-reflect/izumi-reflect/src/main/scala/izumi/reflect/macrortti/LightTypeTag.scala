@@ -1039,8 +1039,8 @@ object LightTypeTag {
           else {
             state.enc.writeInt(0)
             state.pickle[String](value.name)
-            state.pickle[List[LightTypeTagRef.AppliedReference]](value.input)
-            state.pickle[LightTypeTagRef.AppliedReference](value.output)
+            state.pickle[List[LightTypeTagRef.AbstractReference]](value.input)
+            state.pickle[LightTypeTagRef.AbstractReference](value.output)
             state.addIdentityRef(value)
           }
         }
@@ -1053,8 +1053,8 @@ object LightTypeTag {
           val value = LightTypeTagRef
             .RefinementDecl.Signature(
               state.unpickle[String],
-              state.unpickle[List[LightTypeTagRef.AppliedReference]],
-              state.unpickle[LightTypeTagRef.AppliedReference]
+              state.unpickle[List[LightTypeTagRef.AbstractReference]],
+              state.unpickle[LightTypeTagRef.AbstractReference]
             )
           state.addIdentityRef(value)
           value

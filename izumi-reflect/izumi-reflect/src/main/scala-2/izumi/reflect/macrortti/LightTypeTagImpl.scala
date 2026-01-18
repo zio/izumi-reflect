@@ -572,13 +572,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           .paramLists.map(_.map {
             param =>
               val paramTpe = UniRefinement.typeOfParam(param)
-              makeRefSub(paramTpe, rules, Set.empty).asInstanceOf[AppliedReference]
+              makeRefSub(paramTpe, rules, Set.empty)
           })
         val paramLists = if (paramLists0.nonEmpty) paramLists0 else List(Nil)
 
         paramLists.map {
           parameterList =>
-            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules, Set.empty).asInstanceOf[AppliedReference])
+            RefinementDecl.Signature(declMethod.name.decodedName.toString, parameterList, makeRefSub(returnTpe, rules, Set.empty))
         }
       } else if (decl.isType) {
         val tpe = UniRefinement.typeOfTypeMember(decl)
