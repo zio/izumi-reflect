@@ -189,7 +189,16 @@ object Izumi {
           """ProblemFilters.exclude[FinalClassProblem]("izumi.reflect.macrortti.LightTypeTagInheritance$CtxExt")""".raw,
           """ProblemFilters.exclude[MissingTypesProblem]       ("izumi.reflect.macrortti.LightTypeTagInheritance$Ctx*")""".raw,
           """ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagInheritance#Ctx*")""".raw,
-          """ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagUnpacker*")""".raw
+          """ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagUnpacker*")""".raw,
+          // Support polymorphic function types in structural refinements (RefinementDecl.Signature uses AbstractReference)
+          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.output")""".raw,
+          """ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy")""".raw,
+          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy$default$3")""".raw,
+          """ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.this")""".raw,
+          """ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.apply")""".raw,
+          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.input")""".raw,
+          """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy$default$2")""".raw
+
         ),
         "mimaFailOnProblem" in SettingScope.Build := true,
         "mimaFailOnNoPrevious" in SettingScope.Build := false,
