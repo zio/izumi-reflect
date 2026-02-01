@@ -1371,6 +1371,48 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val postNormDepths = collectDepths(normalized)
       assert(!postNormDepths.exists(_ < 0))
     }
+
+    "normalized lambda string representation does not contain FAKE_ parameters (regression #379)" in {
+      // Test simple type lambda: λ %0,%1 → Tuple2[+0,+1]
+      type Bin[A, B] = Tuple2[A, B]
+      val binTag = `LTT[_,_]`[Bin]
+      val binRepr = binTag.repr
+      
+      assert(!binRepr.contains("FAKE_"), s"Lambda repr should not contain FAKE_ parameters: $binRepr")
+      assert(binRepr.contains("λ %0,"), s"Lambda repr should contain λ %0,: $binRepr")
+      assert(binRepr.contains("Tuple2["), s"Lambda repr should contain Tuple2[: $binRepr")
+      
+      // Test nested type lambda matching issue #379 pattern:
+      // outer lambda takes F[_], inner lambda applies F with parameters from inner scope
+      // Expected form: λ %0 → FM2[+0[=Either[+W1,+W2]]]
+      type NestedLambda[F[_]] = FM2[F[Either[W1, W2]]]
+      val nestedTag = `LTT[_[_]]`[({ type l[F[_]] = NestedLambda[F] })#l]
+      val nestedRepr = nestedTag.repr
+      
+      assert(!nestedRepr.contains("FAKE_"), s"Nested lambda repr should not contain FAKE_ parameters: $nestedRepr")
+      assert(nestedRepr.contains("λ %0"), s"Nested lambda repr should contain λ %0: $nestedRepr")
+      assert(nestedRepr.contains("FM2["), s"Nested lambda repr should contain FM2[: $nestedRepr")
+      
+      // Verify the nested lambda structure does not have corrupted parameter references
+      val nestedStr = nestedTag.ref.toString
+      assert(!nestedStr.contains("FAKE_"), s"Nested lambda toString should not contain FAKE_ parameters: $nestedStr")
+      
+      // Regression #379 core requirement: verify outer-scope references use proper depth markers
+      // Using a concrete type that includes RoleChild as a type argument exposes the full
+      // nested lambda structure in debug output, where outer-scope refs appear as "1:0".
+      // RoleChild[F[_, _]] extends RoleParent[F[Throwable, *]] creates an inner lambda
+      // λ %1:0 → 0[=Throwable,=1:0] where "1:0" references the outer lambda's F parameter.
+      val roleChildDebug = LTT[Either[RoleChild[IO], Unit]].debug()
+      
+      assert(!roleChildDebug.contains("FAKE_"), s"RoleChild debug should not contain FAKE_ parameters: $roleChildDebug")
+      
+      // The key assertion: the nested lambda inside RoleParent must render outer-scope
+      // references with depth markers. The pattern "1:0" appears in:
+      // λ %1:0 → 0[=java.lang.Throwable,=1:0]
+      // where "1:0" is the reference to F (param index 0) from the outer lambda (depth 1).
+      assert(roleChildDebug.contains("1:0"), 
+        s"Nested lambda should contain depth-prefixed param refs '1:0' for outer-scope references: $roleChildDebug")
+    }
   }
 
 }
