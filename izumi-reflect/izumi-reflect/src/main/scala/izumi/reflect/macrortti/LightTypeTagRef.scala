@@ -57,6 +57,7 @@ sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
 }
 
 object LightTypeTagRef extends LTTOrdering {
+  private[reflect] final val lambdaFakeParamDepth: Int = -2
   import LTTRenderables.Short._
 //  import LTTRenderables.Long._
 
@@ -96,8 +97,75 @@ object LightTypeTagRef extends LTTOrdering {
       unusedParamsSize < paramRefs.size
     }
 
-    lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
-    lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)
+    // New normalization logic
+    private def normalizeLambda(
+      ref: AbstractReference,
+      currentDepth: Int
+    ): AbstractReference = ref match {
+
+      case NameReference(SymName.LambdaParamName(i, _, a), b, p) =>
+        NameReference(
+          SymName.LambdaParamName(i, currentDepth, a),
+          b,
+          p
+        )
+
+      case Lambda(in, out) =>
+        Lambda(
+          in,
+          normalizeLambda(out, currentDepth + 1)
+        )
+
+      case FullReference(sym, params, prefix) =>
+        FullReference(
+          sym,
+          params.map(p => p.copy(ref = normalizeLambda(p.ref, currentDepth))),
+          prefix.map(p => normalizeLambda(p, currentDepth).asInstanceOf[AppliedReference])
+        )
+
+      case IntersectionReference(refs) =>
+        IntersectionReference(
+          refs.map(r =>
+            normalizeLambda(r, currentDepth)
+              .asInstanceOf[AppliedReferenceExceptIntersection]
+          )
+        )
+
+      case UnionReference(refs) =>
+        UnionReference(
+          refs.map(r =>
+            normalizeLambda(r, currentDepth)
+              .asInstanceOf[AppliedReferenceExceptUnion]
+          )
+        )
+
+      case Refinement(ref, decls) =>
+        Refinement(
+          normalizeLambda(ref, currentDepth).asInstanceOf[AppliedReference],
+          decls.map {
+            case RefinementDecl.Signature(n, in, out) =>
+              RefinementDecl.Signature(
+                n,
+                in.map(i => normalizeLambda(i, currentDepth).asInstanceOf[AppliedReference]),
+                normalizeLambda(out, currentDepth).asInstanceOf[AppliedReference]
+              )
+            case RefinementDecl.TypeMember(n, r) =>
+              RefinementDecl.TypeMember(n, normalizeLambda(r, currentDepth))
+          }
+        )
+
+      case other =>
+        other
+    }
+
+    lazy val normalizedOutput: AbstractReference = {
+      val applied = RuntimeAPI.applyLambda(this, makeFakeParams)
+      normalizeLambda(applied, currentDepth = 0)
+    }
+
+    @deprecated("Binary compatibility shim. Do not use.", "2.3.0")
+    def normalizedParams: List[AbstractReference] =
+      Nil
 
     override def equals(obj: Any): Boolean = {
       obj match {
@@ -113,12 +181,13 @@ object LightTypeTagRef extends LTTOrdering {
     private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
+          p -> NameReference(
+            SymName.LambdaParamName(idx, lambdaFakeParamDepth, inputSize)
+          )
       }
     }
-  }
 
-  private[reflect] final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
+  }
 
   sealed trait AppliedReference extends AbstractReference
 
