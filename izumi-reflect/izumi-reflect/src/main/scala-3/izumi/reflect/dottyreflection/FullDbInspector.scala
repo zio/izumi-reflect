@@ -52,8 +52,10 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
     cachedResult match {
       case Some(cached) =>
+        CacheStats.fullDbHit()
         cached
       case None =>
+        CacheStats.fullDbMiss()
         val result = new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
           .inspectTypeReprToFullBases(typeRepr, onlyIndirect = false)
           .iterator

@@ -132,4 +132,16 @@ object DebugProperties {
     */
   final val `izumi.reflect.debug.macro.rtti.assertions` = "izumi.reflect.debug.macro.rtti.assertions"
 
+  /**
+    * Set system property `-Dizumi.reflect.rtti.cache.compile.stats=true` to enable cache hit/miss statistics output.
+    * Statistics are printed to stderr at JVM shutdown.
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.rtti.cache.compile.stats=true compile
+    * }}}
+    *
+    * Default: `false`
+    */
+  final val `izumi.reflect.rtti.cache.compile.stats` = "izumi.reflect.rtti.cache.compile.stats"
+
 }

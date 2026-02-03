@@ -50,8 +50,10 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
     cachedResult match {
       case Some(cached) =>
+        CacheStats.inheritanceDbHit()
         cached
       case None =>
+        CacheStats.inheritanceDbMiss()
         val tpe0 = typeRepr._dealiasSimplifiedFull
 
         val result = new Run(Inspector.make(qctx), mutable.HashSet.empty)

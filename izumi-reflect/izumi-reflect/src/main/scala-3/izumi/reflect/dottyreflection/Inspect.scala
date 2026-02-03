@@ -61,13 +61,18 @@ object Inspect {
     if (cacheEnabled) {
       val cachedTerm = termCache.get(cacheKey)
       if (cachedTerm != null) {
+        CacheStats.termHit()
         return cachedTerm.asInstanceOf[qctx.reflect.Term].asExprOf[LightTypeTag]
+      } else {
+        CacheStats.termMiss()
       }
     }
 
     val cachedLtt: Option[LightTypeTag] =
       if (cacheEnabled) {
-        Option(lttCache.get(cacheKey)).flatMap(sr => Option(sr.get()))
+        val result = Option(lttCache.get(cacheKey)).flatMap(sr => Option(sr.get()))
+        if (result.isDefined) CacheStats.lttHit() else CacheStats.lttMiss()
+        result
       } else {
         None
       }
@@ -109,8 +114,10 @@ object Inspect {
       serializedCache.synchronized {
         val cached = serializedCache.get(ltt)
         if (cached != null) {
+          CacheStats.serializedHit()
           cached
         } else {
+          CacheStats.serializedMiss()
           val ser = ltt.serialize()
           serializedCache.put(ltt, ser)
           ser
@@ -151,8 +158,10 @@ object Inspect {
       serializedCache.synchronized {
         val cached = serializedCache.get(ltt)
         if (cached != null) {
+          CacheStats.serializedHit()
           cached
         } else {
+          CacheStats.serializedMiss()
           val ser = ltt.serialize()
           serializedCache.put(ltt, ser)
           ser
