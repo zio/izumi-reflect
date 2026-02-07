@@ -73,6 +73,19 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
     }
   }
 
+  private def getCachedFullDbForComponent(typeRepr: TypeRepr): Option[List[(AbstractReference, AbstractReference)]] = {
+    val cacheEnabled = FullDbInspector.compileCacheEnabled && FullDbInspector.fullDbCacheEnabled
+    if (cacheEnabled) {
+      val key: FullDbInspector.TypeReprKey = typeRepr.dealias.simplified
+      Option(FullDbInspector.dbCache.get(key)).flatMap(sr => Option(sr.get())).map { cachedMap =>
+        CacheStats.fullDbHit()
+        cachedMap.iterator.flatMap { case (k, vs) => vs.map(v => (k, v)) }.toList
+      }
+    } else {
+      None
+    }
+  }
+
   class Run(
     inspector: Inspector { val qctx: FullDbInspector.this.qctx.type },
     basesTermination: mutable.HashSet[Symbol],
@@ -80,6 +93,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   ) {
     def inspectTypeReprToFullBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0._dealiasSimplifiedFull
+      
+      getCachedFullDbForComponent(tpe) match {
+        case Some(cachedEntries) => 
+          return cachedEntries
+        case None => // continue with computation
+      }
+      
       def selfRef(): AbstractReference = inspector.inspectTypeRepr(tpe)
 
       tpe match {

@@ -32,6 +32,19 @@ object InheritanceDbInspector {
   def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
     override val qctx: q.type = q
   }
+
+  private[InheritanceDbInspector] def getCachedInheritanceDbForComponent(q: Quotes)(typeRepr: q.reflect.TypeRepr): Option[Map[NameReference, Set[NameReference]]] = {
+    val cacheEnabled = compileCacheEnabled && inheritanceDbCacheEnabled
+    if (cacheEnabled) {
+      val key: TypeReprKey = typeRepr.dealias.simplified.asInstanceOf[TypeReprKey]
+      Option(dbCache.get(key)).flatMap(sr => Option(sr.get())).map { cachedMap =>
+        CacheStats.inheritanceDbHit()
+        cachedMap
+      }
+    } else {
+      None
+    }
+  }
 }
 
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
@@ -89,6 +102,14 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
     private def inspectTypeReprToUnappliedIndirectBases(i: TypeRepr): List[(NameReference, NameReference)] = {
       val tpe = i._dealiasSimplifiedFull._resultType
+      
+      // Check cache for this component type first (reuse work from previous Tag[T] calls)
+      InheritanceDbInspector.getCachedInheritanceDbForComponent(qctx)(tpe) match {
+        case Some(cachedMap) =>
+          return cachedMap.iterator.flatMap { case (k, vs) => vs.map(v => (k, v)) }.toList
+        case None =>
+      }
+      
       val tpeRef = inspector.makeNameReferenceFromType(tpe)
 
       tpeBases(tpeRef, tpe, onlyIndirect = false)
