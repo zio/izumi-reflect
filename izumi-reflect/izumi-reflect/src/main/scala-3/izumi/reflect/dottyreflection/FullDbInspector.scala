@@ -183,7 +183,55 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
       val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
 
-      argBasesRefs ::: mainBasesRefs
+      // Issue #481: Synthesize Refinement parent entries for named types with concrete type member overrides.
+      // When `trait AInt extends A { type T = Int }`, we add `AInt -> Refinement(A, {TypeMember(T, Int)})`
+      // to the basesdb, so that `AInt <:< A { type T = Int }` succeeds at runtime.
+      val refinementBasesRefs = if (onlyIndirect) {
+        Nil
+      } else {
+        val sym = tpe.typeSymbol
+        if (sym.isClassDef) {
+          val concreteTypeMembers = sym.declarations.filter { decl =>
+            decl.isTypeDef && !decl.isClassDef && {
+              tpe.memberType(decl) match {
+                case tb: TypeBounds =>
+                  // Concrete: lo =:= hi (type T = X is TypeBounds(X, X))
+                  // Exclude trivially abstract: Nothing..Any
+                  (tb.low =:= tb.hi) && !(tb.low =:= defn.NothingClass.typeRef && tb.hi =:= defn.AnyClass.typeRef)
+                case _ =>
+                  true // type alias
+              }
+            }
+          }
+          if (concreteTypeMembers.isEmpty) {
+            Nil
+          } else {
+            val decls: Set[RefinementDecl] = concreteTypeMembers.map { decl =>
+              val declName = decl.name
+              val memberType = tpe.memberType(decl)
+              val ref = memberType match {
+                case tb: TypeBounds if tb.low =:= tb.hi =>
+                  inspector.inspectTypeRepr(tb.hi)
+                case other =>
+                  inspector.inspectTypeRepr(other)
+              }
+              RefinementDecl.TypeMember(declName, ref): RefinementDecl
+            }.toSet
+            if (decls.nonEmpty) {
+              baseTypes.map { bt =>
+                val parentRef = inspector.inspectTypeRepr(bt).asInstanceOf[AppliedReference]
+                (selfRef, LightTypeTagRef.Refinement(parentRef, decls): AbstractReference)
+              }
+            } else {
+              Nil
+            }
+          }
+        } else {
+          Nil
+        }
+      }
+
+      argBasesRefs ::: mainBasesRefs ::: refinementBasesRefs
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
