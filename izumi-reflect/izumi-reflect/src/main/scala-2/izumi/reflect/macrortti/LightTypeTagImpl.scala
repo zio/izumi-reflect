@@ -232,9 +232,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Iterator[Type]): List[(AbstractReference, AbstractReference)] = {
 
-    val appliedBases = allReferenceComponents
+    val components = allReferenceComponents
       .filterNot(isHKTOrPolyTypeOrResultTypeArtifact) // remove PolyTypes, only process applied types in this inspection
       .filterNot(isExistentialArtifact) // remove forSome artifacts in Scala 2.11 && 2.12
+      .toList
+
+    val appliedBases = components.iterator
       .flatMap {
         component =>
           val tparams = component.etaExpand.typeParams
@@ -267,8 +270,52 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           parent == t
       }
       .toList
+
+    // Issue #481: Synthesize Refinement parent entries for named types with concrete type member overrides.
+    // When `trait AInt extends A { type T = Int }`, we add `AInt -> Refinement(A, {TypeMember(T, Int)})`
+    // to the basesdb, so that `AInt <:< A { type T = Int }` succeeds at runtime.
+    val refinementBases = components.iterator
+      .flatMap {
+        component =>
+          val concreteTypeMembers = getConcreteTypeMemberDecls(component)
+          if (concreteTypeMembers.isEmpty) {
+            Nil
+          } else {
+            val componentRef = makeRef(component)
+            val decls: Set[RefinementDecl] = concreteTypeMembers.map {
+              sym =>
+                val tpe = UniRefinement.typeOfTypeMember(sym)
+                val declName = sym.name.decodedName.toString
+                val ref = makeRef(tpe) match {
+                  case n @ NameReference(SymTypeName("<none>"), _, _) => n.copy(ref = SymTypeName(declName))
+                  case ref => ref
+                }
+                RefinementDecl.TypeMember(declName, ref): RefinementDecl
+            }.toSet
+
+            if (decls.nonEmpty) {
+              val appliedParents = tpeBases(component).filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
+              appliedParents.map {
+                parentTpe =>
+                  val parentRef = makeRef(parentTpe).asInstanceOf[AppliedReference]
+                  (componentRef, Refinement(parentRef, decls): AbstractReference)
+              }
+            } else {
+              Nil
+            }
+          }
+      }
+      .filterNot {
+        case (t, parent) =>
+          parent == t
+      }
+      .toList
+
     logger.log(s"Computed applied bases for tpe=$mainTpe appliedBases=${appliedBases.toMultimap.niceList()}")
-    appliedBases
+    if (refinementBases.nonEmpty) {
+      logger.log(s"Computed refinement bases for tpe=$mainTpe refinementBases=${refinementBases.toMultimap.niceList()}")
+    }
+    appliedBases ++ refinementBases
   }
 
   private[this] def makeLambdaOnlyBases(mainTpe: Type, allReferenceComponents: Iterator[Type]): List[(AbstractReference, AbstractReference)] = {
@@ -410,6 +457,30 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       .filterNot(ignored)
       .filterNot(if (isSingletonType(tpe)) _ => false else _.typeSymbol.fullName == tpe.typeSymbol.fullName)
       .filterNot(_ =:= tpe) // 2.11/2.12 fail this
+      .toList
+  }
+
+  /** Issue #481: Get concrete type member declarations of a type.
+   *  A type member is concrete when its lower and upper bounds are equal (type T = X),
+   *  meaning it's a type alias or a fully-defined type member override.
+   *  This is used to synthesize Refinement parent entries in the basesdb. */
+  private[this] def getConcreteTypeMemberDecls(tpe: Type): List[Symbol] = {
+    val dealiased = Dealias.fullNormDealias(tpe)
+    dealiased.typeSymbol.typeSignature.decls.iterator
+      .filter(sym => sym.isType && !sym.isClass)
+      .filter { sym =>
+        val sig = sym.typeSignature
+        // Only include non-higher-kinded concrete type members (type T = X)
+        !sig.takesTypeArgs && (sig match {
+          case b: TypeBoundsApi =>
+            // Concrete: lo =:= hi (type T = X is TypeBounds(X, X))
+            // Exclude trivially abstract: Nothing..Any
+            b.lo =:= b.hi && !(b.lo =:= nothing && b.hi =:= any)
+          case _ =>
+            // Not bounds type, it's a type alias
+            true
+        })
+      }
       .toList
   }
 

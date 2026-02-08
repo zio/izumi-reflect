@@ -933,6 +933,24 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChildStrict(t1, t2)
     }
 
+    "support subtype check of named type against refinement with type member override (issue #481)" in {
+      trait A481 { type T }
+      trait AInt481 extends A481 { type T = Int }
+      trait AString481 extends A481 { type T = String }
+
+      // Core bug fix: named type <:< refinement type with concrete type member
+      assertChild(LTT[AInt481], LTT[A481 { type T = Int }])
+      assertChild(LTT[AString481], LTT[A481 { type T = String }])
+
+      // Negative cases: wrong type member value
+      assertNotChild(LTT[AInt481], LTT[A481 { type T = String }])
+      assertNotChild(LTT[AString481], LTT[A481 { type T = Int }])
+
+      // Named type is still child of base type without refinement
+      assertChild(LTT[AInt481], LTT[A481])
+      assertChild(LTT[AString481], LTT[A481])
+    }
+
     "support human-readable representation" in {
       type TX[B] = Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[B, A] }
       val txTag = `LTT[_]`[TX]
