@@ -113,12 +113,16 @@ object LightTypeTagRef extends LTTOrdering {
     private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
+          p -> NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
       }
     }
   }
 
-  private[reflect] final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
+  object LambdaConstants {
+    final val defaultContextId = -1
+    final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
+    final val tagMacro = -3
+  }
 
   sealed trait AppliedReference extends AbstractReference
 

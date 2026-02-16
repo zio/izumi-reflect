@@ -223,7 +223,7 @@ class TagMacro(val c: blackbox.Context) {
             .distinct.iterator.zipWithIndex.map {
               case (argTpeOrSym, idx) =>
                 val idxPlusOne = idx + 1
-                val lambdaParameter = SymName.LambdaParamName(idxPlusOne, -3, arity)
+                val lambdaParameter = SymName.LambdaParamName(idxPlusOne, LightTypeTagRef.LambdaConstants.tagMacro, arity)
                 argTpeOrSym -> lambdaParameter
             }.toMap
 
@@ -247,7 +247,7 @@ class TagMacro(val c: blackbox.Context) {
 
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
         val firstParamIdx = 0
-        val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, -3, arity)
+        val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, LightTypeTagRef.LambdaConstants.tagMacro, arity)
 
         val ctorApplyingLambda = LightTypeTagRef.Lambda(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,

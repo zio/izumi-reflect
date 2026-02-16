@@ -633,7 +633,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 //          case None =>
 //            idx.toString
 //        }
-        fullName -> SymName.LambdaParamName(idx, ctxIdx.getOrElse(-1), tparams.size)
+        fullName -> SymName.LambdaParamName(idx, ctxIdx.getOrElse(LightTypeTagRef.LambdaConstants.defaultContextId), tparams.size)
     }
   }
 

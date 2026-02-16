@@ -341,7 +341,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   def isFakeParam(reference: LightTypeTagRef.AbstractReference): Boolean = reference match {
     case reference: NameReference =>
       reference.symName match {
-        case l: SymName.LambdaParamName if l.depth == LightTypeTagRef.lambdaFakeParamDepth => true
+        case l: SymName.LambdaParamName if l.depth == LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth => true
         case _ => false
       }
     case _ => false
