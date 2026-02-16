@@ -1,0 +1,285 @@
+package izumi.reflect.test
+
+import izumi.reflect.macrortti._
+import izumi.reflect.test.TestModel._
+import izumi.reflect._
+import izumi.reflect.test.PlatformSpecific.fromRuntime
+import org.scalatest.exceptions.TestFailedException
+import org.scalatest.wordspec.AnyWordSpec
+
+import scala.util.Try
+
+/**
+  * The tests here are *progression* tests, that means they test that something *doesn't work*
+  *
+  * If a test here starts to fail that's a GOOD thing - that means a new feature is now supported.
+  * When that happens you can remove the `broken` condition inversions and move the test to
+  * the non-progression test suite.
+  *
+  * All tests must have `broken` clauses wrapping the expected GOOD conditions if a feature
+  * were to work. If a test is missing `broken` clause, it's a probably not a progression test
+  * anymore and should be moved.
+  */
+abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions with TagProgressions with InheritedModel {
+
+  "[progression] Tag (all versions)" should {
+
+    "progression test: can't substitute type parameters inside defs/vals in structural types" in {
+      def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
+      def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
+
+      broken {
+        assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
+      }
+      broken {
+        assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
+      }
+    }
+
+    "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda on Scala 2" in {
+      val t = Try(intercept[TestFailedException] {
+        assertCompiles(
+          """
+    def mk[F[+_, +_]: TagKK] = TagKK[({ type l[A, B] = BIOServiceL[F, A, B] })#l]
+    val tag = mk[Either]
+
+    assert(tag.tag == LTagKK[({ type l[E, A] = BIOService[ ({ type l[X, Y] = Either[A, E] })#l ] })#l].tag)
+    """
+        )
+      })
+      brokenOnScala2 {
+        assert(t.isFailure)
+      }
+    }
+
+    "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in an anonymous deeply-nested type lambda" in {
+      val t = intercept[TestFailedException] {
+        assertCompiles(
+          """
+      def mk[F[+_, +_]: TagKK] = TagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = F[A, E] })#l ] })#l ]
+      val tag = mk[Either]
+
+      assert(tag.tag == LTagKK[ ({ type l[E, A] = BIOService[ ({ type l[X, Y] = Either[A, E] })#l ] })#l ].tag)
+      """
+        )
+      }
+      assert(
+        t.getMessage.contains("could not find implicit value") ||
+        t.getMessage.contains("diverging implicit") || /*2.11*/
+        t.getMessage.contains("no implicit argument of type") || /*Dotty*/
+        t.getMessage.contains("Cannot find implicit Tag") /*Dotty 3.1.3+*/
+      )
+    }
+
+    "progression test: projections into singletons are not handled properly (on Scala 2)" in {
+      trait A {
+        class X
+
+        final val singleton1 = "bar"
+        type S1 = singleton1.type
+
+        val singleton2 = "bar"
+        type S2 = singleton2.type
+
+//        val s1a = Tag[S1] // class type required but String("bar") found error on 2.11
+        val s1a = LTT[S1]
+        val s1a1 = Tag[singleton1.type].tag
+
+//        val s2a = Tag[S2]
+        val s2a = LTT[S2]
+        val s2a1 = Tag[singleton2.type].tag
+      }
+
+      trait B extends A {
+        val xb = Tag[X].tag
+
+//        val s1b = Tag[S1].tag
+        val s1b = LTT[S1]
+        val s1b1 = Tag[singleton1.type].tag
+
+        val s2b = LTT[S2]
+        val s2b1 = Tag[singleton2.type].tag
+      }
+
+      object B extends B
+
+      // Scala 2.12 doesn't handle literal types here
+      if (LTT[B.singleton1.type] != LTT[String] && !IsScala3) {
+        assertDifferent(Tag[A#S1].tag, LTT[String])
+      }
+      assertSame(Tag[A#S1].tag, B.s1a)
+      assertSame(Tag[A#S1].tag, B.s1a1)
+      assertSame(Tag[A#S1].tag, B.s1b)
+      assertSame(Tag[A#S1].tag, B.s1b1)
+
+      // progression: this still fails; see https://github.com/zio/izumi-reflect/issues/192
+      //  projection into singleton generates a form `_1.singleton2.type forSome { val _1: A }` which is not handled on Scala 2
+      brokenOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2a)
+      }
+      brokenOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2b)
+      }
+      brokenOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2a1)
+      }
+      brokenOnScala2 {
+        assertSame(Tag[A#S2].tag, B.s2b1)
+      }
+    }
+
+    "Progression test: Scala 2 partially fails to Handle Tags outside of a predefined set when using TagX alias (Tag.auto.T works directly)" in {
+      type TagX[F[_, _, _[_[_], _], _[_], _]] = Tag.auto.T[F]
+      brokenOnScala2 {
+        assertCompiles(
+          """
+          def testTagX[F[_, _, _[_[_], _], _[_], _]: TagX, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+             """
+        )
+      }
+
+      def testTagXDirect[F[_, _, _[_[_], _], _[_], _]: Tag.auto.T, A: Tag, B: Tag, C[_[_], _]: TagTK, D[_]: TagK, E: Tag]: Tag[F[A, B, C, D, E]] = Tag[F[A, B, C, D, E]]
+      val value = testTagXDirect[TXU, Int, String, OptionT, List, Boolean]
+      assert(value.tag == fromRuntime[TXU[Int, String, OptionT, List, Boolean]])
+    }
+
+    "progression test: fails to combine higher-kinded intersection types without losing ignored type arguments" in {
+      def mk[F[+_, +_]: TagKK, G[+_, +_]: TagKK] = Tag[IntersectionBlockingIO[F, G]]
+      val tag = mk[Either, IO]
+      val tagMono = Tag[IntersectionBlockingIO[Either, IO]]
+
+      broken {
+        assertSameStrict(tag.tag, tagMono.tag)
+      }
+    }
+
+    "progression test: Dotty fails to regression test: resolve correct closestClass for Scala vararg AnyVal (https://github.com/zio/izumi-reflect/issues/224)" in {
+      val tag = Tag[VarArgsAnyVal]
+      brokenOnScala3 {
+        assert(tag.closestClass == classOf[scala.Seq[Any]])
+      }
+    }
+
+    "progression test: fails to preserve lower bound when combining higher-kinded type members" in {
+      def combine1[X[_[_], _]: TagTK, F[_]: TagK, A: Tag]: Tag[X[F, A]] = Tag[X[F, A]]
+      def combine2[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]
+
+      val t1 = TagTK[HigherKindedTypeMember.T]
+      val t2 = TagK[HigherKindedTypeMember.T[IO[Throwable, *], *]]
+
+      val tres1 = combine1[HigherKindedTypeMember.T, IO[Throwable, *], Int](t1, implicitly, implicitly)
+      val tres2 = combine2[HigherKindedTypeMember.T[IO[Throwable, *], *], Int](t2, implicitly)
+
+      broken {
+        assertChildStrict(Tag[Unit].tag, tres1.tag)
+        assertChildStrict(Tag[Unit].tag, tres2.tag)
+      }
+    }
+
+    // Can't fix this atm because simplification happens even without .simplified call because of https://github.com/lampepfl/dotty/issues/17544
+    // The other way to fix this is to call `LightTypeTag.removeIntersectionTautologies` for every `Tag.refinedTag` -
+    // but this would make such tags expensive to construct because the complexity is quadratic, with two <:< calls
+    // per iteration.
+    "progression test: fails on Scala 3 don't lose tautological intersection components other than Any/AnyRef" in {
+      def tag1[T: Tag]: Tag[T with Trait1] = Tag[T with Trait1]
+      def tag4[T: Tag]: Tag[T with Trait4] = Tag[T with Trait4]
+
+      val t1 = tag1[Trait3[Dep]].tag
+      val t2 = tag4[Trait3[Dep]].tag
+
+      val t10 = Tag[Trait3[Dep] with Trait1].tag
+      val t20 = Tag[Trait3[Dep] with Trait4].tag
+
+      brokenOnScala3 {
+        assertSameStrict(t1, t10)
+        assertDebugSame(t1, t10)
+      }
+
+      assertSameStrict(t2, t20)
+      assertDebugSame(t2, t20)
+    }
+
+    // We don't really want to fix it, because removing tautologies is quadratic, with two subtyping comparisions per step!
+    // Would make construction really expensive, all for an extremely rare corner case
+    "progression test: intersection tautologies are not removed automatically when constructing combined intersection type" in {
+      def tag1[T: Tag]: Tag[T with Trait1] = Tag[T with Trait1]
+
+      val t1 = tag1[Trait3[Dep]].tag
+
+      val t10 = t1.removeIntersectionTautologies
+
+      broken {
+        assertSameStrict(t1, t10)
+        assertDebugSame(t1, t10)
+      }
+    }
+
+    "progression test: null is treated like Nothing, not like a separate type" in {
+      assert(LTT[Null] <:< LTT[Int])
+      assert(LTT[Null] <:< LTT[Nothing])
+    }
+
+    "progression test: parameter resolution breaks inside covariant wildcard type bounds on Scala 2.13" in {
+      def xcov[T[_]: TagK, U: Tag]: Tag[List[_ <: T[U]]] = Tag[List[_ <: T[U]]]
+
+      brokenOnScala2MinorVersion(13) {
+        assertRepr(xcov[List, Long].tag, "List[+?: <Nothing..List[+Long]>]")
+        assertSameStrict(xcov[List, Long].tag, Tag[List[_ <: List[Long]]].tag)
+      }
+    }
+
+    "progression test: combine intersection path-dependent intersection types with inner tags doesn't work on Scala 2" in {
+      trait PDT {
+        type T
+        implicit def tag: Tag[T]
+
+        def badCombine(that: PDT): Tag[T with that.T] = {
+          Tag[T with that.T]
+        }
+      }
+
+      brokenOnScala2 {
+        assertCompiles(
+          """
+          trait PDT0 {
+            type T
+            implicit def tag: Tag[T]
+
+            def goodCombine(that: PDT): Tag[this.T with that.T] = {
+              import that.tag
+              Tag[this.T with that.T]
+            }
+          }"""
+        )
+      }
+
+      def PDT[U: Tag]: PDT = new PDT { type T = U; override val tag: Tag[U] = Tag[U] }
+
+      val badCombine = PDT[Int].badCombine(PDT[Unit])
+      brokenOnScala2 {
+        assertSameStrict(badCombine.tag, Tag[Int with Unit].tag)
+      }
+    }
+
+    "progression test: `combine inside type lambdas where the type constructor of the type lambda result is a type lambda type parameter` doesn't work" in {
+      val res = Try(assertCompiles("""
+      def mk[T: Tag] = Tag[LambdaParamCtorBlockingIOT[T]]
+      val tag = mk[Int]
+      val tagMono = Tag[LambdaParamCtorBlockingIOT[Int]]
+
+      assertSameStrict(tag.tag, tagMono.tag)
+      """))
+      broken {
+        assert(res.isSuccess)
+      }
+      broken {
+        assert(
+          !(res.failed.get.getMessage.contains("Error when creating a combined tag")
+            || res.failed.get.getMessage.contains("could not find implicit value for izumi.reflect.Tag"))
+        )
+      }
+    }
+
+  }
+
+}
