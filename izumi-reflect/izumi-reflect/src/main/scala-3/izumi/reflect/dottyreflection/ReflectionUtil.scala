@@ -336,6 +336,17 @@ private[reflect] object ReflectionUtil {
       case ThisType(tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
       case NoPrefix() => true
       case TypeBounds(lo, hi) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lo) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, hi)
+      case MethodType(_, args, res) =>
+        args.forall(allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, _)) &&
+        allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, res)
+      case poly @ PolyType(_, bounds, res) =>
+        val withLocalBinders = outerLambdas + poly
+        bounds.forall {
+          case TypeBounds(lo, hi) =>
+            allPartsStrong(shift, outerOwnerClassDefs, withLocalBinders, lo) &&
+            allPartsStrong(shift, outerOwnerClassDefs, withLocalBinders, hi)
+        } &&
+        allPartsStrong(shift, outerOwnerClassDefs, withLocalBinders, res)
       case lam @ TypeLambda(_, _, body) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas + lam, body)
       case Refinement(parent, _, tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, parent)
       case ByNameType(tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
