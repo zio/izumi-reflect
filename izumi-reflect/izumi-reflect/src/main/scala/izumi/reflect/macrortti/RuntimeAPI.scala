@@ -96,7 +96,7 @@ object RuntimeAPI {
     res
   }
 
-  final class Rewriter(_rules: collection.Map[_ <: SymName, AbstractReference]) {
+  final class Rewriter(_rules: collection.immutable.Map[_ <: SymName, AbstractReference]) {
     private val rules: Map[SymName, AbstractReference] = _rules.iterator.map {
       case (k, v) => (k: SymName) -> v
     }.toMap
