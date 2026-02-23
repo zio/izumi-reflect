@@ -77,8 +77,15 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
           case Nil =>
             makeNameReferenceFromType(tycon)
           case _ =>
-            val symbolVariances: List[Variance] = tycon.typeSymbol.declaredTypes.collect {
+            // First try declaredTypes (works for regular types)
+            var symbolVariances: List[Variance] = tycon.typeSymbol.declaredTypes.collect {
               case s if s.isTypeParam => extractVariance(s)
+            }
+            // For opaque types, declaredTypes is empty, so we need to get variance from the type parameters directly
+            if (symbolVariances.isEmpty && tycon.typeSymbol.isOpaqueAlias) {
+              symbolVariances = tycon.typeSymbol.typeParams.collect {
+                case s if s.isTypeParam => extractVariance(s)
+              }
             }
             val variances: List[Variance] = if (symbolVariances.sizeCompare(appliedType.args) < 0) {
               tycon match {
