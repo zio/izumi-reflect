@@ -57,9 +57,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         case typeRef: TypeRef =>
           processSymbol(typeRef, selfRef(), onlyIndirect = onlyIndirect)
 
-        case _: ParamRef =>
-          // do not process type parameters for bases db
-          Nil
+        case p: ParamRef =>
+          // inspect bounds of type parameters to capture parent relationships
+          // for types referenced in lambda param boundaries (e.g. [A >: H4 <: H2])
+          p._underlying match {
+            case tb: TypeBounds => processTypeBounds(tb)
+            case _ => Nil
+          }
 
         case termRef: TermRef =>
           extractBase(termRef, selfRef(), onlyIndirect = onlyIndirect)

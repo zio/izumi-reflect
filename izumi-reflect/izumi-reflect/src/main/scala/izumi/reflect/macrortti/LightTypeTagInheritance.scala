@@ -150,8 +150,21 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (s: Lambda, t: AppliedNamedReference) =>
         isChild(ctx.next())(s.output, t)
       case (s: Lambda, o: Lambda) =>
-        (s.input.size == o.input.size
-          && isChild(ctx.next())(s.normalizedOutput, o.normalizedOutput))
+        s.input.size == o.input.size && {
+          val sBoundsMap = collectLambdaParamBoundaries(s.output, s.input.toSet)
+          val oBoundsMap = collectLambdaParamBoundaries(o.output, o.input.toSet)
+          val boundsOk = s.input.zip(o.input).forall {
+            case (sp, op) =>
+              val sBounds = sBoundsMap.getOrElse(sp, Boundaries.Empty)
+              val oBounds = oBoundsMap.getOrElse(op, Boundaries.Empty)
+              compareLambdaParamBounds(ctx)(sBounds, oBounds)
+          }
+          boundsOk && {
+            val sOut = stripLambdaParamBoundaries(s.normalizedOutput, s.input.toSet)
+            val oOut = stripLambdaParamBoundaries(o.normalizedOutput, o.input.toSet)
+            isChild(ctx.next())(sOut, oOut)
+          }
+        }
 
       // intersections
       case (s: IntersectionReference, t: IntersectionReference) =>
@@ -202,6 +215,109 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case Boundaries.Empty =>
         true
     }
+  }
+
+  /** For lambda subtyping `[A >: L1 <: U1] => T1 <: [B >: L2 <: U2] => T2`,
+    * the child's bounds must be at least as wide as the parent's: L1 <: L2 and U2 <: U1.
+    */
+  private def compareLambdaParamBounds(ctx: Ctx)(childBounds: Boundaries, parentBounds: Boundaries): Boolean = {
+    (childBounds, parentBounds) match {
+      case (_, Boundaries.Empty) =>
+        true
+      case (Boundaries.Empty, Boundaries.Defined(_, _)) =>
+        true // unbounded child accepts everything
+      case (Boundaries.Defined(cLo, cHi), Boundaries.Defined(pLo, pHi)) =>
+        ctx.isChild(pLo, cLo) && ctx.isChild(cHi, pHi)
+    }
+  }
+
+  private def collectLambdaParamBoundaries(
+    ref: AbstractReference,
+    params: Set[SymName.LambdaParamName]
+  ): Map[SymName.LambdaParamName, Boundaries] = {
+    val result = mutable.HashMap.empty[SymName.LambdaParamName, Boundaries]
+
+    def collectBoundaries(b: Boundaries): Unit = b match {
+      case Boundaries.Defined(bottom, top) => visit(bottom); visit(top)
+      case Boundaries.Empty =>
+    }
+
+    def visit(r: AbstractReference): Unit = r match {
+      case NameReference(lpn: SymName.LambdaParamName, boundaries, prefix) =>
+        if (params.contains(lpn) && !result.contains(lpn) && boundaries != Boundaries.Empty) {
+          result(lpn) = boundaries
+        }
+        collectBoundaries(boundaries)
+        prefix.foreach(visit)
+      case NameReference(_, boundaries, prefix) =>
+        collectBoundaries(boundaries)
+        prefix.foreach(visit)
+      case FullReference(_, parameters, prefix) =>
+        parameters.foreach(p => visit(p.ref))
+        prefix.foreach(visit)
+      case Lambda(_, output) =>
+        visit(output)
+      case IntersectionReference(refs) =>
+        refs.foreach(visit)
+      case UnionReference(refs) =>
+        refs.foreach(visit)
+      case WildcardReference(boundaries) =>
+        collectBoundaries(boundaries)
+      case Refinement(base, decls) =>
+        visit(base)
+        decls.foreach {
+          case RefinementDecl.Signature(_, input, output) => input.foreach(visit); visit(output)
+          case RefinementDecl.TypeMember(_, r) => visit(r)
+        }
+    }
+
+    visit(ref)
+    result.toMap
+  }
+
+  private def stripLambdaParamBoundaries(
+    ref: AbstractReference,
+    params: Set[SymName.LambdaParamName]
+  ): AbstractReference = ref match {
+    case NameReference(lpn: SymName.LambdaParamName, _, prefix) if params.contains(lpn) =>
+      NameReference(lpn, Boundaries.Empty, prefix.map(p => stripLambdaParamBoundaries(p, params).asInstanceOf[AppliedReference]))
+    case NameReference(r, boundaries, prefix) =>
+      NameReference(r, stripBoundaries(boundaries, params), prefix.map(p => stripLambdaParamBoundaries(p, params).asInstanceOf[AppliedReference]))
+    case FullReference(symName, parameters, prefix) =>
+      FullReference(
+        symName,
+        parameters.map(p => TypeParam(stripLambdaParamBoundaries(p.ref, params), p.variance)),
+        prefix.map(p => stripLambdaParamBoundaries(p, params).asInstanceOf[AppliedReference])
+      )
+    case Lambda(input, output) =>
+      new Lambda(input, stripLambdaParamBoundaries(output, params))
+    case IntersectionReference(refs) =>
+      IntersectionReference(refs.map(r => stripLambdaParamBoundaries(r, params).asInstanceOf[AppliedReferenceExceptIntersection]))
+    case UnionReference(refs) =>
+      UnionReference(refs.map(r => stripLambdaParamBoundaries(r, params).asInstanceOf[AppliedReferenceExceptUnion]))
+    case WildcardReference(boundaries) =>
+      WildcardReference(stripBoundaries(boundaries, params))
+    case Refinement(base, decls) =>
+      Refinement(
+        stripLambdaParamBoundaries(base, params).asInstanceOf[AppliedReference],
+        decls.map {
+          case RefinementDecl.Signature(name, input, output) =>
+            RefinementDecl.Signature(
+              name,
+              input.map(i => stripLambdaParamBoundaries(i, params).asInstanceOf[AppliedReference]),
+              stripLambdaParamBoundaries(output, params).asInstanceOf[AppliedReference]
+            ): RefinementDecl
+          case RefinementDecl.TypeMember(name, r) =>
+            RefinementDecl.TypeMember(name, stripLambdaParamBoundaries(r, params)): RefinementDecl
+        }
+      )
+  }
+
+  private def stripBoundaries(boundaries: Boundaries, params: Set[SymName.LambdaParamName]): Boundaries = boundaries match {
+    case Boundaries.Defined(bottom, top) =>
+      Boundaries.Defined(stripLambdaParamBoundaries(bottom, params), stripLambdaParamBoundaries(top, params))
+    case Boundaries.Empty =>
+      Boundaries.Empty
   }
 
   private def compareDecls(ctx: Ctx)(sDecls: Set[RefinementDecl], tDecls: Set[RefinementDecl]): Boolean = {
