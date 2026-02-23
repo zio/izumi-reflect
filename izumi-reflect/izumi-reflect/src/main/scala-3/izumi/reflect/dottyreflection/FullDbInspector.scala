@@ -1,7 +1,7 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTagRef
+import izumi.reflect.macrortti.{LightTypeTagRef, RuntimeAPI}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.collection.immutable.Queue
@@ -42,9 +42,11 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(appliedType, selfRef(), onlyIndirect = onlyIndirect) ++ extractLambdaBase(appliedType, onlyIndirect = onlyIndirect)
 
         case typeLambda: TypeLambda =>
-          val resultTypeParents = new Run(inspector.nextLam(typeLambda), basesTermination, toLambdaTermination).inspectTypeBoundsToFull(typeLambda.resType)
+          val innerInspector = inspector.nextLam(typeLambda)
+          val rawParams = innerInspector.context.last.params.map(_.asParam)
+          val resultTypeParents = new Run(innerInspector, basesTermination, toLambdaTermination).inspectTypeBoundsToFull(typeLambda.resType)
 
-          makeLambdaParents(selfRef(), resultTypeParents)
+          makeLambdaParents(selfRef(), rawParams, resultTypeParents)
 
         case a: AndType =>
           inspectTypeReprToFullBases(a.left, onlyIndirect = false) ++ inspectTypeReprToFullBases(a.right, onlyIndirect = false)
@@ -91,22 +93,39 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           case Some(typeLambda) =>
             toLambdaTermination.addTerminatingClsSym(appliedType)
 
-            val resultTypeParents = new Run(inspector.nextLam(typeLambda), basesTermination, toLambdaTermination)
+            val innerInspector = inspector.nextLam(typeLambda)
+            val rawParams = innerInspector.context.last.params.map(_.asParam)
+            val resultTypeParents = new Run(innerInspector, basesTermination, toLambdaTermination)
               .inspectTypeBoundsToFull(typeLambda.resType)
 
-            makeLambdaParents(inspector.inspectTypeRepr(typeLambda), resultTypeParents)
+            makeLambdaParents(inspector.inspectTypeRepr(typeLambda), rawParams, resultTypeParents)
         }
       }
     }
 
     private def makeLambdaParents(
       selfRef: AbstractReference,
+      rawParams: List[SymName.LambdaParamName],
       resultTypeParents: List[(AbstractReference, AbstractReference)]
     ): List[(AbstractReference, AbstractReference)] = {
       val selfL = selfRef.asInstanceOf[Lambda]
 
+      // resultTypeParents use raw (non-normalized) param names from the Inspector context.
+      // selfL has been normalized by Lambda.make. We need to rewrite the raw param names
+      // in resultTypeParents to match selfL's normalized param names.
+      val paramMapping: Map[SymName.LambdaParamName, AbstractReference] =
+        rawParams.zip(selfL.input).collect {
+          case (raw, norm) if raw != norm => raw -> LightTypeTagRef.NameReference(norm)
+        }.toMap
+      val rewriter = new RuntimeAPI.Rewriter(paramMapping)
+      def normalizeEntry(ref: AbstractReference): AbstractReference =
+        if (paramMapping.isEmpty) ref else rewriter.replaceRefs(ref)
+
       val out = resultTypeParents.flatMap {
-        case (child0, parent0) =>
+        case (child0raw, parent0raw) =>
+          val child0 = normalizeEntry(child0raw)
+          val parent0 = normalizeEntry(parent0raw)
+
           val child = if (child0 == selfL.output) { // if child == typeLambda.resType, use typeLambda itself
             selfL
           } else {
@@ -118,7 +137,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
             case l: Lambda =>
               l
             case applied: AppliedReference =>
-              val l = LightTypeTagRef.Lambda(selfL.input, applied)
+              val l = LightTypeTagRef.Lambda.make(selfL.input, applied)
               if (l.someArgumentsReferenced) l else applied
           }
 

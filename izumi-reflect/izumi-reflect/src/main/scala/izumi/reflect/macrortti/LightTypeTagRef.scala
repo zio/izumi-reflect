@@ -75,9 +75,22 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  final case class Lambda(input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
+  final case class Lambda private[macrortti] (input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
+    def normalize(): Lambda = LambdaNorm.normalize(this)
+
     override def hashCode(): Int = {
-      normalizedOutput.hashCode()
+      inputSize * 31 + output.hashCode()
+    }
+
+    override def equals(obj: Any): Boolean = {
+      obj match {
+        case l: Lambda =>
+          inputSize == l.inputSize &&
+          input == l.input &&
+          output == l.output
+        case _ =>
+          false
+      }
     }
 
     lazy val inputSize: Int = input.size
@@ -89,39 +102,27 @@ object LightTypeTagRef extends LTTOrdering {
           //       (Except possibly lower bound of an abstract/opaque type member)
           NameReference(n)
       }.toSet
-    lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
+    lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(output)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
     lazy val someArgumentsReferenced: Boolean = {
       val unusedParamsSize = paramRefs.diff(referenced).size
       unusedParamsSize < paramRefs.size
     }
 
-    lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
-    lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)
+    lazy val normalizedOutput: AbstractReference = output
+  }
 
-    override def equals(obj: Any): Boolean = {
-      obj match {
-        case l: Lambda =>
-          inputSize == l.inputSize &&
-          (normalizedOutput == l.normalizedOutput)
-
-        case _ =>
-          false
-      }
-    }
-
-    private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
-      input.zipWithIndex.map {
-        case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
-      }
+  object Lambda {
+    def make(input: List[SymName.LambdaParamName], output: AbstractReference): Lambda = {
+      new Lambda(input, output).normalize()
     }
   }
 
   object LambdaConstants {
-    final val defaultContextId = -1
+    final val defaultContextId = 0
+    final val tagMacro = defaultContextId
+
     final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
-    final val tagMacro = -3
   }
 
   sealed trait AppliedReference extends AbstractReference

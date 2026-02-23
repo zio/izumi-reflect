@@ -875,7 +875,7 @@ object LightTypeTag {
                   // been processed by conversion procedure, so it should
                   // have no clashes in SymTypeName with old parameters
                   // anymore and be safe to process
-                  Lambda(input, goReplace(output))
+                  LightTypeTagRef.Lambda.make(input, goReplace(output))
 
                 case IntersectionReference(refs) =>
                   IntersectionReference(refs.map(goReplace))
@@ -912,7 +912,7 @@ object LightTypeTag {
             }
 
             val LightTypeTagRef.Lambda(convertedParams, oldResult) = lambda
-            LightTypeTagRef.Lambda(convertedParams, goReplace(oldResult))
+            LightTypeTagRef.Lambda.make(convertedParams, goReplace(oldResult))
           }
 
           import OldLambdaParameter.{OldLambdaParameter, oldLambdaParameterPickler}
@@ -923,12 +923,12 @@ object LightTypeTag {
           val convertedParams = oldParams.map(SymName.bincompatForceCreateLambdaParamNameFromString(_))
           val paramMap = oldParams.iterator.zip(convertedParams.iterator).toMap[String, SymName.LambdaParamName]
 
-          val oldLambda = LightTypeTagRef.Lambda(convertedParams, lambdaResult)
+          val oldLambda = LightTypeTagRef.Lambda.make(convertedParams, lambdaResult)
           val value = convertPre230LambdaToNew(oldLambda, paramMap)
           state.addIdentityRef(value)
           value
         } else if (ic == 1) { // Post 2.3.0
-          val value = LightTypeTagRef.Lambda(
+          val value = LightTypeTagRef.Lambda.make(
             state.unpickle[List[SymName.LambdaParamName]],
             state.unpickle[LightTypeTagRef.AbstractReference]
           )

@@ -295,10 +295,6 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     } else if (oneOfParameterizedParentsIsInheritedFrom(ctx)(self, that)) {
       true
     } else {
-      val selfNormalizedLambdaParamsSize = {
-        // 0 unless we're in a lambda vs. lambda comparison (s.normalizedOutput <:< t.normalizedOutput)
-        self.parameters.count(p => isFakeParam(p.ref))
-      }
       val appliedLambdaParents = basesdb
         .iterator.collect {
           case (l: Lambda, lparents) if isSameNamedRef(l.output, selfNameRef) =>
@@ -311,12 +307,18 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
                     Nil
                   }
                 }
-                val scala3FullDbFormLambda = if (lp.input.size == selfNormalizedLambdaParamsSize) {
-                  val ps = self.parameters.collect { case FakeParam(pRef) => pRef }
-                  val selfPs = ps.sortBy(_.ref.asInstanceOf[SymName.LambdaParamName].index)
-                  val res = lp.combine(selfPs)
-                  List(res)
-                } else Nil
+
+                val scala3FullDbFormLambda = {
+                  // 0 unless we're in a lambda vs. lambda comparison (s.normalizedOutput <:< t.normalizedOutput)
+                  val selfNormalizedLambdaParamsSize = self.parameters.count(p => isFakeParam(p.ref))
+                  if (lp.input.size == selfNormalizedLambdaParamsSize) {
+                    val ps = self.parameters.collect { case FakeParam(pRef) => pRef }
+                    val selfPs = ps.sortBy(_.ref.asInstanceOf[SymName.LambdaParamName].index)
+                    val res = lp.combine(selfPs)
+                    List(res)
+                  } else Nil
+                }
+
                 scala2FullDbFormLambda ++ scala3FullDbFormLambda
               case _ =>
                 Nil
@@ -325,7 +327,11 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       ctx.logger.log {
         s"ℹ️ checking applied lambda parents of self=`${self.repr}`: parents=${appliedLambdaParents.map(_.repr)} <:< that=`${that.repr}`"
       }
-      appliedLambdaParents.exists(ctx.isChild(_, that))
+      val normalizedThat = normalizeLambdas(that)
+      appliedLambdaParents.exists {
+        p =>
+          ctx.isChild(p, that) || ctx.isChild(normalizeLambdas(p), normalizedThat)
+      }
     }
   }
 
@@ -353,17 +359,132 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     }
   }
 
+  private def normalizeLambdas(reference: AbstractReference): AbstractReference = {
+    reference match {
+      case l: Lambda =>
+        l.normalize()
+      case IntersectionReference(refs) =>
+        IntersectionReference(refs.map(normalizeLambdas).map {
+          case r: AppliedReferenceExceptIntersection => r
+          case other => throw new IllegalStateException(s"Expected AppliedReferenceExceptIntersection, got: $other")
+        })
+      case UnionReference(refs) =>
+        UnionReference(refs.map(normalizeLambdas).map {
+          case r: AppliedReferenceExceptUnion => r
+          case other => throw new IllegalStateException(s"Expected AppliedReferenceExceptUnion, got: $other")
+        })
+      case WildcardReference(boundaries) =>
+        WildcardReference(
+          boundaries match {
+            case Boundaries.Defined(bottom, top) =>
+              Boundaries.Defined(normalizeLambdas(bottom), normalizeLambdas(top))
+            case Boundaries.Empty =>
+              Boundaries.Empty
+          }
+        )
+      case Refinement(base, decls) =>
+        val normalizedBase = normalizeLambdas(base) match {
+          case a: AppliedReference => a
+          case other => throw new IllegalStateException(s"Expected AppliedReference, got: $other")
+        }
+        val normalizedDecls = decls.map {
+          case RefinementDecl.Signature(name, input, output) =>
+            RefinementDecl.Signature(
+              name,
+              input.map(normalizeLambdas).map {
+                case a: AppliedReference => a
+                case other => throw new IllegalStateException(s"Expected AppliedReference, got: $other")
+              },
+              normalizeLambdas(output) match {
+                case a: AppliedReference => a
+                case other => throw new IllegalStateException(s"Expected AppliedReference, got: $other")
+              }
+            ): RefinementDecl
+          case RefinementDecl.TypeMember(name, ref) =>
+            RefinementDecl.TypeMember(name, normalizeLambdas(ref)): RefinementDecl
+        }
+        Refinement(normalizedBase, normalizedDecls)
+      case NameReference(ref, boundaries, prefix) =>
+        NameReference(
+          ref,
+          boundaries match {
+            case Boundaries.Defined(bottom, top) =>
+              Boundaries.Defined(normalizeLambdas(bottom), normalizeLambdas(top))
+            case Boundaries.Empty =>
+              Boundaries.Empty
+          },
+          prefix.map(normalizeLambdas).map {
+            case a: AppliedReference => a
+            case other => throw new IllegalStateException(s"Expected AppliedReference, got: $other")
+          }
+        )
+      case FullReference(symName, parameters, prefix) =>
+        FullReference(
+          symName,
+          parameters.map(p => TypeParam(normalizeLambdas(p.ref), p.variance)),
+          prefix.map(normalizeLambdas).map {
+            case a: AppliedReference => a
+            case other => throw new IllegalStateException(s"Expected AppliedReference, got: $other")
+          }
+        )
+    }
+  }
+
   private def parameterizedParentsOf(t: AbstractReference): Set[AbstractReference] = {
     val basesDbParents = basesdb.getOrElse(t, Set.empty)
+    val templateParents = t match {
+      case actual: FullReference =>
+        resolveTemplateParameterizedParents(actual)
+      case _ =>
+        Set.empty[AbstractReference]
+    }
+    val allParents = basesDbParents ++ templateParents
     val withBoundaryParents = t match {
       case NameReference(_, b: Boundaries.Defined, _) =>
-        basesDbParents + b.top
+        allParents + b.top
       case WildcardReference(b: Boundaries.Defined) =>
-        basesDbParents + b.top
+        allParents + b.top
       case _ =>
-        basesDbParents
+        allParents
     }
     withBoundaryParents
+  }
+
+  private def resolveTemplateParameterizedParents(actual: FullReference): Set[AbstractReference] = {
+    basesdb.iterator.collect {
+      case (template: FullReference, templateParents) =>
+        buildTemplateSubstitution(template, actual).map {
+          substitution =>
+            val rewriter = new RuntimeAPI.Rewriter(substitution)
+            templateParents.map(rewriter.replaceRefs)
+        }
+    }.flatten.flatten.toSet
+  }
+
+  private def buildTemplateSubstitution(
+    template: FullReference,
+    actual: FullReference
+  ): Option[Map[SymName.LambdaParamName, AbstractReference]] = {
+    if (template.asName != actual.asName || template.parameters.size != actual.parameters.size) {
+      None
+    } else {
+      template.parameters.zip(actual.parameters).foldLeft(Option(Map.empty[SymName.LambdaParamName, AbstractReference])) {
+        case (None, _) =>
+          None
+        case (Some(subst), (templateParam, actualParam)) =>
+          templateParam.ref match {
+            case NameReference(lambdaParam: SymName.LambdaParamName, Boundaries.Empty, None) =>
+              subst.get(lambdaParam) match {
+                case Some(existing) =>
+                  if (existing == actualParam.ref) Some(subst) else None
+                case None =>
+                  Some(subst.updated(lambdaParam, actualParam.ref))
+              }
+            case otherRef =>
+              if (otherRef == actualParam.ref) Some(subst) else None
+          }
+      }
+    }
   }
 
   private def oneOfParameterizedParentsIsInheritedFrom(ctx: Ctx)(child: AbstractReference, parent: AbstractReference): Boolean = {

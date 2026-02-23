@@ -53,15 +53,17 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
 
 //      def compare[a >: c <: b, b <: d, c <: d, d, A[x >: a <: b] <: B[x], B[_ >: c <: d], x >: a <: b](s: A[x], t: B[_ >: c <: d]) = null
 
-      broken {
-////      compare[H5, H5, H4, H2, X2, X, H5](null: Set[H5], null) // error
-////      (null: Set[H5]): Set[_ >: H4 <: H2] // error
+      brokenOnScala3 {
+//      compare[H5, H5, H4, H2, X2, X, H5](null: Set[H5], null) // error
+//      (null: Set[H5]): Set[_ >: H4 <: H2] // error
         assertNotChild(`LTT[A,B,_>:B<:A]`[H5, H5, X2], `LTT[A,B,_>:B<:A]`[H2, H4, X])
       }
 
 //      compare[H3, H3, H4, H2, X1, X, H3](null: Set[H3], null)
 //      (null: Set[H3]): Set[_ >: H4 <: H2]
-      assertChild(`LTT[A,B,_>:B<:A]`[H3, H3, X1], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      brokenOnScala2 {
+        assertChild(`LTT[A,B,_>:B<:A]`[H3, H3, X1], `LTT[A,B,_>:B<:A]`[H2, H4, X])
+      }
     }
 
     "progression test: indirect structural checks do not work" in {
@@ -103,10 +105,10 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assert(debug1.contains(": scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
       assert(debug1.contains("- scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
       assert(debug1.contains("* scala.Product"))
-      assert(debug1.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
+      assert(debug1.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
       assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       broken {
-        assert(!debug1.contains("λ %1 → scala.util.Right[+scala.Unit,+1]"))
+        assert(!debug1.contains("λ %0 → scala.util.Right[+scala.Unit,+0]"))
       }
     }
 
