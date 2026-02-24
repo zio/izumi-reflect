@@ -75,7 +75,8 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  final case class Lambda private[macrortti] (input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
+  // Constructor is public for bincompat (Scala 2 case class companions extend AbstractFunction2). Use Lambda.make for normalized construction.
+  final case class Lambda(input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
     def normalize(): Lambda = LambdaNorm.normalize(this)
 
     override def hashCode(): Int = {
@@ -109,12 +110,19 @@ object LightTypeTagRef extends LTTOrdering {
       unusedParamsSize < paramRefs.size
     }
 
+    @deprecated("bincompat only", "2.3.0")
+    protected lazy val normalizedParams: List[NameReference] = input.zipWithIndex.map {
+      case (_, idx) =>
+        NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth, inputSize))
+    }
+
     lazy val normalizedOutput: AbstractReference = output
   }
 
-  object Lambda {
+  // bincompat: explicit companion must extend AbstractFunction2 to match Scala 2 case class companion hierarchy
+  object Lambda extends scala.runtime.AbstractFunction2[List[SymName.LambdaParamName], AbstractReference, Lambda] {
     def make(input: List[SymName.LambdaParamName], output: AbstractReference): Lambda = {
-      new Lambda(input, output).normalize()
+      Lambda(input, output).normalize()
     }
   }
 
