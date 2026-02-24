@@ -213,6 +213,7 @@ VERSION_COMMAND="${action.setup-scala.version-command}"
 
 sbt -batch -no-colors -v \
   --java-home "$JAVA_HOME" \
+  "$VERSION_COMMAND compile" \
   "$VERSION_COMMAND mimaReportBinaryIssues"
 ```
 

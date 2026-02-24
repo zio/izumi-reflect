@@ -18,8 +18,10 @@
 
 package izumi.reflect.macrortti
 
+import izumi.reflect.internal.NowarnCompat
+import izumi.reflect.internal.bincompat.LambdaObjBincompat
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedReference}
-import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymTypeName}
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
 
 import scala.runtime.AbstractFunction3
 import scala.util.hashing.MurmurHash3
@@ -76,8 +78,14 @@ object LightTypeTagRef extends LTTOrdering {
   }
 
   // Constructor is public for bincompat (Scala 2 case class companions extend AbstractFunction2). Use Lambda.make for normalized construction.
-  final case class Lambda(input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
-    def normalize(): Lambda = LambdaNorm.normalize(this)
+  final case class Lambda @deprecated("Lambda constructor is deprecated, use Lambda.make", "3.1.0") private[reflect] (
+    input: List[SymName.LambdaParamName],
+    output: AbstractReference
+  ) extends AbstractReference {
+
+    def normalize(): Lambda = {
+      LambdaNorm.normalize(this)
+    }
 
     override def hashCode(): Int = {
       inputSize * 31 + output.hashCode()
@@ -120,9 +128,14 @@ object LightTypeTagRef extends LTTOrdering {
   }
 
   // bincompat: explicit companion must extend AbstractFunction2 to match Scala 2 case class companion hierarchy
-  object Lambda extends scala.runtime.AbstractFunction2[List[SymName.LambdaParamName], AbstractReference, Lambda] {
+  @NowarnCompat.nowarn("msg=deprecated")
+  object Lambda extends LambdaObjBincompat {
     def make(input: List[SymName.LambdaParamName], output: AbstractReference): Lambda = {
-      Lambda(input, output).normalize()
+      new Lambda(input, output).normalize()
+    }
+
+    def unsafeDenormalized(input: List[SymName.LambdaParamName], output: AbstractReference): Lambda = {
+      new Lambda(input, output)
     }
   }
 

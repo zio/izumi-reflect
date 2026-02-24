@@ -103,7 +103,7 @@ private[macrortti] object LambdaNorm {
           }.toMap
         val normalizedInput = l.input.map(p => localMap.getOrElse(p, throw new IllegalStateException(s"Missing normalized param for $p")))
         val nextEnv = localMap :: env
-        new Lambda(normalizedInput, normalizeRef(l.output, nextEnv))
+        Lambda.unsafeDenormalized(normalizedInput, normalizeRef(l.output, nextEnv))
       case IntersectionReference(refs) =>
         IntersectionReference(refs.map(normalizeRef(_, env)).map {
           case a: AppliedReferenceExceptIntersection => a

@@ -923,15 +923,16 @@ object LightTypeTag {
           val convertedParams = oldParams.map(SymName.bincompatForceCreateLambdaParamNameFromString(_))
           val paramMap = oldParams.iterator.zip(convertedParams.iterator).toMap[String, SymName.LambdaParamName]
 
-          val oldLambda = LightTypeTagRef.Lambda.make(convertedParams, lambdaResult)
+          val oldLambda = LightTypeTagRef.Lambda.unsafeDenormalized(convertedParams, lambdaResult)
           val value = convertPre230LambdaToNew(oldLambda, paramMap)
           state.addIdentityRef(value)
           value
         } else if (ic == 1) { // Post 2.3.0
-          val value = LightTypeTagRef.Lambda.make(
-            state.unpickle[List[SymName.LambdaParamName]],
-            state.unpickle[LightTypeTagRef.AbstractReference]
-          )
+          val value = LightTypeTagRef
+            .Lambda.make(
+              state.unpickle[List[SymName.LambdaParamName]],
+              state.unpickle[LightTypeTagRef.AbstractReference]
+            )
           state.addIdentityRef(value)
           value
         } else if (ic < 0)

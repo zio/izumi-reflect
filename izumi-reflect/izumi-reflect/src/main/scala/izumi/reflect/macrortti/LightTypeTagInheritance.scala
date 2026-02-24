@@ -290,7 +290,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         prefix.map(p => stripLambdaParamBoundaries(p, params).asInstanceOf[AppliedReference])
       )
     case Lambda(input, output) =>
-      new Lambda(input, stripLambdaParamBoundaries(output, params))
+      Lambda.unsafeDenormalized(input, stripLambdaParamBoundaries(output, params))
     case IntersectionReference(refs) =>
       IntersectionReference(refs.map(r => stripLambdaParamBoundaries(r, params).asInstanceOf[AppliedReferenceExceptIntersection]))
     case UnionReference(refs) =>
@@ -567,14 +567,15 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   }
 
   private def resolveTemplateParameterizedParents(actual: FullReference): Set[AbstractReference] = {
-    basesdb.iterator.collect {
-      case (template: FullReference, templateParents) =>
-        buildTemplateSubstitution(template, actual).map {
-          substitution =>
-            val rewriter = new RuntimeAPI.Rewriter(substitution)
-            templateParents.map(rewriter.replaceRefs)
-        }
-    }.flatten.flatten.toSet
+    basesdb
+      .iterator.collect {
+        case (template: FullReference, templateParents) =>
+          buildTemplateSubstitution(template, actual).map {
+            substitution =>
+              val rewriter = new RuntimeAPI.Rewriter(substitution)
+              templateParents.map(rewriter.replaceRefs)
+          }
+      }.flatten.flatten.toSet
   }
 
   private def buildTemplateSubstitution(
