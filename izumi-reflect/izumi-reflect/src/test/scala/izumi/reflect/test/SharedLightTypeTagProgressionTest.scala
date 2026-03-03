@@ -64,11 +64,9 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertChild(`LTT[A,B,_>:B<:A]`[H3, H3, X1], `LTT[A,B,_>:B<:A]`[H2, H4, X])
     }
 
-    "progression test: indirect structural checks do not work" in {
+    "indirect structural checks now work (was progression test)" in {
       assertDifferent(LTT[{ type A }], LTT[Object])
-      broken {
-        assertChildStrict(LTT[C], LTT[{ type A }])
-      }
+      assertChildStrict(LTT[C], LTT[{ type A }])
     }
 
     "progression test: combined intersection lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {

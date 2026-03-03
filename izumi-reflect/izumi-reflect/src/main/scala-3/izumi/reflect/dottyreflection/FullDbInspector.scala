@@ -181,7 +181,26 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         }
       }
 
-      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
+      // For types with declared type members, add synthetic Refinement parents to basesdb.
+      // This enables runtime subtype checks like `AInt <:< A { type T = Int }` where AInt
+      // concretely defines `type T = Int`. Without this, the runtime checker has no way to
+      // know that AInt satisfies the refinement `A { type T = Int }`.
+      val typeMemberRefs = if (onlyIndirect) {
+        Nil
+      } else {
+        val typeMemDecls = inspector.extractTypeMemberDecls(tpe)
+        if (typeMemDecls.isEmpty) {
+          Nil
+        } else {
+          val declSet: Set[RefinementDecl] = typeMemDecls.toSet
+          baseTypes.map { bt =>
+            val parentRef = inspector.inspectTypeRepr(bt).asInstanceOf[AppliedReference]
+            (selfRef, LightTypeTagRef.Refinement(parentRef, declSet))
+          }
+        }
+      }
+
+      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs ::: typeMemberRefs
 
       argBasesRefs ::: mainBasesRefs
     }
