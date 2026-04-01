@@ -246,7 +246,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   private def inspectBoundsImpl(tb: TypeBounds): Boundaries = {
     val hi = next().inspectTypeRepr(tb.hi)
     val low = next().inspectTypeRepr(tb.low)
-    if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
+    if (hi == LightTypeTagInheritance.TPE_ANY && low == LightTypeTagInheritance.TPE_NOTHING) {
       Boundaries.Empty
     } else {
       Boundaries.Defined(low, hi)

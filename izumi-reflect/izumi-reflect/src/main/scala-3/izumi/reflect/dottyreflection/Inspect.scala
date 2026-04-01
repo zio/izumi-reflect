@@ -50,7 +50,7 @@ object Inspect {
       println(strDBs)
     }
 
-    '{ LightTypeTag.parse(${ Expr(hashCodeRef) }, ${ Expr(strRef) }, ${ Expr(strDBs) }, ${ Expr(LightTypeTag.currentBinaryFormatVersion) }) }
+    '{ LightTypeTag.parse(${ Expr(hashCodeRef) }, ${ Expr(strRef) }, ${ Expr(strDBs) }, ${ Expr(LightTypeTag.CURRENT_BINARY_FORMAT_VERSION) }) }
   }
 
 }

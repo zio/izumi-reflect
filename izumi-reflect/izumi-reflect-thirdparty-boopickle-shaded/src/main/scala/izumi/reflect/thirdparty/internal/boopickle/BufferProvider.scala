@@ -43,7 +43,7 @@ private[reflect] abstract class ByteBufferProvider extends BufferProvider {
   import ByteBufferProvider._
   protected val pool = BufferPool
   protected var buffers: List[ByteBuffer] = Nil
-  protected var currentBuf: ByteBuffer = allocate(initSize)
+  protected var currentBuf: ByteBuffer = allocate(INIT_SIZE)
 
   protected def allocate(size: Int): ByteBuffer
 
@@ -52,7 +52,7 @@ private[reflect] abstract class ByteBufferProvider extends BufferProvider {
     (currentBuf: java.nio.Buffer).flip()
     buffers = currentBuf :: buffers
     // replace current buffer with the new one, align to 16-byte border for small sizes
-    currentBuf = allocate((math.max(size, expandSize) & ~15) + 16)
+    currentBuf = allocate((math.max(size, EXPAND_SIZE) & ~15) + 16)
   }
 
   @inline final def alloc(size: Int): ByteBuffer = {
@@ -76,8 +76,8 @@ private[reflect] abstract class ByteBufferProvider extends BufferProvider {
 }
 
 private[reflect] object ByteBufferProvider {
-  final val initSize = 512
-  final val expandSize = initSize * 8
+  final val INIT_SIZE = 512
+  final val EXPAND_SIZE = INIT_SIZE * 8
 }
 
 private[reflect] class HeapByteBufferProvider extends ByteBufferProvider {

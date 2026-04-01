@@ -223,7 +223,7 @@ class TagMacro(val c: blackbox.Context) {
             .distinct.iterator.zipWithIndex.map {
               case (argTpeOrSym, idx) =>
                 val idxPlusOne = idx + 1
-                val lambdaParameter = SymName.LambdaParamName(idxPlusOne, LightTypeTagRef.LambdaConstants.tagMacro, arity)
+                val lambdaParameter = SymName.LambdaParamName(idxPlusOne, LightTypeTagRef.LambdaConstants.TAG_MACRO, arity)
                 argTpeOrSym -> lambdaParameter
             }.toMap
 
@@ -247,7 +247,7 @@ class TagMacro(val c: blackbox.Context) {
 
         // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
         val firstParamIdx = 0
-        val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, LightTypeTagRef.LambdaConstants.tagMacro, arity)
+        val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, LightTypeTagRef.LambdaConstants.TAG_MACRO, arity)
 
         val ctorApplyingLambda = LightTypeTagRef.Lambda(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
@@ -541,7 +541,7 @@ class TagMacro(val c: blackbox.Context) {
         AnnotationTools.findArgument(_) {
           case Literal(Constant(s: String)) => s
         }
-      ).getOrElse(defaultTagImplicitError)
+      ).getOrElse(DEFAULT_TAG_IMPLICIT_ERROR)
   }
 
   def abortWithImplicitError(): Nothing = {
@@ -555,7 +555,7 @@ class TagMacro(val c: blackbox.Context) {
 
   @inline
   protected[this] def resetImplicitError(tpe: Type): Unit = {
-    setImplicitError(defaultTagImplicitError.replace("${T}", tpe.toString))
+    setImplicitError(DEFAULT_TAG_IMPLICIT_ERROR.replace("${T}", tpe.toString))
   }
 
   @inline
@@ -592,7 +592,7 @@ class TagMacro(val c: blackbox.Context) {
 }
 
 private object TagMacro {
-  final val defaultTagImplicitError =
+  final val DEFAULT_TAG_IMPLICIT_ERROR =
     "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
 
   def kindOf(tpe: Universe#Type): Kind = {

@@ -29,14 +29,27 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 import scala.collection.mutable
 
 object LightTypeTagInheritance {
-  private[reflect] final val tpeNothing = NameReference(SymTypeName("scala.Nothing"))
-  private[reflect] final val tpeNull = NameReference(SymTypeName("scala.Null"))
+  private[reflect] final val TPE_NOTHING = NameReference(SymTypeName("scala.Nothing"))
+  private[reflect] final val TPE_NULL = NameReference(SymTypeName("scala.Null"))
 
-  private[reflect] final val tpeAny = NameReference(SymTypeName("scala.Any"))
-  private[reflect] final val tpeAnyRef = NameReference(SymTypeName("scala.AnyRef"))
+  private[reflect] final val TPE_ANY = NameReference(SymTypeName("scala.Any"))
+  private[reflect] final val TPE_ANY_REF = NameReference(SymTypeName("scala.AnyRef"))
 
-  private[reflect] final val tpeMatchable = NameReference(SymTypeName("scala.Matchable"))
-  private[reflect] final val tpeObject = NameReference(SymTypeName(classOf[Object].getName))
+  private[reflect] final val TPE_MATCHABLE = NameReference(SymTypeName("scala.Matchable"))
+  private[reflect] final val TPE_OBJECT = NameReference(SymTypeName(classOf[Object].getName))
+
+  @deprecated("Use TPE_NOTHING instead", "3.1.0")
+  private[reflect] final val tpeNothing: NameReference = TPE_NOTHING
+  @deprecated("Use TPE_NULL instead", "3.1.0")
+  private[reflect] final val tpeNull: NameReference = TPE_NULL
+  @deprecated("Use TPE_ANY instead", "3.1.0")
+  private[reflect] final val tpeAny: NameReference = TPE_ANY
+  @deprecated("Use TPE_ANY_REF instead", "3.1.0")
+  private[reflect] final val tpeAnyRef: NameReference = TPE_ANY_REF
+  @deprecated("Use TPE_MATCHABLE instead", "3.1.0")
+  private[reflect] final val tpeMatchable: NameReference = TPE_MATCHABLE
+  @deprecated("Use TPE_OBJECT instead", "3.1.0")
+  private[reflect] final val tpeObject: NameReference = TPE_OBJECT
 
   private final case class Ctx(
     logger: TrivialLogger,
@@ -72,12 +85,12 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     val result = (selfT, thatT) match {
       case (s, t) if s == t =>
         true
-      case (s, _) if s == tpeNothing =>
+      case (s, _) if s == TPE_NOTHING =>
         true
-      case (s, _) if s == tpeNull =>
+      case (s, _) if s == TPE_NULL =>
         // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)
         true
-      case (_, t) if t == tpeAny || t == tpeAnyRef || t == tpeObject || t == tpeMatchable =>
+      case (_, t) if t == TPE_ANY || t == TPE_ANY_REF || t == TPE_OBJECT || t == TPE_MATCHABLE =>
         // TODO: we may want to check that in case of anyref target type is not a primitve (though why?)
         true
 
@@ -341,7 +354,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   def isFakeParam(reference: LightTypeTagRef.AbstractReference): Boolean = reference match {
     case reference: NameReference =>
       reference.symName match {
-        case l: SymName.LambdaParamName if l.depth == LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth => true
+        case l: SymName.LambdaParamName if l.depth == LightTypeTagRef.LambdaConstants.LAMBDA_FAKE_PARAM_DEPTH => true
         case _ => false
       }
     case _ => false

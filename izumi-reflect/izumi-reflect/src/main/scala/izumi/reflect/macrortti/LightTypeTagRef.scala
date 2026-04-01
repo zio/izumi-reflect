@@ -113,15 +113,22 @@ object LightTypeTagRef extends LTTOrdering {
     private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
       input.zipWithIndex.map {
         case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
+          p -> NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.LAMBDA_FAKE_PARAM_DEPTH, inputSize)) // s"!FAKE_$idx"
       }
     }
   }
 
   object LambdaConstants {
-    final val defaultContextId = -1
-    final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
-    final val tagMacro = -3
+    final val DEFAULT_CONTEXT_ID = -1
+    final val LAMBDA_FAKE_PARAM_DEPTH: Int = -2 // depth is always positive, unless fake
+    final val TAG_MACRO = -3
+
+    @deprecated("Use DEFAULT_CONTEXT_ID instead", "3.1.0")
+    final val defaultContextId: Int = DEFAULT_CONTEXT_ID
+    @deprecated("Use LAMBDA_FAKE_PARAM_DEPTH instead", "3.1.0")
+    final val lambdaFakeParamDepth: Int = LAMBDA_FAKE_PARAM_DEPTH
+    @deprecated("Use TAG_MACRO instead", "3.1.0")
+    final val tagMacro: Int = TAG_MACRO
   }
 
   sealed trait AppliedReference extends AbstractReference
@@ -154,10 +161,10 @@ object LightTypeTagRef extends LTTOrdering {
 
   private[reflect] def ignored[T >: NameReference]: Set[T] = ignored0.asInstanceOf[Set[T]]
   private[this] val ignored0: Set[NameReference] = Set[NameReference](
-    LightTypeTagInheritance.tpeAny,
-    LightTypeTagInheritance.tpeMatchable,
-    LightTypeTagInheritance.tpeAnyRef,
-    LightTypeTagInheritance.tpeObject
+    LightTypeTagInheritance.TPE_ANY,
+    LightTypeTagInheritance.TPE_MATCHABLE,
+    LightTypeTagInheritance.TPE_ANY_REF,
+    LightTypeTagInheritance.TPE_OBJECT
   )
 
   def maybeIntersection(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
@@ -167,7 +174,7 @@ object LightTypeTagRef extends LTTOrdering {
     } else {
       val normalized = refs.diff(ignored)
       if (normalized.isEmpty) {
-        LightTypeTagInheritance.tpeAny
+        LightTypeTagInheritance.TPE_ANY
       } else if (normalized.size == 1) {
         normalized.head
       } else {
@@ -178,17 +185,17 @@ object LightTypeTagRef extends LTTOrdering {
 
   def maybeUnion(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
     val refs = refs0.flatMap(_.decomposeUnion).toSet // flatten nested unions
-    val normalized = refs -- Set(LightTypeTagInheritance.tpeNothing, LightTypeTagInheritance.tpeNull)
+    val normalized = refs -- Set(LightTypeTagInheritance.TPE_NOTHING, LightTypeTagInheritance.TPE_NULL)
     val superTypes = normalized.intersect(ignored)
     if (superTypes.nonEmpty) {
-      if (normalized.contains(LightTypeTagInheritance.tpeAny)) LightTypeTagInheritance.tpeAny
-      else if (normalized.contains(LightTypeTagInheritance.tpeMatchable)) LightTypeTagInheritance.tpeMatchable
-      else if (normalized.contains(LightTypeTagInheritance.tpeAnyRef)) LightTypeTagInheritance.tpeAnyRef
-      else if (normalized.contains(LightTypeTagInheritance.tpeObject)) LightTypeTagInheritance.tpeObject
+      if (normalized.contains(LightTypeTagInheritance.TPE_ANY)) LightTypeTagInheritance.TPE_ANY
+      else if (normalized.contains(LightTypeTagInheritance.TPE_MATCHABLE)) LightTypeTagInheritance.TPE_MATCHABLE
+      else if (normalized.contains(LightTypeTagInheritance.TPE_ANY_REF)) LightTypeTagInheritance.TPE_ANY_REF
+      else if (normalized.contains(LightTypeTagInheritance.TPE_OBJECT)) LightTypeTagInheritance.TPE_OBJECT
       else superTypes.head
     } else {
       if (normalized.isEmpty) {
-        LightTypeTagInheritance.tpeNothing
+        LightTypeTagInheritance.TPE_NOTHING
       } else if (normalized.size == 1) {
         normalized.head
       } else {

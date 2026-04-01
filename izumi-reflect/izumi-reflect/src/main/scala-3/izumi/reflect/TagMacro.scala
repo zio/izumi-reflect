@@ -101,7 +101,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               val typeArgToLambdaParameterMap = fullParamTail.map {
                 case (argTpe, idx) =>
                   val idxPlusOne = idx + 1
-                  val lambdaParameter = SymName.LambdaParamName(idxPlusOne, LightTypeTagRef.LambdaConstants.tagMacro, arity)
+                  val lambdaParameter = SymName.LambdaParamName(idxPlusOne, LightTypeTagRef.LambdaConstants.TAG_MACRO, arity)
                   argTpe -> lambdaParameter
               }.toMap
 
@@ -114,7 +114,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               // we give a distinct lambda parameter to the constructor, even if constructor is one of the type parameters
               val firstParamIdx = 0
               assert(completeTail.size + 1 == arity)
-              val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, LightTypeTagRef.LambdaConstants.tagMacro, arity)
+              val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, LightTypeTagRef.LambdaConstants.TAG_MACRO, arity)
 
               val ctorApplyingLambda =
                 LightTypeTagRef.Lambda(
