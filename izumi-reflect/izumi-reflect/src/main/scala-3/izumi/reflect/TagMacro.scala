@@ -205,7 +205,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         // FIXME: once we add resolution for method/val members too, not just type members
         //  this struct will no longer be 'weak'. In fact we'll want to add a new constructor
         //  instead of `refinedTag` that will be better suited to fully resolved struct tags
-        val termAndStrongTpesOnlyWeakStructLtt = {
+        val unresolvedWeakStructLtt = {
           val termOnlyRefinementTypeRepr = termMembers.foldRight(defn.AnyRefClass.typeRef: TypeRepr) {
             case ((_, name, tpe), refinement) =>
               Refinement(parent = refinement, name = name, info = tpe)
@@ -228,7 +228,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
              |closestClass=$cls
              |""".stripMargin
         )
-        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ resolvedStructLtt }, Map.empty) }
+        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ unresolvedWeakStructLtt }, Map.empty) }
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
