@@ -22,6 +22,7 @@ import izumi.reflect.dottyreflection.Inspect
 import izumi.reflect.macrortti.{LTag, LightTypeTag, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
+import scala.collection.mutable
 
 trait AnyTag extends Serializable {
   def tag: LightTypeTag
@@ -163,6 +164,43 @@ object Tag {
     additionalTypeMembers: Map[String, LightTypeTag]
   ): Tag[R] = {
     Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
+  }
+
+  def resolveWeakTypeMembers(structType: LightTypeTag, replacements: Map[String, LightTypeTag]): LightTypeTag = {
+    if (replacements.isEmpty) {
+      structType
+    } else {
+      val replacementRefs = replacements.iterator.map {
+        case (name, ltt) =>
+          val replacementRef = ltt.ref match {
+            case ref: LightTypeTagRef.AbstractReference => ref
+          }
+          LightTypeTagRef.SymName.SymTypeName(name) -> replacementRef
+      }.toMap
+      val rewriter = new izumi.reflect.macrortti.RuntimeAPI.Rewriter(replacementRefs)
+      def rewrite(ref: LightTypeTagRef.AbstractReference): LightTypeTagRef.AbstractReference =
+        rewriter.replaceRefs(ref)
+      def rewriteName(ref: LightTypeTagRef.NameReference): LightTypeTagRef.NameReference =
+        rewrite(ref) match {
+          case n: LightTypeTagRef.NameReference => n
+          case _ => ref
+        }
+      def mergeDb[T](entries: Iterator[(T, Set[T])]): Map[T, Set[T]] = {
+        val acc = mutable.HashMap.empty[T, Set[T]]
+        entries.foreach { case (k, v) => acc.update(k, acc.getOrElse(k, Set.empty) ++ v.filterNot(_ == k)) }
+        acc.toMap
+      }
+      val rewrittenRef = rewrite(structType.ref.asInstanceOf[LightTypeTagRef.AbstractReference])
+      val mergedBases = mergeDb(
+        structType.basesdb.iterator.map { case (c, p) => rewrite(c) -> p.map(rewrite) } ++
+        replacements.valuesIterator.flatMap(_.basesdb.iterator)
+      )
+      val mergedInheritance = mergeDb(
+        structType.idb.iterator.map { case (c, p) => rewriteName(c) -> p.map(rewriteName) } ++
+        replacements.valuesIterator.flatMap(_.idb.iterator)
+      )
+      LightTypeTag(rewrittenRef, mergedBases, mergedInheritance)
+    }
   }
 
   inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = ${ TagMacro.createTagExpr[T] }

@@ -62,7 +62,21 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       }
     }
 
-    def summonIfNotLambdaParamOf(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
+    def summonLTTIfAvailable(typeRepr: TypeRepr): Option[Expr[LightTypeTag]] = {
+    typeRepr match {
+      case _: TypeBounds => None
+      case _ =>
+        val tagTypeRepr = AppliedType(tagSymbolTypeRef, List(typeRepr))
+        Implicits.search(tagTypeRepr) match {
+          case s: ImplicitSearchSuccess =>
+            val tagExpr = s.tree.asExpr.asInstanceOf[Expr[Tag[?]]]
+            Some('{ $tagExpr.tag })
+          case _: ImplicitSearchFailure => None
+        }
+    }
+  }
+
+  def summonIfNotLambdaParamOf(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
       if (isLambdaParamOf(typeRepr, lam)) {
         '{ None }
       } else {
@@ -214,7 +228,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
              |closestClass=$cls
              |""".stripMargin
         )
-        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ termAndStrongTpesOnlyWeakStructLtt }, Map(${ Varargs(resolvedTypeMemberLtts) }: _*)) }
+        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ resolvedStructLtt }, Map.empty) }
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
