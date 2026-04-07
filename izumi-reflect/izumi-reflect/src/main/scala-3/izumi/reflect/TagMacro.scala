@@ -166,9 +166,18 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
             createTag[T](outerLambda)
         }
 
+      case tpe @ AppliedType(ctor, args) if tpe.typeSymbol.fullName == "scala.PolyFunction" =>
+        createTag[T](tpe)
+
       case AppliedType(ctor, args) =>
+        val substitutedArgs = args.map { arg =>
+          arg match {
+            case ref: ParamRef => ref
+            case other => other._dealiasSimplifiedFull
+          }
+        }
         val ctorTag = summonTag[T](ctor)
-        val argsTags = Expr.ofList(args.map(summonLTT))
+        val argsTags = Expr.ofList(substitutedArgs.map(summonLTT))
         '{ Tag.appliedTag[T](${ ctorTag }, ${ argsTags }) }
 
       case andType: AndType =>
@@ -228,7 +237,8 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
              |closestClass=$cls
              |""".stripMargin
         )
-        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ unresolvedWeakStructLtt }, Map.empty) }
+        val resolvedMembersMap = Expr.ofList(resolvedTypeMemberLtts)
+        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ unresolvedWeakStructLtt }, ${ resolvedMembersMap }.toMap) }
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
