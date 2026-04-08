@@ -62,7 +62,21 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       }
     }
 
-    def summonIfNotLambdaParamOf(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
+    def summonLTTIfAvailable(typeRepr: TypeRepr): Option[Expr[LightTypeTag]] = {
+    typeRepr match {
+      case _: TypeBounds => None
+      case _ =>
+        val tagTypeRepr = AppliedType(tagSymbolTypeRef, List(typeRepr))
+        Implicits.search(tagTypeRepr) match {
+          case s: ImplicitSearchSuccess =>
+            val tagExpr = s.tree.asExpr.asInstanceOf[Expr[Tag[?]]]
+            Some('{ $tagExpr.tag })
+          case _: ImplicitSearchFailure => None
+        }
+    }
+  }
+
+  def summonIfNotLambdaParamOf(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
       if (isLambdaParamOf(typeRepr, lam)) {
         '{ None }
       } else {
@@ -152,9 +166,18 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
             createTag[T](outerLambda)
         }
 
+      case tpe @ AppliedType(ctor, args) if tpe.typeSymbol.fullName == "scala.PolyFunction" =>
+        createTag[T](tpe)
+
       case AppliedType(ctor, args) =>
+        val substitutedArgs = args.map { arg =>
+          arg match {
+            case ref: ParamRef => ref
+            case other => other._dealiasSimplifiedFull
+          }
+        }
         val ctorTag = summonTag[T](ctor)
-        val argsTags = Expr.ofList(args.map(summonLTT))
+        val argsTags = Expr.ofList(substitutedArgs.map(summonLTT))
         '{ Tag.appliedTag[T](${ ctorTag }, ${ argsTags }) }
 
       case andType: AndType =>
@@ -191,7 +214,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         // FIXME: once we add resolution for method/val members too, not just type members
         //  this struct will no longer be 'weak'. In fact we'll want to add a new constructor
         //  instead of `refinedTag` that will be better suited to fully resolved struct tags
-        val termAndStrongTpesOnlyWeakStructLtt = {
+        val unresolvedWeakStructLtt = {
           val termOnlyRefinementTypeRepr = termMembers.foldRight(defn.AnyRefClass.typeRef: TypeRepr) {
             case ((_, name, tpe), refinement) =>
               Refinement(parent = refinement, name = name, info = tpe)
@@ -214,7 +237,8 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
              |closestClass=$cls
              |""".stripMargin
         )
-        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ termAndStrongTpesOnlyWeakStructLtt }, Map(${ Varargs(resolvedTypeMemberLtts) }: _*)) }
+        val resolvedMembersMap = Expr.ofList(resolvedTypeMemberLtts)
+        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ unresolvedWeakStructLtt }, ${ resolvedMembersMap }.toMap) }
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
