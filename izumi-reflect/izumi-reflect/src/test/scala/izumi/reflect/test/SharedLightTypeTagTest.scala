@@ -838,6 +838,16 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChildStrict(LTT[C { def a: Int }], LTT[{ def a: Int }])
     }
 
+    "support indirect structural subtype checks (issue #481)" in {
+      trait A { type T }
+      trait AInt extends A { override type T = Int }
+
+      assertChildStrict(LTT[C], LTT[{ type A }])
+      assertChildStrict(LTT[AInt], LTT[A { type T = Int }])
+      assertChildStrict(LTT[AInt], LTT[{ type T = Int }])
+      assertNotChildStrict(LTT[AInt], LTT[{ type T = String }])
+    }
+
     "support structural & refinement type equality" in {
       assertDifferent(LTT[W4[str.type] with ({ type T = str.type with Int })], LTT[W4[str.type] with ({ type T = str.type with Long })])
 

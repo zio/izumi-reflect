@@ -243,7 +243,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       other
   }
 
-  private def inspectBoundsImpl(tb: TypeBounds): Boundaries = {
+  private[dottyreflection] def inspectBoundsImpl(tb: TypeBounds): Boundaries = {
     val hi = next().inspectTypeRepr(tb.hi)
     val low = next().inspectTypeRepr(tb.low)
     if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
