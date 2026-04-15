@@ -1,0 +1,114 @@
+module(
+    name = "izumi-reflect",
+    version = "3.0.10-SNAPSHOT",
+)
+
+bazel_dep(name = "rules_java", version = "7.6.1")
+bazel_dep(name = "rules_jvm_external", version = "6.6")
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+
+# Per-Scala-version repos: core scala-lang artifacts conflict across versions
+# (same group:artifact, different versions), so each Scala version gets its own repo.
+
+maven.install(
+    name = "scala_2_11",
+    artifacts = [
+        "org.scala-lang:scala-compiler:2.11.12",
+        "org.scala-lang:scala-library:2.11.12",
+        "org.scala-lang:scala-reflect:2.11.12",
+        "org.typelevel:kind-projector_2.11.12:0.13.3",
+        "org.scalatest:scalatest_2.11:3.2.19",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+    fetch_sources = False,
+)
+
+maven.install(
+    name = "scala_2_12",
+    artifacts = [
+        "org.scala-lang:scala-compiler:2.12.20",
+        "org.scala-lang:scala-library:2.12.20",
+        "org.scala-lang:scala-reflect:2.12.20",
+        "org.typelevel:kind-projector_2.12.20:0.13.3",
+        "org.scala-js:scalajs-compiler_2.12.20:1.17.0",
+        "org.scala-js:scalajs-library_2.12:1.17.0",
+        "org.scala-native:nscplugin_2.12.20:0.5.7",
+        "org.scala-native:nativelib_native0.5_2.12:0.5.7",
+        "org.scala-native:javalib_native0.5_2.12:0.5.7",
+        "org.scala-native:auxlib_native0.5_2.12:0.5.7",
+        "org.scalatest:scalatest_2.12:3.2.19",
+        "org.scalatest:scalatest_sjs1_2.12:3.2.19",
+        "org.scalatest:scalatest_native0.5_2.12:3.2.19",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+    fetch_sources = False,
+)
+
+maven.install(
+    name = "scala_2_13",
+    artifacts = [
+        "org.scala-lang:scala-compiler:2.13.14",
+        "org.scala-lang:scala-library:2.13.14",
+        "org.scala-lang:scala-reflect:2.13.14",
+        "org.typelevel:kind-projector_2.13.14:0.13.3",
+        "org.scala-js:scalajs-compiler_2.13.14:1.17.0",
+        "org.scala-js:scalajs-library_2.13:1.17.0",
+        "org.scala-native:nscplugin_2.13.14:0.5.7",
+        "org.scala-native:nativelib_native0.5_2.13:0.5.7",
+        "org.scala-native:javalib_native0.5_2.13:0.5.7",
+        "org.scala-native:auxlib_native0.5_2.13:0.5.7",
+        "org.scalatest:scalatest_2.13:3.2.19",
+        "org.scalatest:scalatest_sjs1_2.13:3.2.19",
+        "org.scalatest:scalatest_native0.5_2.13:3.2.19",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+    fetch_sources = False,
+)
+
+maven.install(
+    name = "scala_3",
+    artifacts = [
+        "org.scala-lang:scala3-compiler_3:3.3.6",
+        "org.scala-lang:scala3-library_3:3.3.6",
+        "org.scala-lang:scala-library:2.13.14",
+        "org.scala-js:scalajs-library_2.13:1.17.0",
+        "org.scala-native:nscplugin_3.3.6:0.5.7",
+        "org.scala-native:nativelib_native0.5_3:0.5.7",
+        "org.scala-native:javalib_native0.5_3:0.5.7",
+        "org.scala-native:auxlib_native0.5_3:0.5.7",
+        "org.scalatest:scalatest_3:3.2.19",
+        "org.scalatest:scalatest_sjs1_3:3.2.19",
+        "org.scalatest:scalatest_native0.5_3:3.2.19",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+    fetch_sources = False,
+)
+
+# Linker tools repo (version-independent, always uses Scala 2.13 for the tool JARs)
+maven.install(
+    name = "scala_tools",
+    artifacts = [
+        # Scala.js linker CLI (1.1.0 is the last release, forward-compatible with newer linker)
+        "org.scala-js:scalajs-cli_2.13:1.1.0",
+        # Override transitive linker dep to match our scalajs version
+        "org.scala-js:scalajs-linker_2.13:1.17.0",
+        "org.scala-js:scalajs-linker-interface_2.13:1.17.0",
+        # Scala Native linker CLI
+        "org.scala-native:scala-native-cli_2.13:0.5.7",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+    fetch_sources = False,
+)
+
+use_repo(maven, "scala_2_11", "scala_2_12", "scala_2_13", "scala_3", "scala_tools")

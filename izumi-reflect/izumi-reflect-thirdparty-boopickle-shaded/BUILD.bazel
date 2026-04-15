@@ -1,0 +1,9 @@
+load("//rules:multiplatform.bzl", "scala_multiplatform_library")
+load("//rules:versions.bzl", "BOOPICKLE_REMOVED_OPTS")
+
+scala_multiplatform_library(
+    name = "izumi-reflect-thirdparty-boopickle-shaded",
+    srcs_root = "src/main",
+    remove_scalac_opts = BOOPICKLE_REMOVED_OPTS,
+    visibility = ["//visibility:public"],
+)

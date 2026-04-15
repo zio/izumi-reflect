@@ -1,0 +1,19 @@
+# Use remote JDK 21 (no local JDK required)
+build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
+build --extra_toolchains=@rules_java//toolchains:all
+
+# Increase JVM memory for scalac
+build --action_env=JAVA_OPTS="-Xmx2g -Xss8m"
+
+# Propagate PATH for native tooling (clang for scala-native)
+build --action_env=PATH
+
+# Show test output on failure
+test --test_output=errors
+
+# Enable disk cache for faster rebuilds
+build --disk_cache=~/.cache/bazel-disk
+
+# Convenience configs
+build:ci --action_env=CI=true
