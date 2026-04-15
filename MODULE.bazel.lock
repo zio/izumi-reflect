@@ -119,6 +119,95 @@
         "recordedRepoMappingEntries": []
       }
     },
+    "//rules:mima.bzl%mima_previous_jars": {
+      "general": {
+        "bzlTransitiveDigest": "n4zSe0O/CjDzmIMIoysQOM2cz0PbvI3Tiq0NW6z+Wmc=",
+        "usagesDigest": "01Pw4Dyv83IOwcbOT8s0USlJ30q3mc6G+lrxTeif6kA=",
+        "recordedFileInputs": {},
+        "recordedDirentsInputs": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "mima_prev_izumi_reflect_2_11_2_2_5": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.11/2.2.5/izumi-reflect_2.11-2.2.5.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_11_2_1_0": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.11/2.1.0/izumi-reflect_2.11-2.1.0.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_11_1_0_0": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.11/1.0.0/izumi-reflect_2.11-1.0.0.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_12_2_2_5": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.12/2.2.5/izumi-reflect_2.12-2.2.5.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_12_2_1_0": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.12/2.1.0/izumi-reflect_2.12-2.1.0.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_12_1_0_0": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.12/1.0.0/izumi-reflect_2.12-1.0.0.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_13_2_2_5": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.13/2.2.5/izumi-reflect_2.13-2.2.5.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_13_2_1_0": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.13/2.1.0/izumi-reflect_2.13-2.1.0.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_2_13_1_0_0": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_2.13/1.0.0/izumi-reflect_2.13-1.0.0.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_3_2_2_5": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_3/2.2.5/izumi-reflect_3-2.2.5.jar"
+            }
+          },
+          "mima_prev_izumi_reflect_3_2_1_0": {
+            "bzlFile": "@@//rules:mima.bzl",
+            "ruleClassName": "_download_jar",
+            "attributes": {
+              "url": "https://repo1.maven.org/maven2/dev/zio/izumi-reflect_3/2.1.0/izumi-reflect_3-2.1.0.jar"
+            }
+          }
+        },
+        "recordedRepoMappingEntries": []
+      }
+    },
     "@@apple_support~//crosstool:setup.bzl%apple_cc_configure_extension": {
       "general": {
         "bzlTransitiveDigest": "PjIds3feoYE8SGbbIq2SFTZy3zmxeO2tQevJZNDo7iY=",

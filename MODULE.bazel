@@ -117,6 +117,8 @@ maven.install(
         "org.scala-js:scalajs-linker-interface_2.13:1.17.0",
         # Scala Native linker CLI
         "org.scala-native:scala-native-cli_2.13:0.5.7",
+        # MiMa binary compatibility checker
+        "com.typesafe:mima-cli_2.13:1.1.5",
         # JaCoCo agent (bytecode-level coverage)
         "org.jacoco:org.jacoco.agent:0.8.12:runtime",
         "org.jacoco:org.jacoco.cli:0.8.12",
@@ -130,3 +132,24 @@ maven.install(
 )
 
 use_repo(maven, "scala_2_11", "scala_2_12", "scala_2_13", "scala_3", "scala_tools")
+
+# MiMa: previous release JARs for binary compatibility checking
+mima_jars = use_extension("//rules:mima.bzl", "mima_previous_jars")
+use_repo(
+    mima_jars,
+    # 2.11
+    "mima_prev_izumi_reflect_2_11_2_2_5",
+    "mima_prev_izumi_reflect_2_11_2_1_0",
+    "mima_prev_izumi_reflect_2_11_1_0_0",
+    # 2.12
+    "mima_prev_izumi_reflect_2_12_2_2_5",
+    "mima_prev_izumi_reflect_2_12_2_1_0",
+    "mima_prev_izumi_reflect_2_12_1_0_0",
+    # 2.13
+    "mima_prev_izumi_reflect_2_13_2_2_5",
+    "mima_prev_izumi_reflect_2_13_2_1_0",
+    "mima_prev_izumi_reflect_2_13_1_0_0",
+    # 3
+    "mima_prev_izumi_reflect_3_2_2_5",
+    "mima_prev_izumi_reflect_3_2_1_0",
+)

@@ -1,5 +1,6 @@
 load("//rules:multiplatform.bzl", "scala_multiplatform_library", "scala_multiplatform_test")
-load("//rules:versions.bzl", "BOOPICKLE_REMOVED_OPTS")
+load("//rules:mima.bzl", "mima_check_test", "previous_jar_labels")
+load("//rules:versions.bzl", "BOOPICKLE_REMOVED_OPTS", "SCALA_JVM_VERSIONS")
 
 # Coverage config settings — activated via --define=SCOVERAGE=true or --define=JACOCO=true
 config_setting(
@@ -34,3 +35,14 @@ scala_multiplatform_test(
         ":izumi-reflect-thirdparty-boopickle-shaded",
     ],
 )
+
+# MiMa binary compatibility checks (JVM only)
+[
+    mima_check_test(
+        name = "izumi-reflect-mima_jvm_" + v.split(".")[0] + ("." + v.split(".")[1] if v.split(".")[0] != "3" else ""),
+        current = ":izumi-reflect_jvm_" + (v.split(".")[0] + "." + v.split(".")[1] if v.split(".")[0] != "3" else "3"),
+        previous_jars = previous_jar_labels(v),
+        tags = ["mima"],
+    )
+    for v in SCALA_JVM_VERSIONS
+]
