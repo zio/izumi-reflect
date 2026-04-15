@@ -101,12 +101,19 @@ def main():
         print(f"  Files: {', '.join(f.name for f in DOCS_DIR.iterdir() if f.is_file())}")
         return
 
+    # Configure npm auth from NODE_AUTH_TOKEN env var
+    token = os.environ.get("NODE_AUTH_TOKEN")
+    if not token:
+        raise SystemExit("NODE_AUTH_TOKEN environment variable is required for publishing")
+    registry = args.registry or "https://registry.npmjs.org/"
+    npmrc = DOCS_DIR / ".npmrc"
+    npmrc.write_text(f"//{registry.removeprefix('https://').removesuffix('/')}/:_authToken={token}\n")
+
     # Publish to NPM
-    cmd = ["npm", "publish", "--access", "public"]
-    if args.registry:
-        cmd += ["--registry", args.registry]
+    cmd = ["npm", "publish", "--access", "public", "--registry", registry]
     print(f"Running: {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd=DOCS_DIR)
+    npmrc.unlink(missing_ok=True)
     if result.returncode != 0:
         raise SystemExit(f"npm publish failed with exit code {result.returncode}")
 
