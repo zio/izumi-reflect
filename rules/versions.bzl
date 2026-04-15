@@ -1,13 +1,23 @@
 "Version constants, compiler configurations, and per-version scalac flags."
 
-# Scala full versions
+# ── Version constants ─────────────────────────────────────────────────
+# Keep in sync with MODULE.bazel top-level constants.
+
+PROJECT_VERSION = "3.0.10-SNAPSHOT"
+
+# Scala compiler versions
 SCALA_211 = "2.11.12"
 SCALA_212 = "2.12.20"
 SCALA_213 = "2.13.14"
 SCALA_3 = "3.3.6"
 
+# Platform versions
 SCALAJS_VERSION = "1.17.0"
 SCALANATIVE_VERSION = "0.5.7"
+
+# Library versions
+SCALATEST_VERSION = "3.2.19"
+KIND_PROJECTOR_VERSION = "0.13.3"
 
 # All versions by platform
 SCALA_JVM_VERSIONS = [SCALA_211, SCALA_212, SCALA_213, SCALA_3]
@@ -245,7 +255,7 @@ def kind_projector_artifact(full_version):
     """Return kind-projector compiler plugin Maven coordinate, or None for Scala 3."""
     if scala_major(full_version) == 3:
         return None
-    return "org.typelevel:kind-projector_" + full_version + ":0.13.3"
+    return "org.typelevel:kind-projector_" + full_version + ":" + KIND_PROJECTOR_VERSION
 
 # Per-version Maven repository names (each Scala version gets its own repo
 # because core scala-lang artifacts conflict across versions).
@@ -316,10 +326,10 @@ def scalatest_label(full_version, platform = "jvm"):
     """Return the scalatest Bazel label for the given Scala version and platform."""
     bv = scala_binary_version(full_version)
     if platform == "js":
-        return _artifact_label(_scala_repo(full_version), "org.scalatest:scalatest_sjs1_" + bv + ":3.2.19")
+        return _artifact_label(_scala_repo(full_version), "org.scalatest:scalatest_sjs1_" + bv + ":" + SCALATEST_VERSION)
     elif platform == "native":
-        return _artifact_label(_scala_repo(full_version), "org.scalatest:scalatest_native0.5_" + bv + ":3.2.19")
-    return _artifact_label(_scala_repo(full_version), "org.scalatest:scalatest_" + bv + ":3.2.19")
+        return _artifact_label(_scala_repo(full_version), "org.scalatest:scalatest_native0.5_" + bv + ":" + SCALATEST_VERSION)
+    return _artifact_label(_scala_repo(full_version), "org.scalatest:scalatest_" + bv + ":" + SCALATEST_VERSION)
 
 # Linker tool labels (from the version-independent scala_tools repo)
 SCALAJS_LINKER_LABEL = "@scala_tools//:org_scala_js_scalajs_cli_2_13"

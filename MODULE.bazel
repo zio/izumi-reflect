@@ -6,150 +6,151 @@ module(
 bazel_dep(name = "rules_java", version = "7.6.1")
 bazel_dep(name = "rules_jvm_external", version = "6.6")
 
-# GraalVM JDK 21 — use with: bazel build --config=graalvm ...
+# ── Version constants (single source of truth for MODULE.bazel) ───────
+# Scala compiler versions are also defined in rules/versions.bzl for use
+# in .bzl files. When bumping, update both places.
+
+_SCALA_211 = "2.11.12"
+_SCALA_212 = "2.12.20"
+_SCALA_213 = "2.13.14"
+_SCALA_3 = "3.3.6"
+
+_SCALAJS = "1.17.0"
+_SCALANATIVE = "0.5.7"
+_SCALATEST = "3.2.19"
+_KIND_PROJECTOR = "0.13.3"
+
+_SCOVERAGE_211 = "1.4.9"
+_SCOVERAGE_212 = "2.5.2"
+_SCOVERAGE_213 = "2.3.0"
+
+_JACOCO = "0.8.12"
+_MIMA_CLI = "1.1.5"
+
+_MAVEN = ["https://repo1.maven.org/maven2"]
+
+# ── GraalVM JDK 21 ───────────────────────────────────────────────────
 graalvm = use_extension("//rules:graalvm.bzl", "graalvm")
 use_repo(graalvm, "graalvm_21", "graalvm_21_toolchain")
 
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-
+# ── Maven dependencies ────────────────────────────────────────────────
 # Per-Scala-version repos: core scala-lang artifacts conflict across versions
 # (same group:artifact, different versions), so each Scala version gets its own repo.
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 
 maven.install(
     name = "scala_2_11",
     artifacts = [
-        "org.scala-lang:scala-compiler:2.11.12",
-        "org.scala-lang:scala-library:2.11.12",
-        "org.scala-lang:scala-reflect:2.11.12",
-        "org.typelevel:kind-projector_2.11.12:0.13.3",
-        "org.scalatest:scalatest_2.11:3.2.19",
-        # Scoverage (Scala 2.11 uses older 1.x line)
-        "org.scoverage:scalac-scoverage-plugin_2.11.12:1.4.9",
-        "org.scoverage:scalac-scoverage-runtime_2.11:1.4.9",
+        "org.scala-lang:scala-compiler:" + _SCALA_211,
+        "org.scala-lang:scala-library:" + _SCALA_211,
+        "org.scala-lang:scala-reflect:" + _SCALA_211,
+        "org.typelevel:kind-projector_" + _SCALA_211 + ":" + _KIND_PROJECTOR,
+        "org.scalatest:scalatest_2.11:" + _SCALATEST,
+        "org.scoverage:scalac-scoverage-plugin_" + _SCALA_211 + ":" + _SCOVERAGE_211,
+        "org.scoverage:scalac-scoverage-runtime_2.11:" + _SCOVERAGE_211,
     ],
-    repositories = [
-        "https://repo1.maven.org/maven2",
-    ],
+    repositories = _MAVEN,
     fetch_sources = False,
 )
 
 maven.install(
     name = "scala_2_12",
     artifacts = [
-        "org.scala-lang:scala-compiler:2.12.20",
-        "org.scala-lang:scala-library:2.12.20",
-        "org.scala-lang:scala-reflect:2.12.20",
-        "org.typelevel:kind-projector_2.12.20:0.13.3",
-        "org.scala-js:scalajs-compiler_2.12.20:1.17.0",
-        "org.scala-js:scalajs-library_2.12:1.17.0",
-        "org.scala-native:nscplugin_2.12.20:0.5.7",
-        "org.scala-native:nativelib_native0.5_2.12:0.5.7",
-        "org.scala-native:javalib_native0.5_2.12:0.5.7",
-        "org.scala-native:auxlib_native0.5_2.12:0.5.7",
-        "org.scalatest:scalatest_2.12:3.2.19",
-        "org.scalatest:scalatest_sjs1_2.12:3.2.19",
-        "org.scalatest:scalatest_native0.5_2.12:3.2.19",
-        # Scoverage
-        "org.scoverage:scalac-scoverage-plugin_2.12.20:2.5.2",
-        "org.scoverage:scalac-scoverage-runtime_2.12:2.5.2",
+        "org.scala-lang:scala-compiler:" + _SCALA_212,
+        "org.scala-lang:scala-library:" + _SCALA_212,
+        "org.scala-lang:scala-reflect:" + _SCALA_212,
+        "org.typelevel:kind-projector_" + _SCALA_212 + ":" + _KIND_PROJECTOR,
+        "org.scala-js:scalajs-compiler_" + _SCALA_212 + ":" + _SCALAJS,
+        "org.scala-js:scalajs-library_2.12:" + _SCALAJS,
+        "org.scala-native:nscplugin_" + _SCALA_212 + ":" + _SCALANATIVE,
+        "org.scala-native:nativelib_native0.5_2.12:" + _SCALANATIVE,
+        "org.scala-native:javalib_native0.5_2.12:" + _SCALANATIVE,
+        "org.scala-native:auxlib_native0.5_2.12:" + _SCALANATIVE,
+        "org.scalatest:scalatest_2.12:" + _SCALATEST,
+        "org.scalatest:scalatest_sjs1_2.12:" + _SCALATEST,
+        "org.scalatest:scalatest_native0.5_2.12:" + _SCALATEST,
+        "org.scoverage:scalac-scoverage-plugin_" + _SCALA_212 + ":" + _SCOVERAGE_212,
+        "org.scoverage:scalac-scoverage-runtime_2.12:" + _SCOVERAGE_212,
     ],
-    repositories = [
-        "https://repo1.maven.org/maven2",
-    ],
+    repositories = _MAVEN,
     fetch_sources = False,
 )
 
 maven.install(
     name = "scala_2_13",
     artifacts = [
-        "org.scala-lang:scala-compiler:2.13.14",
-        "org.scala-lang:scala-library:2.13.14",
-        "org.scala-lang:scala-reflect:2.13.14",
-        "org.typelevel:kind-projector_2.13.14:0.13.3",
-        "org.scala-js:scalajs-compiler_2.13.14:1.17.0",
-        "org.scala-js:scalajs-library_2.13:1.17.0",
-        "org.scala-native:nscplugin_2.13.14:0.5.7",
-        "org.scala-native:nativelib_native0.5_2.13:0.5.7",
-        "org.scala-native:javalib_native0.5_2.13:0.5.7",
-        "org.scala-native:auxlib_native0.5_2.13:0.5.7",
-        "org.scalatest:scalatest_2.13:3.2.19",
-        "org.scalatest:scalatest_sjs1_2.13:3.2.19",
-        "org.scalatest:scalatest_native0.5_2.13:3.2.19",
-        # Scoverage
-        "org.scoverage:scalac-scoverage-plugin_2.13.14:2.3.0",
-        "org.scoverage:scalac-scoverage-runtime_2.13:2.3.0",
+        "org.scala-lang:scala-compiler:" + _SCALA_213,
+        "org.scala-lang:scala-library:" + _SCALA_213,
+        "org.scala-lang:scala-reflect:" + _SCALA_213,
+        "org.typelevel:kind-projector_" + _SCALA_213 + ":" + _KIND_PROJECTOR,
+        "org.scala-js:scalajs-compiler_" + _SCALA_213 + ":" + _SCALAJS,
+        "org.scala-js:scalajs-library_2.13:" + _SCALAJS,
+        "org.scala-native:nscplugin_" + _SCALA_213 + ":" + _SCALANATIVE,
+        "org.scala-native:nativelib_native0.5_2.13:" + _SCALANATIVE,
+        "org.scala-native:javalib_native0.5_2.13:" + _SCALANATIVE,
+        "org.scala-native:auxlib_native0.5_2.13:" + _SCALANATIVE,
+        "org.scalatest:scalatest_2.13:" + _SCALATEST,
+        "org.scalatest:scalatest_sjs1_2.13:" + _SCALATEST,
+        "org.scalatest:scalatest_native0.5_2.13:" + _SCALATEST,
+        "org.scoverage:scalac-scoverage-plugin_" + _SCALA_213 + ":" + _SCOVERAGE_213,
+        "org.scoverage:scalac-scoverage-runtime_2.13:" + _SCOVERAGE_213,
     ],
-    repositories = [
-        "https://repo1.maven.org/maven2",
-    ],
+    repositories = _MAVEN,
     fetch_sources = False,
 )
 
 maven.install(
     name = "scala_3",
     artifacts = [
-        "org.scala-lang:scala3-compiler_3:3.3.6",
-        "org.scala-lang:scala3-library_3:3.3.6",
-        "org.scala-lang:scala-library:2.13.14",
-        "org.scala-js:scalajs-library_2.13:1.17.0",
-        "org.scala-native:nscplugin_3.3.6:0.5.7",
-        "org.scala-native:nativelib_native0.5_3:0.5.7",
-        "org.scala-native:javalib_native0.5_3:0.5.7",
-        "org.scala-native:auxlib_native0.5_3:0.5.7",
-        "org.scalatest:scalatest_3:3.2.19",
-        "org.scalatest:scalatest_sjs1_3:3.2.19",
-        "org.scalatest:scalatest_native0.5_3:3.2.19",
+        "org.scala-lang:scala3-compiler_3:" + _SCALA_3,
+        "org.scala-lang:scala3-library_3:" + _SCALA_3,
+        "org.scala-lang:scala-library:" + _SCALA_213,
+        "org.scala-js:scalajs-library_2.13:" + _SCALAJS,
+        "org.scala-native:nscplugin_" + _SCALA_3 + ":" + _SCALANATIVE,
+        "org.scala-native:nativelib_native0.5_3:" + _SCALANATIVE,
+        "org.scala-native:javalib_native0.5_3:" + _SCALANATIVE,
+        "org.scala-native:auxlib_native0.5_3:" + _SCALANATIVE,
+        "org.scalatest:scalatest_3:" + _SCALATEST,
+        "org.scalatest:scalatest_sjs1_3:" + _SCALATEST,
+        "org.scalatest:scalatest_native0.5_3:" + _SCALATEST,
     ],
-    repositories = [
-        "https://repo1.maven.org/maven2",
-    ],
+    repositories = _MAVEN,
     fetch_sources = False,
 )
 
-# Linker tools repo (version-independent, always uses Scala 2.13 for the tool JARs)
+# Linker and tool JARs (version-independent, always Scala 2.13 host)
 maven.install(
     name = "scala_tools",
     artifacts = [
-        # Scala.js linker CLI (1.1.0 is the last release, forward-compatible with newer linker)
         "org.scala-js:scalajs-cli_2.13:1.1.0",
-        # Override transitive linker dep to match our scalajs version
-        "org.scala-js:scalajs-linker_2.13:1.17.0",
-        "org.scala-js:scalajs-linker-interface_2.13:1.17.0",
-        # Scala Native linker CLI
-        "org.scala-native:scala-native-cli_2.13:0.5.7",
-        # MiMa binary compatibility checker
-        "com.typesafe:mima-cli_2.13:1.1.5",
-        # JaCoCo agent (bytecode-level coverage)
-        "org.jacoco:org.jacoco.agent:0.8.12:runtime",
-        "org.jacoco:org.jacoco.cli:0.8.12",
-        # Scoverage report generator
-        "org.scoverage:scalac-scoverage-reporter_2.13:2.5.2",
+        "org.scala-js:scalajs-linker_2.13:" + _SCALAJS,
+        "org.scala-js:scalajs-linker-interface_2.13:" + _SCALAJS,
+        "org.scala-native:scala-native-cli_2.13:" + _SCALANATIVE,
+        "com.typesafe:mima-cli_2.13:" + _MIMA_CLI,
+        "org.jacoco:org.jacoco.agent:" + _JACOCO + ":runtime",
+        "org.jacoco:org.jacoco.cli:" + _JACOCO,
+        "org.scoverage:scalac-scoverage-reporter_2.13:" + _SCOVERAGE_212,
     ],
-    repositories = [
-        "https://repo1.maven.org/maven2",
-    ],
+    repositories = _MAVEN,
     fetch_sources = False,
 )
 
 use_repo(maven, "scala_2_11", "scala_2_12", "scala_2_13", "scala_3", "scala_tools")
 
-# MiMa: previous release JARs for binary compatibility checking
+# ── MiMa: previous release JARs ──────────────────────────────────────
 mima_jars = use_extension("//rules:mima.bzl", "mima_previous_jars")
 use_repo(
     mima_jars,
-    # 2.11
     "mima_prev_izumi_reflect_2_11_2_2_5",
     "mima_prev_izumi_reflect_2_11_2_1_0",
     "mima_prev_izumi_reflect_2_11_1_0_0",
-    # 2.12
     "mima_prev_izumi_reflect_2_12_2_2_5",
     "mima_prev_izumi_reflect_2_12_2_1_0",
     "mima_prev_izumi_reflect_2_12_1_0_0",
-    # 2.13
     "mima_prev_izumi_reflect_2_13_2_2_5",
     "mima_prev_izumi_reflect_2_13_2_1_0",
     "mima_prev_izumi_reflect_2_13_1_0_0",
-    # 3
     "mima_prev_izumi_reflect_3_2_2_5",
     "mima_prev_izumi_reflect_3_2_1_0",
 )
