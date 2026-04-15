@@ -6,9 +6,9 @@ load(
     "//rules:versions.bzl",
     "ALL_PLATFORMS",
     "BOOPICKLE_REMOVED_OPTS",
-    "PLATFORM_SCALAPROJECT_VERSIONS",
-    "PROJECTPROJECT_VERSION",
-    "SCALA_JVMPROJECT_VERSIONS",
+    "PLATFORM_SCALA_VERSIONS",
+    "PROJECT_VERSION",
+    "SCALA_JVM_VERSIONS",
     "scala_short_version",
 )
 
@@ -64,7 +64,7 @@ scala_multiplatform_test(
         previous_jars = previous_jar_labels(v),
         tags = ["mima"],
     )
-    for v in SCALA_JVMPROJECT_VERSIONS
+    for v in SCALA_JVM_VERSIONS
 ]
 
 # ── Maven publishing artifacts ────────────────────────────────────────
@@ -88,7 +88,7 @@ scala_multiplatform_test(
     )
     for mod in ["izumi-reflect-thirdparty-boopickle-shaded", "izumi-reflect"]
     for plat in ALL_PLATFORMS
-    for sv in PLATFORM_SCALAPROJECT_VERSIONS[plat]
+    for sv in PLATFORM_SCALA_VERSIONS[plat]
 ]
 
 # Build all maven artifacts at once
@@ -98,7 +98,7 @@ filegroup(
         ":maven-" + mod + "_" + plat + "_" + scala_short_version(sv)
         for mod in ["izumi-reflect-thirdparty-boopickle-shaded", "izumi-reflect"]
         for plat in ALL_PLATFORMS
-        for sv in PLATFORM_SCALAPROJECT_VERSIONS[plat]
+        for sv in PLATFORM_SCALA_VERSIONS[plat]
     ],
 )
 

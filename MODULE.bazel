@@ -10,6 +10,7 @@ bazel_dep(name = "rules_jvm_external", version = "6.6")
 # Scala compiler versions are also defined in rules/versions.bzl for use
 # in .bzl files. When bumping, update both places.
 
+# @@VERSIONS_START@@
 _SCALA_211 = "2.11.12"
 _SCALA_212 = "2.12.20"
 _SCALA_213 = "2.13.14"
@@ -26,6 +27,7 @@ _SCOVERAGE_213 = "2.3.0"
 
 _JACOCO = "0.8.12"
 _MIMA_CLI = "1.1.5"
+# @@VERSIONS_END@@
 
 _MAVEN = ["https://repo1.maven.org/maven2"]
 

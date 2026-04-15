@@ -3,21 +3,20 @@
 # ── Version constants ─────────────────────────────────────────────────
 # Keep in sync with MODULE.bazel top-level constants.
 
+# @@VERSIONS_START@@
 PROJECT_VERSION = "3.0.10-SNAPSHOT"
 
-# Scala compiler versions
 SCALA_211 = "2.11.12"
 SCALA_212 = "2.12.20"
 SCALA_213 = "2.13.14"
 SCALA_3 = "3.3.6"
 
-# Platform versions
 SCALAJS_VERSION = "1.17.0"
 SCALANATIVE_VERSION = "0.5.7"
 
-# Library versions
 SCALATEST_VERSION = "3.2.19"
 KIND_PROJECTOR_VERSION = "0.13.3"
+# @@VERSIONS_END@@
 
 # All versions by platform
 SCALA_JVM_VERSIONS = [SCALA_211, SCALA_212, SCALA_213, SCALA_3]

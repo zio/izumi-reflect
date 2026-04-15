@@ -52,6 +52,10 @@ jobs:
           restore-keys: |
             bazel-${{ matrix.platform }}-
 
+      - name: Check version sync
+        if: matrix.platform == 'jvm'
+        run: nix develop --command python3 tools/sync_versions.py --check
+
       - name: Build
         run: |
           nix develop --command bazel build //... \

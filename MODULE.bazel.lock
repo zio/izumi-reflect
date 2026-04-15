@@ -121,7 +121,7 @@
     },
     "//rules:mima.bzl%mima_previous_jars": {
       "general": {
-        "bzlTransitiveDigest": "8Hn+seT71B3W29WsOL0oiapOk8n1LKBXy26nenoZkqE=",
+        "bzlTransitiveDigest": "QFuyEb52LFCmEIx8xIwadPZGdmXGNg+fSS7DpKWzB+0=",
         "usagesDigest": "01Pw4Dyv83IOwcbOT8s0USlJ30q3mc6G+lrxTeif6kA=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
