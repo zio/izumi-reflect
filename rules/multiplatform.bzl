@@ -20,6 +20,8 @@ load(
     "scalanative_compiler_plugin_label",
     "scalanative_library_labels",
     "scalatest_label",
+    "scoverage_plugin_label",
+    "scoverage_runtime_label",
     "version_scalac_opts",
 )
 
@@ -146,16 +148,43 @@ def scala_multiplatform_library(
 
                 lib_cp = lib_cp + scalanative_library_labels(full_version)
 
+            # Scoverage: conditionally add plugin + runtime (JVM only, Scala 2 only)
+            scov_plugins = []
+            scov_deps = []
+            scov_opts = []
+            if platform == "jvm":
+                sp = scoverage_plugin_label(full_version)
+                sr = scoverage_runtime_label(full_version)
+                if sp and sr:
+                    scov_plugins = [sp]
+                    scov_deps = [sr]
+                    scov_opts = [
+                        "-P:scoverage:dataDir:/tmp/scoverage/" + target_name,
+                        "-P:scoverage:sourceRoot:.",
+                    ]
+                elif scala_major(full_version) == 3:
+                    # Scala 3 has built-in coverage support
+                    scov_opts = ["-coverage-out:/tmp/scoverage/" + target_name]
+
             scala_library(
                 name = target_name,
                 srcs = srcs,
-                deps = resolved_deps,
+                deps = resolved_deps + select({
+                    "//:scoverage": scov_deps,
+                    "//conditions:default": [],
+                }) if scov_deps else resolved_deps,
                 scala_version = full_version,
                 platform = platform,
-                scalac_opts = scalac_opts,
+                scalac_opts = scalac_opts + select({
+                    "//:scoverage": scov_opts,
+                    "//conditions:default": [],
+                }) if scov_opts else scalac_opts,
                 compiler_classpath = compiler_cp,
                 scala_library_classpath = lib_cp,
-                plugins = plugins,
+                plugins = plugins + select({
+                    "//:scoverage": scov_plugins,
+                    "//conditions:default": [],
+                }) if scov_plugins else plugins,
                 visibility = visibility,
                 tags = tags,
             )
@@ -229,6 +258,13 @@ def scala_multiplatform_test(
             else:
                 resolved_lib_deps.append(maven_label("org.scala-lang:scala3-compiler_3:" + full_version, full_version))
 
+            # Scoverage runtime needed on test classpath (instrumented library macros reference it)
+            scov_test_deps = []
+            if platform == "jvm":
+                sr = scoverage_runtime_label(full_version)
+                if sr:
+                    scov_test_deps = [sr]
+
             # Source files
             srcs = native.glob(versioned_srcs(srcs_root, full_version, platform, base_dir))
 
@@ -264,10 +300,15 @@ def scala_multiplatform_test(
                 lib_cp = lib_cp + scalanative_library_labels(full_version)
 
             # Step 1: Compile test sources
+            test_deps = resolved_lib_deps + select({
+                "//:scoverage": scov_test_deps,
+                "//conditions:default": [],
+            }) if scov_test_deps else resolved_lib_deps
+
             scala_library(
                 name = compiled_name,
                 srcs = srcs,
-                deps = resolved_lib_deps,
+                deps = test_deps,
                 scala_version = full_version,
                 platform = platform,
                 scalac_opts = scalac_opts,

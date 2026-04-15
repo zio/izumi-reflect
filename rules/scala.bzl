@@ -79,10 +79,16 @@ def _scala_library_impl(ctx):
         else:
             runtime_dep_jars.extend(dep.files.to_list())
 
-    # Compiler plugins — just the plugin JAR, not transitive
+    # Compiler plugins — the plugin JAR for -Xplugin, plus transitive deps on compiler classpath
     plugin_jars = []
+    plugin_cp_jars = []
     for target in ctx.attr.plugins:
         plugin_jars.extend(target.files.to_list())
+        if JavaInfo in target:
+            plugin_cp_jars.extend(target[JavaInfo].transitive_runtime_jars.to_list())
+    # Add plugin transitive deps to compiler classpath
+    if plugin_cp_jars:
+        compiler_cp_files.extend(plugin_cp_jars)
 
     # Build scalac arguments
     args = ctx.actions.args()
@@ -132,11 +138,21 @@ def _scala_library_impl(ctx):
     all_inputs = srcs + compiler_cp_files + dep_jars + plugin_jars + [scalac_argfile, compiler_cp_argfile]
     java_executable = ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.java_executable_exec_path
 
+    # Pre-create scoverage data directories. Instrumented library code writes
+    # measurements to hardcoded paths during macro expansion, so the dirs must
+    # exist even during compilation of dependents.
+    mkdir_cmds = "mkdir -p /tmp/scoverage/{izumi-reflect-thirdparty-boopickle-shaded,izumi-reflect}_{jvm,js,native}_{2.11,2.12,2.13,3} 2>/dev/null; "
+    for opt in ctx.attr.scalac_opts:
+        if opt.startswith("-P:scoverage:dataDir:") or opt.startswith("-coverage-out:"):
+            d = opt.split(":")[-1]
+            mkdir_cmds += "mkdir -p '" + d + "' && "
+
     ctx.actions.run_shell(
         outputs = [classes_dir],
         inputs = depset(all_inputs),
         tools = [ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.files],
-        command = """{java} -cp "$(cat {cp_file})" {main_class} "@{argfile}" """.format(
+        command = """{mkdir}{java} -cp "$(cat {cp_file})" {main_class} "@{argfile}" """.format(
+            mkdir = mkdir_cmds,
             java = java_executable,
             cp_file = compiler_cp_argfile.path,
             main_class = main_class,

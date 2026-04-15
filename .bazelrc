@@ -15,6 +15,16 @@ test --test_output=errors
 # Enable disk cache for faster rebuilds
 build --disk_cache=~/.cache/bazel-disk
 
+# Scoverage (Scala-native instrumentation, JVM only):
+#   bazel test --config=scoverage //...
+build:scoverage --define=SCOVERAGE=true
+
+# JaCoCo (bytecode-level coverage, JVM only):
+#   bazel test --config=jacoco //... --test_tag_filters=jvm
+# Reports written to bazel-testlogs/<target>/test.outputs/jacoco.exec
+build:jacoco --define=JACOCO=true
+build:jacoco --action_env=JACOCO=true
+
 # GraalVM: bazel build --config=graalvm ...
 build:graalvm --java_runtime_version=graalvm_21
 build:graalvm --extra_toolchains=@graalvm_21_toolchain//:all

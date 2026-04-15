@@ -23,6 +23,9 @@ maven.install(
         "org.scala-lang:scala-reflect:2.11.12",
         "org.typelevel:kind-projector_2.11.12:0.13.3",
         "org.scalatest:scalatest_2.11:3.2.19",
+        # Scoverage (Scala 2.11 uses older 1.x line)
+        "org.scoverage:scalac-scoverage-plugin_2.11.12:1.4.9",
+        "org.scoverage:scalac-scoverage-runtime_2.11:1.4.9",
     ],
     repositories = [
         "https://repo1.maven.org/maven2",
@@ -46,6 +49,9 @@ maven.install(
         "org.scalatest:scalatest_2.12:3.2.19",
         "org.scalatest:scalatest_sjs1_2.12:3.2.19",
         "org.scalatest:scalatest_native0.5_2.12:3.2.19",
+        # Scoverage
+        "org.scoverage:scalac-scoverage-plugin_2.12.20:2.5.2",
+        "org.scoverage:scalac-scoverage-runtime_2.12:2.5.2",
     ],
     repositories = [
         "https://repo1.maven.org/maven2",
@@ -69,6 +75,9 @@ maven.install(
         "org.scalatest:scalatest_2.13:3.2.19",
         "org.scalatest:scalatest_sjs1_2.13:3.2.19",
         "org.scalatest:scalatest_native0.5_2.13:3.2.19",
+        # Scoverage
+        "org.scoverage:scalac-scoverage-plugin_2.13.14:2.3.0",
+        "org.scoverage:scalac-scoverage-runtime_2.13:2.3.0",
     ],
     repositories = [
         "https://repo1.maven.org/maven2",
@@ -108,6 +117,11 @@ maven.install(
         "org.scala-js:scalajs-linker-interface_2.13:1.17.0",
         # Scala Native linker CLI
         "org.scala-native:scala-native-cli_2.13:0.5.7",
+        # JaCoCo agent (bytecode-level coverage)
+        "org.jacoco:org.jacoco.agent:0.8.12:runtime",
+        "org.jacoco:org.jacoco.cli:0.8.12",
+        # Scoverage report generator
+        "org.scoverage:scalac-scoverage-reporter_2.13:2.5.2",
     ],
     repositories = [
         "https://repo1.maven.org/maven2",

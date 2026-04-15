@@ -319,3 +319,30 @@ def scalatest_label(full_version, platform = "jvm"):
 # Linker tool labels (from the version-independent scala_tools repo)
 SCALAJS_LINKER_LABEL = "@scala_tools//:org_scala_js_scalajs_cli_2_13"
 SCALANATIVE_LINKER_LABEL = "@scala_tools//:org_scala_native_scala_native_cli_2_13"
+JACOCO_AGENT_LABEL = "@scala_tools//:org_jacoco_org_jacoco_agent"
+
+# Scoverage artifacts per Scala version
+_SCOVERAGE_VERSIONS = {
+    SCALA_211: "1.4.9",
+    SCALA_212: "2.5.2",
+    SCALA_213: "2.3.0",
+}
+
+def scoverage_plugin_label(full_version):
+    """Return scoverage compiler plugin label, or None for Scala 3 (uses built-in -coverage-out)."""
+    if scala_major(full_version) == 3:
+        return None
+    sv = _SCOVERAGE_VERSIONS.get(full_version)
+    if not sv:
+        return None
+    return _artifact_label(_scala_repo(full_version), "org.scoverage:scalac-scoverage-plugin_" + full_version + ":" + sv)
+
+def scoverage_runtime_label(full_version):
+    """Return scoverage runtime label, or None for Scala 3."""
+    if scala_major(full_version) == 3:
+        return None
+    bv = scala_binary_version(full_version)
+    sv = _SCOVERAGE_VERSIONS.get(full_version)
+    if not sv:
+        return None
+    return _artifact_label(_scala_repo(full_version), "org.scoverage:scalac-scoverage-runtime_" + bv + ":" + sv)

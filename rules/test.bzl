@@ -37,17 +37,47 @@ TEST_CLASSES_DIR=$(mktemp -d)
 trap "rm -rf $TEST_CLASSES_DIR" EXIT
 (cd "$TEST_CLASSES_DIR" && "$RUNFILES_DIR/{jar}" xf "$RUNFILES_DIR/{test_jar}")
 
+# Scoverage: instrumented code writes measurements to hardcoded paths
+mkdir -p /tmp/scoverage 2>/dev/null || true
+for d in /tmp/scoverage/*/; do true; done 2>/dev/null
+# Create all possible scoverage data dirs
+for mod in izumi-reflect-thirdparty-boopickle-shaded izumi-reflect; do
+    for plat in jvm js native; do
+        for sv in 2.11 2.12 2.13 3; do
+            mkdir -p "/tmp/scoverage/${{mod}}_${{plat}}_${{sv}}" 2>/dev/null || true
+        done
+    done
+done
+
 JUNIT_ARGS=""
 if [[ -n "$XML_OUTPUT_FILE" ]]; then
     JUNIT_DIR=$(mktemp -d)
     JUNIT_ARGS="-u $JUNIT_DIR"
 fi
 
-"$RUNFILES_DIR/{java}" -cp "{classpath}" \\
+JACOCO_ARGS=""
+if [[ -n "$JACOCO" && -f "$RUNFILES_DIR/{jacoco_agent}" ]]; then
+    JACOCO_DEST="${{TEST_UNDECLARED_OUTPUTS_DIR:-/tmp}}/jacoco.exec"
+    JACOCO_ARGS="-javaagent:$RUNFILES_DIR/{jacoco_agent}=destfile=$JACOCO_DEST,output=file"
+    echo "JaCoCo enabled, writing to $JACOCO_DEST"
+fi
+
+"$RUNFILES_DIR/{java}" $JACOCO_ARGS -cp "{classpath}" \\
     org.scalatest.tools.Runner \\
     -R "$TEST_CLASSES_DIR" \\
     -oDF $JUNIT_ARGS
 STATUS=$?
+
+# Copy scoverage measurement data to test outputs
+if [[ -n "$TEST_UNDECLARED_OUTPUTS_DIR" ]]; then
+    for d in /tmp/scoverage/*/; do
+        if ls "$d"scoverage.measurements.* 1>/dev/null 2>&1; then
+            target_name=$(basename "$d")
+            mkdir -p "$TEST_UNDECLARED_OUTPUTS_DIR/scoverage/$target_name"
+            cp "$d"scoverage.measurements.* "$TEST_UNDECLARED_OUTPUTS_DIR/scoverage/$target_name/" 2>/dev/null || true
+        fi
+    done
+fi
 
 if [[ -n "$XML_OUTPUT_FILE" && -d "$JUNIT_DIR" ]]; then
     # Merge per-suite XML files into single JUnit report for Bazel
@@ -66,12 +96,16 @@ exit $STATUS
         jar = java_runtime.java_home + "/bin/jar",
         test_jar = test_jar.short_path,
         classpath = classpath_str,
+        jacoco_agent = ctx.file._jacoco_agent.short_path if ctx.file._jacoco_agent else "",
     )
 
     script = ctx.actions.declare_file(ctx.label.name + ".sh")
     ctx.actions.write(script, script_content, is_executable = True)
 
-    runfiles = ctx.runfiles(files = runtime_jars)
+    rf_files = list(runtime_jars)
+    if ctx.file._jacoco_agent:
+        rf_files.append(ctx.file._jacoco_agent)
+    runfiles = ctx.runfiles(files = rf_files)
     runfiles = runfiles.merge(ctx.runfiles(transitive_files = java_runtime.files))
 
     return [DefaultInfo(executable = script, runfiles = runfiles)]
@@ -82,6 +116,10 @@ scala_jvm_test = rule(
     attrs = {
         "compiled_tests": attr.label(mandatory = True),
         "runtime_deps": attr.label_list(),
+        "_jacoco_agent": attr.label(
+            default = "@scala_tools//:org_jacoco_org_jacoco_agent_runtime",
+            allow_single_file = True,
+        ),
     },
     toolchains = ["@bazel_tools//tools/jdk:toolchain_type"],
 )
