@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+    xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>@@GROUP_ID@@</groupId>
+  <artifactId>@@ARTIFACT_ID@@</artifactId>
+  <version>@@VERSION@@</version>
+  <packaging>jar</packaging>
+  <name>@@MODULE_NAME@@</name>
+  <url>@@URL@@</url>
+  <licenses>
+    <license>
+      <name>@@LICENSE_NAME@@</name>
+      <url>@@LICENSE_URL@@</url>
+    </license>
+  </licenses>
+  <developers>
+@@DEVELOPERS@@
+  </developers>
+  <scm>
+    <url>@@SCM_URL@@</url>
+    <connection>@@SCM_CONNECTION@@</connection>
+  </scm>
+  <dependencies>
+@@DEPENDENCIES@@
+  </dependencies>
+</project>

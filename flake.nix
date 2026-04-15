@@ -37,6 +37,8 @@
             clang
             llvmPackages.libcxxClang
 
+            python3
+
             gitMinimal
             gnupg
 

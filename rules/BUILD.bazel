@@ -2,4 +2,5 @@ exports_files([
     "test_runner_header.scala",
     "test_runner_footer_js.scala",
     "test_runner_footer_native.scala",
+    "pom_template.xml",
 ])

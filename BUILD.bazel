@@ -1,6 +1,15 @@
 load("//rules:multiplatform.bzl", "scala_multiplatform_library", "scala_multiplatform_test")
 load("//rules:mima.bzl", "mima_check_test", "previous_jar_labels")
-load("//rules:versions.bzl", "BOOPICKLE_REMOVED_OPTS", "SCALA_JVM_VERSIONS")
+load("//rules:publish.bzl", "maven_artifact")
+load("//rules:sources.bzl", "versioned_srcs")
+load(
+    "//rules:versions.bzl",
+    "ALL_PLATFORMS",
+    "BOOPICKLE_REMOVED_OPTS",
+    "PLATFORM_SCALA_VERSIONS",
+    "SCALA_JVM_VERSIONS",
+    "scala_short_version",
+)
 
 # Coverage config settings — activated via --define=SCOVERAGE=true or --define=JACOCO=true
 config_setting(
@@ -46,3 +55,47 @@ scala_multiplatform_test(
     )
     for v in SCALA_JVM_VERSIONS
 ]
+
+# ── Maven publishing artifacts ────────────────────────────────────────
+_VERSION = "3.0.10-SNAPSHOT"
+
+[
+    maven_artifact(
+        name = "maven-" + mod + "_" + plat + "_" + scala_short_version(sv),
+        compiled = ":" + mod + "_" + plat + "_" + scala_short_version(sv),
+        module_name = mod,
+        version = _VERSION,
+        scala_version = sv,
+        platform = plat,
+        srcs = glob(versioned_srcs(
+            "src/main",
+            sv,
+            plat,
+            "izumi-reflect/" + ("izumi-reflect" if mod == "izumi-reflect" else "izumi-reflect-thirdparty-boopickle-shaded"),
+        )),
+        maven_deps = ["izumi-reflect-thirdparty-boopickle-shaded"] if mod == "izumi-reflect" else [],
+        tags = ["maven"],
+    )
+    for mod in ["izumi-reflect-thirdparty-boopickle-shaded", "izumi-reflect"]
+    for plat in ALL_PLATFORMS
+    for sv in PLATFORM_SCALA_VERSIONS[plat]
+]
+
+# Build all maven artifacts at once
+filegroup(
+    name = "maven-artifacts",
+    srcs = [
+        ":maven-" + mod + "_" + plat + "_" + scala_short_version(sv)
+        for mod in ["izumi-reflect-thirdparty-boopickle-shaded", "izumi-reflect"]
+        for plat in ALL_PLATFORMS
+        for sv in PLATFORM_SCALA_VERSIONS[plat]
+    ],
+)
+
+# Publish runner
+py_binary(
+    name = "publish",
+    srcs = ["tools/publish.py"],
+    data = [":maven-artifacts"],
+    main = "tools/publish.py",
+)
