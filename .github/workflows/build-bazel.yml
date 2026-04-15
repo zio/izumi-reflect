@@ -1,0 +1,191 @@
+name: Build (Bazel)
+
+on:
+  workflow_dispatch:
+    inputs: {}
+  push:
+    branches: [ "develop" ]
+    tags: [ "v**" ]
+  pull_request:
+    branches: [ "develop" ]
+
+env:
+  # Bazel disk cache shared across jobs via GitHub Actions cache
+  BAZEL_DISK_CACHE: ~/.cache/bazel-disk
+
+jobs:
+  checksecret:
+    runs-on: ubuntu-latest
+    outputs:
+      HAVE_SECRETS: ${{ steps.checksecret_job.outputs.HAVE_SECRETS }}
+    steps:
+      - id: checksecret_job
+        env:
+          OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
+          OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
+        run: |
+          echo "HAVE_SECRETS=${{ env.OPENSSL_IV != '' && env.OPENSSL_KEY != '' }}" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [ 'checksecret' ]
+    permissions:
+      checks: write
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ 'jvm', 'js', 'native' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel-disk
+            ~/.cache/bazel
+          key: bazel-${{ matrix.platform }}-${{ hashFiles('MODULE.bazel', 'rules/**') }}
+          restore-keys: |
+            bazel-${{ matrix.platform }}-
+
+      - name: Build
+        run: |
+          nix develop --command bazel build //... \
+            --config=ci \
+            --test_tag_filters=${{ matrix.platform }}
+
+      - name: Test
+        run: |
+          nix develop --command bazel test //... \
+            --config=ci \
+            --test_tag_filters=${{ matrix.platform }} \
+            --test_output=errors
+
+      - name: MiMa check
+        if: matrix.platform == 'jvm'
+        run: |
+          nix develop --command bazel test //... \
+            --test_tag_filters=mima \
+            --test_output=errors
+
+      - name: Upload JUnit XML reports
+        uses: dorny/test-reporter@v1
+        if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
+        with:
+          name: Test reports (${{ matrix.platform }})
+          path: 'bazel-testlogs/**/test.xml'
+          reporter: java-junit
+
+  publish-artifacts:
+    runs-on: ubuntu-latest
+    needs: [ 'build', 'checksecret' ]
+    if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel-disk
+            ~/.cache/bazel
+          key: bazel-publish-${{ hashFiles('MODULE.bazel', 'rules/**') }}
+          restore-keys: |
+            bazel-publish-
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION=$(grep -oP '"[^"]+"' version.sbt | tr -d '"')
+          IS_SNAPSHOT=$([[ "$VERSION" == *SNAPSHOT* ]] && echo true || echo false)
+          IS_TAG=$([[ "${{ github.ref_type }}" == "tag" ]] && echo true || echo false)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_snapshot=$IS_SNAPSHOT" >> $GITHUB_OUTPUT
+          echo "is_tag=$IS_TAG" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION, snapshot: $IS_SNAPSHOT, tag: $IS_TAG"
+
+      - name: Build Maven artifacts
+        run: |
+          BAZEL_CONFIG=""
+          if [[ "${{ steps.version.outputs.is_snapshot }}" == "false" ]]; then
+            BAZEL_CONFIG="--config=release"
+          fi
+          nix develop --command bazel build //:maven-artifacts $BAZEL_CONFIG
+
+      - name: Decrypt signing secrets
+        env:
+          OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
+          OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
+        run: |
+          openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
+          tar xvf secrets.tar
+
+      - name: Publish to Sonatype
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        run: |
+          PUBLISH_ARGS="--manifests-dir=bazel-bin"
+          if [[ "${{ steps.version.outputs.is_snapshot }}" == "true" ]]; then
+            PUBLISH_ARGS="$PUBLISH_ARGS --snapshot"
+          else
+            # Import GPG key from decrypted secrets
+            gpg --batch --import .secrets/*.gpg 2>/dev/null || true
+            GPG_KEY=$(gpg --list-secret-keys --keyid-format long 2>/dev/null | grep sec | head -1 | awk '{print $2}' | cut -d/ -f2)
+            if [[ -n "$GPG_KEY" ]]; then
+              PUBLISH_ARGS="$PUBLISH_ARGS --gpg-key=$GPG_KEY"
+            fi
+          fi
+          nix develop --command python3 tools/publish.py $PUBLISH_ARGS
+
+  release-and-notify-docs:
+    name: Release and Notify Docs
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    needs: [ 'build', 'checksecret' ]
+    if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Publish Docs to NPM Registry
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          nix develop --command python3 tools/publish_docs.py
+
+      - name: Notify the main repo about the new release of docs package
+        run: |
+          PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')
+          PACKAGE_VERSION=$(npm view $PACKAGE_NAME version)
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+            https://api.github.com/repos/zio/zio/dispatches \
+            -d '{
+                  "event_type":"update-docs",
+                  "client_payload":{
+                    "package_name":"'"${PACKAGE_NAME}"'",
+                    "package_version": "'"${PACKAGE_VERSION}"'"
+                  }
+                }'
+
+  all-good:
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [ 'build' ]
+    steps:
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
