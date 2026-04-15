@@ -147,23 +147,34 @@ def _scala_library_impl(ctx):
             d = opt.split(":")[-1]
             mkdir_cmds += "mkdir -p '" + d + "' && "
 
+    # Resolve @@NPROC@@ placeholder in argfile to actual CPU count (capped at 16, min 1)
+    resolved_argfile = ctx.actions.declare_file(ctx.label.name + "_scalac_args_resolved.txt")
+
     ctx.actions.run_shell(
-        outputs = [classes_dir],
+        outputs = [classes_dir, resolved_argfile],
         inputs = depset(all_inputs),
         tools = [ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.files],
-        command = """{mkdir}{java} -cp "$(cat {cp_file})" {main_class} "@{argfile}" """.format(
+        command = (
+            "{mkdir}" +
+            "NPROC=$(( $(nproc 2>/dev/null || echo 8) - 1 )); " +
+            "NPROC=$(( NPROC > 16 ? 16 : NPROC )); " +
+            "NPROC=$(( NPROC < 1 ? 1 : NPROC )); " +
+            'sed "s/@@NPROC@@/$NPROC/g" {argfile} > {resolved} && ' +
+            '{java} -cp "$(cat {cp_file})" {main_class} "@{resolved}" '
+        ).format(
             mkdir = mkdir_cmds,
             java = java_executable,
             cp_file = compiler_cp_argfile.path,
             main_class = main_class,
             argfile = scalac_argfile.path,
+            resolved = resolved_argfile.path,
         ),
         mnemonic = "ScalaCompile",
         progress_message = "Compiling Scala (%s/%s) %s" % (ctx.attr.platform, ctx.attr.scala_version, ctx.label),
     )
 
-    # Package into JAR
-    _create_jar(ctx, classes_dir, output_jar)
+    # Package into JAR with Automatic-Module-Name manifest
+    _create_jar(ctx, classes_dir, output_jar, ctx.attr.automatic_module_name)
 
     # Build providers
     compile_jars = depset(
@@ -189,26 +200,42 @@ def _scala_library_impl(ctx):
 def _file_path(f):
     return f.path
 
-def _create_jar(ctx, classes_dir, output_jar):
-    """Create a JAR from a classes directory."""
+def _create_jar(ctx, classes_dir, output_jar, automatic_module_name = ""):
+    """Create a JAR from a classes directory, optionally with Automatic-Module-Name manifest."""
     jar_tool = ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.java_home + "/bin/jar"
+    manifest_cmd = ""
+    if automatic_module_name:
+        manifest_cmd = (
+            "MANIFEST=/tmp/manifest_$$; " +
+            "echo 'Manifest-Version: 1.0' > $MANIFEST; " +
+            "echo 'Automatic-Module-Name: " + automatic_module_name + "' >> $MANIFEST; "
+        )
+    jar_flag = "cfm" if automatic_module_name else "cf"
+    manifest_arg = "$MANIFEST " if automatic_module_name else ""
+    cleanup = "rm -f $MANIFEST; " if automatic_module_name else ""
+
     ctx.actions.run_shell(
         outputs = [output_jar],
         inputs = [classes_dir],
         tools = [ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.files],
-        command = """
-            if [ -z "$(ls -A {dir})" ]; then
-                # Empty classes dir — create minimal valid JAR
-                echo PK > /tmp/_empty_$$
-                {jar} cf {out} -C /tmp _empty_$$
-                rm /tmp/_empty_$$
-            else
-                {jar} cf {out} -C {dir} .
-            fi
-        """.format(
+        command = (
+            "{manifest_cmd}" +
+            'if [ -z "$(ls -A {dir})" ]; then ' +
+            "echo PK > /tmp/_empty_$$; " +
+            "{jar} {jar_flag} {out} {manifest_arg}-C /tmp _empty_$$; " +
+            "rm /tmp/_empty_$$; " +
+            "else " +
+            "{jar} {jar_flag} {out} {manifest_arg}-C {dir} .; " +
+            "fi; " +
+            "{cleanup}"
+        ).format(
+            manifest_cmd = manifest_cmd,
             jar = jar_tool,
-            dir = classes_dir.path,
+            jar_flag = jar_flag,
             out = output_jar.path,
+            manifest_arg = manifest_arg,
+            dir = classes_dir.path,
+            cleanup = cleanup,
         ),
         mnemonic = "ScalaJar",
         progress_message = "Packaging JAR %s" % ctx.label,
@@ -229,6 +256,10 @@ _COMMON_ATTRS = {
     ),
     "plugins": attr.label_list(
         doc = "Compiler plugin JARs.",
+    ),
+    "automatic_module_name": attr.string(
+        default = "",
+        doc = "Java 9+ Automatic-Module-Name manifest attribute.",
     ),
 }
 

@@ -20,10 +20,19 @@ load(
     "scalanative_compiler_plugin_label",
     "scalanative_library_labels",
     "scalatest_label",
+    "SCALAC_CI_DOWNGRADE",
+    "SCALAC_CI_UPGRADE_212",
+    "SCALAC_CI_UPGRADE_213",
+    "SCALAC_RELEASE_OPTS_212",
+    "SCALAC_RELEASE_OPTS_213",
+    "SCALA_212",
+    "SCALA_213",
     "scoverage_plugin_label",
     "scoverage_runtime_label",
     "version_scalac_opts",
 )
+
+_GROUP_ID = "dev.zio"
 
 def _target_name(name, platform, full_version):
     """Generate target name: e.g. 'izumi-reflect_jvm_2.13'."""
@@ -148,6 +157,23 @@ def scala_multiplatform_library(
 
                 lib_cp = lib_cp + scalanative_library_labels(full_version)
 
+            # CI mode: promote warnings to errors (Scala 2.12/2.13 only)
+            ci_opts = []
+            ci_remove = []
+            if full_version == SCALA_212:
+                ci_opts = SCALAC_CI_UPGRADE_212
+                ci_remove = SCALAC_CI_DOWNGRADE
+            elif full_version == SCALA_213:
+                ci_opts = SCALAC_CI_UPGRADE_213
+                ci_remove = SCALAC_CI_DOWNGRADE
+
+            # Release mode: inlining optimizations (Scala 2.12/2.13 only)
+            release_opts = []
+            if full_version == SCALA_212:
+                release_opts = SCALAC_RELEASE_OPTS_212
+            elif full_version == SCALA_213:
+                release_opts = SCALAC_RELEASE_OPTS_213
+
             # Scoverage: conditionally add plugin + runtime (JVM only, Scala 2 only)
             scov_plugins = []
             scov_deps = []
@@ -163,8 +189,30 @@ def scala_multiplatform_library(
                         "-P:scoverage:sourceRoot:.",
                     ]
                 elif scala_major(full_version) == 3:
-                    # Scala 3 has built-in coverage support
                     scov_opts = ["-coverage-out:/tmp/scoverage/" + target_name]
+
+            # Automatic-Module-Name: dev.zio.{module-name-with-dots}
+            module_name_attr = _GROUP_ID.replace("-", ".") + "." + name.replace("-", ".")
+
+            # Combine conditional opts
+            all_opts = scalac_opts
+            if ci_opts:
+                all_opts = all_opts + select({
+                    "//:ci": [o for o in ci_opts if o not in ci_remove],
+                    "//conditions:default": [],
+                })
+                # In CI, also remove the -Wconf:any:warning that's in the base opts
+                # (handled by replacing it — ci_opts already contains -Wconf:any:error)
+            if release_opts:
+                all_opts = all_opts + select({
+                    "//:release": release_opts,
+                    "//conditions:default": [],
+                })
+            if scov_opts:
+                all_opts = all_opts + select({
+                    "//:scoverage": scov_opts,
+                    "//conditions:default": [],
+                })
 
             scala_library(
                 name = target_name,
@@ -175,16 +223,14 @@ def scala_multiplatform_library(
                 }) if scov_deps else resolved_deps,
                 scala_version = full_version,
                 platform = platform,
-                scalac_opts = scalac_opts + select({
-                    "//:scoverage": scov_opts,
-                    "//conditions:default": [],
-                }) if scov_opts else scalac_opts,
+                scalac_opts = all_opts,
                 compiler_classpath = compiler_cp,
                 scala_library_classpath = lib_cp,
                 plugins = plugins + select({
                     "//:scoverage": scov_plugins,
                     "//conditions:default": [],
                 }) if scov_plugins else plugins,
+                automatic_module_name = module_name_attr,
                 visibility = visibility,
                 tags = tags,
             )

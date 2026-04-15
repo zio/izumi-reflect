@@ -11,7 +11,17 @@ load(
     "scala_short_version",
 )
 
-# Coverage config settings — activated via --define=SCOVERAGE=true or --define=JACOCO=true
+# Build mode config settings
+config_setting(
+    name = "ci",
+    define_values = {"CI": "true"},
+)
+
+config_setting(
+    name = "release",
+    define_values = {"RELEASE": "true"},
+)
+
 config_setting(
     name = "scoverage",
     define_values = {"SCOVERAGE": "true"},

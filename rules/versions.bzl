@@ -123,8 +123,8 @@ BASE_SCALAC_OPTS = [
 ]
 
 # Per-version scalac options
-# Backend parallelism is set to 8 as a reasonable default for Bazel (individual actions)
-_BACKEND_PARALLELISM = "8"
+# Backend parallelism placeholder — resolved to $(nproc)-1 at execution time.
+_BACKEND_PARALLELISM = "@@NPROC@@"
 
 SCALAC_OPTS_211 = []
 
@@ -207,6 +207,11 @@ SCALAC_RELEASE_OPTS_213 = [
     "-opt:l:inline",
     "-opt-inline-from:izumi.reflect.**",
 ]
+
+# CI mode: promote warnings to errors (replaces -Wconf:any:warning with -Wconf:any:error)
+SCALAC_CI_UPGRADE_212 = ["-Wconf:any:error"]
+SCALAC_CI_UPGRADE_213 = ["-Wconf:any:error"]
+SCALAC_CI_DOWNGRADE = ["-Wconf:any:warning"]  # removed when CI opts are added
 
 # Options removed from Compile scope for boopickle-shaded module
 BOOPICKLE_REMOVED_OPTS = [
