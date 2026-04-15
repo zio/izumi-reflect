@@ -36,10 +36,31 @@ fi
 TEST_CLASSES_DIR=$(mktemp -d)
 trap "rm -rf $TEST_CLASSES_DIR" EXIT
 (cd "$TEST_CLASSES_DIR" && "$RUNFILES_DIR/{jar}" xf "$RUNFILES_DIR/{test_jar}")
-exec "$RUNFILES_DIR/{java}" -cp "{classpath}" \\
+
+JUNIT_ARGS=""
+if [[ -n "$XML_OUTPUT_FILE" ]]; then
+    JUNIT_DIR=$(mktemp -d)
+    JUNIT_ARGS="-u $JUNIT_DIR"
+fi
+
+"$RUNFILES_DIR/{java}" -cp "{classpath}" \\
     org.scalatest.tools.Runner \\
     -R "$TEST_CLASSES_DIR" \\
-    -oDF
+    -oDF $JUNIT_ARGS
+STATUS=$?
+
+if [[ -n "$XML_OUTPUT_FILE" && -d "$JUNIT_DIR" ]]; then
+    # Merge per-suite XML files into single JUnit report for Bazel
+    echo '<?xml version="1.0" encoding="UTF-8"?>' > "$XML_OUTPUT_FILE"
+    echo '<testsuites>' >> "$XML_OUTPUT_FILE"
+    for f in "$JUNIT_DIR"/*.xml; do
+        [ -f "$f" ] && sed '1d' "$f" >> "$XML_OUTPUT_FILE"
+    done
+    echo '</testsuites>' >> "$XML_OUTPUT_FILE"
+    rm -rf "$JUNIT_DIR"
+fi
+
+exit $STATUS
 """.format(
         java = java_runtime.java_executable_exec_path,
         jar = java_runtime.java_home + "/bin/jar",
@@ -209,74 +230,32 @@ def _scala_linked_test_impl(ctx):
     else:
         return _link_and_run_native(ctx, java_runtime, linker_cp_files, link_jars, runner_jar)
 
-def _generate_js_runner(ctx, test_classes_file, runner_source):
-    """Generate a JS test runner that instantiates and runs suites directly.
-
-    org.scalatest.tools.Runner is JVM-only. For JS, we instantiate each suite
-    and call run() with a custom reporter to detect failures.
-    """
+def _generate_linked_runner(ctx, test_classes_file, runner_source):
+    """Generate a JS/Native test runner with JUnit XML output."""
+    header = ctx.file._runner_header
+    footer = ctx.file._runner_footer_js if ctx.attr.platform == "js" else ctx.file._runner_footer_native
     ctx.actions.run_shell(
         outputs = [runner_source],
-        inputs = [test_classes_file],
-        command = """
-            {{
-                echo 'package generated'
-                echo 'object TestRunner {{'
-                echo '  def main(args: Array[String]): Unit = {{'
-                echo '    val suites = List[org.scalatest.Suite]('
-                first=true
-                while IFS= read -r cls; do
-                    if [ -n "$cls" ]; then
-                        if [ "$first" = true ]; then
-                            first=false
-                        else
-                            echo ','
-                        fi
-                        printf "      new %s()" "$cls"
-                    fi
-                done < {classes}
-                echo ''
-                echo '    )'
-                echo '    var failed = 0'
-                echo '    var passed = 0'
-                echo '    suites.foreach {{ suite =>'
-                echo '      val tracker = new org.scalatest.Tracker'
-                echo '      var suiteFailed = false'
-                echo '      val reporter = new org.scalatest.Reporter {{'
-                echo '        def apply(event: org.scalatest.events.Event): Unit = event match {{'
-                echo '          case e: org.scalatest.events.TestFailed =>'
-                echo '            suiteFailed = true'
-                echo '            failed += 1'
-                echo '            println(s"FAILED: ${{e.testName}}")'
-                echo '            e.throwable.foreach(_.printStackTrace())'
-                echo '          case e: org.scalatest.events.TestSucceeded =>'
-                echo '            passed += 1'
-                echo '          case e: org.scalatest.events.RunAborted =>'
-                echo '            suiteFailed = true'
-                echo '            failed += 1'
-                echo '            println(s"ABORTED: ${{e.message}}")'
-                echo '          case _ =>'
-                echo '        }}'
-                echo '      }}'
-                echo '      println(s"Running: ${{suite.getClass.getName}}")'
-                echo '      suite.run(None, org.scalatest.Args(reporter, tracker = tracker))'
-                echo '    }}'
-                echo '    println(s"Tests: $$passed passed, $$failed failed")'
-                echo '    if (failed > 0) {{'
-                echo '      println("TEST SUITE FAILED")'
-                echo '      throw new RuntimeException(s"$$failed tests failed")'
-                echo '    }}'
-                echo '  }}'
-                echo '}}'
-            }} > {out}
-        """.format(classes = test_classes_file.path, out = runner_source.path),
-        mnemonic = "GenerateJSTestRunner",
+        inputs = [test_classes_file, header, footer],
+        command = (
+            "cp " + header.path + " " + runner_source.path + " && " +
+            "first=true; " +
+            "while IFS= read -r cls; do " +
+            '  if [ -n "$cls" ]; then ' +
+            '    if [ "$first" = true ]; then first=false; else printf ",\\n" >> ' + runner_source.path + "; fi; " +
+            '    printf "      new %s()" "$cls" >> ' + runner_source.path + "; " +
+            "  fi; " +
+            "done < " + test_classes_file.path + " && " +
+            "cat " + footer.path + " >> " + runner_source.path
+        ),
+        mnemonic = "GenerateTestRunner",
     )
 
+def _generate_js_runner(ctx, test_classes_file, runner_source):
+    _generate_linked_runner(ctx, test_classes_file, runner_source)
+
 def _generate_native_runner(ctx, test_classes_file, runner_source):
-    """Generate a Native test runner using direct suite instantiation."""
-    # Same approach as JS — Runner.main doesn't exist in native ScalaTest either.
-    _generate_js_runner(ctx, test_classes_file, runner_source)
+    _generate_linked_runner(ctx, test_classes_file, runner_source)
 
 def _link_and_run_js(ctx, java_runtime, linker_cp_files, link_jars, runner_jar):
     """Link JS test and create Node.js runner script."""
@@ -312,6 +291,7 @@ elif [[ -n "$RUNFILES_DIR" ]]; then
 else
     RUNFILES_DIR="$(dirname "$0")/../_main"
 fi
+export JUNIT_OUTPUT_FILE="${{XML_OUTPUT_FILE:-}}"
 exec node "$RUNFILES_DIR/{linked_dir}/main.js"
 """.format(linked_dir = output_dir.short_path)
 
@@ -356,6 +336,7 @@ elif [[ -n "$RUNFILES_DIR" ]]; then
 else
     RUNFILES_DIR="$(dirname "$0")/../_main"
 fi
+export JUNIT_OUTPUT_FILE="${{XML_OUTPUT_FILE:-}}"
 exec "$RUNFILES_DIR/{binary}"
 """.format(binary = output_binary.short_path)
 
@@ -386,6 +367,18 @@ scala_linked_test = rule(
         "plugins": attr.label_list(),
         "linker_classpath": attr.label_list(),
         "runner_scalac_opts": attr.string_list(default = []),
+        "_runner_header": attr.label(
+            default = "//rules:test_runner_header.scala",
+            allow_single_file = True,
+        ),
+        "_runner_footer_js": attr.label(
+            default = "//rules:test_runner_footer_js.scala",
+            allow_single_file = True,
+        ),
+        "_runner_footer_native": attr.label(
+            default = "//rules:test_runner_footer_native.scala",
+            allow_single_file = True,
+        ),
     },
     toolchains = ["@bazel_tools//tools/jdk:toolchain_type"],
 )
