@@ -21,7 +21,7 @@ def _all_cross_short_versions(platform):
         key = _version_tuple,
     )
 
-def select_source_dirs(root, full_version, platform):
+def select_source_dirs(root, full_version, platform, base_dir = ""):
     """Compute source directory list for a given Scala version and platform.
 
     Replicates the SBT source directory resolution from build.sbt:
@@ -38,6 +38,7 @@ def select_source_dirs(root, full_version, platform):
         root: source root, e.g. "src/main"
         full_version: e.g. "2.13.14"
         platform: "jvm", "js", or "native"
+        base_dir: optional prefix for all paths (e.g. "izumi-reflect/izumi-reflect")
 
     Returns:
         List of source directory paths (relative to BUILD file).
@@ -46,10 +47,12 @@ def select_source_dirs(root, full_version, platform):
     current = _version_tuple(sv)
     cross_versions = _all_cross_short_versions(platform)
 
-    dirs = _compute_version_dirs(root + "/scala", sv, current, cross_versions)
+    prefix = (base_dir + "/" if base_dir else "")
+
+    dirs = _compute_version_dirs(prefix + root + "/scala", sv, current, cross_versions)
 
     # Platform-specific dirs (e.g. .jvm/src/main/scala, .jvm/src/main/scala-2, etc.)
-    platform_root = "." + platform + "/" + root
+    platform_root = prefix + "." + platform + "/" + root
     dirs.extend(_compute_version_dirs(platform_root + "/scala", sv, current, cross_versions))
 
     return dirs
@@ -102,19 +105,17 @@ def _compute_version_dirs(scala_dir, sv, current, cross_versions):
 
     return dirs
 
-def versioned_srcs(root, full_version, platform):
+def versioned_srcs(root, full_version, platform, base_dir = ""):
     """Return glob patterns for version/platform-specific Scala sources.
-
-    This is the main entry point for BUILD files. It computes source directories
-    and returns a list of glob patterns suitable for use in srcs.
 
     Args:
         root: source root, e.g. "src/main"
         full_version: e.g. "2.13.14"
         platform: "jvm", "js", or "native"
+        base_dir: optional prefix for all paths (e.g. "izumi-reflect/izumi-reflect")
 
     Returns:
         List of glob pattern strings like ["src/main/scala/**/*.scala", ...].
     """
-    dirs = select_source_dirs(root, full_version, platform)
+    dirs = select_source_dirs(root, full_version, platform, base_dir)
     return [d + "/**/*.scala" for d in dirs]

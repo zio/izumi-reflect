@@ -1,1 +1,25 @@
-# Root BUILD file for izumi-reflect Bazel build.
+load("//rules:multiplatform.bzl", "scala_multiplatform_library", "scala_multiplatform_test")
+load("//rules:versions.bzl", "BOOPICKLE_REMOVED_OPTS")
+
+scala_multiplatform_library(
+    name = "izumi-reflect-thirdparty-boopickle-shaded",
+    base_dir = "izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded",
+    remove_scalac_opts = BOOPICKLE_REMOVED_OPTS,
+    visibility = ["//visibility:public"],
+)
+
+scala_multiplatform_library(
+    name = "izumi-reflect",
+    base_dir = "izumi-reflect/izumi-reflect",
+    deps = [":izumi-reflect-thirdparty-boopickle-shaded"],
+    visibility = ["//visibility:public"],
+)
+
+scala_multiplatform_test(
+    name = "izumi-reflect-test",
+    base_dir = "izumi-reflect/izumi-reflect",
+    lib_deps = [
+        ":izumi-reflect",
+        ":izumi-reflect-thirdparty-boopickle-shaded",
+    ],
+)

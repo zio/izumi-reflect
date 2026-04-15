@@ -6,6 +6,10 @@ module(
 bazel_dep(name = "rules_java", version = "7.6.1")
 bazel_dep(name = "rules_jvm_external", version = "6.6")
 
+# GraalVM JDK 21 — use with: bazel build --config=graalvm ...
+graalvm = use_extension("//rules:graalvm.bzl", "graalvm")
+use_repo(graalvm, "graalvm_21", "graalvm_21_toolchain")
+
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 
 # Per-Scala-version repos: core scala-lang artifacts conflict across versions

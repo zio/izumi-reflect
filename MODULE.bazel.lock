@@ -90,6 +90,35 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//rules:graalvm.bzl%graalvm": {
+      "general": {
+        "bzlTransitiveDigest": "YvtKMKWU2x6YHxDz9OCECG7bHd9q7NYqK+AkjvzfS3g=",
+        "usagesDigest": "+JuwAukiZphzDTNwm9i8pCubJQbQrIwbAsGW9ZS2N+s=",
+        "recordedFileInputs": {},
+        "recordedDirentsInputs": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "graalvm_21": {
+            "bzlFile": "@@//rules:graalvm.bzl",
+            "ruleClassName": "_graalvm_jdk",
+            "attributes": {
+              "url": "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-21.0.2/graalvm-community-jdk-21.0.2_linux-x64_bin.tar.gz",
+              "sha256": "b048069aaa3a99b84f5b957b162cc181a32a4330cbc35402766363c5be76ae48",
+              "strip_prefix": "graalvm-community-openjdk-21.0.2+13.1"
+            }
+          },
+          "graalvm_21_toolchain": {
+            "bzlFile": "@@//rules:graalvm.bzl",
+            "ruleClassName": "_graalvm_toolchain",
+            "attributes": {
+              "jdk_repo": "graalvm_21",
+              "version_label": "graalvm_21"
+            }
+          }
+        },
+        "recordedRepoMappingEntries": []
+      }
+    },
     "@@apple_support~//crosstool:setup.bzl%apple_cc_configure_extension": {
       "general": {
         "bzlTransitiveDigest": "PjIds3feoYE8SGbbIq2SFTZy3zmxeO2tQevJZNDo7iY=",

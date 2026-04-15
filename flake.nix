@@ -29,9 +29,13 @@
 
             coursier
             sbt
+            bazel
 
             nodejs
             nodePackages.npm
+
+            clang
+            llvmPackages.libcxxClang
 
             gitMinimal
             gnupg
@@ -44,6 +48,9 @@
             export JDK17=${pkgs.jdk17_headless}
             export JDK21=${pkgs.jdk21_headless}
             export JDK_DEV=${pkgs.graalvmPackages.graalvm-ce}
+
+            export JAVA_HOME=''${JDK_DEV}
+            export PATH="''${JDK_DEV}/bin:$PATH"
 
             # Create .env directory with JDK symlink (ignore errors if already exists)
             mkdir -p ./.env 2>/dev/null || true

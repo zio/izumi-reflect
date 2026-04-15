@@ -59,6 +59,7 @@ def _resolve_multiplatform_dep(dep, platform, full_version):
 def scala_multiplatform_library(
         name,
         srcs_root = "src/main",
+        base_dir = "",
         deps = [],
         extra_scalac_opts = [],
         remove_scalac_opts = [],
@@ -69,15 +70,11 @@ def scala_multiplatform_library(
         tags = []):
     """Generate scala_library targets for all platform x version combinations.
 
-    Automatically adds version-appropriate provided deps:
-    - Scala 2: scala-reflect on classpath, kind-projector plugin
-    - Scala 3: scala3-compiler on classpath
-
     Args:
         name: Base target name. Generated targets: {name}_{platform}_{version}.
         srcs_root: Source root directory, e.g. "src/main".
-        deps: Multiplatform deps. Labels to other scala_multiplatform_library
-              targets are auto-resolved to the matching variant.
+        base_dir: Path prefix from BUILD file to module root (e.g. "izumi-reflect/izumi-reflect").
+        deps: Multiplatform deps, auto-resolved to matching variant.
         extra_scalac_opts: Additional scalac options beyond version defaults.
         remove_scalac_opts: Scalac options to remove from version defaults.
         platforms: Platforms to build for. Defaults to ALL_PLATFORMS.
@@ -100,7 +97,7 @@ def scala_multiplatform_library(
             all_targets.append(target_name)
 
             # Source files
-            srcs = native.glob(versioned_srcs(srcs_root, full_version, platform))
+            srcs = native.glob(versioned_srcs(srcs_root, full_version, platform, base_dir))
 
             # Resolve deps
             resolved_deps = [_resolve_multiplatform_dep(d, platform, full_version) for d in deps]
@@ -182,6 +179,7 @@ def _scalajs_compiler_support_labels(full_version):
 def scala_multiplatform_test(
         name,
         srcs_root = "src/test",
+        base_dir = "",
         lib_deps = [],
         platforms = None,
         scala_versions = None,
@@ -232,7 +230,7 @@ def scala_multiplatform_test(
                 resolved_lib_deps.append(maven_label("org.scala-lang:scala3-compiler_3:" + full_version, full_version))
 
             # Source files
-            srcs = native.glob(versioned_srcs(srcs_root, full_version, platform))
+            srcs = native.glob(versioned_srcs(srcs_root, full_version, platform, base_dir))
 
             # Compiler classpath
             compiler_cp = scala_compiler_labels(full_version)
@@ -280,16 +278,16 @@ def scala_multiplatform_test(
             )
 
             # Step 2: Create test rule
+            test_tags = tags + [platform, "scala_" + sv]
             if platform == "jvm":
                 scala_jvm_test(
                     name = test_name,
                     compiled_tests = ":" + compiled_name,
                     runtime_deps = [st_label],
                     visibility = visibility,
-                    tags = tags,
+                    tags = test_tags,
                 )
             elif platform == "js":
-                # Runner needs the scalajs compiler plugin for compilation
                 runner_plugins = []
                 runner_opts = []
                 js_plugin = scalajs_compiler_plugin_label(full_version)
@@ -309,7 +307,7 @@ def scala_multiplatform_test(
                     linker_classpath = [SCALAJS_LINKER_LABEL],
                     runner_scalac_opts = runner_opts,
                     visibility = visibility,
-                    tags = tags,
+                    tags = test_tags,
                 )
             elif platform == "native":
                 # Runner needs the native compiler plugin
@@ -328,5 +326,5 @@ def scala_multiplatform_test(
                     plugins = runner_plugins,
                     linker_classpath = [SCALANATIVE_LINKER_LABEL],
                     visibility = visibility,
-                    tags = tags,
+                    tags = test_tags,
                 )

@@ -15,5 +15,9 @@ test --test_output=errors
 # Enable disk cache for faster rebuilds
 build --disk_cache=~/.cache/bazel-disk
 
+# GraalVM: bazel build --config=graalvm ...
+build:graalvm --java_runtime_version=graalvm_21
+build:graalvm --extra_toolchains=@graalvm_21_toolchain//:all
+
 # Convenience configs
 build:ci --action_env=CI=true
