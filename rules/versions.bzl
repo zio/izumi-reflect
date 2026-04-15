@@ -217,10 +217,12 @@ SCALAC_RELEASE_OPTS_213 = [
     "-opt-inline-from:izumi.reflect.**",
 ]
 
-# CI mode: promote warnings to errors (replaces -Wconf:any:warning with -Wconf:any:error)
-SCALAC_CI_UPGRADE_212 = ["-Wconf:any:error"]
-SCALAC_CI_UPGRADE_213 = ["-Wconf:any:error"]
-SCALAC_CI_DOWNGRADE = ["-Wconf:any:warning"]  # removed when CI opts are added
+# CI mode: the SBT build adds -Wconf:any:error then immediately removes it (line 189/428).
+# Net effect: warnings are never promoted to errors. Keeping the config_setting for future use
+# but the upgrade lists are empty — CI mode currently only serves as a marker.
+SCALAC_CI_UPGRADE_212 = []
+SCALAC_CI_UPGRADE_213 = []
+SCALAC_CI_DOWNGRADE = []
 
 # Options removed from Compile scope for boopickle-shaded module
 BOOPICKLE_REMOVED_OPTS = [

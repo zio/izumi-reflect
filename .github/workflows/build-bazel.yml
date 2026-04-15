@@ -56,16 +56,9 @@ jobs:
         if: matrix.platform == 'jvm'
         run: nix develop --command python3 tools/sync_versions.py --check
 
-      - name: Build
-        run: |
-          nix develop --command bazel build //... \
-            --config=ci \
-            --test_tag_filters=${{ matrix.platform }}
-
-      - name: Test
+      - name: Build and Test
         run: |
           nix develop --command bazel test //... \
-            --config=ci \
             --test_tag_filters=${{ matrix.platform }} \
             --test_output=errors
 
