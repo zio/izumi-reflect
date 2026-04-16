@@ -115,28 +115,31 @@ def main():
         print(f"  Directory: {DOCS_DIR}")
         return
 
-    # Configure npm auth (writes to ~/.npmrc, matching zio-sbt-website behavior)
+    # Configure npm auth
     token = os.environ.get("NODE_AUTH_TOKEN")
     if not token:
         raise SystemExit("NODE_AUTH_TOKEN environment variable is required for publishing")
-    registry = args.registry or "https://registry.npmjs.org/"
-    registry_host = registry.removeprefix("https://").removesuffix("/")
-    npmrc = Path.home() / ".npmrc"
-    npmrc.write_text(f"//{registry_host}/:_authToken={token}\n")
 
-    # Replicate zio-sbt-website publishToNpm sequence exactly:
-    # 1. Set version in package.json (without git tag)
+    # Write .npmrc with env var reference (npm resolves ${NODE_AUTH_TOKEN} at runtime).
+    # Also write to docs dir for project-level resolution.
+    npmrc_content = "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n"
+    for npmrc_path in [Path.home() / ".npmrc", DOCS_DIR / ".npmrc"]:
+        npmrc_path.write_text(npmrc_content)
+        print(f"Wrote {npmrc_path}")
+
+    # Verify auth works
+    whoami = subprocess.run(["npm", "whoami"], capture_output=True, text=True)
+    print(f"npm whoami: {whoami.stdout.strip() or whoami.stderr.strip()}")
+
+    # 1. Set version in package.json
     _npm(["npm", "version", version, "--no-git-tag-version", "--allow-same-version"], cwd=DOCS_DIR)
 
-    # 2. Set repository URL for npm provenance verification
-    _npm(["npm", "pkg", "set", f"repository.url=https://github.com/zio/izumi-reflect"], cwd=DOCS_DIR)
+    # 2. Set repository URL
+    _npm(["npm", "pkg", "set", "repository.url=https://github.com/zio/izumi-reflect"], cwd=DOCS_DIR)
 
-    # 3. Configure public access
-    _npm(["npm", "config", "set", "access", "public"])
-
-    # 4. Publish with prerelease tag if applicable
+    # 3+4. Publish with access=public inline (avoid npm config set overwriting .npmrc)
+    cmd = ["npm", "publish", "--access", "public"]
     prerelease_tag = _extract_prerelease_tag(version)
-    cmd = ["npm", "publish"]
     if prerelease_tag:
         cmd += ["--tag", prerelease_tag]
     _npm(cmd, cwd=DOCS_DIR)
