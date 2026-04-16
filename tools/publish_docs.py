@@ -34,9 +34,18 @@ def _npm(cmd: list[str], cwd: Path | None = None):
 
 
 def _extract_prerelease_tag(version: str) -> str | None:
-    """Extract prerelease tag: '3.0.10-SNAPSHOT' -> 'snapshot', '1.0.0-beta.1' -> 'beta'."""
-    match = re.match(r'^\d+\.\d+\.\d+-([a-zA-Z]+)', version)
-    return match.group(1).lower() if match else None
+    """Extract prerelease tag from semver: '1.0.0-SNAPSHOT' -> 'snapshot', '1.0.0-beta.1' -> 'beta'.
+
+    Returns None for non-semver versions like date-hash '2026.4.16-be5df6a'.
+    """
+    # Only match semver: major.minor.patch-prerelease (3 numeric components)
+    match = re.match(r'^(\d+)\.(\d+)\.(\d+)-([a-zA-Z]+)', version)
+    if not match:
+        return None
+    # Sanity: major < 1000 to distinguish semver from date-based YYYY.M.D
+    if int(match.group(1)) >= 1000:
+        return None
+    return match.group(4).lower()
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -115,30 +124,25 @@ def main():
         print(f"  Directory: {DOCS_DIR}")
         return
 
-    # Configure npm auth
+    # Configure npm auth — try token if available, otherwise rely on OIDC provenance
     token = os.environ.get("NODE_AUTH_TOKEN")
-    if not token:
-        raise SystemExit("NODE_AUTH_TOKEN environment variable is required for publishing")
-
-    # Write .npmrc with env var reference (npm resolves ${NODE_AUTH_TOKEN} at runtime).
-    # Also write to docs dir for project-level resolution.
-    npmrc_content = "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n"
-    for npmrc_path in [Path.home() / ".npmrc", DOCS_DIR / ".npmrc"]:
-        npmrc_path.write_text(npmrc_content)
-        print(f"Wrote {npmrc_path}")
-
-    # Verify auth works
-    whoami = subprocess.run(["npm", "whoami"], capture_output=True, text=True)
-    print(f"npm whoami: {whoami.stdout.strip() or whoami.stderr.strip()}")
+    if token:
+        npmrc_content = "//registry.npmjs.org/:_authToken=" + token + "\n"
+        for npmrc_path in [Path.home() / ".npmrc", DOCS_DIR / ".npmrc"]:
+            npmrc_path.write_text(npmrc_content)
+        print("Configured npm auth via token")
+    else:
+        print("No NODE_AUTH_TOKEN — will use OIDC provenance (requires id-token: write permission)")
 
     # 1. Set version in package.json
     _npm(["npm", "version", version, "--no-git-tag-version", "--allow-same-version"], cwd=DOCS_DIR)
 
-    # 2. Set repository URL
+    # 2. Set repository URL (required for provenance verification)
+    _npm(["npm", "pkg", "set", "repository.type=git"], cwd=DOCS_DIR)
     _npm(["npm", "pkg", "set", "repository.url=https://github.com/zio/izumi-reflect"], cwd=DOCS_DIR)
 
-    # 3+4. Publish with access=public inline (avoid npm config set overwriting .npmrc)
-    cmd = ["npm", "publish", "--access", "public"]
+    # 3. Publish
+    cmd = ["npm", "publish", "--access", "public", "--provenance"]
     prerelease_tag = _extract_prerelease_tag(version)
     if prerelease_tag:
         cmd += ["--tag", prerelease_tag]
