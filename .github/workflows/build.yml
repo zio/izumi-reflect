@@ -1,4 +1,4 @@
-name: Build (Bazel)
+name: Build
 
 on:
   workflow_dispatch:
@@ -10,8 +10,9 @@ on:
     branches: [ "develop" ]
 
 env:
-  # Bazel disk cache shared across jobs via GitHub Actions cache
   BAZEL_DISK_CACHE: ~/.cache/bazel-disk
+  # Override NixOS shell path from .bazelrc for Ubuntu CI runners
+  BAZEL_SHELL_FLAG: "--shell_executable=/bin/bash"
 
 jobs:
   checksecret:
@@ -58,14 +59,14 @@ jobs:
 
       - name: Build and Test
         run: |
-          nix develop --command bazel test //... \
+          nix develop --command bazel $BAZEL_SHELL_FLAG test //... \
             --test_tag_filters=${{ matrix.platform }} \
             --test_output=errors
 
       - name: MiMa check
         if: matrix.platform == 'jvm'
         run: |
-          nix develop --command bazel test //... \
+          nix develop --command bazel $BAZEL_SHELL_FLAG test //... \
             --test_tag_filters=mima \
             --test_output=errors
 
@@ -114,7 +115,7 @@ jobs:
           if [[ "${{ steps.version.outputs.is_snapshot }}" == "false" ]]; then
             BAZEL_CONFIG="--config=release"
           fi
-          nix develop --command bazel build //:maven-artifacts $BAZEL_CONFIG
+          nix develop --command bazel $BAZEL_SHELL_FLAG build //:maven-artifacts $BAZEL_CONFIG
 
       - name: Decrypt signing secrets
         env:

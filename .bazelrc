@@ -1,3 +1,6 @@
+# NixOS: /bin/bash doesn't exist. CI overrides this via --shell_executable=/bin/bash
+build --shell_executable=/run/current-system/sw/bin/bash
+
 # Use remote JDK 21 (no local JDK required)
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
