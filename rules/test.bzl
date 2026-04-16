@@ -277,7 +277,7 @@ def _generate_linked_runner(ctx, test_classes_file, runner_source):
         outputs = [runner_source],
         inputs = [test_classes_file, header, footer],
         command = (
-            "cp " + header.path + " " + runner_source.path + " && " +
+            "while IFS= read -r line; do printf '%s\\n' \"$line\"; done < " + header.path + " > " + runner_source.path + " && " +
             "first=true; " +
             "while IFS= read -r cls; do " +
             '  if [ -n "$cls" ]; then ' +
@@ -285,7 +285,7 @@ def _generate_linked_runner(ctx, test_classes_file, runner_source):
             '    printf "      new %s()" "$cls" >> ' + runner_source.path + "; " +
             "  fi; " +
             "done < " + test_classes_file.path + " && " +
-            "cat " + footer.path + " >> " + runner_source.path
+            "while IFS= read -r line; do printf '%s\\n' \"$line\"; done < " + footer.path + " >> " + runner_source.path
         ),
         mnemonic = "GenerateTestRunner",
     )

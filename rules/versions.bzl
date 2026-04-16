@@ -132,8 +132,8 @@ BASE_SCALAC_OPTS = [
 ]
 
 # Per-version scalac options
-# Backend parallelism placeholder — resolved to $(nproc)-1 at execution time.
-_BACKEND_PARALLELISM = "@@NPROC@@"
+# Backend parallelism — placeholder, resolved at execution time in scala.bzl
+_BACKEND_PARALLELISM = "@@NPROC@@"  # sentinel; never reaches scalac
 
 SCALAC_OPTS_211 = []
 

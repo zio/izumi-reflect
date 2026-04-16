@@ -127,7 +127,23 @@ def _scala_library_impl(ctx):
     for plugin_jar in plugin_jars:
         scalac_args_content.append("-Xplugin:" + plugin_jar.path)
 
-    scalac_args_content.extend(ctx.attr.scalac_opts)
+    # Filter out -Ybackend-parallelism @@NPROC@@ pair — parallelism is passed as a direct shell arg
+    has_nproc = False
+    skip_next = False
+    for opt in ctx.attr.scalac_opts:
+        if opt == "-Ybackend-parallelism":
+            skip_next = True
+            continue
+        if skip_next:
+            skip_next = False
+            if opt == "@@NPROC@@":
+                has_nproc = True
+            else:
+                # Not our sentinel — put both back
+                scalac_args_content.append("-Ybackend-parallelism")
+                scalac_args_content.append(opt)
+            continue
+        scalac_args_content.append(opt)
     scalac_args_content.extend([f.path for f in srcs])
 
     ctx.actions.write(
@@ -139,36 +155,43 @@ def _scala_library_impl(ctx):
     all_inputs = srcs + compiler_cp_files + dep_jars + plugin_jars + [scalac_argfile, compiler_cp_argfile]
     java_executable = ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.java_executable_exec_path
 
-    # Pre-create scoverage data directories. Instrumented library code writes
-    # measurements to hardcoded paths during macro expansion, so the dirs must
-    # exist even during compilation of dependents.
-    mkdir_cmds = "mkdir -p /tmp/scoverage/{izumi-reflect-thirdparty-boopickle-shaded,izumi-reflect}_{jvm,js,native}_{2.11,2.12,2.13,3} 2>/dev/null; "
+    # Pre-create scoverage data directories (only when scoverage is active)
+    mkdir_cmds = ""
     for opt in ctx.attr.scalac_opts:
         if opt.startswith("-P:scoverage:dataDir:") or opt.startswith("-coverage-out:"):
             d = opt.split(":")[-1]
-            mkdir_cmds += "mkdir -p '" + d + "' && "
+            # Use 'install -d' from coreutils or just ignore failures
+            mkdir_cmds += "mkdir -p '" + d + "' 2>/dev/null; mkdir -p /tmp/scoverage 2>/dev/null; "
 
-    # Resolve @@NPROC@@ placeholder in argfile to actual CPU count (capped at 16, min 1)
-    resolved_argfile = ctx.actions.declare_file(ctx.label.name + "_scalac_args_resolved.txt")
+    # Compute backend parallelism at execution time (pure bash, no external tools)
+    nproc_cmd = ""
+    if has_nproc:
+        nproc_cmd = (
+            "NPROC=0; while IFS= read -r line; do " +
+            'case "$line" in "processor"*) NPROC=$((NPROC+1));; esac; ' +
+            "done < /proc/cpuinfo 2>/dev/null || NPROC=8; " +
+            "NPROC=$((NPROC-1)); " +
+            "[ $NPROC -gt 16 ] && NPROC=16; [ $NPROC -lt 1 ] && NPROC=1; "
+        )
+
+    # Append -Ybackend-parallelism as direct args (after @argfile)
+    nproc_args = "-Ybackend-parallelism $NPROC" if has_nproc else ""
 
     ctx.actions.run_shell(
-        outputs = [classes_dir, resolved_argfile],
+        outputs = [classes_dir],
         inputs = depset(all_inputs),
         tools = [ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.files],
         command = (
-            "{mkdir}" +
-            "NPROC=$(( $(nproc 2>/dev/null || echo 8) - 1 )); " +
-            "NPROC=$(( NPROC > 16 ? 16 : NPROC )); " +
-            "NPROC=$(( NPROC < 1 ? 1 : NPROC )); " +
-            'sed "s/@@NPROC@@/$NPROC/g" {argfile} > {resolved} && ' +
-            '{java} -cp "$(cat {cp_file})" {main_class} "@{resolved}" '
+            "{mkdir}{nproc}" +
+            '{java} -cp "$(<{cp_file})" {main_class} "@{argfile}" {nproc_args}'
         ).format(
             mkdir = mkdir_cmds,
+            nproc = nproc_cmd,
             java = java_executable,
             cp_file = compiler_cp_argfile.path,
             main_class = main_class,
             argfile = scalac_argfile.path,
-            resolved = resolved_argfile.path,
+            nproc_args = nproc_args,
         ),
         mnemonic = "ScalaCompile",
         progress_message = "Compiling Scala (%s/%s) %s" % (ctx.attr.platform, ctx.attr.scala_version, ctx.label),
@@ -203,40 +226,29 @@ def _file_path(f):
 
 def _create_jar(ctx, classes_dir, output_jar, automatic_module_name = ""):
     """Create a JAR from a classes directory, optionally with Automatic-Module-Name manifest."""
-    jar_tool = ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.java_home + "/bin/jar"
-    manifest_cmd = ""
+    java_runtime = ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime
+    jar_tool = java_runtime.java_home + "/bin/jar"
+
+    inputs = [classes_dir]
+
     if automatic_module_name:
-        manifest_cmd = (
-            "MANIFEST=/tmp/manifest_$$; " +
-            "echo 'Manifest-Version: 1.0' > $MANIFEST; " +
-            "echo 'Automatic-Module-Name: " + automatic_module_name + "' >> $MANIFEST; "
-        )
-    jar_flag = "cfm" if automatic_module_name else "cf"
-    manifest_arg = "$MANIFEST " if automatic_module_name else ""
-    cleanup = "rm -f $MANIFEST; " if automatic_module_name else ""
+        manifest_file = ctx.actions.declare_file(ctx.label.name + "_MANIFEST.MF")
+        ctx.actions.write(manifest_file, "Manifest-Version: 1.0\nAutomatic-Module-Name: " + automatic_module_name + "\n")
+        inputs.append(manifest_file)
+        jar_cmd = "{jar} cfm {out} {manifest} -C {dir} ."
+    else:
+        manifest_file = None
+        jar_cmd = "{jar} cf {out} -C {dir} ."
 
     ctx.actions.run_shell(
         outputs = [output_jar],
-        inputs = [classes_dir],
-        tools = [ctx.toolchains["@bazel_tools//tools/jdk:toolchain_type"].java.java_runtime.files],
-        command = (
-            "{manifest_cmd}" +
-            'if [ -z "$(ls -A {dir})" ]; then ' +
-            "echo PK > /tmp/_empty_$$; " +
-            "{jar} {jar_flag} {out} {manifest_arg}-C /tmp _empty_$$; " +
-            "rm /tmp/_empty_$$; " +
-            "else " +
-            "{jar} {jar_flag} {out} {manifest_arg}-C {dir} .; " +
-            "fi; " +
-            "{cleanup}"
-        ).format(
-            manifest_cmd = manifest_cmd,
+        inputs = inputs,
+        tools = [java_runtime.files],
+        command = jar_cmd.format(
             jar = jar_tool,
-            jar_flag = jar_flag,
             out = output_jar.path,
-            manifest_arg = manifest_arg,
+            manifest = manifest_file.path if manifest_file else "",
             dir = classes_dir.path,
-            cleanup = cleanup,
         ),
         mnemonic = "ScalaJar",
         progress_message = "Packaging JAR %s" % ctx.label,

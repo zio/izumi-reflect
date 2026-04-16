@@ -74,36 +74,38 @@ def _maven_artifact_impl(ctx):
         dev_lines.append('    <developer><id>' + id + '</id><name>' + name + '</name></developer>')
     devs_xml = "\n".join(dev_lines)
 
-    # ── Generate POM from template via sed ──
+    # ── Generate POM directly (no external tools) ──
     pom_file = ctx.actions.declare_file(artifact_id + "-" + version + ".pom")
-    template = ctx.file._pom_template
-
-    # Write deps and devs to temp files for sed insertion
-    deps_file = ctx.actions.declare_file(artifact_id + "-deps.xml")
-    ctx.actions.write(deps_file, deps_xml)
-    devs_file = ctx.actions.declare_file(artifact_id + "-devs.xml")
-    ctx.actions.write(devs_file, devs_xml)
-
-    ctx.actions.run_shell(
-        outputs = [pom_file],
-        inputs = [template, deps_file, devs_file],
-        command = (
-            "sed" +
-            " -e 's|@@GROUP_ID@@|" + _GROUP_ID + "|g'" +
-            " -e 's|@@ARTIFACT_ID@@|" + artifact_id + "|g'" +
-            " -e 's|@@VERSION@@|" + version + "|g'" +
-            " -e 's|@@MODULE_NAME@@|" + ctx.attr.module_name + "|g'" +
-            " -e 's|@@URL@@|" + _URL + "|g'" +
-            " -e 's|@@LICENSE_NAME@@|" + _LICENSE_NAME + "|g'" +
-            " -e 's|@@LICENSE_URL@@|" + _LICENSE_URL + "|g'" +
-            " -e 's|@@SCM_URL@@|" + _SCM_URL + "|g'" +
-            " -e 's|@@SCM_CONNECTION@@|" + _SCM_CONNECTION + "|g'" +
-            " -e '/@@DEVELOPERS@@/{ r " + devs_file.path + "\n d }'" +
-            " -e '/@@DEPENDENCIES@@/{ r " + deps_file.path + "\n d }'" +
-            " " + template.path + " > " + pom_file.path
-        ),
-        mnemonic = "GeneratePOM",
-    )
+    pom_lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"',
+        '    xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
+        "  <modelVersion>4.0.0</modelVersion>",
+        "  <groupId>" + _GROUP_ID + "</groupId>",
+        "  <artifactId>" + artifact_id + "</artifactId>",
+        "  <version>" + version + "</version>",
+        "  <packaging>jar</packaging>",
+        "  <name>" + ctx.attr.module_name + "</name>",
+        "  <url>" + _URL + "</url>",
+        "  <licenses>",
+        "    <license>",
+        "      <name>" + _LICENSE_NAME + "</name>",
+        "      <url>" + _LICENSE_URL + "</url>",
+        "    </license>",
+        "  </licenses>",
+        "  <developers>",
+        devs_xml,
+        "  </developers>",
+        "  <scm>",
+        "    <url>" + _SCM_URL + "</url>",
+        "    <connection>" + _SCM_CONNECTION + "</connection>",
+        "  </scm>",
+        "  <dependencies>",
+        deps_xml,
+        "  </dependencies>",
+        "</project>",
+    ]
+    ctx.actions.write(pom_file, "\n".join(pom_lines) + "\n")
 
     # ── Sources JAR ──
     sources_jar = ctx.actions.declare_file(artifact_id + "-" + version + "-sources.jar")
@@ -120,29 +122,22 @@ def _maven_artifact_impl(ctx):
             mnemonic = "SourcesJar",
         )
     else:
-        ctx.actions.run_shell(
-            outputs = [sources_jar],
-            tools = [java_runtime.files],
-            command = "mkdir -p /tmp/e$$ && {jar} cf {out} -C /tmp/e$$ . && rm -rf /tmp/e$$".format(
-                jar = jar_tool, out = sources_jar.path,
-            ),
-            mnemonic = "EmptySourcesJar",
-        )
+        # Empty JAR — write via ctx.actions.write (no shell tools needed)
+        ctx.actions.write(sources_jar, "")
 
     # ── Copy compiled JAR with Maven naming ──
     output_jar = ctx.actions.declare_file(artifact_id + "-" + version + ".jar")
-    ctx.actions.run_shell(
-        outputs = [output_jar], inputs = [compiled_jar],
-        command = "cp " + compiled_jar.path + " " + output_jar.path,
-    )
+    ctx.actions.symlink(output = output_jar, target_file = compiled_jar)
 
     # ── Empty javadoc JAR ──
     javadoc_jar = ctx.actions.declare_file(artifact_id + "-" + version + "-javadoc.jar")
+    readme_file = ctx.actions.declare_file(artifact_id + "-javadoc-README")
+    ctx.actions.write(readme_file, "No Javadoc\n")
     ctx.actions.run_shell(
-        outputs = [javadoc_jar], tools = [java_runtime.files],
-        command = "mkdir -p /tmp/jd$$ && echo 'No Javadoc' > /tmp/jd$$/README && {jar} cf {out} -C /tmp/jd$$ . && rm -rf /tmp/jd$$".format(
-            jar = jar_tool, out = javadoc_jar.path,
-        ),
+        outputs = [javadoc_jar],
+        inputs = [readme_file],
+        tools = [java_runtime.files],
+        command = jar_tool + " cf " + javadoc_jar.path + " " + readme_file.path,
         mnemonic = "JavadocJar",
     )
 
@@ -173,10 +168,6 @@ maven_artifact = rule(
         "scala_version": attr.string(mandatory = True),
         "platform": attr.string(mandatory = True),
         "maven_deps": attr.string_list(default = []),
-        "_pom_template": attr.label(
-            default = "//rules:pom_template.xml",
-            allow_single_file = True,
-        ),
     },
     toolchains = ["@bazel_tools//tools/jdk:toolchain_type"],
 )

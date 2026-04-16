@@ -204,7 +204,7 @@
     },
     "//rules:mima.bzl%mima_previous_jars": {
       "general": {
-        "bzlTransitiveDigest": "kdBZyQaRTgshEFwMQgT0aCwO/3uewbVKUArrXJwquUg=",
+        "bzlTransitiveDigest": "bwWhUyp3KgdiX+wHYsoEviNNBJPfY48LICnefFsH6Yo=",
         "usagesDigest": "01Pw4Dyv83IOwcbOT8s0USlJ30q3mc6G+lrxTeif6kA=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
