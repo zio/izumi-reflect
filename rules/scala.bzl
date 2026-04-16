@@ -26,6 +26,11 @@ def _scala_library_impl(ctx):
             direct = [output_jar],
             transitive = [dep[ScalaInfo].runtime_jars for dep in ctx.attr.deps if ScalaInfo in dep],
         )
+        java_info = JavaInfo(
+            output_jar = output_jar,
+            compile_jar = output_jar,
+            deps = [dep[JavaInfo] for dep in ctx.attr.deps if JavaInfo in dep],
+        )
         return [
             DefaultInfo(files = depset([output_jar])),
             ScalaInfo(
@@ -35,6 +40,7 @@ def _scala_library_impl(ctx):
                 scala_version = scala_version,
                 platform = ctx.attr.platform,
             ),
+            java_info,
         ]
 
     # Output artifacts
@@ -210,6 +216,14 @@ def _scala_library_impl(ctx):
         transitive = [depset(runtime_dep_jars)],
     )
 
+    # JavaInfo for IDE integration (IntelliJ BSP uses this for classpath resolution)
+    java_info = JavaInfo(
+        output_jar = output_jar,
+        compile_jar = output_jar,
+        deps = [dep[JavaInfo] for dep in ctx.attr.deps if JavaInfo in dep],
+        runtime_deps = [dep[JavaInfo] for dep in ctx.attr.scala_library_classpath if JavaInfo in dep],
+    )
+
     return [
         DefaultInfo(files = depset([output_jar])),
         ScalaInfo(
@@ -219,6 +233,7 @@ def _scala_library_impl(ctx):
             scala_version = scala_version,
             platform = ctx.attr.platform,
         ),
+        java_info,
     ]
 
 def _file_path(f):
