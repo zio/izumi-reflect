@@ -102,12 +102,6 @@ filegroup(
     ],
 )
 
-# Publish runner — invoke via: bazel run //:publish -- [args]
-sh_binary(
-    name = "publish",
-    srcs = ["tools/publish_wrapper.sh"],
-    data = [
-        ":maven-artifacts",
-        "tools/publish.py",
-    ],
-)
+# Publishing: run directly after `bazel build //:maven-artifacts`
+#   python3 tools/publish.py [--dry-run] [--snapshot] [--gpg-key=KEYID]
+#   python3 tools/publish_docs.py [--dry-run]
