@@ -1,5 +1,6 @@
 "Scala Native linking rule — links compiled .nir JARs into a native executable."
 
+load("@rules_java//java:defs.bzl", "JavaInfo")
 load("//rules:providers.bzl", "ScalaInfo")
 
 def _scala_native_link_impl(ctx):

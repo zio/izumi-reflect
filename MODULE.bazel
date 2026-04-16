@@ -3,8 +3,8 @@ module(
     version = "3.0.10-SNAPSHOT",
 )
 
-bazel_dep(name = "rules_java", version = "7.6.1")
-bazel_dep(name = "rules_jvm_external", version = "6.6")
+bazel_dep(name = "rules_java", version = "9.0.3")
+bazel_dep(name = "rules_jvm_external", version = "6.7")
 
 # ── Version constants (single source of truth for MODULE.bazel) ───────
 # Scala compiler versions are also defined in rules/versions.bzl for use

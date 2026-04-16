@@ -1,5 +1,6 @@
 "Core Scala compilation rule for JVM targets."
 
+load("@rules_java//java:defs.bzl", "JavaInfo")
 load("//rules:providers.bzl", "ScalaInfo")
 load("//rules:versions.bzl", "scalac_main_class", "scala_major")
 

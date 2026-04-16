@@ -63,18 +63,6 @@ def extract_docs_from_readme() -> str:
     return "\n".join(sections)
 
 
-def get_version_from_sbt() -> str:
-    """Read version from version.sbt."""
-    version_sbt = PROJECT_ROOT / "version.sbt"
-    if not version_sbt.exists():
-        raise SystemExit("version.sbt not found")
-    content = version_sbt.read_text()
-    match = re.search(r'"([^"]+)"', content)
-    if not match:
-        raise SystemExit("Could not parse version from version.sbt")
-    return match.group(1)
-
-
 def get_docs_version() -> str:
     """Generate a docs version matching zio-sbt-website format: YYYY.M.D-<short_commit_hash>."""
     from datetime import date

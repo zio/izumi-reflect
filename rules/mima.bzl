@@ -1,5 +1,6 @@
 "MiMa (Migration Manager) binary compatibility checking."
 
+load("@rules_java//java:defs.bzl", "JavaInfo")
 load("//rules:providers.bzl", "ScalaInfo")
 load("//rules:versions.bzl", "scala_binary_version")
 

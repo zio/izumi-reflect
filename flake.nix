@@ -25,19 +25,12 @@
       {
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs.buildPackages; [
-            ncurses
-
-            coursier
-            sbt
             bazel
+            python3
+            clang
 
             nodejs
             nodePackages.npm
-
-            clang
-            llvmPackages.libcxxClang
-
-            python3
 
             gitMinimal
             gnupg

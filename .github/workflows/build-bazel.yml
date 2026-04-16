@@ -100,7 +100,7 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          VERSION=$(grep -oP '"[^"]+"' version.sbt | tr -d '"')
+          VERSION=$(python3 -c "import json; print(json.load(open('versions.json'))['project'])")
           IS_SNAPSHOT=$([[ "$VERSION" == *SNAPSHOT* ]] && echo true || echo false)
           IS_TAG=$([[ "${{ github.ref_type }}" == "tag" ]] && echo true || echo false)
           echo "version=$VERSION" >> $GITHUB_OUTPUT

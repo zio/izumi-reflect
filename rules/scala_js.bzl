@@ -1,5 +1,6 @@
 "Scala.js linking rule — links compiled .sjsir JARs into JavaScript output."
 
+load("@rules_java//java:defs.bzl", "JavaInfo")
 load("//rules:providers.bzl", "ScalaInfo")
 
 def _scala_js_link_impl(ctx):
