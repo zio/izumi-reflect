@@ -124,7 +124,7 @@ def main():
 
     # Replicate zio-sbt-website publishToNpm sequence exactly:
     # 1. Set version in package.json (without git tag)
-    _npm(["npm", "version", version, "--no-git-tag-version"], cwd=DOCS_DIR)
+    _npm(["npm", "version", version, "--no-git-tag-version", "--allow-same-version"], cwd=DOCS_DIR)
 
     # 2. Set repository URL for npm provenance verification
     _npm(["npm", "pkg", "set", f"repository.url=https://github.com/zio/izumi-reflect"], cwd=DOCS_DIR)
