@@ -102,19 +102,25 @@ def main():
         print(f"  Files: {', '.join(f.name for f in DOCS_DIR.iterdir() if f.is_file())}")
         return
 
-    # Configure npm auth from NODE_AUTH_TOKEN env var
+    # Configure npm auth from NODE_AUTH_TOKEN env var (matches SBT action: writes to ~/.npmrc)
     token = os.environ.get("NODE_AUTH_TOKEN")
     if not token:
         raise SystemExit("NODE_AUTH_TOKEN environment variable is required for publishing")
     registry = args.registry or "https://registry.npmjs.org/"
-    npmrc = DOCS_DIR / ".npmrc"
+    npmrc = Path.home() / ".npmrc"
     npmrc.write_text(f"//{registry.removeprefix('https://').removesuffix('/')}/:_authToken={token}\n")
 
+    # Verify auth
+    whoami = subprocess.run(["npm", "whoami"], capture_output=True, text=True)
+    if whoami.returncode == 0:
+        print(f"Authenticated as: {whoami.stdout.strip()}")
+    else:
+        print(f"Warning: npm whoami failed: {whoami.stderr.strip()}")
+
     # Publish to NPM
-    cmd = ["npm", "publish", "--access", "public", "--registry", registry]
+    cmd = ["npm", "publish", "--access", "public"]
     print(f"Running: {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd=DOCS_DIR)
-    npmrc.unlink(missing_ok=True)
     if result.returncode != 0:
         raise SystemExit(f"npm publish failed with exit code {result.returncode}")
 
