@@ -102,10 +102,12 @@ filegroup(
     ],
 )
 
-# Publish runner
-py_binary(
+# Publish runner — invoke via: bazel run //:publish -- [args]
+sh_binary(
     name = "publish",
-    srcs = ["tools/publish.py"],
-    data = [":maven-artifacts"],
-    main = "tools/publish.py",
+    srcs = ["tools/publish_wrapper.sh"],
+    data = [
+        ":maven-artifacts",
+        "tools/publish.py",
+    ],
 )
