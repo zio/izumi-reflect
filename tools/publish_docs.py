@@ -75,14 +75,28 @@ def get_version_from_sbt() -> str:
     return match.group(1)
 
 
+def get_docs_version() -> str:
+    """Generate a docs version matching zio-sbt-website format: YYYY.M.D-<short_commit_hash>."""
+    from datetime import date
+    today = date.today()
+    version_date = f"{today.year}.{today.month}.{today.day}"
+    result = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        capture_output=True, text=True, cwd=PROJECT_ROOT,
+    )
+    commit_hash = result.stdout.strip() if result.returncode == 0 else "0000000"
+    return f"{version_date}-{commit_hash}"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Publish documentation to NPM")
-    parser.add_argument("--version", default=None, help="Package version")
+    parser.add_argument("--version", default=None,
+                        help="Package version (default: YYYY.M.D-<commit>, matching zio-sbt-website)")
     parser.add_argument("--dry-run", action="store_true", help="Don't actually publish")
     parser.add_argument("--registry", default=None, help="NPM registry URL")
     args = parser.parse_args()
 
-    version = args.version or get_version_from_sbt()
+    version = args.version or get_docs_version()
     print(f"Publishing docs version: {version}")
 
     # Extract docs from README
