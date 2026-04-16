@@ -157,16 +157,8 @@ jobs:
       - name: Publish Docs to NPM Registry
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
-          CI_BRANCH: ${{ github.ref_name }}
-          CI_BRANCH_TAG: ${{ github.ref_name }}
         run: |
-          # Use SBT + zio-sbt-website plugin for docs publishing (handles npm auth internally)
-          cp .mdl/resources/zio-docs.sbt zio-docs.sbt
-          awk '/<!--- docs:start --->/,/<!--- docs:end --->/' README.md >> docs/index.md
-          sed -i '/<!--- docs:start --->/d;/<!--- docs:end --->/d' docs/index.md
-          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
-          nix develop --command sbt -batch docs/publishToNpm
+          nix develop --command python3 tools/publish_docs.py
 
       - name: Notify the main repo about the new release of docs package
         run: |

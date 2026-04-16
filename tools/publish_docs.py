@@ -25,6 +25,20 @@ import sys
 from pathlib import Path
 
 
+def _npm(cmd: list[str], cwd: Path | None = None):
+    """Run an npm command, raise on failure."""
+    print(f"  $ {' '.join(cmd)}")
+    result = subprocess.run(cmd, cwd=cwd)
+    if result.returncode != 0:
+        raise SystemExit(f"Command failed (exit {result.returncode}): {' '.join(cmd)}")
+
+
+def _extract_prerelease_tag(version: str) -> str | None:
+    """Extract prerelease tag: '3.0.10-SNAPSHOT' -> 'snapshot', '1.0.0-beta.1' -> 'beta'."""
+    match = re.match(r'^\d+\.\d+\.\d+-([a-zA-Z]+)', version)
+    return match.group(1).lower() if match else None
+
+
 PROJECT_ROOT = Path(__file__).parent.parent
 DOCS_DIR = PROJECT_ROOT / "docs"
 README = PROJECT_ROOT / "README.md"
@@ -89,40 +103,41 @@ def main():
     INDEX_MD.write_text(new_index)
     print(f"Updated docs/index.md ({len(new_index.splitlines())} lines)")
 
-    # Update package.json version
     pkg = json.loads(PACKAGE_JSON.read_text())
-    pkg["version"] = version
-    PACKAGE_JSON.write_text(json.dumps(pkg, indent=2) + "\n")
-    print(f"Updated docs/package.json to version {version}")
 
     if args.dry_run:
-        print("\nDry run — would publish:")
+        print(f"\nDry run — would publish:")
         print(f"  Package: {pkg['name']}@{version}")
+        tag = _extract_prerelease_tag(version)
+        print(f"  Tag: {tag or 'latest'}")
         print(f"  Directory: {DOCS_DIR}")
-        print(f"  Files: {', '.join(f.name for f in DOCS_DIR.iterdir() if f.is_file())}")
         return
 
-    # Configure npm auth from NODE_AUTH_TOKEN env var (matches SBT action: writes to ~/.npmrc)
+    # Configure npm auth (writes to ~/.npmrc, matching zio-sbt-website behavior)
     token = os.environ.get("NODE_AUTH_TOKEN")
     if not token:
         raise SystemExit("NODE_AUTH_TOKEN environment variable is required for publishing")
     registry = args.registry or "https://registry.npmjs.org/"
+    registry_host = registry.removeprefix("https://").removesuffix("/")
     npmrc = Path.home() / ".npmrc"
-    npmrc.write_text(f"//{registry.removeprefix('https://').removesuffix('/')}/:_authToken={token}\n")
+    npmrc.write_text(f"//{registry_host}/:_authToken={token}\n")
 
-    # Verify auth
-    whoami = subprocess.run(["npm", "whoami"], capture_output=True, text=True)
-    if whoami.returncode == 0:
-        print(f"Authenticated as: {whoami.stdout.strip()}")
-    else:
-        print(f"Warning: npm whoami failed: {whoami.stderr.strip()}")
+    # Replicate zio-sbt-website publishToNpm sequence exactly:
+    # 1. Set version in package.json (without git tag)
+    _npm(["npm", "version", version, "--no-git-tag-version"], cwd=DOCS_DIR)
 
-    # Publish to NPM
-    cmd = ["npm", "publish", "--access", "public"]
-    print(f"Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd, cwd=DOCS_DIR)
-    if result.returncode != 0:
-        raise SystemExit(f"npm publish failed with exit code {result.returncode}")
+    # 2. Set repository URL for npm provenance verification
+    _npm(["npm", "pkg", "set", f"repository.url=https://github.com/zio/izumi-reflect"], cwd=DOCS_DIR)
+
+    # 3. Configure public access
+    _npm(["npm", "config", "set", "access", "public"])
+
+    # 4. Publish with prerelease tag if applicable
+    prerelease_tag = _extract_prerelease_tag(version)
+    cmd = ["npm", "publish"]
+    if prerelease_tag:
+        cmd += ["--tag", prerelease_tag]
+    _npm(cmd, cwd=DOCS_DIR)
 
     print(f"Published {pkg['name']}@{version}")
 
