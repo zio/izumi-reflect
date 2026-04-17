@@ -933,6 +933,19 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertChildStrict(t1, t2)
     }
 
+    "support named types as children of refinements with concrete type members" in {
+      trait A481 { type T }
+      trait AInt481 extends A481 { type T = Int }
+      trait AString481 extends A481 { type T = String }
+      trait AIntChild481 extends AInt481
+
+      assertChild(LTT[AInt481], LTT[A481 { type T = Int }])
+      assertChild(LTT[AString481], LTT[A481 { type T = String }])
+      assertChild(LTT[AIntChild481], LTT[A481 { type T = Int }])
+      assertNotChild(LTT[AInt481], LTT[A481 { type T = String }])
+      assertNotChild(LTT[AString481], LTT[A481 { type T = Int }])
+    }
+
     "support human-readable representation" in {
       type TX[B] = Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[B, A] }
       val txTag = `LTT[_]`[TX]

@@ -181,9 +181,55 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         }
       }
 
-      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
+      val refinementParentRefs = if (onlyIndirect) {
+        Nil
+      } else {
+        val concreteDecls = (concreteTypeMemberDecls(tpe, tpe) ++ baseTypes.flatMap(concreteTypeMemberDecls(tpe, _))).toSet
+        baseTypes.flatMap(refinementParentRef(selfRef, _, concreteDecls))
+      }
+
+      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs ::: refinementParentRefs
 
       argBasesRefs ::: mainBasesRefs
+    }
+
+    private def refinementParentRef(childRef: AbstractReference, parentTpe: TypeRepr, decls: Set[RefinementDecl]): List[(AbstractReference, AbstractReference)] = {
+      if (decls.isEmpty) {
+        Nil
+      } else {
+        inspector.inspectTypeRepr(parentTpe) match {
+          case parentRef: AppliedReference =>
+            List(childRef -> LightTypeTagRef.Refinement(parentRef, decls))
+          case _ =>
+            Nil
+        }
+      }
+    }
+
+    private def concreteTypeMemberDecls(childTpe: TypeRepr, parentTpe: TypeRepr): Set[RefinementDecl] = {
+      (parentTpe.typeSymbol.declarations.iterator ++ childTpe.typeSymbol.declarations.iterator)
+        .filter(s => s.isTypeDef && !s.isTypeParam && !s.isClassDef)
+        .flatMap {
+          member =>
+            concreteTypeMemberRef(childTpe.memberType(member))
+              .map(ref => RefinementDecl.TypeMember(member.name, ref): RefinementDecl)
+        }
+        .toSet
+    }
+
+    private def concreteTypeMemberRef(memberTpe: TypeRepr): Option[AbstractReference] = {
+      memberTpe match {
+        case tb: TypeBounds =>
+          val low = tb.low._dealiasSimplifiedFull
+          val hi = tb.hi._dealiasSimplifiedFull
+          if (low =:= hi && !(low =:= defn.NothingClass.typeRef && hi =:= defn.AnyClass.typeRef)) {
+            Some(inspector.inspectTypeRepr(hi))
+          } else {
+            None
+          }
+        case other =>
+          Some(inspector.inspectTypeRepr(other))
+      }
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
