@@ -232,9 +232,29 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Iterator[Type]): List[(AbstractReference, AbstractReference)] = {
 
-    val appliedBases = allReferenceComponents
+    val components = allReferenceComponents
       .filterNot(isHKTOrPolyTypeOrResultTypeArtifact) // remove PolyTypes, only process applied types in this inspection
       .filterNot(isExistentialArtifact) // remove forSome artifacts in Scala 2.11 && 2.12
+      .toList
+
+    def makeParentRef(parentTpe: Type, lambdaParams: Map[String, SymName.LambdaParamName]): AbstractReference = {
+      makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
+        case unapplied: Lambda =>
+          if (unapplied.someArgumentsReferenced) {
+            unapplied
+          } else {
+            logger.log(
+              s"No arguments referenced in l=$unapplied, parentTpe=$parentTpe(etaExpand:${parentTpe.etaExpand}), " +
+              s"tparams=${lambdaParams.keys}, mainTpe=$mainTpe(etaExpand:${mainTpe.etaExpand})"
+            )
+            unapplied.output
+          }
+        case applied: AppliedReference =>
+          applied
+      }
+    }
+
+    val appliedBases = components.iterator
       .flatMap {
         component =>
           val tparams = component.etaExpand.typeParams
@@ -245,19 +265,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
           appliedParents.map {
             parentTpe =>
-              val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
-                case unapplied: Lambda =>
-                  if (unapplied.someArgumentsReferenced) {
-                    unapplied
-                  } else {
-                    logger.log(
-                      s"No arguments referenced in l=$unapplied, parentTpe=$parentTpe(etaExpand:${parentTpe.etaExpand}), tparams=$tparams, mainTpe=$mainTpe(etaExpand:${mainTpe.etaExpand})"
-                    )
-                    unapplied.output
-                  }
-                case applied: AppliedReference =>
-                  applied
-              }
+              val parentRef = makeParentRef(parentTpe, lambdaParams)
               (componentRef, parentRef)
           }
       }
@@ -267,8 +275,41 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           parent == t
       }
       .toList
+
+    val refinementBases = components.iterator
+      .flatMap {
+        component =>
+          val tparams = component.etaExpand.typeParams
+          val lambdaParams = makeLambdaParams(None, tparams).toMap
+          val componentRef = makeRef(component)
+          val appliedParents = tpeBases(component).filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
+          val concreteDecls = (concreteTypeMemberDecls(component, component) ++ appliedParents.flatMap(concreteTypeMemberDecls(component, _))).toSet
+
+          appliedParents.flatMap {
+            parentTpe =>
+              if (concreteDecls.isEmpty) {
+                Nil
+              } else {
+                makeParentRef(parentTpe, lambdaParams) match {
+                  case parentRef: AppliedReference =>
+                    List(componentRef -> Refinement(parentRef, concreteDecls))
+                  case _ =>
+                    Nil
+                }
+              }
+          }
+      }
+      .filterNot {
+        case (t, parent) =>
+          parent == t
+      }
+      .toList
+
     logger.log(s"Computed applied bases for tpe=$mainTpe appliedBases=${appliedBases.toMultimap.niceList()}")
-    appliedBases
+    if (refinementBases.nonEmpty) {
+      logger.log(s"Computed refinement bases for tpe=$mainTpe refinementBases=${refinementBases.toMultimap.niceList()}")
+    }
+    appliedBases ++ refinementBases
   }
 
   private[this] def makeLambdaOnlyBases(mainTpe: Type, allReferenceComponents: Iterator[Type]): List[(AbstractReference, AbstractReference)] = {
@@ -411,6 +452,35 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       .filterNot(if (isSingletonType(tpe)) _ => false else _.typeSymbol.fullName == tpe.typeSymbol.fullName)
       .filterNot(_ =:= tpe) // 2.11/2.12 fail this
       .toList
+  }
+
+  private[this] def concreteTypeMemberDecls(childTpe: Type, parentTpe: Type): Set[RefinementDecl] = {
+    val parent = Dealias.fullNormDealias(parentTpe)
+    val child = Dealias.fullNormDealias(childTpe)
+    (parent.typeSymbol.typeSignature.decls.iterator ++ child.typeSymbol.typeSignature.decls.iterator)
+      .filter(sym => sym.isType && !sym.isClass && !sym.isParameter)
+      .flatMap {
+        member =>
+          concreteTypeMemberRef(childTpe, member)
+            .map(ref => RefinementDecl.TypeMember(member.name.decodedName.toString, ref): RefinementDecl)
+      }
+      .toSet
+  }
+
+  private[this] def concreteTypeMemberRef(childTpe: Type, member: Symbol): Option[AbstractReference] = {
+    val memberTpe = member.typeSignatureIn(childTpe)
+    memberTpe match {
+      case b: TypeBoundsApi =>
+        if ((b.lo =:= b.hi) && !(b.lo =:= nothing && b.hi =:= any) && !b.hi.takesTypeArgs) {
+          Some(makeRef(b.hi))
+        } else {
+          None
+        }
+      case tpe if !tpe.takesTypeArgs =>
+        Some(makeRef(tpe))
+      case _ =>
+        None
+    }
   }
 
   private[this] def makeRef(tpe: Type): AbstractReference = {
