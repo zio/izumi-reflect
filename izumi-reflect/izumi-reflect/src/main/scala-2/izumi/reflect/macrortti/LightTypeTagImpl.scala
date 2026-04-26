@@ -403,12 +403,29 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     }
 
-    (upperBound.iterator ++ tpe
+    val selfDecls = if (!tpe.isInstanceOf[RefinedTypeApi] && tpe.decls.nonEmpty) {
+      val parents = tpe match {
+        case info: ClassInfoTypeApi => info.parents
+        case _ => tpe.parents
+      }
+      if (parents.nonEmpty) {
+        List(internal.refinedType(parents, tpe.decls))
+      } else {
+        Nil
+      }
+    } else {
+      Nil
+    }
+
+    (upperBound.iterator ++ selfDecls.iterator ++ tpe
       .baseClasses
       .iterator
       .map(tpe.baseType))
       .filterNot(ignored)
-      .filterNot(if (isSingletonType(tpe)) _ => false else _.typeSymbol.fullName == tpe.typeSymbol.fullName)
+      .filterNot(if (isSingletonType(tpe)) _ => false else {
+        case _: RefinedTypeApi => false
+        case other => other.typeSymbol.fullName == tpe.typeSymbol.fullName
+      })
       .filterNot(_ =:= tpe) // 2.11/2.12 fail this
       .toList
   }
