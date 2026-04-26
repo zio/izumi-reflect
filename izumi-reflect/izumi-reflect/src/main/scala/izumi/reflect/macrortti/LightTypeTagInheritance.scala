@@ -224,7 +224,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       ln == rn && compareBounds(ctx)(lref, rBounds)
     case (RefinementDecl.TypeMember(ln, lref), RefinementDecl.TypeMember(rn, rref)) =>
       // if the rhs type is not abstract (has form `type X = Int`), then lhs must be exactly equal to it, not <:
-      ln == rn && lref == rref
+      ln == rn && ctx.isChild(lref, rref) && ctx.isChild(rref, lref)
     case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
       (ln == rn
         && lins.iterator.zipAll(rins.iterator, null, null).forall {
@@ -248,7 +248,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
                 case wc: LightTypeTagRef.WildcardReference =>
                   compareBounds(ctx)(ps.ref, wc.boundaries)
                 case _ =>
-                  ps.ref == pt.ref
+                  ctx.isChild(ps.ref, pt.ref) && ctx.isChild(pt.ref, ps.ref)
               }
 
             case Variance.Contravariant =>
