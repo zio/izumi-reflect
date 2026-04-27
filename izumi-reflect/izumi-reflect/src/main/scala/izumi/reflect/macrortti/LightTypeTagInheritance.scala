@@ -129,6 +129,7 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       case (s: NameReference, t: NameReference) =>
         val boundIsOk = compareBounds(ctx)(s, t.boundaries)
         any(
+          (s.ref == t.ref && s.prefix == t.prefix) && boundIsOk,
           boundIsOk && any(
             oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t),
             oneOfUnparameterizedParentsIsInheritedFrom(ctx)(s, t),
