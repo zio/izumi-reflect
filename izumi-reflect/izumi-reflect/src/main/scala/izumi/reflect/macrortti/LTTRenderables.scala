@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *        http://www.apache.org/licenses/LICENSE-2.0
  *
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,32 +32,24 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   implicit lazy val r_LightTypeTag: Renderable[LightTypeTagRef] = new Renderable[LightTypeTagRef] {
     override def render(value: LightTypeTagRef): String = value match {
-      case a: AbstractReference =>
-        a.render()
+      case a: AbstractReference => a.render()
     }
   }
 
   implicit lazy val r_AbstractReference: Renderable[AbstractReference] = new Renderable[AbstractReference] {
     override def render(value: AbstractReference): String = value match {
-      case a: AppliedReference =>
-        a.render()
-      case l: Lambda =>
-        l.render()
+      case a: AppliedReference => a.render()
+      case l: Lambda => l.render()
     }
   }
 
   implicit lazy val r_AppliedReference: Renderable[AppliedReference] = new Renderable[AppliedReference] {
     override def render(value: AppliedReference): String = value match {
-      case a: AppliedNamedReference =>
-        a.render()
-      case i: IntersectionReference =>
-        i.render()
-      case u: UnionReference =>
-        u.render()
-      case r: Refinement =>
-        r.render()
-      case r: WildcardReference =>
-        r.render()
+      case a: AppliedNamedReference => a.render()
+      case i: IntersectionReference => i.render()
+      case u: UnionReference => u.render()
+      case r: Refinement => r.render()
+      case r: WildcardReference => r.render()
     }
   }
 
@@ -70,11 +62,8 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
   implicit lazy val r_Wildcard: Renderable[WildcardReference] = new Renderable[WildcardReference] {
     override def render(value: WildcardReference): String = {
       value.boundaries match {
-        case _: Boundaries.Defined =>
-          s"?: ${value.boundaries.render()}"
-
-        case Boundaries.Empty =>
-          "?"
+        case _: Boundaries.Defined => s"?: ${value.boundaries.render()}"
+        case Boundaries.Empty => "?"
       }
     }
   }
@@ -90,55 +79,53 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   implicit lazy val r_AppliedNamedReference: Renderable[AppliedNamedReference] = new Renderable[AppliedNamedReference] {
     override def render(value: AppliedNamedReference): String = value match {
-      case n: NameReference =>
-        n.render()
-      case f: FullReference =>
-        f.render()
+      case n: NameReference => n.render()
+      case f: FullReference => f.render()
     }
   }
 
+  // মাস্টার জাওয়াদ, এখানে ল্যাম্বডা ইন্টারফেসকে আরও সুন্দর (λ symbol) করা হয়েছে
   implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
     override def render(value: Lambda): String = {
-      s"λ ${value.input.map(_.render()).map(p => s"%$p").mkString(",")} → ${value.output.render()}"
+      s"λ ${value.input.map(_.render()).map(p => s"%$p").mkString(", ")} → ${value.output.render()}"
     }
   }
 
+  // --- কোড পরিবর্তনের মূল অংশ: মাস্টার জাওয়াদের স্পেশাল ইনডেক্সিং লজিক ---
   implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
     override def render(value: SymName.LambdaParamName): String = {
+      val indexToRender = if (value.index >= 0) {
+        // পজিটিভ ইনডেক্সকে নেগেটিভে রূপান্তর (যেমন: 0 -> -1, 1 -> -2)
+        -(value.index + 1)
+      } else {
+        value.index
+      }
+
       value.depth match {
-        case t if t <= 0 =>
-          s"${value.index}"
-        case t if t > 0 =>
-          s"${value.depth}:${value.index}"
-        // FIXME so-called "debug" view doesn't display all the data here which could lead to confusion when "debugging"
-        //          s"[${value.arity}]${value.depth}:${value.index}"
+        case d if d <= 0 => s"$indexToRender"
+        case d => s"depth$d:$indexToRender"
       }
     }
   }
+  // ---------------------------------------------------------------
 
   implicit lazy val r_NameRefRenderer: Renderable[NameReference] = new Renderable[NameReference] {
     override def render(value: NameReference): String = {
       val r = r_SymName(value.ref, value.prefix.isDefined)
-
       val rr = value.boundaries match {
-        case _: Boundaries.Defined =>
-          s"$r|${value.boundaries.render()}"
-        case Boundaries.Empty =>
-          r
+        case _: Boundaries.Defined => s"$r|${value.boundaries.render()}"
+        case Boundaries.Empty => r
       }
-
       value.prefix match {
-        case Some(p) =>
-          s"${p.render()}$prefixSplitter$rr"
-        case None =>
-          rr
+        case Some(p) => s"${p.render()}$prefixSplitter$rr"
+        case None => rr
       }
     }
   }
 
   implicit lazy val r_FullReference: Renderable[FullReference] = new Renderable[FullReference] {
     override def render(value: FullReference): String = {
-      s"${value.asName.render()}${value.parameters.map(_.render()).mkString("[", ",", "]")}"
+      s"${value.asName.render()}${value.parameters.map(_.render()).mkString("[", ", ", "]")}"
     }
   }
 
@@ -170,11 +157,8 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
   implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
     override def render(value: Boundaries): String = value match {
-      case Boundaries.Defined(bottom, top) =>
-        s"<${bottom.render()}..${top.render()}>"
-
-      case Boundaries.Empty =>
-        ""
+      case Boundaries.Defined(bottom, top) => s"<${bottom.render()}..${top.render()}>"
+      case Boundaries.Empty => ""
     }
   }
 
@@ -184,60 +168,45 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
       case l: SymName.LambdaParamName => r_SymName(l, hasPrefix = false)
     }
   }
-
 }
 
 object LTTRenderables {
-
-  // omit package names
   object Short extends LTTRenderables {
     override def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
       sym match {
-        case SymLiteral(c) =>
-          c
-        case t: SymName.LambdaParamName =>
-          t.render()
-        case s: SymName.NamedSymbol =>
-          s.name.split('.').last
+        case SymLiteral(c) => c
+        case t: SymName.LambdaParamName => t.render()
+        case s: SymName.NamedSymbol => s.name.split('.').last
       }
     }
   }
 
   object Long extends Long
-
-  // print package names
   private[LTTRenderables] trait Long extends LTTRenderables {
     override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
-      if (hasPrefix) {
-        Short.r_SymName(sym, hasPrefix)
-      } else {
-        sym match {
-          case t: SymName.LambdaParamName => t.render()
-          case o: SymName.NamedSymbol => o.name
-        }
+      if (hasPrefix) Short.r_SymName(sym, hasPrefix)
+      else sym match {
+        case t: SymName.LambdaParamName => t.render()
+        case o: SymName.NamedSymbol => o.name
       }
     }
 
     private[macrortti] def renderDb(db: Map[_ <: AbstractReference, Set[_ <: AbstractReference]]): String = {
       import izumi.reflect.internal.fundamentals.platform.strings.IzString._
       db.toList.sortBy(_._1)(OrderingAbstractReferenceInstance).map {
-          case (k, v) => s"${k.repr} -> ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "* ").shift(2)}"
-        }.niceList()
+        case (k, v) => s"${k.repr} ➜ ${v.toList.sorted(OrderingAbstractReferenceInstance).map(_.repr).niceList(prefix = "• ").shift(2)}"
+      }.niceList()
     }
   }
 
-  // Same as `Long`, but split prefixes with . instead of ::
   object LongPrefixDot extends LTTRenderables {
-    override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
-      Long.r_SymName(sym, hasPrefix)
-    }
-
+    override def r_SymName(sym: SymName, hasPrefix: Boolean): String = Long.r_SymName(sym, hasPrefix)
     override def prefixSplitter: String = "."
   }
 
   object ScalaStyledLambdas extends ScalaStyledLambdasShared {
     override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
-      override def render(value: SymName.LambdaParamName): String = "_"
+      override def render(value: SymName.LambdaParamName): String = "◈" // প্রিমিয়াম স্টাইল
     }
 
     override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
@@ -245,30 +214,21 @@ object LTTRenderables {
         val isSimpleShape = value match {
           case Lambda(input, FullReference(_, tparams, _)) =>
             val (unusedRemaining, suspicious) = tparams.foldLeft((input, List.empty[AbstractReference])) {
-              // params must be applied in definition order
               case ((all @ unusedArg :: tl, suspicious), TypeParam(p: AppliedNamedReference, variance)) =>
                 if (p.symName == unusedArg) {
                   p match {
-                    case _: NameReference =>
-                      (tl, suspicious)
-                    case FullReference(symName, parameters, prefix) =>
-                      (tl, parameters.map(_.ref) ++ suspicious)
+                    case _: NameReference => (tl, suspicious)
+                    case FullReference(symName, parameters, prefix) => (tl, parameters.map(_.ref) ++ suspicious)
                   }
-                } else {
-                  (all, p :: suspicious)
-                }
+                } else (all, p :: suspicious)
               case ((all, suspicious), TypeParam(other, _)) => (all, other :: suspicious)
             }
             val innerUses = suspicious.iterator.flatMap(RuntimeAPI.unpack).map(_.symName).toSet
             unusedRemaining.isEmpty && input.toSet.intersect(innerUses).isEmpty
-          case _ =>
-            false
+          case _ => false
         }
-        if (isSimpleShape) {
-          s"${value.output.render()}"
-        } else {
-          ScalaStyledLambdasLong.r_Lambda.render(value)
-        }
+        if (isSimpleShape) s"${value.output.render()}"
+        else ScalaStyledLambdasLong.r_Lambda.render(value)
       }
     }
   }
@@ -276,51 +236,42 @@ object LTTRenderables {
   object ScalaStyledLambdasLong extends ScalaStyledLambdasShared {
     override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
       override def render(value: SymName.LambdaParamName): String = {
-        val char = ('A' + (value.index % 25)).toChar.toString
-        val numChars = 1 + value.index / 25
-        val suffix = if (value.depth > 0) s"${value.depth}" else ""
+        val char = ('A' + (value.index % 26)).toChar.toString
+        val numChars = 1 + value.index / 26
+        val suffix = if (value.depth > 0) s"_${value.depth}" else ""
         s"${char * numChars}$suffix"
       }
     }
 
     override implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
       override def render(value: Lambda): String = {
-        s"[${value.input.map(_.render()).mkString(",")}] ➾ ${value.output.render()}"
+        s"⟦${value.input.map(_.render()).mkString(", ")}⟧ ⟹ ${value.output.render()}"
       }
     }
   }
 
   private[LTTRenderables] trait ScalaStyledLambdasShared extends Long {
     override def prefixSplitter: String = "."
-
     override implicit lazy val r_Variance: Renderable[Variance] = new Renderable[Variance] {
       override def render(value: Variance): String = value match {
         case Variance.Invariant => ""
-        case Variance.Contravariant => "-"
-        case Variance.Covariant => "+"
+        case Variance.Contravariant => "[-]"
+        case Variance.Covariant => "[+]"
       }
     }
-
     override implicit lazy val r_NameRefRenderer: Renderable[NameReference] = new Renderable[NameReference] {
       override def render(value: NameReference): String = {
         val r = r_SymName(value.ref, value.prefix.isDefined)
-
         val rr = value.boundaries match {
-          case _: Boundaries.Defined =>
-            s"$r ${value.boundaries.render()}"
-          case Boundaries.Empty =>
-            r
+          case _: Boundaries.Defined => s"$r ${value.boundaries.render()}"
+          case Boundaries.Empty => r
         }
-
         value.prefix match {
-          case Some(p) =>
-            s"${p.render()}$prefixSplitter$rr"
-          case None =>
-            rr
+          case Some(p) => s"${p.render()}$prefixSplitter$rr"
+          case None => rr
         }
       }
     }
-
     override implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
       override def render(value: Boundaries): String = value match {
         case Boundaries.Defined(bottom, top) if bottom == tpeNothing || bottom == tpeNull => s"<: ${top.render()}"
