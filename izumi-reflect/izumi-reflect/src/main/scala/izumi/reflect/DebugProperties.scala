@@ -84,4 +84,40 @@ object DebugProperties {
     */
   final val `izumi.reflect.debug.macro.rtti.assertions` = "izumi.reflect.debug.macro.rtti.assertions"
 
+  /**
+    * Set system property `-Dizumi.reflect.rtti.cache.basesdb=false` to disable caching for `basesDb` in LightTypeTag.
+    * Caching is enabled by default.
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.rtti.cache.basesdb=false
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.basesdb` = "izumi.reflect.rtti.cache.basesdb"
+
+  /**
+    * Set system property `-Dizumi.reflect.rtti.cache.inheritancedb=false` to disable caching for `inheritanceDb` in LightTypeTag.
+    * Caching is enabled by default.
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.rtti.cache.inheritancedb=false
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.inheritancedb` = "izumi.reflect.rtti.cache.inheritancedb"
+
+  /**
+    * Set system property `-Dizumi.reflect.rtti.cache.serialized=false` to disable caching for serialized form of LightTypeTag.
+    * Caching is enabled by default.
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.rtti.cache.serialized=false
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.serialized` = "izumi.reflect.rtti.cache.serialized"
+
 }
