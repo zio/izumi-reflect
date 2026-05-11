@@ -1,6 +1,7 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
+import izumi.reflect.macrortti.LightTypeTagInheritance
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
@@ -174,16 +175,83 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       val directBaseRefs = if (onlyIndirect) {
         Nil
       } else {
-        baseTypes.map {
+        baseTypes.flatMap {
           bt =>
             val parentRef = inspector.inspectTypeRepr(bt)
-            (selfRef, parentRef)
+            val (refinedParent, typeMemberBaseRefs) = typeMemberRefinementParentAndBases(tpe, bt, parentRef)
+            ((selfRef, parentRef) :: refinedParent.map(selfRef -> _).toList) ::: typeMemberBaseRefs
         }
       }
 
       val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
 
       argBasesRefs ::: mainBasesRefs
+    }
+
+    private def typeMemberRefinementParentAndBases(
+      tpe: TypeRepr,
+      baseType: TypeRepr,
+      parentRef: AbstractReference
+    ): (Option[AbstractReference], List[(AbstractReference, AbstractReference)]) = {
+      val (typeMemberDecls, typeMemberBaseRefs) = baseType.typeSymbol.declaredTypes
+        .filter(member => !member.isTypeParam && !member.isClassDef && member.flags.is(Flags.Deferred))
+        .flatMap {
+          member =>
+            typeMemberRefinementDecl(tpe, member)
+        }.unzip
+
+      val decls: Set[RefinementDecl] = typeMemberDecls.toSet
+
+      parentRef match {
+        case parent: AppliedReference if decls.nonEmpty =>
+          (Some(LightTypeTagRef.Refinement(parent, decls)), typeMemberBaseRefs.flatten)
+        case _ =>
+          (None, typeMemberBaseRefs.flatten)
+      }
+    }
+
+    private def typeMemberRefinementDecl(tpe: TypeRepr, member: Symbol): Option[(RefinementDecl.TypeMember, List[(AbstractReference, AbstractReference)])] = {
+      resolveTypeMember(tpe, member.name).flatMap {
+        member =>
+          tpe.memberType(member) match {
+            case bounds: TypeBounds =>
+              val boundaries = inspectTypeBounds(bounds)
+              boundaries match {
+                case Boundaries.Defined(low, high) if low == high =>
+                  Some((RefinementDecl.TypeMember(member.name, high), processTypeBounds(bounds)))
+                case defined @ Boundaries.Defined(_, _) =>
+                  Some((RefinementDecl.TypeMember(member.name, NameReference(SymName.SymTypeName(member.name), defined, None)), processTypeBounds(bounds)))
+                case Boundaries.Empty =>
+                  None
+              }
+            case _ =>
+              None
+          }
+      }
+    }
+
+    private def resolveTypeMember(tpe: TypeRepr, name: String): Option[Symbol] = {
+      val candidates = (tpe.typeSymbol.declaredTypes ++ tpe.baseClasses.map(tpe.baseType).flatMap(_.typeSymbol.declaredTypes))
+        .filterNot(_.isTypeParam)
+        .filter(_.name == name)
+
+      candidates.find {
+        symbol =>
+          tpe.memberType(symbol) match {
+            case bounds: TypeBounds => inspectTypeBounds(bounds) != Boundaries.Empty
+            case _ => false
+          }
+      }
+    }
+
+    private def inspectTypeBounds(bounds: TypeBounds): Boundaries = {
+      val low = inspector.inspectTypeRepr(bounds.low)
+      val high = inspector.inspectTypeRepr(bounds.hi)
+      if (low == LightTypeTagInheritance.tpeNothing && high == LightTypeTagInheritance.tpeAny) {
+        Boundaries.Empty
+      } else {
+        Boundaries.Defined(low, high)
+      }
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
