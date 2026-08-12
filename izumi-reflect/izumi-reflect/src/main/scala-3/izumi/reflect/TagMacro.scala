@@ -35,17 +35,17 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
     }
   }
 
-  private def createTag[A <: AnyKind](typeRepr0: TypeRepr): Expr[Tag[A]] = {
+  private def createTag[A <: AnyKind](typeRepr0: TypeRepr)(using Type[A]): Expr[Tag[A]] = {
     val typeRepr = typeRepr0._etaExpandTypeRef // convert HKT type refs to type lambdas manually as an optimization. This required an additional splice level before.
     val ltt = Inspect.inspectTypeRepr(typeRepr)
     val cls = closestClassOfTypeRepr(typeRepr)
     Apply(
       fun = TypeApply(
         fun = Select(qualifier = Ref.term(tagObjSymbol.termRef), symbol = tagObjApplyMethodSym),
-        args = List(Inferred(typeRepr))
+        args = List(TypeTree.of[A])
       ),
       args = List(cls.asTerm, ltt.asTerm)
-    ).asExpr.asInstanceOf[Expr[Tag[A]]]
+    ).asExprOf[Tag[A]]
   }
 
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {

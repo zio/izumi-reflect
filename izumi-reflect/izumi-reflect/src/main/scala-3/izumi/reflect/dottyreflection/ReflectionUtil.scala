@@ -121,7 +121,10 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
 
   @nowarn("msg=anonymous class definition will be duplicated")
   inline private final def etaExpandImpl(tycon: TypeRepr, inline checkIfPartialApplication: List[TypeRepr] => Boolean): Option[TypeLambda] = {
-    val tparams0: List[TypeRepr] = tycon.typeSymbol.declaredTypes.collect { case s if s.isTypeParam => s._info }
+    val tyconSym = tycon.typeSymbol
+    val tparams0: List[TypeRepr] = tyconSym.declaredTypes.collect {
+      case s if s.isTypeParam && (s.owner == tyconSym) => s._info
+    }
     val tparams: List[TypeRepr] = if (checkIfPartialApplication(tparams0)) {
       tycon match {
         case typeParamRef: ParamRef =>
@@ -164,7 +167,7 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
         case _: LambdaType => true
         case tref: TypeRef =>
           val tsym = tref.typeSymbol
-          tsym.isType && tsym.declaredTypes.exists(_.isTypeParam)
+          tsym.isType && tsym.declaredTypes.exists(s => s.isTypeParam && (s.owner == tsym))
         case _ => false
       }
     }
