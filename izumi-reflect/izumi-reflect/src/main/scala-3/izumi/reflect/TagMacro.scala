@@ -45,7 +45,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         args = List(TypeTree.of[A])
       ),
       args = List(cls.asTerm, ltt.asTerm)
-    ).asExprOf[Tag[A]]
+    ).asExpr.asInstanceOf[Expr[Tag[A]]]
   }
 
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
