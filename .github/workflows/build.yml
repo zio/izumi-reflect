@@ -9,6 +9,11 @@ on:
   pull_request:
     branches: [ "develop" ]
 
+env:
+  BAZEL_DISK_CACHE: ~/.cache/bazel-disk
+  # Override NixOS shell path from .bazelrc for Ubuntu CI runners
+  BAZEL_SHELL_FLAG: "--shell_executable=/bin/bash"
+
 jobs:
   checksecret:
     runs-on: ubuntu-latest
@@ -31,53 +36,112 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '11', '17', '21' ]
-        scala: [ '2.11', '2.12', '2.13', '3' ]
+        platform: [ 'jvm', 'js', 'native' ]
     steps:
-      - uses: 7mind/github-env@minimal
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel-disk
+            ~/.cache/bazel
+          key: bazel-${{ matrix.platform }}-${{ hashFiles('MODULE.bazel', 'rules/**') }}
+          restore-keys: |
+            bazel-${{ matrix.platform }}-
+
+      - name: Check version sync
+        if: matrix.platform == 'jvm'
+        run: nix develop --command python3 tools/sync_versions.py --check
+
       - name: Build and Test
-        env:
-          CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
-          CI_BRANCH: ${{ github.ref_name }}
-          CI_BRANCH_TAG: ${{ github.ref_name }}
-        run: nix develop --command mdl -u java_version:${{ matrix.java }} -u scala_version:${{ matrix.scala }} --github-actions :gen :test
-      - uses: dorny/test-reporter@v1
+        run: |
+          nix develop --command bazel $BAZEL_SHELL_FLAG test //... \
+            --test_tag_filters=${{ matrix.platform }} \
+            --test_output=errors
+
+      - name: MiMa check
+        if: matrix.platform == 'jvm'
+        run: |
+          nix develop --command bazel $BAZEL_SHELL_FLAG test //... \
+            --test_tag_filters=mima \
+            --test_output=errors
+
+      - name: Upload JUnit XML reports
+        uses: dorny/test-reporter@v1
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
-          name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
-          path: '**/target/test-reports/TEST-*.xml'
+          name: Test reports (${{ matrix.platform }})
+          path: 'bazel-testlogs/**/test.xml'
           reporter: java-junit
-      - uses: sbt/setup-sbt@v1 # setup sbt
-      - name: Upload dependency graph
-        if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
-        uses: scalacenter/sbt-dependency-submission@53544c3e7bf54b0cb7f375f016e5b7446b96b706
 
   publish-artifacts:
     runs-on: ubuntu-latest
     needs: [ 'build', 'checksecret' ]
     if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
-    strategy:
-      matrix:
-        java: [ '17' ]
-        scala: [ '2.13' ]
     steps:
-      - uses: 7mind/github-env@minimal
-      - name: Build and Publish to Sonatype
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel-disk
+            ~/.cache/bazel
+          key: bazel-publish-${{ hashFiles('MODULE.bazel', 'rules/**') }}
+          restore-keys: |
+            bazel-publish-
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('versions.json'))['project'])")
+          IS_SNAPSHOT=$([[ "$VERSION" == *SNAPSHOT* ]] && echo true || echo false)
+          IS_TAG=$([[ "${{ github.ref_type }}" == "tag" ]] && echo true || echo false)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_snapshot=$IS_SNAPSHOT" >> $GITHUB_OUTPUT
+          echo "is_tag=$IS_TAG" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION, snapshot: $IS_SNAPSHOT, tag: $IS_TAG"
+
+      - name: Build Maven artifacts
+        run: |
+          BAZEL_CONFIG=""
+          if [[ "${{ steps.version.outputs.is_snapshot }}" == "false" ]]; then
+            BAZEL_CONFIG="--config=release"
+          fi
+          nix develop --command bazel $BAZEL_SHELL_FLAG build //:maven-artifacts $BAZEL_CONFIG
+
+      - name: Decrypt signing secrets
         env:
           OPENSSL_IV: ${{ secrets.OPENSSL_IV }}
           OPENSSL_KEY: ${{ secrets.OPENSSL_KEY }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
-          CI_BRANCH: ${{ github.ref_name }}
-          CI_BRANCH_TAG: ${{ github.ref_name }}
         run: |
           openssl aes-256-cbc -K ${OPENSSL_KEY} -iv ${OPENSSL_IV} -in secrets.tar.enc -out secrets.tar -d
           tar xvf secrets.tar
-          ln -s .secrets/local.sbt local.sbt
-          rm ./.secrets/credentials.sonatype-nexus.properties
-          printf "%s\n" "realm=Sonatype Nexus Repository Manager" "host=central.sonatype.com" "user=${SONATYPE_USERNAME}" "password=${SONATYPE_PASSWORD}" > ./.secrets/credentials.sonatype-nexus.properties
-          nix develop --command mdl -u java_version:${{ matrix.java }} -u scala_version:${{ matrix.scala }} --github-actions :gen :publish-scala
+
+      - name: Publish to Sonatype
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        run: |
+          PUBLISH_ARGS="--manifests-dir=bazel-bin"
+          if [[ "${{ steps.version.outputs.is_snapshot }}" == "true" ]]; then
+            PUBLISH_ARGS="$PUBLISH_ARGS --snapshot"
+          else
+            # Import GPG key from decrypted secrets
+            gpg --batch --import .secrets/*.gpg 2>/dev/null || true
+            GPG_KEY=$(gpg --list-secret-keys --keyid-format long 2>/dev/null | grep sec | head -1 | awk '{print $2}' | cut -d/ -f2)
+            if [[ -n "$GPG_KEY" ]]; then
+              PUBLISH_ARGS="$PUBLISH_ARGS --gpg-key=$GPG_KEY"
+            fi
+          fi
+          nix develop --command python3 tools/publish.py $PUBLISH_ARGS
 
   release-and-notify-docs:
     name: Release and Notify Docs
@@ -85,20 +149,21 @@ jobs:
     continue-on-error: false
     needs: [ 'build', 'checksecret' ]
     if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
-    #if: ${{ ((github.event_name == 'release') && (github.event.action == 'published')) || (github.event_name == 'workflow_dispatch') }}
-    strategy:
-      matrix:
-        java: [ '17' ]
-        scala: [ '2.13' ]
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: 7mind/github-env@minimal
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
       - name: Publish Docs to NPM Registry
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
-          CI_BRANCH: ${{ github.ref_name }}
-          CI_BRANCH_TAG: ${{ github.ref_name }}
-        run: nix develop --command mdl -u java_version:${{ matrix.java }} -u scala_version:${{ matrix.scala }} --github-actions :gen :publish-ziodocs
+        run: |
+          nix develop --command python3 tools/publish_docs.py
+
       - name: Notify the main repo about the new release of docs package
         run: |
           PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')
@@ -106,15 +171,15 @@ jobs:
           curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: token ${{ secrets.PAT_TOKEN }}"\
-              https://api.github.com/repos/zio/zio/dispatches \
-              -d '{
-                    "event_type":"update-docs",
-                    "client_payload":{
-                      "package_name":"'"${PACKAGE_NAME}"'",
-                      "package_version": "'"${PACKAGE_VERSION}"'"
-                    }
-                  }'
+            -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+            https://api.github.com/repos/zio/zio/dispatches \
+            -d '{
+                  "event_type":"update-docs",
+                  "client_payload":{
+                    "package_name":"'"${PACKAGE_NAME}"'",
+                    "package_version": "'"${PACKAGE_VERSION}"'"
+                  }
+                }'
 
   all-good:
     if: always()

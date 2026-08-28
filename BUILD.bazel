@@ -1,0 +1,107 @@
+load("//rules:multiplatform.bzl", "scala_multiplatform_library", "scala_multiplatform_test")
+load("//rules:mima.bzl", "mima_check_test", "previous_jar_labels")
+load("//rules:publish.bzl", "maven_artifact")
+load("//rules:sources.bzl", "versioned_srcs")
+load(
+    "//rules:versions.bzl",
+    "ALL_PLATFORMS",
+    "BOOPICKLE_REMOVED_OPTS",
+    "PLATFORM_SCALA_VERSIONS",
+    "PROJECT_VERSION",
+    "SCALA_JVM_VERSIONS",
+    "scala_short_version",
+)
+
+# Build mode config settings
+config_setting(
+    name = "ci",
+    define_values = {"CI": "true"},
+)
+
+config_setting(
+    name = "release",
+    define_values = {"RELEASE": "true"},
+)
+
+config_setting(
+    name = "scoverage",
+    define_values = {"SCOVERAGE": "true"},
+)
+
+config_setting(
+    name = "jacoco",
+    define_values = {"JACOCO": "true"},
+)
+
+scala_multiplatform_library(
+    name = "izumi-reflect-thirdparty-boopickle-shaded",
+    base_dir = "izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded",
+    remove_scalac_opts = BOOPICKLE_REMOVED_OPTS,
+    visibility = ["//visibility:public"],
+)
+
+scala_multiplatform_library(
+    name = "izumi-reflect",
+    base_dir = "izumi-reflect/izumi-reflect",
+    deps = [":izumi-reflect-thirdparty-boopickle-shaded"],
+    visibility = ["//visibility:public"],
+)
+
+scala_multiplatform_test(
+    name = "izumi-reflect-test",
+    base_dir = "izumi-reflect/izumi-reflect",
+    lib_deps = [
+        ":izumi-reflect",
+        ":izumi-reflect-thirdparty-boopickle-shaded",
+    ],
+)
+
+# MiMa binary compatibility checks (JVM only)
+[
+    mima_check_test(
+        name = "izumi-reflect-mima_jvm_" + v.split(".")[0] + ("." + v.split(".")[1] if v.split(".")[0] != "3" else ""),
+        current = ":izumi-reflect_jvm_" + (v.split(".")[0] + "." + v.split(".")[1] if v.split(".")[0] != "3" else "3"),
+        previous_jars = previous_jar_labels(v),
+        tags = ["mima"],
+    )
+    for v in SCALA_JVM_VERSIONS
+]
+
+# ── Maven publishing artifacts ────────────────────────────────────────
+
+[
+    maven_artifact(
+        name = "maven-" + mod + "_" + plat + "_" + scala_short_version(sv),
+        compiled = ":" + mod + "_" + plat + "_" + scala_short_version(sv),
+        module_name = mod,
+        version = PROJECT_VERSION,
+        scala_version = sv,
+        platform = plat,
+        srcs = glob(versioned_srcs(
+            "src/main",
+            sv,
+            plat,
+            "izumi-reflect/" + ("izumi-reflect" if mod == "izumi-reflect" else "izumi-reflect-thirdparty-boopickle-shaded"),
+        )),
+        maven_deps = ["izumi-reflect-thirdparty-boopickle-shaded"] if mod == "izumi-reflect" else [],
+        tags = ["maven"],
+    )
+    for mod in ["izumi-reflect-thirdparty-boopickle-shaded", "izumi-reflect"]
+    for plat in ALL_PLATFORMS
+    for sv in PLATFORM_SCALA_VERSIONS[plat]
+]
+
+# Build all maven artifacts at once
+filegroup(
+    name = "maven-artifacts",
+    srcs = [
+        ":maven-" + mod + "_" + plat + "_" + scala_short_version(sv)
+        for mod in ["izumi-reflect-thirdparty-boopickle-shaded", "izumi-reflect"]
+        for plat in ALL_PLATFORMS
+        for sv in PLATFORM_SCALA_VERSIONS[plat]
+    ],
+)
+
+# Publishing: run directly after `bazel build //:maven-artifacts`
+#   python3 tools/publish.py [--dry-run] [--snapshot] [--gpg-key=KEYID]
+#   python3 tools/publish_docs.py [--dry-run]

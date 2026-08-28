@@ -25,10 +25,9 @@
       {
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs.buildPackages; [
-            ncurses
-
-            coursier
-            sbt
+            bazel
+            python3
+            clang
 
             nodejs
             nodePackages.npm
@@ -44,6 +43,9 @@
             export JDK17=${pkgs.jdk17_headless}
             export JDK21=${pkgs.jdk21_headless}
             export JDK_DEV=${pkgs.graalvmPackages.graalvm-ce}
+
+            export JAVA_HOME=''${JDK_DEV}
+            export PATH="''${JDK_DEV}/bin:$PATH"
 
             # Create .env directory with JDK symlink (ignore errors if already exists)
             mkdir -p ./.env 2>/dev/null || true
