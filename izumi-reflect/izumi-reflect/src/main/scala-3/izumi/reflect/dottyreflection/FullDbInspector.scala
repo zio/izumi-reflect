@@ -1,14 +1,35 @@
 package izumi.reflect.dottyreflection
 
+import izumi.reflect.DebugProperties
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
+import java.lang.ref.SoftReference
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.quoted.*
 
 object FullDbInspector {
+  private type TypeReprKey = Quotes#reflectModule#TypeRepr
+  private val dbCache = new ConcurrentHashMap[TypeReprKey, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
+
+  private def compileCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
+    Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`))
+      .flatMap(_.asBoolean())
+      .getOrElse(true)
+  }
+
+  // Individual FullDB cache flag
+  private def fullDbCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
+    Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.full`))
+      .flatMap(_.asBoolean())
+      .getOrElse(true)
+  }
+
   def make(q: Quotes): FullDbInspector { val qctx: q.type } = new FullDbInspector(0) {
     override val qctx: q.type = q
   }
@@ -18,14 +39,51 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
   def buildFullDb(typeRepr: TypeRepr): Map[AbstractReference, Set[AbstractReference]] = {
-    new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
-      .inspectTypeReprToFullBases(typeRepr, onlyIndirect = false)
-      .iterator
-      .filterNot {
-        case (t, parent) =>
-          parent == t
+    val cacheEnabled = FullDbInspector.compileCacheEnabled && FullDbInspector.fullDbCacheEnabled
+    
+    val key: FullDbInspector.TypeReprKey = typeRepr.dealias.simplified
+
+    val cachedResult: Option[Map[AbstractReference, Set[AbstractReference]]] =
+      if (cacheEnabled) {
+        Option(FullDbInspector.dbCache.get(key)).flatMap(sr => Option(sr.get()))
+      } else {
+        None
       }
-      .toMultimap
+
+    cachedResult match {
+      case Some(cached) =>
+        CacheStats.fullDbHit()
+        cached
+      case None =>
+        CacheStats.fullDbMiss()
+        val result = new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
+          .inspectTypeReprToFullBases(typeRepr, onlyIndirect = false)
+          .iterator
+          .filterNot {
+            case (t, parent) =>
+              parent == t
+          }
+          .toMultimap
+
+        if (cacheEnabled) {
+          FullDbInspector.dbCache.put(key, new SoftReference(result))
+        }
+
+        result
+    }
+  }
+
+  private def getCachedFullDbForComponent(typeRepr: TypeRepr): Option[List[(AbstractReference, AbstractReference)]] = {
+    val cacheEnabled = FullDbInspector.compileCacheEnabled && FullDbInspector.fullDbCacheEnabled
+    if (cacheEnabled) {
+      val key: FullDbInspector.TypeReprKey = typeRepr.dealias.simplified
+      Option(FullDbInspector.dbCache.get(key)).flatMap(sr => Option(sr.get())).map { cachedMap =>
+        CacheStats.fullDbHit()
+        cachedMap.iterator.flatMap { case (k, vs) => vs.map(v => (k, v)) }.toList
+      }
+    } else {
+      None
+    }
   }
 
   class Run(
@@ -35,6 +93,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   ) {
     def inspectTypeReprToFullBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0._dealiasSimplifiedFull
+      
+      getCachedFullDbForComponent(tpe) match {
+        case Some(cachedEntries) => 
+          return cachedEntries
+        case None => // continue with computation
+      }
+      
       def selfRef(): AbstractReference = inspector.inspectTypeRepr(tpe)
 
       tpe match {

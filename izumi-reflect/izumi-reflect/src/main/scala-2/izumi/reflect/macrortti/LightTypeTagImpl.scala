@@ -37,10 +37,42 @@ import scala.reflect.api.Universe
 object LightTypeTagImpl {
   private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
 
+  private lazy val lttCache = new java.util.WeakHashMap[Any, LightTypeTag]()
+  private lazy val fullDbCache = new java.util.WeakHashMap[Any, Map[AbstractReference, Set[AbstractReference]]]()
+  private lazy val inheritanceDbCache = new java.util.WeakHashMap[Any, Map[NameReference, Set[NameReference]]]()
+
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
     System
       .getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** master switch for compile-time caching */
+  private[macrortti] lazy val compileCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** LTT-level cache flag */
+  private[macrortti] lazy val lttCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.ltt`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** FullDB cache flag */
+  private[macrortti] lazy val fullDbCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.full`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** InheritanceDB cache flag */
+  private[macrortti] lazy val inheritanceDbCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.inheritance`).asBoolean()
       .getOrElse(true)
   }
 
@@ -90,6 +122,15 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
 
+
+    val cacheEnabled = withCache && LightTypeTagImpl.compileCacheEnabled
+
+    // Check LTT cache first (most beneficial - avoids all computation)
+    if (cacheEnabled && LightTypeTagImpl.lttCacheEnabled) {
+      val cached = LightTypeTagImpl.lttCache.synchronized(LightTypeTagImpl.lttCache.get(tpe))
+      if (cached != null) return cached
+    }
+
     val lttRef = makeRef(tpe)
 
     val allReferenceComponents = mutable
@@ -99,10 +140,44 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
       }.result()
 
-    val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
-    val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    // FullDB cache
+    val fullDb: Map[AbstractReference, Set[AbstractReference]] = 
+      if (cacheEnabled && LightTypeTagImpl.fullDbCacheEnabled) {
+        val cached = LightTypeTagImpl.fullDbCache.synchronized(LightTypeTagImpl.fullDbCache.get(tpe))
+        if (cached != null) {
+          cached
+        } else {
+          val result = makeFullDb(tpe, allReferenceComponents).toMultimap
+          LightTypeTagImpl.fullDbCache.synchronized(LightTypeTagImpl.fullDbCache.put(tpe, result))
+          result
+        }
+      } else {
+        makeFullDb(tpe, allReferenceComponents).toMultimap
+      }
 
-    LightTypeTag(lttRef, fullDb, unappliedDb)
+    // InheritanceDB cache
+    val unappliedDb: Map[NameReference, Set[NameReference]] = 
+      if (cacheEnabled && LightTypeTagImpl.inheritanceDbCacheEnabled) {
+        val cached = LightTypeTagImpl.inheritanceDbCache.synchronized(LightTypeTagImpl.inheritanceDbCache.get(tpe))
+        if (cached != null) {
+          cached
+        } else {
+          val result = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+          LightTypeTagImpl.inheritanceDbCache.synchronized(LightTypeTagImpl.inheritanceDbCache.put(tpe, result))
+          result
+        }
+      } else {
+        makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+      }
+
+    val ltt = LightTypeTag(lttRef, fullDb, unappliedDb)
+
+    // Store in LTT cache
+    if (cacheEnabled && LightTypeTagImpl.lttCacheEnabled) {
+      LightTypeTagImpl.lttCache.synchronized(LightTypeTagImpl.lttCache.put(tpe, ltt))
+    }
+
+    ltt
   }
 
   private[this] def allTypeReferencesWithBases(tpe0: Type, basesTermination: mutable.HashSet[Symbol], onlyIndirect: Boolean): Iterator[Type] = {

@@ -270,6 +270,8 @@ object Izumi {
 
       final val izumi_reflect = ArtifactId("izumi-reflect")
       final val thirdpartyBoopickleShaded = ArtifactId("izumi-reflect-thirdparty-boopickle-shaded")
+      final val stressBaseline = ArtifactId("izumi-reflect-stress-baseline")
+      final val stressMacrocalls = ArtifactId("izumi-reflect-stress-macrocalls")
     }
 
   }
@@ -293,6 +295,28 @@ object Izumi {
         libs = Seq.empty,
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
+        )
+      ),
+      Artifact(
+        name = Projects.izumi_reflect_aggregate.stressBaseline,
+        libs = Seq.empty,
+        depends = Seq(
+          Projects.izumi_reflect_aggregate.izumi_reflect
+        ),
+        settings = Seq(
+          SettingDef.RawSettingDef("publish / skip := true", FullSettingScope(SettingScope.Project, Platform.All)),
+          SettingDef.RawSettingDef("mimaPreviousArtifacts := Set.empty", FullSettingScope(SettingScope.Project, Platform.All))
+        )
+      ),
+      Artifact(
+        name = Projects.izumi_reflect_aggregate.stressMacrocalls,
+        libs = Seq.empty,
+        depends = Seq(
+          Projects.izumi_reflect_aggregate.izumi_reflect
+        ),
+        settings = Seq(
+          SettingDef.RawSettingDef("publish / skip := true", FullSettingScope(SettingScope.Project, Platform.All)),
+          SettingDef.RawSettingDef("mimaPreviousArtifacts := Set.empty", FullSettingScope(SettingScope.Project, Platform.All))
         )
       )
     ),

@@ -39,8 +39,8 @@ object DebugProperties {
   final val `izumi.reflect.rtti.optimized.equals` = "izumi.reflect.rtti.optimized.equals"
 
   /**
-    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile=false` to disable compile-time caching of computed
-    * LightTypeTags. Caching is enabled by default for compile-time light type tag creation.
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile=false` to disable all compile-time caching.
+    * This is a master switch - when false, all compile-time caches are disabled.
     *
     * {{{
     *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile=false"
@@ -49,6 +49,54 @@ object DebugProperties {
     * Default: `true`
     */
   final val `izumi.reflect.rtti.cache.compile` = "izumi.reflect.rtti.cache.compile"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.ltt=false` to disable
+    * compile-time caching of LightTypeTag results specifically.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.ltt=false"
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.compile.ltt` = "izumi.reflect.rtti.cache.compile.ltt"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.db.full=false` to disable
+    * compile-time caching of full inheritance database (basesDb).
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.db.full=false"
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.compile.db.full` = "izumi.reflect.rtti.cache.compile.db.full"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.db.inheritance=false` to disable
+    * compile-time caching of unapplied inheritance database.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.db.inheritance=false"
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.compile.db.inheritance` = "izumi.reflect.rtti.cache.compile.db.inheritance"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.macro=false` to disable
+    * compile-time caching at TagMacro level.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.macro=false"
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.compile.macro` = "izumi.reflect.rtti.cache.compile.macro"
 
   /**
     * Set system property `-Dizumi.reflect.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
@@ -83,5 +131,17 @@ object DebugProperties {
     * Default: `false`
     */
   final val `izumi.reflect.debug.macro.rtti.assertions` = "izumi.reflect.debug.macro.rtti.assertions"
+
+  /**
+    * Set system property `-Dizumi.reflect.rtti.cache.compile.stats=true` to enable cache hit/miss statistics output.
+    * Statistics are printed to stderr at JVM shutdown.
+    *
+    * {{{
+    *   sbt -Dizumi.reflect.rtti.cache.compile.stats=true compile
+    * }}}
+    *
+    * Default: `false`
+    */
+  final val `izumi.reflect.rtti.cache.compile.stats` = "izumi.reflect.rtti.cache.compile.stats"
 
 }

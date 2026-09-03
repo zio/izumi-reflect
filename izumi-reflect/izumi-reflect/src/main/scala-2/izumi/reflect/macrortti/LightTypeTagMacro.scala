@@ -19,6 +19,7 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
+import izumi.reflect.internal.fundamentals.platform.strings.IzString._
 import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
 
 import scala.reflect.macros.blackbox
@@ -28,7 +29,28 @@ final class LightTypeTagMacro(override val c: blackbox.Context)
     logger = TrivialMacroLogger.make[LightTypeTagMacro](c)
   )
 
+private[reflect] object LightTypeTagMacro0 {
+
+  private lazy val serializedCache = new java.util.IdentityHashMap[LightTypeTag, LightTypeTag.Serialized]()
+  private val treeCache = new java.util.WeakHashMap[Any, Any]()
+
+  /** master switch for compile-time caching */
+  private[macrortti] lazy val compileCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** Serialized form cache flag (controlled by macro cache flag) */
+  private[macrortti] lazy val serializedCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.macro`).asBoolean()
+      .getOrElse(true)
+  }
+}
+
 private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logger: TrivialLogger) {
+  import LightTypeTagMacro0._
 
   import c.universe._
 
@@ -68,21 +90,59 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
   }
 
   final def makeParsedLightTypeTagImpl(tpe: Type): c.Expr[LightTypeTag] = {
+    val serCacheEnabled = compileCacheEnabled && serializedCacheEnabled
+    if (serCacheEnabled) {
+      treeCache.synchronized {
+        val cached = treeCache.get(tpe)
+        if (cached != null) {
+          return c.Expr[LightTypeTag](cached.asInstanceOf[Tree])
+        }
+      }
+    }
+
     val res = impl.makeFullTagImpl(tpe)
-    makeParsedLightTypeTagImpl(res)
+    val expr = makeParsedLightTypeTagInternal(res)
+
+    if (serCacheEnabled) {
+      treeCache.synchronized {
+        treeCache.put(tpe, expr.tree)
+      }
+    }
+    expr
   }
 
-  final def makeParsedLightTypeTagImpl(ltt: LightTypeTag): c.Expr[LightTypeTag] = {
+  private def makeParsedLightTypeTagInternal(ltt: LightTypeTag): c.Expr[LightTypeTag] = {
     logger.log(s"LightTypeTagImpl: created LightTypeTag: $ltt")
 
-    val serialized = ltt.serialize()
+    val serCacheEnabled = compileCacheEnabled && serializedCacheEnabled
+    
+    // Try to get cached serialized form (synchronized because WeakHashMap is not thread-safe)
+    val serialized = if (serCacheEnabled) {
+      serializedCache.synchronized {
+        val cached = serializedCache.get(ltt)
+        if (cached != null) {
+          cached
+        } else {
+          val ser = ltt.serialize()
+          serializedCache.put(ltt, ser)
+          ser
+        }
+      }
+    } else {
+      ltt.serialize()
+    }
+    
     val hashCodeRef = serialized.hash
     val strRef = serialized.ref
     val strDBs = serialized.databases
 
     c.Expr[LightTypeTag](
-      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)"
+      c.typecheck(q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)")
     )
+  }
+
+  final def makeParsedLightTypeTagImpl(ltt: LightTypeTag): c.Expr[LightTypeTag] = {
+    makeParsedLightTypeTagInternal(ltt)
   }
 
   @inline final def unpackArgStruct(t: Type): Type = {
