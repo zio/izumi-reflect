@@ -35,8 +35,9 @@ object RuntimeAPI {
     }
 
     ref match {
-      case Lambda(_, output) =>
-        unpack(output)
+      case Lambda(input, output) =>
+        val bound = input.iterator.map(p => NameReference(p): NameReference).toSet
+        unpack(output).diff(bound)
       case reference: AppliedReference =>
         reference match {
           case reference: AppliedNamedReference =>
@@ -87,7 +88,7 @@ object RuntimeAPI {
     val res = if (newParams.isEmpty) {
       replaced
     } else {
-      val out = Lambda(newParams, replaced)
+      val out = Lambda.make(newParams, replaced)
       // assert(out.allArgumentsReferenced, s"bad lambda: $out, ${out.paramRefs}, ${out.referenced}")
       // such lambdas are legal: see "regression test: combine Const Lambda to TagK"
       out
@@ -109,7 +110,7 @@ object RuntimeAPI {
         case l: Lambda =>
           val bad = l.input.iterator.toSet
           val fixed = new Rewriter(_rules.filterKeys(!bad.contains(_)).iterator.toMap).replaceRefs(l.output)
-          l.copy(output = fixed)
+          LightTypeTagRef.Lambda.make(l.input, fixed)
 
         case o: AppliedReference =>
           replaceApplied(o)

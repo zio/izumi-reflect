@@ -18,8 +18,10 @@
 
 package izumi.reflect.macrortti
 
+import izumi.reflect.internal.NowarnCompat
+import izumi.reflect.internal.bincompat.LambdaObjBincompat
 import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedReference}
-import izumi.reflect.macrortti.LightTypeTagRef.SymName.{LambdaParamName, SymTypeName}
+import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymTypeName
 
 import scala.runtime.AbstractFunction3
 import scala.util.hashing.MurmurHash3
@@ -75,9 +77,29 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
-  final case class Lambda(input: List[SymName.LambdaParamName], output: AbstractReference) extends AbstractReference {
+  // Constructor is public for bincompat (Scala 2 case class companions extend AbstractFunction2). Use Lambda.make for normalized construction.
+  final case class Lambda @deprecated("Lambda constructor is deprecated, use Lambda.make", "3.1.0") private[reflect] (
+    input: List[SymName.LambdaParamName],
+    output: AbstractReference
+  ) extends AbstractReference {
+
+    def normalize(): Lambda = {
+      LambdaNorm.normalize(this)
+    }
+
     override def hashCode(): Int = {
-      normalizedOutput.hashCode()
+      inputSize * 31 + output.hashCode()
+    }
+
+    override def equals(obj: Any): Boolean = {
+      obj match {
+        case l: Lambda =>
+          inputSize == l.inputSize &&
+          input == l.input &&
+          output == l.output
+        case _ =>
+          false
+      }
     }
 
     lazy val inputSize: Int = input.size
@@ -89,39 +111,39 @@ object LightTypeTagRef extends LTTOrdering {
           //       (Except possibly lower bound of an abstract/opaque type member)
           NameReference(n)
       }.toSet
-    lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(this)
+    lazy val referenced: Set[NameReference] = RuntimeAPI.unpack(output)
     def allArgumentsReferenced: Boolean = paramRefs.diff(referenced).isEmpty
     lazy val someArgumentsReferenced: Boolean = {
       val unusedParamsSize = paramRefs.diff(referenced).size
       unusedParamsSize < paramRefs.size
     }
 
-    lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
-    lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)
-
-    override def equals(obj: Any): Boolean = {
-      obj match {
-        case l: Lambda =>
-          inputSize == l.inputSize &&
-          (normalizedOutput == l.normalizedOutput)
-
-        case _ =>
-          false
-      }
+    @deprecated("bincompat only", "2.3.0")
+    protected lazy val normalizedParams: List[NameReference] = input.zipWithIndex.map {
+      case (_, idx) =>
+        NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth, inputSize))
     }
 
-    private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
-      input.zipWithIndex.map {
-        case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
-      }
+    lazy val normalizedOutput: AbstractReference = output
+  }
+
+  // bincompat: explicit companion must extend AbstractFunction2 to match Scala 2 case class companion hierarchy
+  @NowarnCompat.nowarn("msg=deprecated")
+  object Lambda extends LambdaObjBincompat {
+    def make(input: List[SymName.LambdaParamName], output: AbstractReference): Lambda = {
+      new Lambda(input, output).normalize()
+    }
+
+    def unsafeDenormalized(input: List[SymName.LambdaParamName], output: AbstractReference): Lambda = {
+      new Lambda(input, output)
     }
   }
 
   object LambdaConstants {
-    final val defaultContextId = -1
+    final val defaultContextId = 0
+    final val tagMacro = defaultContextId
+
     final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
-    final val tagMacro = -3
   }
 
   sealed trait AppliedReference extends AbstractReference

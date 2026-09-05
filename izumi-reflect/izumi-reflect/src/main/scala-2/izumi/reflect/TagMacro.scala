@@ -249,7 +249,7 @@ class TagMacro(val c: blackbox.Context) {
         val firstParamIdx = 0
         val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, LightTypeTagRef.LambdaConstants.tagMacro, arity)
 
-        val ctorApplyingLambda = LightTypeTagRef.Lambda(
+        val ctorApplyingLambda = LightTypeTagRef.Lambda.make(
           ctorLambdaParameter :: usageOrderDistinctNonLambdaArgs ::: declarationOrderLambdaParamArgs,
           FullReference(ctorLambdaParameter, usages)
         )

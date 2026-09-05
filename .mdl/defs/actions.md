@@ -178,7 +178,7 @@ bash sbtgen.sc --js --native
 
 # action: test
 
-Run tests and binary compatibility checks
+Run tests
 
 ```bash
 # Declare dependencies and use their outputs
@@ -194,7 +194,26 @@ sbt -batch -no-colors -v \
   --java-home "$JAVA_HOME" \
   "$VERSION_COMMAND clean" \
   "$VERSION_COMMAND Test/compile" \
-  "$VERSION_COMMAND test" \
+  "$VERSION_COMMAND test"
+```
+
+# action: mima
+
+Run binary compatibility checks
+
+```bash
+# Declare dependencies and use their outputs
+soft action.gen retain.action.check-sbtgen-staleness
+
+JAVA_HOME="${action.setup-jdk.java-home}"
+PATH="${action.setup-jdk.path}"
+JAVA_OPTIONS="${action.setup-jvm-options.java-options}"
+_JAVA_OPTIONS="$JAVA_OPTIONS"
+VERSION_COMMAND="${action.setup-scala.version-command}"
+
+sbt -batch -no-colors -v \
+  --java-home "$JAVA_HOME" \
+  "$VERSION_COMMAND compile" \
   "$VERSION_COMMAND mimaReportBinaryIssues"
 ```
 
