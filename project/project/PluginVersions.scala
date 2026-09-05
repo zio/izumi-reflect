@@ -24,7 +24,7 @@ object PV {
   val sbt_mima_version = "1.1.6"
 
   // last 2.11 version is 1.12.0, so we excluded 2.11 from JS builds, see nscplugin on maven central
-  val scala_js_version = "1.17.0"
+  val scala_js_version = "1.22.0"
 
   // last 2.11 version is 0.4.9, so we excluded 2.11 from Native builds, see nscplugin on maven central
   val scala_native_version = "0.5.7"
