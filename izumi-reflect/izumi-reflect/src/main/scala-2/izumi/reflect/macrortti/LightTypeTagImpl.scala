@@ -243,7 +243,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           val appliedParents = tpeBases(component).filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
           val componentRef = makeRef(component)
 
-          appliedParents.map {
+          appliedParents.flatMap {
             parentTpe =>
               val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
                 case unapplied: Lambda =>
@@ -258,7 +258,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
                 case applied: AppliedReference =>
                   applied
               }
-              (componentRef, parentRef)
+              val (refinedParent, typeMemberBaseRefs) = typeMemberRefinementParentAndBases(component, parentTpe, parentRef)
+              ((componentRef, parentRef) :: refinedParent.map(componentRef -> _).toList) ::: typeMemberBaseRefs
           }
       }
       .filterNot {
@@ -269,6 +270,113 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       .toList
     logger.log(s"Computed applied bases for tpe=$mainTpe appliedBases=${appliedBases.toMultimap.niceList()}")
     appliedBases
+  }
+
+  private[this] def typeMemberRefinementParentAndBases(
+    tpe: Type,
+    baseType: Type,
+    parentRef: AbstractReference
+  ): (Option[AbstractReference], List[(AbstractReference, AbstractReference)]) = {
+    val (typeMemberDecls, typeMemberBaseRefs) = baseType.decls.toList
+      .filter(symbol => symbol.isType && !symbol.isClass && !symbol.isParameter && symbol.isAbstract)
+      .flatMap {
+        member =>
+          typeMemberRefinementDecl(tpe, member)
+      }
+      .unzip
+
+    val decls: Set[RefinementDecl] = typeMemberDecls.toSet
+
+    parentRef match {
+      case parent: AppliedReference if decls.nonEmpty =>
+        (Some(Refinement(parent, decls)), typeMemberBaseRefs.flatten)
+      case _ =>
+        (None, typeMemberBaseRefs.flatten)
+    }
+  }
+
+  private[this] def typeMemberRefinementDecl(tpe: Type, member: Symbol): Option[(RefinementDecl.TypeMember, List[(AbstractReference, AbstractReference)])] = {
+    resolveTypeMember(tpe, member.name).flatMap {
+      member =>
+        val memberTpe = UniRefinement.typeOfTypeMember(member)
+        inspectTypeMember(member.name.decodedName.toString, memberTpe)
+    }
+  }
+
+  private[this] def resolveTypeMember(tpe: Type, name: Name): Option[Symbol] = {
+    val candidates = (tpe.decls.toList ++ tpe.baseClasses.map(tpe.baseType).flatMap(_.decls.toList))
+      .filter(symbol => symbol.isType && !symbol.isParameter && symbol.name == name)
+
+    candidates.find {
+      symbol =>
+        val memberTpe = UniRefinement.typeOfTypeMember(symbol)
+        nonEmptyTypeMember(memberTpe)
+    }
+  }
+
+  private[this] def nonEmptyTypeMember(memberTpe: Type): Boolean = {
+    memberTpe match {
+      case TypeBounds(lo, hi) =>
+        val low = makeRef(lo)
+        val high = makeRef(hi)
+        low != LightTypeTagInheritance.tpeNothing || high != LightTypeTagInheritance.tpeAny
+      case _ =>
+        true
+    }
+  }
+
+  private[this] def inspectTypeMember(name: String, memberTpe: Type): Option[(RefinementDecl.TypeMember, List[(AbstractReference, AbstractReference)])] = {
+    val memberBaseRefs = typeMemberComponentTypes(memberTpe).flatMap(typeMemberBases)
+
+    memberTpe match {
+      case TypeBounds(lo, hi) =>
+        val low = makeRef(lo)
+        val high = makeRef(hi)
+        val boundaries = if (low == LightTypeTagInheritance.tpeNothing && high == LightTypeTagInheritance.tpeAny) {
+          Boundaries.Empty
+        } else {
+          Boundaries.Defined(low, high)
+        }
+        boundaries match {
+          case Boundaries.Defined(boundLow, boundHigh) if boundLow == boundHigh =>
+            Some((RefinementDecl.TypeMember(name, boundHigh), memberBaseRefs))
+          case defined @ Boundaries.Defined(_, _) =>
+            Some((RefinementDecl.TypeMember(name, NameReference(SymTypeName(name), defined, None)), memberBaseRefs))
+          case Boundaries.Empty =>
+            None
+        }
+      case concrete =>
+        Some((RefinementDecl.TypeMember(name, makeRef(concrete)), memberBaseRefs))
+    }
+  }
+
+  private[this] def typeMemberComponentTypes(tpe: Type): List[Type] = {
+    tpe match {
+      case TypeBounds(lo, hi) =>
+        List(lo, hi).filterNot(ignored)
+      case concrete =>
+        List(concrete)
+    }
+  }
+
+  private[this] def typeMemberBases(tpe: Type): List[(AbstractReference, AbstractReference)] = {
+    def directBases(component0: Type): List[(AbstractReference, AbstractReference)] = {
+      val component = Dealias.fullNormDealias(component0)
+      val componentRef = makeRef(component)
+      tpeBases(component)
+        .filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
+        .map(parent => componentRef -> makeRef(parent))
+    }
+
+    typeMemberComponentTypes(tpe)
+      .flatMap {
+        component =>
+          directBases(component) ++ component.typeArgs.flatMap(typeMemberComponentTypes).flatMap(directBases)
+      }
+      .filterNot {
+        case (t, parent) =>
+          parent == t
+      }
   }
 
   private[this] def makeLambdaOnlyBases(mainTpe: Type, allReferenceComponents: Iterator[Type]): List[(AbstractReference, AbstractReference)] = {
