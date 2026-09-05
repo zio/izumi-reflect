@@ -27,7 +27,7 @@ object PV {
   val scala_js_version = "1.22.0"
 
   // last 2.11 version is 0.4.9, so we excluded 2.11 from Native builds, see nscplugin on maven central
-  val scala_native_version = "0.5.7"
+  val scala_native_version = "0.5.12"
 
   val sbt_crossproject_version = "1.4.0"
 
