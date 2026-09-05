@@ -210,4 +210,9 @@ object TestModel {
   trait AbstractRole[F[_]]
   class TargetRole extends AbstractRole[Id]
 
+  // Test types for type member refinement checks (issue #481)
+  trait RefinedA { type T }
+  trait RefinedAInt extends RefinedA { type T = Int }
+  trait RefinedAString extends RefinedA { type T = String }
+
 }
