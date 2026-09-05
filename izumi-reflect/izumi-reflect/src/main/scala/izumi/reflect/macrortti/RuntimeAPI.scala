@@ -96,8 +96,10 @@ object RuntimeAPI {
     res
   }
 
-  final class Rewriter(_rules: Map[SymName.LambdaParamName, AbstractReference]) {
-    private val rules: Map[SymName, AbstractReference] = _rules.toMap
+  final class Rewriter(_rules: collection.immutable.Map[_ <: SymName, AbstractReference]) {
+    private val rules: Map[SymName, AbstractReference] = _rules.iterator.map {
+      case (k, v) => (k: SymName) -> v
+    }.toMap
 
     def complete(@unused context: AppliedNamedReference, ref: AbstractReference): AbstractReference = {
       ref
@@ -108,7 +110,11 @@ object RuntimeAPI {
       reference match {
         case l: Lambda =>
           val bad = l.input.iterator.toSet
-          val fixed = new Rewriter(_rules.filterKeys(!bad.contains(_)).iterator.toMap).replaceRefs(l.output)
+          val fixedRules = rules.iterator.filterNot {
+            case (k: SymName.LambdaParamName, _) => bad.contains(k)
+            case _ => false
+          }.toMap
+          val fixed = new Rewriter(fixedRules).replaceRefs(l.output)
           l.copy(output = fixed)
 
         case o: AppliedReference =>

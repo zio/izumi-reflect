@@ -62,6 +62,22 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
       }
     }
 
+    def summonLTTIfAvailable(typeRepr: TypeRepr): Option[Expr[LightTypeTag]] = {
+      typeRepr match {
+        case _: TypeBounds =>
+          None
+        case _ =>
+          val tagTypeRepr = AppliedType(tagSymbolTypeRef, List(typeRepr))
+          Implicits.search(tagTypeRepr) match {
+            case s: ImplicitSearchSuccess =>
+              val tagExpr = s.tree.asExpr.asInstanceOf[Expr[Tag[?]]]
+              Some('{ $tagExpr.tag })
+            case _: ImplicitSearchFailure =>
+              None
+          }
+      }
+    }
+
     def summonIfNotLambdaParamOf(typeRepr: TypeRepr, lam: TypeRepr): Expr[Option[LightTypeTag]] = {
       if (isLambdaParamOf(typeRepr, lam)) {
         '{ None }
@@ -178,43 +194,98 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
         val cls = closestClassOfTypeRepr(parent)
         val parentLtt = summonLTT(parent)
 
-        val (allTypeMembers, termMembers) = members.partitionMap {
-          case (s, n, tb: TypeBounds) if allPartsStrong(owners, tb) => Left(Left((n, tb)))
-          case (_, n, TypeBounds(lo, hi)) if lo == hi => Left(Right((n, hi)))
-          case (_, _, tb @ TypeBounds(lo, hi)) =>
+        members.foreach {
+          case (_, _, tb @ TypeBounds(lo, hi)) if lo != hi && !allPartsStrong(owners, tb) =>
             report.errorAndAbort(
               s"TagMacro: resolving type parameters inside type bounds is not supported, got weak types in bounds=${tb.show}, in type=$typeReprDealiased"
             )
-          case x => Right(x)
+          case _ =>
         }
-        val (strongTypeBounds, weakTypeMembers) = allTypeMembers.partitionMap(identity)
-        // FIXME: once we add resolution for method/val members too, not just type members
-        //  this struct will no longer be 'weak'. In fact we'll want to add a new constructor
-        //  instead of `refinedTag` that will be better suited to fully resolved struct tags
-        val termAndStrongTpesOnlyWeakStructLtt = {
-          val termOnlyRefinementTypeRepr = termMembers.foldRight(defn.AnyRefClass.typeRef: TypeRepr) {
-            case ((_, name, tpe), refinement) =>
-              Refinement(parent = refinement, name = name, info = tpe)
+
+        val weakTypeMemberSubstitutions = {
+          val resolvedWeakMembers = mutable.LinkedHashMap.empty[String, Expr[LightTypeTag]]
+          def tryResolveWeak(part: TypeRepr, localBinders: Set[TypeRepr]): Unit = {
+            if (ReflectionUtil.topLevelWeakType(owners, localBinders, part)) {
+              val sym = part.typeSymbol
+              if (!sym.isNoSymbol) {
+                val key = sym.fullName
+                if (!resolvedWeakMembers.contains(key)) {
+                  summonLTTIfAvailable(part).foreach { ltt =>
+                    resolvedWeakMembers += key -> ltt
+                  }
+                }
+              }
+            }
           }
-          val withStrongTpesRefinementTypeRepr = strongTypeBounds.foldRight(termOnlyRefinementTypeRepr) {
-            case ((name, tpe), refinement) =>
-              Refinement(parent = refinement, name = name, info = tpe)
+
+          def collectWeakMembers(info0: TypeRepr, localBinders: Set[TypeRepr]): Unit = {
+            val info = info0._dealiasSimplifiedFull
+            tryResolveWeak(info, localBinders)
+            info match {
+              case AppliedType(tycon, args) =>
+                collectWeakMembers(tycon, localBinders)
+                args.foreach(collectWeakMembers(_, localBinders))
+              case AndType(lhs, rhs) =>
+                collectWeakMembers(lhs, localBinders)
+                collectWeakMembers(rhs, localBinders)
+              case OrType(lhs, rhs) =>
+                collectWeakMembers(lhs, localBinders)
+                collectWeakMembers(rhs, localBinders)
+              case TypeRef(prefix, _) =>
+                collectWeakMembers(prefix, localBinders)
+              case TermRef(prefix, _) =>
+                collectWeakMembers(prefix, localBinders)
+              case ThisType(prefix) =>
+                collectWeakMembers(prefix, localBinders)
+              case TypeBounds(lo, hi) =>
+                collectWeakMembers(lo, localBinders)
+                collectWeakMembers(hi, localBinders)
+              case lam @ TypeLambda(_, _, res) =>
+                collectWeakMembers(res, localBinders + lam)
+              case poly @ PolyType(_, bounds, res) =>
+                bounds.foreach { case TypeBounds(lo, hi) =>
+                  collectWeakMembers(lo, localBinders + poly)
+                  collectWeakMembers(hi, localBinders + poly)
+                }
+                collectWeakMembers(res, localBinders + poly)
+              case MethodType(_, argTypes, res) =>
+                argTypes.foreach(collectWeakMembers(_, localBinders))
+                collectWeakMembers(res, localBinders)
+              case ByNameType(inner) =>
+                collectWeakMembers(inner, localBinders)
+              case refinementInfo: Refinement =>
+                collectWeakMembers(refinementInfo.parent, localBinders)
+                collectWeakMembers(refinementInfo.info, localBinders)
+              case _: ParamRef | _: ConstantType | _: NoPrefix =>
+              case _: TypeRepr =>
+            }
           }
-          Inspect.inspectTypeRepr(withStrongTpesRefinementTypeRepr)
+
+          members.iterator
+            .flatMap { case (_, _, info) => refinementInfoToParts(info) }
+            .foreach(collectWeakMembers(_, Set.empty))
+          resolvedWeakMembers.toList
         }
-        val resolvedTypeMemberLtts = weakTypeMembers.map {
-          case (name, tpe) => '{ (${ Expr(name) }, ${ summonLTT(tpe) }) }
+
+        val unresolvedWeakStructLtt = Inspect.inspectTypeRepr(refinement)
+        val resolvedWeakTypeMembersExpr = weakTypeMemberSubstitutions.map {
+          case (name, ltt) => '{ (${ Expr(name) }, $ltt) }
         }
-        // NB: we're resolving LTTs anew for all type members here, instead of optimizing
-        // to resolve only for 'weak' members as in Scala 2.
+        val resolvedStructLtt = if (resolvedWeakTypeMembersExpr.isEmpty) {
+          unresolvedWeakStructLtt
+        } else {
+          '{ Tag.resolveWeakTypeMembers(${ unresolvedWeakStructLtt }, Map(${ Varargs(resolvedWeakTypeMembersExpr) }: _*)) }
+        }
+
         log(
           s"""Got refinement $refinement
              |parent=$parent
-             |members=$members
-             |closestClass=$cls
-             |""".stripMargin
+              |members=$members
+              |closestClass=$cls
+              |resolvedWeakMembers=${weakTypeMemberSubstitutions.map(_._1)}
+              |""".stripMargin
         )
-        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ termAndStrongTpesOnlyWeakStructLtt }, Map(${ Varargs(resolvedTypeMemberLtts) }: _*)) }
+        '{ Tag.refinedTag[T](${ cls }, List(${ parentLtt }), ${ resolvedStructLtt }, Map.empty) }
 
       // error: the entire type is just a proper type parameter with no type arguments
       // it cannot be resolved further
