@@ -658,7 +658,16 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[FinalClassProblem]("izumi.reflect.macrortti.LightTypeTagInheritance$CtxExt"),
       ProblemFilters.exclude[MissingTypesProblem]       ("izumi.reflect.macrortti.LightTypeTagInheritance$Ctx*"),
       ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagInheritance#Ctx*"),
-      ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagUnpacker*")
+      ProblemFilters.exclude[Problem]                   ("izumi.reflect.macrortti.LightTypeTagUnpacker*"),
+      // Support polymorphic function types in structural refinements (RefinementDecl.Signature uses AbstractReference)
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.output"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy$default$3"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.this"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.apply"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.input"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#RefinementDecl#Signature.copy$default$2")
+
     ),
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,

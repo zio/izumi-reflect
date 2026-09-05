@@ -82,6 +82,19 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
     }
 
+    "Tag for polymorphic function types" in {
+      val t1 = Tag[[A] => A => A]
+      val t2 = Tag[[B] => B => B]
+      assertSameStrict(t1.tag, t2.tag)
+    }
+
+    "Tag for polymorphic function types with complex return types" in {
+      val t1 = Tag[[A] => A => Option[A]]
+      val t2 = Tag[[A] => A => Option[A]]
+      assertSameStrict(t1.tag, t2.tag)
+    }
+
+
   }
 
 }

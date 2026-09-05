@@ -100,9 +100,90 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
 
     "basic support for polymorphic function types" in {
       val t1 = LTT[[A] => A => A]
-      val t2 = LTT[[B] => B => B]
+      val t2 = LTT[[A] => A => A]
       assertSameStrict(t1, t2)
     }
+
+    "support polymorphic function types with multiple type parameters" in {
+      val t1 = LTT[[A, B] => A => B => (A, B)]
+      val t2 = LTT[[A, B] => A => B => (A, B)]
+      assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types with bounds" in {
+      trait Base
+      val t1 = LTT[[A <: Base] => A => A]
+      val t2 = LTT[[A <: Base] => A => A]
+      assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types with complex return types" in {
+      val t1 = LTT[[A] => A => Option[A]]
+      val t2 = LTT[[A] => A => Option[A]]
+      assertSameStrict(t1, t2)
+    }
+
+    "support nested polymorphic function types" in {
+      val t1 = LTT[[A] => A => [B] => B => Either[A, B]]
+      val t2 = LTT[[A] => A => [B] => B => Either[A, B]]
+      assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types as type arguments" in {
+       val t1 = LTT[List[[A] => A => A]]
+       val t2 = LTT[List[[A] => A => A]]
+       assertSameStrict(t1, t2)
+    }
+
+    "support structural types with polymorphic function members" in {
+      type T1 = { def foo: [A] => A => A }
+      type T2 = { def foo: [A] => A => A }
+      
+      val t1 = LTT[T1]
+      val t2 = LTT[T2]
+      assertSameStrict(t1, t2)
+    }
+
+    "support deeply nested polymorphic function types" in {
+       // [A] => A => [B] => B => [C] => (A, B, C) => (C, B, A)
+       val t1 = LTT[[A] => A => [B] => B => [C] => (A, B, C) => (C, B, A)]
+       val t2 = LTT[[A] => A => [B] => B => [C] => (A, B, C) => (C, B, A)]
+       assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic functions taking polymorphic functions as arguments" in {
+       // [A] => ( [X] => X => A ) => A
+       val t1 = LTT[[A] => ([X] => X => A) => A]
+       val t2 = LTT[[A] => ([X] => X => A) => A]
+       assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types with bounds and variance" in {
+       trait Upper {}
+       trait Lower extends Upper {}
+       // [A <: Upper, B >: Lower] => A => B
+       val t1 = LTT[[A <: Upper, B >: Lower] => A => B]
+       val t2 = LTT[[A <: Upper, B >: Lower] => A => B]
+        assertSameStrict(t1, t2)
+    }
+
+    "support polymorphic function types in intersection types" in {
+      trait F1 { def f: [A] => A => A }
+      trait F2 { def g: [B] => B => List[B] }
+      
+       val t1 = LTT[{ def f: [A] => A => A } & { def g: [B] => B => List[B] }]
+       val t2 = LTT[{ def f: [A] => A => A } & { def g: [B] => B => List[B] }]
+      
+      assertSameStrict(t1, t2)
+    }
+
+    "support structural types with complex polymorphic members" in {
+      type T1 = { def complex: [A] => List[A] => Option[A] }
+      type T2 = { def complex: [A] => List[A] => Option[A] }
+      
+      assertSameStrict(LTT[T1], LTT[T2])
+    }
+
 
   }
 }
