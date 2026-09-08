@@ -25,6 +25,10 @@ project/metals.sbt
 .bloop
 .java-version
 
+#Metals bug/issue - it's creating its workspace data directory at a path called null instead of the proper workspace path
+null
+
+
 # Created by .ignore support plugin (hsz.mobi)
 ### Scala template
 *.class

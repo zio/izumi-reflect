@@ -1,16 +1,49 @@
 package izumi.reflect.dottyreflection
 
+import izumi.reflect.DebugProperties
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
 import izumi.reflect.macrortti.LightTypeTagRef
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
+import java.lang.ref.SoftReference
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.quoted.*
 
 object InheritanceDbInspector {
+  private type TypeReprKey = Quotes#reflectModule#TypeRepr
+  private val dbCache = new ConcurrentHashMap[TypeReprKey, SoftReference[Map[NameReference, Set[NameReference]]]]()
+
+  private def compileCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
+    Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`))
+      .flatMap(_.asBoolean())
+      .getOrElse(true)
+  }
+
+  private def inheritanceDbCacheEnabled: Boolean = {
+    import izumi.reflect.internal.fundamentals.platform.strings.IzString.toRichString
+    Option(System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.inheritance`))
+      .flatMap(_.asBoolean())
+      .getOrElse(true)
+  }
+
   def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
     override val qctx: q.type = q
+  }
+
+  private[InheritanceDbInspector] def getCachedInheritanceDbForComponent(q: Quotes)(typeRepr: q.reflect.TypeRepr): Option[Map[NameReference, Set[NameReference]]] = {
+    val cacheEnabled = compileCacheEnabled && inheritanceDbCacheEnabled
+    if (cacheEnabled) {
+      val key: TypeReprKey = typeRepr.dealias.simplified.asInstanceOf[TypeReprKey]
+      Option(dbCache.get(key)).flatMap(sr => Option(sr.get())).map { cachedMap =>
+        CacheStats.inheritanceDbHit()
+        cachedMap
+      }
+    } else {
+      None
+    }
   }
 }
 
@@ -18,10 +51,33 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
   import qctx.reflect.*
 
   def makeUnappliedInheritanceDb(typeRepr: TypeRepr): Map[NameReference, Set[NameReference]] = {
-    val tpe0 = typeRepr._dealiasSimplifiedFull
+    val cacheEnabled = InheritanceDbInspector.compileCacheEnabled && InheritanceDbInspector.inheritanceDbCacheEnabled
+    val key: InheritanceDbInspector.TypeReprKey = typeRepr.dealias.simplified
 
-    new Run(Inspector.make(qctx), mutable.HashSet.empty)
-      .makeUnappliedInheritanceDb(tpe0)
+    val cachedResult: Option[Map[NameReference, Set[NameReference]]] =
+      if (cacheEnabled) {
+        Option(InheritanceDbInspector.dbCache.get(key)).flatMap(sr => Option(sr.get()))
+      } else {
+        None
+      }
+
+    cachedResult match {
+      case Some(cached) =>
+        CacheStats.inheritanceDbHit()
+        cached
+      case None =>
+        CacheStats.inheritanceDbMiss()
+        val tpe0 = typeRepr._dealiasSimplifiedFull
+
+        val result = new Run(Inspector.make(qctx), mutable.HashSet.empty)
+          .makeUnappliedInheritanceDb(tpe0)
+
+        if (cacheEnabled) {
+          InheritanceDbInspector.dbCache.put(key, new SoftReference(result))
+        }
+
+        result
+    }
   }
 
   class Run(
@@ -46,6 +102,14 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
     private def inspectTypeReprToUnappliedIndirectBases(i: TypeRepr): List[(NameReference, NameReference)] = {
       val tpe = i._dealiasSimplifiedFull._resultType
+      
+      // Check cache for this component type first (reuse work from previous Tag[T] calls)
+      InheritanceDbInspector.getCachedInheritanceDbForComponent(qctx)(tpe) match {
+        case Some(cachedMap) =>
+          return cachedMap.iterator.flatMap { case (k, vs) => vs.map(v => (k, v)) }.toList
+        case None =>
+      }
+      
       val tpeRef = inspector.makeNameReferenceFromType(tpe)
 
       tpeBases(tpeRef, tpe, onlyIndirect = false)

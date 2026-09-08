@@ -722,6 +722,28 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assert(Tag[test2.ArrayT].closestClass eq classOf[Array[Byte]])
     }
 
+    "reuse component DB entries when a type appears as a type argument (#350)" in {
+      trait DbBase
+      trait DbLevel1 extends DbBase
+      trait DbLevel2 extends DbLevel1
+      case class DbLeaf1() extends DbLevel2
+      case class DbLeaf2() extends DbLevel2
+      case class DbService(base: DbBase)
+
+      // components first, so wrapper DBs below are built from cached entries
+      assertChild(Tag[DbLeaf1].tag, Tag[DbBase].tag)
+      assertChild(Tag[DbLevel2].tag, Tag[DbLevel1].tag)
+      assert(Tag[DbService].closestClass eq classOf[DbService])
+
+      assertChild(Tag[List[DbLeaf1]].tag, Tag[List[DbBase]].tag)
+      assertChild(Tag[Option[DbLevel2]].tag, Tag[Option[DbBase]].tag)
+      assertChild(Tag[Map[String, DbLeaf2]].tag, Tag[Map[String, DbBase]].tag)
+
+      // repeated materializations must be stable across cache hits
+      assertSame(Tag[List[DbBase]].tag, Tag[List[DbBase]].tag)
+      assertSame(Tag[Option[DbBase]].tag, Tag[Option[DbBase]].tag)
+    }
+
     "Work with term type prefixes" in {
       val zy = new ZY {}
       val zx = new ZY {}
