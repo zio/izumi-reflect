@@ -1,4 +1,4 @@
-import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.107`
+import $ivy.`io.7mind.izumi.sbt:sbtgen_2.13:0.0.122`
 import izumi.sbtgen._
 import izumi.sbtgen.model._
 
@@ -22,9 +22,11 @@ object Izumi {
     val zio_sbt_website = Version.VExpr("PV.zio_sbt_website")
   }
 
+  final val sbtVersion = "2.0.9"
+
   final val scala211 = ScalaVersion("2.11.12")
-  final val scala212 = ScalaVersion("2.12.20")
-  final val scala213 = ScalaVersion("2.13.14")
+  final val scala212 = ScalaVersion("2.12.21")
+  final val scala213 = ScalaVersion("2.13.18")
   final val scala300 = ScalaVersion("3.3.6")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
@@ -55,10 +57,14 @@ object Izumi {
 
   val settings = GlobalSettings(
     groupId = "dev.zio",
-    sbtVersion = None,
+    sbtVersion = Some(sbtVersion),
+    sbtTarget = SbtTarget.Sbt2,
     scalaJsVersion = Version.VExpr("PV.scala_js_version"),
     scalaNativeVersion = Version.VExpr("PV.scala_native_version"),
-    crossProjectVersion = Version.VExpr("PV.sbt_crossproject_version")
+    crossProjectVersion = Version.VExpr("PV.sbt_crossproject_version"),
+    // sbt-scalajs-bundler and sbt-jsdependencies have no sbt 2.x releases
+    bundlerVersion = None,
+    sbtJsDependenciesVersion = None
   )
 
   object Deps {
@@ -68,7 +74,8 @@ object Izumi {
     final val scala3_compiler = Library("org.scala-lang", "scala3-compiler", Version.VExpr("scalaVersion.value"), LibraryType.AutoJvm)
 
     final val projector = Library("org.typelevel", "kind-projector", V.kind_projector, LibraryType.Invariant)
-      .more(LibSetting.Raw("cross CrossVersion.full"))
+      // backticked because sbt 2.x compiles build.sbt with Scala 3, which warns on alphanumeric infix
+      .more(LibSetting.Raw("`cross` CrossVersion.full"))
   }
 
   import Deps._
@@ -95,7 +102,21 @@ object Izumi {
       platform = Platform.Native,
       language = targetScala.filterNot(_ == Izumi.scala211), // scala-native abandoned 2.11
       settings = Seq(
-        "coverageEnabled" := false
+        "coverageEnabled" := false,
+        // sbt 2.x makes `%%` platform-aware, so `mimaPreviousArtifacts` now asks for
+        // `*_native0.5_*` artifacts of the baseline versions, which were never published
+        // (sbt 1.x silently compared the Native build against the JVM artifacts instead)
+        "mimaPreviousArtifacts" in Platform.Native := "Set.empty".raw,
+        // scalatest's Scala Native artifacts are built against an older scala-native than the one we
+        // link against; scala-native publishes versionScheme `strict`, which sbt 2.x turns into an
+        // eviction error rather than the warning sbt 1.x emitted.
+        // The cross suffixes are spelled out because `libraryDependencySchemes` is matched against the
+        // literal module name - neither `%%` nor `.platform(...)` expands there.
+        "libraryDependencySchemes" ++= Seq[Const](
+          """"org.scala-native" % "test-interface_native0.5_2.12" % VersionScheme.Always""".raw,
+          """"org.scala-native" % "test-interface_native0.5_2.13" % VersionScheme.Always""".raw,
+          """"org.scala-native" % "test-interface_native0.5_3" % VersionScheme.Always""".raw
+        )
       )
     )
     final val crossNative = Seq(jvmPlatform, jsPlatform, nativePlatform)
@@ -205,8 +226,9 @@ object Izumi {
         Defaults.CrossScalaPlusSources ++
         Defaults.CrossScalaRangeSources ++
         Seq(
-          "test" in Platform.Native := "{}".raw,
-          "test" in (SettingScope.Test, Platform.Native) := "{}".raw,
+          // sbt 2.x types `test` as `TestResult`, so an empty block no longer stands in for "do nothing"
+          "test" in Platform.Native := "sbt.protocol.testing.TestResult.Passed".raw,
+          "test" in (SettingScope.Test, Platform.Native) := "sbt.protocol.testing.TestResult.Passed".raw,
           "sources" in SettingScope.Raw("Compile / doc") := Seq(
             SettingKey(Some(scala300), None) := Seq.empty[String],
             SettingKey.Default := "(Compile / doc / sources).value".raw

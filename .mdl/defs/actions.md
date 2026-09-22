@@ -123,6 +123,7 @@ readonly SBTGEN_INPUTS=(
 readonly GENERATED_SBT_FILES=(
   "$PROJECT_ROOT/build.sbt"
   "$PROJECT_ROOT/project/plugins.sbt"
+  "$PROJECT_ROOT/project/build.properties"
 )
 
 readonly EPOCH_START=0
@@ -255,7 +256,7 @@ if [[ "$CI_BRANCH_TAG" =~ ^v.*$ ]]; then
         --java-home "$JAVA_HOME" \
         "show credentials" \
         "+clean" \
-        "+test:compile" \
+        "+Test/compile" \
         "+publishSigned" \
         "sonaRelease"
 else
@@ -264,7 +265,7 @@ else
         --java-home "$JAVA_HOME" \
         "show credentials" \
         "+clean" \
-        "+test:compile" \
+        "+Test/compile" \
         "+publishSigned"
 fi
 ```
