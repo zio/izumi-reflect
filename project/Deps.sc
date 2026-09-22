@@ -24,13 +24,12 @@ object Izumi {
 
   final val sbtVersion = "2.0.9"
 
-  final val scala211 = ScalaVersion("2.11.12")
   final val scala212 = ScalaVersion("2.12.21")
   final val scala213 = ScalaVersion("2.13.18")
-  final val scala300 = ScalaVersion("3.3.6")
+  final val scala300 = ScalaVersion("3.3.8")
 
   // launch with `./sbtgen.sc 2` to use 2.13 in Intellij
-  var targetScala = Seq(scala300, scala213, scala212, scala211)
+  var targetScala = Seq(scala300, scala213, scala212)
 
   def entrypoint(args: Seq[String]) = {
     val newArgs = args diff Seq(
@@ -38,7 +37,6 @@ object Izumi {
         .collectFirst {
           case s @ s"3${_}" => s -> scala300
           case s @ "2.12" => s -> scala212
-          case s @ "2.11" => s -> scala211
           case s @ s"2${_}" => s -> scala213
         }.map {
           case (s, target) =>
@@ -92,7 +90,7 @@ object Izumi {
     )
     private val jsPlatform = PlatformEnv(
       platform = Platform.Js,
-      language = targetScala.filterNot(_ == Izumi.scala211),
+      language = targetScala,
       settings = Seq(
         "coverageEnabled" := false,
         "scalaJSLinkerConfig" in (SettingScope.Project, Platform.Js) := "scalaJSLinkerConfig.value.withModuleKind(ModuleKind.CommonJSModule)".raw
@@ -100,7 +98,7 @@ object Izumi {
     )
     private val nativePlatform = PlatformEnv(
       platform = Platform.Native,
-      language = targetScala.filterNot(_ == Izumi.scala211), // scala-native abandoned 2.11
+      language = targetScala,
       settings = Seq(
         "coverageEnabled" := false,
         // sbt 2.x makes `%%` platform-aware, so `mimaPreviousArtifacts` now asks for
@@ -174,8 +172,26 @@ object Izumi {
           """ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag110")""".raw,
           """ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag210")""".raw,
           """ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTagM8")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTag#ParsedLightTypeTag*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag*")""".raw,
           // dotty-only ProductX case class inheritance breakage
           """ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference._1")""".raw,
+          // LambdaParameter stopped being a case class when lambda parameter names became named
+          // constants; mima 1.1.0 did not detect this, mima 1.1.5+ (the oldest sbt 2.x release) does
+          """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagRef#LambdaParameter*")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagRef$LambdaParameter*")""".raw,
+          // mima 1.2.x added *NoLongerCheckedProblem: members that were public in the baseline and have
+          // since been narrowed to private, so mima stops tracking them. All of these are the deliberately
+          // narrowed `bincompat only` shims, which still exist in the bytecode.
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.ref")""".raw,
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.copy")""".raw,
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.copy$default$1")""".raw,
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.this")""".raw,
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#NameReference.apply")""".raw,
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#SymName.name")""".raw,
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LTTRenderables.r_LambdaParameter")""".raw,
+          """ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagInheritance$Ctx*")""".raw,
+          """ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTag.this")""".raw,
           // new inherited methods added (2.11 problem only?)
           """ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef*")""".raw,
           // new methods added
@@ -246,7 +262,6 @@ object Izumi {
               "-Wconf:msg=nowarn:silent"
             )
             Seq(
-              SettingKey(Some(scala211), None) := Const.EmptySeq,
               SettingKey(Some(scala212), None) := Defaults.Scala212Options.filterNot(removedOpts) ++ addedOpts,
               SettingKey(Some(scala213), None) := Defaults.Scala213Options.filterNot(removedOpts) ++ addedOpts,
               SettingKey.Default := Seq(

@@ -31,8 +31,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '11', '17', '21' ]
-        scala: [ '2.11', '2.12', '2.13', '3' ]
+        java: [ '17', '21' ]
+        scala: [ '2.12', '2.13', '3' ]
     steps:
       - uses: 7mind/github-env@minimal
       - name: Build and Test
@@ -45,7 +45,7 @@ jobs:
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
           name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
-          path: '**/target/test-reports/TEST-*.xml'
+          path: '**/test-reports/TEST-*.xml'
           reporter: java-junit
       - uses: sbt/setup-sbt@v1 # setup sbt
       - name: Upload dependency graph

@@ -19,7 +19,7 @@
 
 # Axis
 
-- `java_version`=`{11|17*|21}`
+- `java_version`=`{17*|21}`
 - `scala_version`=`{2.12|2.13*|3}`
 
 # action: setup-jdk
@@ -32,13 +32,6 @@ JAVA_VERSION_VAL=${sys.axis.java_version}
 # Determine JAVA_HOME based on JDK version from nix flake environment
 # These are set by flake.nix shellHook
 case "$JAVA_VERSION_VAL" in
-  11)
-    if [[ -n "${JDK11:-}" ]]; then
-      JAVA_HOME="$JDK11"
-    else
-      echo "Error: JDK11 not set in environment" && exit 1
-    fi
-    ;;
   17)
     if [[ -n "${JDK17:-}" ]]; then
       JAVA_HOME="$JDK17"
