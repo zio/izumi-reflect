@@ -50,7 +50,7 @@ jobs:
       - uses: sbt/setup-sbt@v1 # setup sbt
       - name: Upload dependency graph
         if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
-        uses: scalacenter/sbt-dependency-submission@53544c3e7bf54b0cb7f375f016e5b7446b96b706
+        uses: scalacenter/sbt-dependency-submission@d84eef4c09e633bcf5f113bcad7fd5e9af1baee9 # v3.2.3; the previous pin defaulted to sbt plugin 3.1.0, which has no sbt 2 build
 
   publish-artifacts:
     runs-on: ubuntu-latest
