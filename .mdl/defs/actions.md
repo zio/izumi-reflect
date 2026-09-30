@@ -1,6 +1,6 @@
 # Build Actions
 
-## Environment
+# Environment
 
 - `LANG=C.UTF-8`
 
