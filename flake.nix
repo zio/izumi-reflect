@@ -37,6 +37,7 @@
             gnupg
 
             clang
+            which
 
             mudyla.packages.${system}.default
           ];
