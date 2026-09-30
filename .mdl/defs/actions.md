@@ -11,7 +11,6 @@
 - `OPENSSL_KEY`
 - `SONATYPE_USERNAME`
 - `SONATYPE_PASSWORD`
-- `NODE_AUTH_TOKEN`
 - `CI_BRANCH_TAG`
 - `CI_BUILD_UNIQ_SUFFIX`
 - `CI_PULL_REQUEST`
@@ -268,8 +267,22 @@ fi
 Publish documentation to NPM
 
 ## vars
-- `CI_PULL_REQUEST`
-- `CI_BRANCH`
+- `CI_PULL_REQUEST`: whether the build is for a pull request
+- `CI_BRANCH`: branch being built
+- `GITHUB_ACTIONS`: lets npm detect GitHub Actions for trusted publishing
+- `ACTIONS_ID_TOKEN_REQUEST_URL`: GitHub OIDC token endpoint used by npm trusted publishing
+- `ACTIONS_ID_TOKEN_REQUEST_TOKEN`: GitHub OIDC request token used by npm trusted publishing
+- `GITHUB_EVENT_NAME`: npm provenance
+- `GITHUB_REF`: npm provenance
+- `GITHUB_REPOSITORY`: npm provenance
+- `GITHUB_REPOSITORY_ID`: npm provenance
+- `GITHUB_REPOSITORY_OWNER_ID`: npm provenance
+- `GITHUB_RUN_ATTEMPT`: npm provenance
+- `GITHUB_RUN_ID`: npm provenance
+- `GITHUB_SERVER_URL`: npm provenance
+- `GITHUB_SHA`: npm provenance
+- `GITHUB_WORKFLOW_REF`: npm provenance
+- `RUNNER_ENVIRONMENT`: npm provenance
 
 ```bash
 # Declare dependencies and use their outputs
@@ -281,21 +294,14 @@ JAVA_OPTIONS="${action.setup-jvm-options.java-options}"
 _JAVA_OPTIONS="$JAVA_OPTIONS"
 
 # Get environment variables from mudyla substitution
-NODE_AUTH_TOKEN_VAL="${env.NODE_AUTH_TOKEN}"
 CI_PULL_REQUEST_VAL="${env.CI_PULL_REQUEST}"
 CI_BRANCH_VAL="${env.CI_BRANCH}"
 CI_BRANCH_TAG_VAL="${env.CI_BRANCH_TAG}"
 
 # Apply bash defaults
-NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN_VAL}"
 CI_PULL_REQUEST="${CI_PULL_REQUEST_VAL:-false}"
 CI_BRANCH="${CI_BRANCH_VAL}"
 CI_BRANCH_TAG="${CI_BRANCH_TAG_VAL}"
-
-if [[ -z "$NODE_AUTH_TOKEN" ]]; then
-    echo "Missing NODE_AUTH_TOKEN, skipping docs publish"
-    exit 0
-fi
 
 if [[ "$CI_PULL_REQUEST" == "true" ]]; then
     echo "Publishing not allowed on P/Rs"
@@ -314,12 +320,6 @@ cp ${sys.project-root}/.mdl/resources/zio-docs.sbt ${sys.project-root}/zio-docs.
 awk '/<!--- docs:start --->/,/<!--- docs:end --->/' ${sys.project-root}/README.md >> ${sys.project-root}/docs/index.md
 sed -i '/<!--- docs:start --->/d' ${sys.project-root}/docs/index.md
 sed -i '/<!--- docs:end --->/d' ${sys.project-root}/docs/index.md
-
-# Setup npm auth
-echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
-
-# Verify npm authentication
-npm whoami
 
 # Publish to npm
 sbt -batch -no-colors -v \

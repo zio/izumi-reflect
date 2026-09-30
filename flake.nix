@@ -30,8 +30,7 @@
             coursier
             sbt
 
-            nodejs
-            nodePackages.npm
+            nodejs_24
 
             gitMinimal
             gnupg
