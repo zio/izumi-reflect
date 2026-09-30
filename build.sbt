@@ -215,7 +215,14 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       "2.13.18",
       "2.12.21"
     ),
-    scalaVersion := crossScalaVersions.value.head
+    scalaVersion := crossScalaVersions.value.head,
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "3.3.8") => Seq(
+        "-Yfuture-lazy-vals",
+        "-java-output-version:11"
+      )
+      case (_, _) => Seq.empty
+    } }
   )
   .jsSettings(
     crossScalaVersions := Seq(
@@ -456,7 +463,14 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "2.13.18",
       "2.12.21"
     ),
-    scalaVersion := crossScalaVersions.value.head
+    scalaVersion := crossScalaVersions.value.head,
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "3.3.8") => Seq(
+        "-Yfuture-lazy-vals",
+        "-java-output-version:11"
+      )
+      case (_, _) => Seq.empty
+    } }
   )
   .jsSettings(
     crossScalaVersions := Seq(
