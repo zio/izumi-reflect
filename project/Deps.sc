@@ -86,7 +86,16 @@ object Izumi {
     def targetScala = Izumi.targetScala
     private val jvmPlatform = PlatformEnv(
       platform = Platform.Jvm,
-      language = targetScala
+      language = targetScala,
+      settings = Seq(
+        "scalacOptions" ++= Seq(
+          SettingKey(Some(scala300), None) := Seq[Const](
+            "-Yfuture-lazy-vals",
+            "-java-output-version:11"
+          ),
+          SettingKey.Default := Const.EmptySeq
+        )
+      )
     )
     private val jsPlatform = PlatformEnv(
       platform = Platform.Js,
