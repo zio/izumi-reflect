@@ -17,6 +17,6 @@
  */
 
 object V {
-  val kind_projector = "0.13.3"
-  val scalatest = "3.2.19"
+  val kind_projector = "0.13.4"
+  val scalatest = "3.2.20"
 }

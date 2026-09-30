@@ -7,22 +7,20 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 import com.typesafe.tools.mima.core._
 
-enablePlugins(SbtgenVerificationPlugin)
-
 lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform, JSPlatform, NativePlatform).crossType(CrossType.Pure).in(file("izumi-reflect/izumi-reflect-thirdparty-boopickle-shaded"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalatest" %%% "scalatest" % V.scalatest % Test
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
-      compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
+      compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector `cross` CrossVersion.full),
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     ) else Seq.empty },
     libraryDependencies ++= {
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Provided
+          ("org.scala-lang" %% "scala3-compiler" % scalaVersion.value).platform(Platform.jvm) % Provided
         )
       } else Seq.empty
     }
@@ -110,17 +108,17 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       }
     },
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.3.6") => Seq(
+      case (_, "3.3.8") => Seq(
       
       )
       case (_, _) => (Compile / doc / sources).value
     } },
     Test / testOptions += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.11.12") => Seq.empty
-      case (_, "2.12.20") => Seq(
+      case (_, "2.12.21") => Seq(
         "-release:8",
         "-explaintypes",
+        "-language:higherKinds",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -160,7 +158,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
         "-Ycache-macro-class-loader:last-modified",
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.14") => Seq(
+      case (_, "2.13.18") => Seq(
         "-release:8",
         "-explaintypes",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
@@ -188,21 +186,21 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
     } },
     scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.3.6") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
+      case (_, "3.3.8") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
       case (_, _) => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.13.14") => Seq(
+      case (_, "2.13.18") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (false, "2.12.20") => Seq(
+      case (false, "2.12.21") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.14") => Seq(
+      case (false, "2.13.18") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -213,18 +211,17 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   )
   .jvmSettings(
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20",
-      "2.11.12"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head
   )
   .jsSettings(
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head,
     coverageEnabled := false,
@@ -232,14 +229,20 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
   )
   .nativeSettings(
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head,
     coverageEnabled := false,
-    test := {},
-    Test / test := {}
+    mimaPreviousArtifacts := Set(organization.value %% name.value % "2.3.9"),
+    libraryDependencySchemes ++= Seq(
+      "org.scala-native" % "test-interface_native0.5_2.12" % VersionScheme.Always,
+      "org.scala-native" % "test-interface_native0.5_2.13" % VersionScheme.Always,
+      "org.scala-native" % "test-interface_native0.5_3" % VersionScheme.Always
+    ),
+    test := sbt.protocol.testing.TestResult.Passed,
+    Test / test := sbt.protocol.testing.TestResult.Passed
   )
 lazy val `izumi-reflect-thirdparty-boopickle-shadedJVM` = `izumi-reflect-thirdparty-boopickle-shaded`.jvm
 lazy val `izumi-reflect-thirdparty-boopickle-shadedJS` = `izumi-reflect-thirdparty-boopickle-shaded`.js
@@ -251,17 +254,17 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalatest" %%% "scalatest" % V.scalatest % Test
+      "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
     libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
-      compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector cross CrossVersion.full),
+      compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector `cross` CrossVersion.full),
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     ) else Seq.empty },
     libraryDependencies ++= {
       val version = scalaVersion.value
       if (version.startsWith("0.") || version.startsWith("3.")) {
         Seq(
-          "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Provided
+          ("org.scala-lang" %% "scala3-compiler" % scalaVersion.value).platform(Platform.jvm) % Provided
         )
       } else Seq.empty
     }
@@ -349,17 +352,17 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       }
     },
     Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.3.6") => Seq(
+      case (_, "3.3.8") => Seq(
       
       )
       case (_, _) => (Compile / doc / sources).value
     } },
     Test / testOptions += Tests.Argument("-oDF"),
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.11.12") => Seq.empty
-      case (_, "2.12.20") => Seq(
+      case (_, "2.12.21") => Seq(
         "-release:8",
         "-explaintypes",
+        "-language:higherKinds",
         "-Ypartial-unification",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
         "-Wconf:cat=optimizer:warning",
@@ -399,7 +402,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
         "-Ycache-macro-class-loader:last-modified",
         "-Wconf:msg=nowarn:silent"
       )
-      case (_, "2.13.14") => Seq(
+      case (_, "2.13.18") => Seq(
         "-release:8",
         "-explaintypes",
         if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
@@ -427,21 +430,21 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     } },
     scalacOptions -= "-Wconf:any:error",
     mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "3.3.6") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
+      case (_, "3.3.8") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
       case (_, _) => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (_, "2.13.14") => Seq(
+      case (_, "2.13.18") => Seq(
         "-Xlint:-implicit-recursion"
       )
       case (_, _) => Seq.empty
     } },
     scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
-      case (false, "2.12.20") => Seq(
+      case (false, "2.12.21") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
-      case (false, "2.13.14") => Seq(
+      case (false, "2.13.18") => Seq(
         "-opt:l:inline",
         "-opt-inline-from:izumi.reflect.**"
       )
@@ -451,18 +454,17 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .jvmSettings(
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20",
-      "2.11.12"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head
   )
   .jsSettings(
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head,
     coverageEnabled := false,
@@ -470,14 +472,20 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .nativeSettings(
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head,
     coverageEnabled := false,
-    test := {},
-    Test / test := {}
+    mimaPreviousArtifacts := Set(organization.value %% name.value % "2.3.9"),
+    libraryDependencySchemes ++= Seq(
+      "org.scala-native" % "test-interface_native0.5_2.12" % VersionScheme.Always,
+      "org.scala-native" % "test-interface_native0.5_2.13" % VersionScheme.Always,
+      "org.scala-native" % "test-interface_native0.5_3" % VersionScheme.Always
+    ),
+    test := sbt.protocol.testing.TestResult.Passed,
+    Test / test := sbt.protocol.testing.TestResult.Passed
   )
 lazy val `izumi-reflectJVM` = `izumi-reflect`.jvm
 lazy val `izumi-reflectJS` = `izumi-reflect`.js
@@ -485,7 +493,10 @@ lazy val `izumi-reflectNative` = `izumi-reflect`.native
 
 lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate"))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
+    SettingKey[Boolean]("ide-skip-project") := true,
     crossScalaVersions := Nil
   )
   .aggregate(
@@ -499,7 +510,10 @@ lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi-reflect-izumi-
 
 lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-jvm"))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
+    SettingKey[Boolean]("ide-skip-project") := true,
     crossScalaVersions := Nil
   )
   .aggregate(
@@ -509,7 +523,10 @@ lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi-reflect-iz
 
 lazy val `izumi-reflect-aggregate-js` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-js"))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
+    SettingKey[Boolean]("ide-skip-project") := true,
     crossScalaVersions := Nil
   )
   .aggregate(
@@ -519,7 +536,10 @@ lazy val `izumi-reflect-aggregate-js` = (project in file(".agg/izumi-reflect-izu
 
 lazy val `izumi-reflect-aggregate-native` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-native"))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
+    SettingKey[Boolean]("ide-skip-project") := true,
     crossScalaVersions := Nil
   )
   .aggregate(
@@ -529,12 +549,14 @@ lazy val `izumi-reflect-aggregate-native` = (project in file(".agg/izumi-reflect
 
 lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
+    SettingKey[Boolean]("ide-skip-project") := true,
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20",
-      "2.11.12"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head
   )
@@ -544,12 +566,14 @@ lazy val `izumi-reflect-root-jvm` = (project in file(".agg/.agg-jvm"))
 
 lazy val `izumi-reflect-root-js` = (project in file(".agg/.agg-js"))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
+    SettingKey[Boolean]("ide-skip-project") := true,
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20",
-      "2.11.12"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head
   )
@@ -559,12 +583,14 @@ lazy val `izumi-reflect-root-js` = (project in file(".agg/.agg-js"))
 
 lazy val `izumi-reflect-root-native` = (project in file(".agg/.agg-native"))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
+    SettingKey[Boolean]("ide-skip-project") := true,
     crossScalaVersions := Seq(
-      "3.3.6",
-      "2.13.14",
-      "2.12.20",
-      "2.11.12"
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
     ),
     scalaVersion := crossScalaVersions.value.head
   )
@@ -574,16 +600,20 @@ lazy val `izumi-reflect-root-native` = (project in file(".agg/.agg-native"))
 
 lazy val `izumi-reflect-root` = (project in file("."))
   .settings(
+    crossScalaVersions := Nil,
+    libraryDependencies := Nil,
     publish / skip := true,
     Global / onChangedBuildSource := ReloadOnSourceChanges,
+    Global / excludeLintKeys += SettingKey[Boolean]("ide-skip-project"),
+    Global / excludeLintKeys += SettingKey[Boolean]("coverage-enabled"),
+    Global / excludeLintKeys += publishMavenStyle,
     ThisBuild / publishMavenStyle := true,
     ThisBuild / scalacOptions ++= Seq(
       "-encoding",
       "UTF-8",
       "-feature",
       "-unchecked",
-      "-deprecation",
-      "-language:higherKinds"
+      "-deprecation"
     ),
     ThisBuild / javacOptions ++= Seq(
       "-encoding",
@@ -629,7 +659,20 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag110"),
       ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag210"),
       ProblemFilters.exclude[MissingClassProblem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTagM8"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTag#ParsedLightTypeTag*"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTag$ParsedLightTypeTag*"),
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference._1"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagRef#LambdaParameter*"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagRef$LambdaParameter*"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.ref"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.copy"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.copy$default$1"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#FullReference.this"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#NameReference.apply"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTagRef#SymName.name"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LTTRenderables.r_LambdaParameter"),
+      ProblemFilters.exclude[Problem]("izumi.reflect.macrortti.LightTypeTagInheritance$Ctx*"),
+      ProblemFilters.exclude[MethodNoLongerCheckedProblem]("izumi.reflect.macrortti.LightTypeTag.this"),
       ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef*"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LTTRenderables.r_LambdaParameterName"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTag.binaryFormatVersion"),
@@ -642,6 +685,8 @@ lazy val `izumi-reflect-root` = (project in file("."))
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.prefix"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledName"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledRepr"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LTTSyntax.scalaStyledNameImpl"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#*.scalaStyledNameImpl"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.=:="),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.<:<"),
       ProblemFilters.exclude[Problem]("izumi.reflect.TagMacro.*"),
@@ -663,8 +708,9 @@ lazy val `izumi-reflect-root` = (project in file("."))
     ThisBuild / mimaFailOnProblem := true,
     ThisBuild / mimaFailOnNoPrevious := false,
     ThisBuild / useGpg := false,
-    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.107" % Provided
+    libraryDependencies += "io.7mind.izumi.sbt" % "sbtgen_2.13" % "0.0.122" % Provided
   )
+  .enablePlugins(SbtgenVerificationPlugin)
   .aggregate(
     `izumi-reflect-aggregate`
   )

@@ -30,8 +30,7 @@
             coursier
             sbt
 
-            nodejs
-            nodePackages.npm
+            nodejs_24
 
             gitMinimal
             gnupg
@@ -40,7 +39,6 @@
           ];
 
           shellHook = ''
-            export JDK11=${pkgs.jdk11_headless}
             export JDK17=${pkgs.jdk17_headless}
             export JDK21=${pkgs.jdk21_headless}
             export JDK_DEV=${pkgs.graalvmPackages.graalvm-ce}

@@ -31,8 +31,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '11', '17', '21' ]
-        scala: [ '2.11', '2.12', '2.13', '3' ]
+        java: [ '17', '21' ]
+        scala: [ '2.12', '2.13', '3' ]
     steps:
       - uses: 7mind/github-env@minimal
       - name: Build and Test
@@ -45,12 +45,12 @@ jobs:
         if: (needs.checksecret.outputs.HAVE_SECRETS == 'true') && (success() || failure())
         with:
           name: Test reports (JDK ${{ matrix.java }}, Scala ${{ matrix.scala }})
-          path: '**/target/test-reports/TEST-*.xml'
+          path: '**/test-reports/TEST-*.xml'
           reporter: java-junit
       - uses: sbt/setup-sbt@v1 # setup sbt
       - name: Upload dependency graph
         if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
-        uses: scalacenter/sbt-dependency-submission@53544c3e7bf54b0cb7f375f016e5b7446b96b706
+        uses: scalacenter/sbt-dependency-submission@d84eef4c09e633bcf5f113bcad7fd5e9af1baee9 # v3.2.3; the previous pin defaulted to sbt plugin 3.1.0, which has no sbt 2 build
 
   publish-artifacts:
     runs-on: ubuntu-latest
@@ -85,6 +85,9 @@ jobs:
     continue-on-error: false
     needs: [ 'build', 'checksecret' ]
     if: needs.checksecret.outputs.HAVE_SECRETS == 'true'
+    permissions:
+      contents: read
+      id-token: write
     #if: ${{ ((github.event_name == 'release') && (github.event.action == 'published')) || (github.event_name == 'workflow_dispatch') }}
     strategy:
       matrix:
@@ -94,7 +97,6 @@ jobs:
       - uses: 7mind/github-env@minimal
       - name: Publish Docs to NPM Registry
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           CI_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
           CI_BRANCH: ${{ github.ref_name }}
           CI_BRANCH_TAG: ${{ github.ref_name }}
