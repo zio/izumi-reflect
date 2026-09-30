@@ -20,6 +20,7 @@ object Izumi {
     val scalajs_bundler_version = Version.VExpr("PV.scalajs_bundler_version")
     val sbt_mima_version = Version.VExpr("PV.sbt_mima_version")
     val zio_sbt_website = Version.VExpr("PV.zio_sbt_website")
+    val zio_sbt_ci = Version.VExpr("PV.zio_sbt_ci")
   }
 
   final val sbtVersion = "2.0.9"
@@ -376,7 +377,8 @@ object Izumi {
       SbtPlugin("com.github.sbt", "sbt-pgp", PV.sbt_pgp),
       SbtPlugin("org.scoverage", "sbt-scoverage", PV.sbt_scoverage),
       SbtPlugin("com.typesafe", "sbt-mima-plugin", PV.sbt_mima_version),
-      SbtPlugin("dev.zio", "zio-sbt-website", PV.zio_sbt_website)
+      SbtPlugin("dev.zio", "zio-sbt-website", PV.zio_sbt_website),
+      SbtPlugin("dev.zio", "zio-sbt-ci", PV.zio_sbt_ci)
     )
   )
 }

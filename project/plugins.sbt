@@ -22,6 +22,8 @@ addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % PV.sbt_mima_version)
 
 addSbtPlugin("dev.zio" % "zio-sbt-website" % PV.zio_sbt_website)
 
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % PV.zio_sbt_ci)
+
 // Ignore scala-xml version conflict between scoverage where `coursier` requires scala-xml v2
 // and scoverage requires scala-xml v1 on Scala 2.12,
 // introduced when updating scoverage from 1.9.3 to 2.0.5
