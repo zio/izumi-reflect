@@ -103,8 +103,9 @@ object Izumi {
         "coverageEnabled" := false,
         // sbt 2.x makes `%%` platform-aware, so `mimaPreviousArtifacts` now asks for
         // `*_native0.5_*` artifacts of the baseline versions, which were never published
-        // (sbt 1.x silently compared the Native build against the JVM artifacts instead)
-        "mimaPreviousArtifacts" in Platform.Native := "Set.empty".raw,
+        // (sbt 1.x silently compared the Native build against the JVM artifacts instead);
+        // 2.3.9 is the oldest release published for Scala Native 0.5
+        "mimaPreviousArtifacts" in Platform.Native := """Set(organization.value %% name.value % "2.3.9")""".raw,
         // scalatest's Scala Native artifacts are built against an older scala-native than the one we
         // link against; scala-native publishes versionScheme `strict`, which sbt 2.x turns into an
         // eviction error rather than the warning sbt 1.x emitted.
@@ -206,6 +207,8 @@ object Izumi {
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#AppliedNamedReference.prefix")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledName")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef.scalaStyledRepr")""".raw,
+          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LTTSyntax.scalaStyledNameImpl")""".raw,
+          """ProblemFilters.exclude[DirectMissingMethodProblem]("izumi.reflect.macrortti.LightTypeTagRef#*.scalaStyledNameImpl")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.=:=")""".raw,
           """ProblemFilters.exclude[ReversedMissingMethodProblem]("izumi.reflect.AnyTag.<:<")""".raw,
           // compile-time only
