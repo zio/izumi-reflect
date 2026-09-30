@@ -240,9 +240,7 @@ lazy val `izumi-reflect-thirdparty-boopickle-shaded` = crossProject(JVMPlatform,
       "org.scala-native" % "test-interface_native0.5_2.12" % VersionScheme.Always,
       "org.scala-native" % "test-interface_native0.5_2.13" % VersionScheme.Always,
       "org.scala-native" % "test-interface_native0.5_3" % VersionScheme.Always
-    ),
-    test := sbt.protocol.testing.TestResult.Passed,
-    Test / test := sbt.protocol.testing.TestResult.Passed
+    )
   )
 lazy val `izumi-reflect-thirdparty-boopickle-shadedJVM` = `izumi-reflect-thirdparty-boopickle-shaded`.jvm
 lazy val `izumi-reflect-thirdparty-boopickle-shadedJS` = `izumi-reflect-thirdparty-boopickle-shaded`.js
@@ -483,9 +481,7 @@ lazy val `izumi-reflect` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.scala-native" % "test-interface_native0.5_2.12" % VersionScheme.Always,
       "org.scala-native" % "test-interface_native0.5_2.13" % VersionScheme.Always,
       "org.scala-native" % "test-interface_native0.5_3" % VersionScheme.Always
-    ),
-    test := sbt.protocol.testing.TestResult.Passed,
-    Test / test := sbt.protocol.testing.TestResult.Passed
+    )
   )
 lazy val `izumi-reflectJVM` = `izumi-reflect`.jvm
 lazy val `izumi-reflectJS` = `izumi-reflect`.js

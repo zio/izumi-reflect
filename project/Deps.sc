@@ -245,9 +245,6 @@ object Izumi {
         Defaults.CrossScalaPlusSources ++
         Defaults.CrossScalaRangeSources ++
         Seq(
-          // sbt 2.x types `test` as `TestResult`, so an empty block no longer stands in for "do nothing"
-          "test" in Platform.Native := "sbt.protocol.testing.TestResult.Passed".raw,
-          "test" in (SettingScope.Test, Platform.Native) := "sbt.protocol.testing.TestResult.Passed".raw,
           "sources" in SettingScope.Raw("Compile / doc") := Seq(
             SettingKey(Some(scala300), None) := Seq.empty[String],
             SettingKey.Default := "(Compile / doc / sources).value".raw

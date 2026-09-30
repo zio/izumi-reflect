@@ -24,6 +24,7 @@
       in
       {
         devShells.default = pkgs.mkShell {
+          hardeningDisable = [ "fortify" ];
           nativeBuildInputs = with pkgs.buildPackages; [
             ncurses
 
@@ -34,6 +35,8 @@
 
             gitMinimal
             gnupg
+
+            clang
 
             mudyla.packages.${system}.default
           ];
