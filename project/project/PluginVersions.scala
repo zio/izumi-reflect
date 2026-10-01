@@ -18,7 +18,7 @@
 
 object PV {
   val sbt_scoverage = "2.4.4"
-  
+
   val sbt_pgp = "2.3.2"
 
   val sbt_mima_version = "1.2.1"
@@ -29,5 +29,5 @@ object PV {
 
   val sbt_crossproject_version = "1.4.0"
 
-  val zio_sbt_website = "0.8.0"
+  val zio_sbt_website = "0.8.3"
 }
