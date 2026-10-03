@@ -29,5 +29,5 @@ object PV {
 
   val sbt_crossproject_version = "1.4.0"
 
-  val zio_sbt_website = "0.8.3"
+  val zio_sbt_website = "0.8.5"
 }
