@@ -24,18 +24,43 @@ import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
-import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
+import izumi.reflect.macrortti.LightTypeTagImpl.Broken
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
 
+import java.lang.ref.SoftReference
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
 object LightTypeTagImpl {
-  private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
+  private lazy val refCache = new java.util.WeakHashMap[Any, SoftReference[AbstractReference]]
+  private lazy val fullDbCache = new java.util.WeakHashMap[Any, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]
+  private lazy val inheritanceDbCache = new java.util.WeakHashMap[Any, SoftReference[Map[NameReference, Set[NameReference]]]]
+
+  private def cachedSoftReference[A <: AnyRef](cache: java.util.WeakHashMap[Any, SoftReference[A]])(key: Any)(compute: => A): A = {
+    cache.synchronized {
+      Option(cache.get(key)).flatMap(ref => Option(ref.get)).getOrElse {
+        val computed = compute
+        cache.put(key, new SoftReference[A](computed))
+        computed
+      }
+    }
+  }
+
+  private[macrortti] def cachedRef(key: Any)(compute: => AbstractReference): AbstractReference = {
+    cachedSoftReference(refCache)(key)(compute)
+  }
+
+  private[macrortti] def cachedFullDb(key: Any)(compute: => Map[AbstractReference, Set[AbstractReference]]): Map[AbstractReference, Set[AbstractReference]] = {
+    cachedSoftReference(fullDbCache)(key)(compute)
+  }
+
+  private[macrortti] def cachedInheritanceDb(key: Any)(compute: => Map[NameReference, Set[NameReference]]): Map[NameReference, Set[NameReference]] = {
+    cachedSoftReference(inheritanceDbCache)(key)(compute)
+  }
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
@@ -97,10 +122,27 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       .newBuilder[Type]
       .++= {
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
-      }.result()
+      }.result().toList
 
-    val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
-    val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    def fullDb = {
+      if (withCache) {
+        LightTypeTagImpl.cachedFullDb(tpe) {
+          makeFullDb(tpe, allReferenceComponents).toMultimap
+        }
+      } else {
+        makeFullDb(tpe, allReferenceComponents).toMultimap
+      }
+    }
+
+    def unappliedDb = {
+      if (withCache) {
+        LightTypeTagImpl.cachedInheritanceDb(tpe) {
+          makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+        }
+      } else {
+        makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+      }
+    }
 
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
@@ -415,13 +457,8 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] def makeRef(tpe: Type): AbstractReference = {
     if (withCache) {
-      globalCache.synchronized(globalCache.get(tpe)) match {
-        case null =>
-          val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
-          globalCache.synchronized(globalCache.put(tpe, ref))
-          ref
-        case ref =>
-          ref
+      LightTypeTagImpl.cachedRef(tpe) {
+        makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
       }
     } else {
       makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
