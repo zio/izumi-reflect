@@ -918,6 +918,26 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChildStrict(LTT[{ def T: Int }], LTT[{ type T }])
     }
 
+    "regression test https://github.com/zio/izumi-reflect/issues/481 — trait overriding an abstract type member is a subtype of the structural refinement form" in {
+      // Direct repro from the issue body. With the bug, the second assertion fails
+      // because compareDecl on two TypeMember(_, lref) / TypeMember(_, rref) decls
+      // requires `lref == rref` structural equality on AST nodes, which can fail
+      // even when the two refs denote the same type semantically.
+      assertChild(LTT[Issue481AInt], LTT[Issue481A { type T = Int }])
+      assertChild(LTT[Issue481AStr], LTT[Issue481A { type T = String }])
+
+      // Negative direction must still hold: AInt is NOT a subtype of A { type T = String }.
+      assertNotChild(LTT[Issue481AInt], LTT[Issue481A { type T = String }])
+      assertNotChild(LTT[Issue481AStr], LTT[Issue481A { type T = Int }])
+
+      // A trait fixing `type T = Int` is a subtype of structural refinements with
+      // an upper-bounded abstract type member (already worked pre-fix, but kept
+      // here to guard against regressions in adjacent paths).
+      assertChild(LTT[Issue481AInt], LTT[Issue481A { type T <: AnyVal }])
+      assertChild(LTT[Issue481AInt], LTT[Issue481A { type T <: Any }])
+      assertNotChild(LTT[Issue481AStr], LTT[Issue481A { type T <: AnyVal }])
+    }
+
     "what about non-empty refinements with intersections" in {
       val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
       val debug = ltt.debug()

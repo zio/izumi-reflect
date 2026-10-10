@@ -223,8 +223,22 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
       // We know that the type is abstract if its name matches the type member's name
       ln == rn && compareBounds(ctx)(lref, rBounds)
     case (RefinementDecl.TypeMember(ln, lref), RefinementDecl.TypeMember(rn, rref)) =>
-      // if the rhs type is not abstract (has form `type X = Int`), then lhs must be exactly equal to it, not <:
-      ln == rn && lref == rref
+      // If the rhs type is not abstract (has form `type X = Int`), then lhs must
+      // be semantically equal to rhs — type-member assignments are invariant.
+      //
+      // Historically this case used `lref == rref` structural AST equality, but
+      // two AST forms can denote the same type while differing in incidental
+      // shape (presence/absence of an empty `Boundaries.Empty`, distinct prefix
+      // chains for the same symbol, refinement form vs. plain name reference for
+      // a fixed type member, etc.). That broke #481 — a trait overriding an
+      // abstract type member with a concrete one was not recognised as a subtype
+      // of the structural refinement form fixing the same type member.
+      //
+      // Mutual subtyping is the principled invariant-equality check: two refs
+      // denote the same type iff each is a subtype of the other. We keep the
+      // `lref == rref` fast-path so the common case stays cheap and we avoid
+      // recursing into `isChild` when not necessary.
+      ln == rn && (lref == rref || (ctx.isChild(lref, rref) && ctx.isChild(rref, lref)))
     case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
       (ln == rn
         && lins.iterator.zipAll(rins.iterator, null, null).forall {
