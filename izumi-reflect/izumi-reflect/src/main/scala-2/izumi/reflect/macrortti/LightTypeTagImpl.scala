@@ -227,7 +227,48 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   private[this] def makeFullDb(tpe: Type, allReferenceComponents: Iterable[Type]): Iterator[(AbstractReference, AbstractReference)] = {
     val stableBases = makeAppliedBases(tpe, allReferenceComponents.iterator)
     val basesAsLambdas = makeLambdaOnlyBases(tpe, allReferenceComponents.iterator)
-    basesAsLambdas.iterator ++ stableBases.iterator
+    val typeMemberSelfRefinements = allReferenceComponents.iterator
+      .filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
+      .filterNot(isExistentialArtifact)
+      .flatMap(makeTypeMemberRefinementEntry)
+    basesAsLambdas.iterator ++ stableBases.iterator ++ typeMemberSelfRefinements
+  }
+
+  private[this] def makeTypeMemberRefinementEntry(component: Type): Option[(AbstractReference, AbstractReference)] = {
+    val tpe = Dealias.fullNormDealias(component)
+    val typeSymbol = tpe.typeSymbol
+    if (typeSymbol == NoSymbol) return None
+
+    val ownTypeMembers = typeSymbol.typeSignature.decls.toList.filter(d => d.isType && !d.isClass && !d.typeSignature.isInstanceOf[PolyTypeApi])
+    if (ownTypeMembers.isEmpty) return None
+
+    val componentRef = makeRef(component)
+    val memberDecls = ownTypeMembers.flatMap { decl =>
+      val declName = decl.name.decodedName.toString
+      val ref: AbstractReference = if (decl.isAbstract) {
+        // For abstract type members, construct a self-named NameReference
+        // matching the representation produced by convertDecl in refinement types
+        val boundaries = decl.typeSignature match {
+          case b: TypeBoundsApi if b.lo =:= nothing && b.hi =:= any =>
+            Boundaries.Empty
+          case b: TypeBoundsApi =>
+            Boundaries.Defined(makeRef(b.lo), makeRef(b.hi))
+          case _ =>
+            Boundaries.Empty
+        }
+        NameReference(SymTypeName(declName), boundaries, None)
+      } else {
+        // For concrete type members (override type T = Int), use the concrete type
+        makeRef(decl.typeSignature)
+      }
+      Some(RefinementDecl.TypeMember(declName, ref): RefinementDecl)
+    }.toSet
+
+    componentRef match {
+      case applied: AppliedReference =>
+        Some(applied -> Refinement(applied, memberDecls))
+      case _ => None
+    }
   }
 
   private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Iterator[Type]): List[(AbstractReference, AbstractReference)] = {

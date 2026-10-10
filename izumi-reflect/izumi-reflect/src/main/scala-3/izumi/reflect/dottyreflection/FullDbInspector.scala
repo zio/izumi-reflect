@@ -183,7 +183,53 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
       val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
 
-      argBasesRefs ::: mainBasesRefs
+      val typeMemberEntries = if (onlyIndirect) {
+        Nil
+      } else {
+        makeTypeMemberRefinementEntries(tpe, selfRef)
+      }
+
+      argBasesRefs ::: mainBasesRefs ::: typeMemberEntries
+    }
+
+    private def makeTypeMemberRefinementEntries(tpe: TypeRepr, selfRef: AbstractReference): List[(AbstractReference, AbstractReference)] = {
+      val clsSym = tpe.classSymbol match {
+        case Some(sym) => sym
+        case None => return Nil
+      }
+
+      val typeMembers = clsSym.declaredTypes.filter { s =>
+        s.isTypeDef && !s.isTypeParam && !s.isClassDef
+      }
+      if (typeMembers.isEmpty) return Nil
+
+      val decls: Set[RefinementDecl] = typeMembers.flatMap { decl =>
+        val declName = decl.name
+        decl._info match {
+          case _: TypeLambda => None // skip higher-kinded type members
+          case tb: TypeBounds =>
+            val boundaries = inspector.inspectBoundsImpl(tb)
+            val ref: AbstractReference = boundaries match {
+              case Boundaries.Defined(low, high) if high == low =>
+                high
+              case definedBoundaries =>
+                NameReference(SymName.SymTypeName(declName), definedBoundaries, None)
+            }
+            Some(RefinementDecl.TypeMember(declName, ref): RefinementDecl)
+          case concrete =>
+            val ref = inspector.inspectTypeRepr(concrete)
+            Some(RefinementDecl.TypeMember(declName, ref): RefinementDecl)
+        }
+      }.toSet
+
+      if (decls.isEmpty) return Nil
+
+      selfRef match {
+        case applied: LightTypeTagRef.AppliedReference =>
+          List(applied -> LightTypeTagRef.Refinement(applied, decls))
+        case _ =>
+          Nil
+      }
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {
