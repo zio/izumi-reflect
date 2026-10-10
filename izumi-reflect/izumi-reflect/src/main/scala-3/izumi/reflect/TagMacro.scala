@@ -6,8 +6,18 @@ import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
 import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam, Variance}
 
 import scala.collection.mutable
+import java.lang.ref.SoftReference
+import java.util.concurrent.ConcurrentHashMap
 
 object TagMacro {
+  // Cache for tree-level references in Scala 3
+  private val treeCache = new ConcurrentHashMap[Any, SoftReference[LightTypeTagRef]]()
+
+  // Flag to enable/disable tree-level caching
+  private val treeCacheEnabled: Boolean = {
+    !System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`, "true").equalsIgnoreCase("false")
+  }
+
   def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
     new TagMacro().createTagExpr[A]
 }
@@ -37,7 +47,31 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private def createTag[A <: AnyKind](typeRepr0: TypeRepr)(using Type[A]): Expr[Tag[A]] = {
     val typeRepr = typeRepr0._etaExpandTypeRef // convert HKT type refs to type lambdas manually as an optimization. This required an additional splice level before.
-    val ltt = Inspect.inspectTypeRepr(typeRepr)
+
+    // Use tree-level cache if enabled
+    val lttRef = if (TagMacro.treeCacheEnabled) {
+      val cached = TagMacro.treeCache.get(typeRepr)
+      if (cached != null) {
+        val value = cached.get()
+        if (value != null) {
+          value
+        } else {
+          val newRef = Inspect.inspectTypeRepr(typeRepr).ref
+          TagMacro.treeCache.put(typeRepr, new SoftReference(newRef))
+          newRef
+        }
+      } else {
+        val newRef = Inspect.inspectTypeRepr(typeRepr).ref
+        TagMacro.treeCache.put(typeRepr, new SoftReference(newRef))
+        newRef
+      }
+    } else {
+      Inspect.inspectTypeRepr(typeRepr).ref
+    }
+
+    // Create a LightTypeTag with the cached or new reference
+    val ltt = LightTypeTag(lttRef)
+
     val cls = closestClassOfTypeRepr(typeRepr)
     Apply(
       fun = TypeApply(
@@ -57,8 +91,30 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
           val highTag = summonTag[T](high)
           '{ LightTypeTag.wildcardType($lowTag.tag, $highTag.tag) }
         case _ =>
-          val result = summonTag[T](typeRepr)
-          '{ $result.tag }
+          // Use tree-level cache if enabled
+          val lttRef = if (TagMacro.treeCacheEnabled) {
+            val cached = TagMacro.treeCache.get(typeRepr)
+            if (cached != null) {
+              val value = cached.get()
+              if (value != null) {
+                value
+              } else {
+                val newRef = Inspect.inspectTypeRepr(typeRepr).ref
+                TagMacro.treeCache.put(typeRepr, new SoftReference(newRef))
+                newRef
+              }
+            } else {
+              val newRef = Inspect.inspectTypeRepr(typeRepr).ref
+              TagMacro.treeCache.put(typeRepr, new SoftReference(newRef))
+              newRef
+            }
+          } else {
+            Inspect.inspectTypeRepr(typeRepr).ref
+          }
+
+          // Create a LightTypeTag with the cached or new reference
+          val ltt = LightTypeTag(lttRef)
+          '{ $ltt }
       }
     }
 
