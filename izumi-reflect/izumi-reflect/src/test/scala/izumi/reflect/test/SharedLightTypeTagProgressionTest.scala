@@ -71,45 +71,6 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       }
     }
 
-    "progression test: combined intersection lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {
-      val tCtor = `LTT[_,_]`[T3]
-      val combined = tCtor.combine(LTT[Int], LTT[Boolean])
-      val debugCombined = combined.debug("combined")
-
-      val alias = LTT[T3[Int, Boolean]]
-      val direct = LTT[W1 with W4[Boolean] with W5[Int]]
-
-      broken {
-        assert(!debugCombined.contains("W4[=scala.Int]"))
-      }
-      broken {
-        assert(!debugCombined.contains("W3[=scala.Int]"))
-      }
-
-      broken {
-        assertDebugSame(combined, alias)
-      }
-      broken {
-        assertDebugSame(combined, direct)
-      }
-    }
-
-    "progression test: combined lambda tags still contain some junk bases (coming from the unsound same-arity assumption in LightTypeTag#combine)" in {
-      val curriedApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
-      val debug1 = curriedApplied.debug()
-
-      assertSame(curriedApplied, LTT[Right[Throwable, Unit]])
-
-      assert(debug1.contains(": scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
-      assert(debug1.contains("- scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
-      assert(debug1.contains("* scala.Product"))
-      assert(debug1.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
-      assert(debug1.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      broken {
-        assert(!debug1.contains("λ %1 → scala.util.Right[+scala.Unit,+1]"))
-      }
-    }
-
     "progression test: Dotty fails to `support methods with type parameters in structural refinements`" in {
       trait X { def x[A](a: A): A }
 

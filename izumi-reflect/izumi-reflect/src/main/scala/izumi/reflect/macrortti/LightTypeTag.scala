@@ -102,18 +102,68 @@ abstract class LightTypeTag private[reflect] (
     *   F[_, _, _].combine(A, B) = F[A, B, _]
     * }}}
     */
-  def combine(args: LightTypeTag*): LightTypeTag = {
-    val argRefs = args.map(_.ref)
-    val appliedBases = basesdb ++ basesdb.iterator.collect { // do not remove the unapplied base lambdas after combination (required for inferredLambdaParents in isChild)
-      case (self: LightTypeTagRef.Lambda, parents) =>
-        self.combine(argRefs) -> parents.map {
-          case l: LightTypeTagRef.Lambda =>
-            l.combine(argRefs)
-          case nonLambdaParent =>
-            val context = self.input.zip(argRefs.collect { case a: AbstractReference => a }).toMap
-            new RuntimeAPI.Rewriter(context).replaceRefs(nonLambdaParent)
+  private[this] def rewriteBases(
+    args: Seq[Option[AbstractReference]],
+    combineRootLambda: LightTypeTagRef.Lambda => AbstractReference
+  ): Map[AbstractReference, Set[AbstractReference]] = {
+    ref match {
+      case currentLambda: LightTypeTagRef.Lambda =>
+        def reachableLambdaBases(todo: List[LightTypeTagRef.Lambda], seen: Set[LightTypeTagRef.Lambda]): Set[LightTypeTagRef.Lambda] = {
+          todo match {
+            case head :: tail if seen(head) =>
+              reachableLambdaBases(tail, seen)
+            case head :: tail =>
+              val next = basesdb.get(head).iterator.flatMap(_.iterator).collect {
+                case l: LightTypeTagRef.Lambda if l.input == currentLambda.input =>
+                  l
+              }.toList
+              reachableLambdaBases(next ::: tail, seen + head)
+            case Nil =>
+              seen
+          }
         }
+
+        val inheritedLambdas = reachableLambdaBases(currentLambda :: Nil, Set.empty)
+        val context = currentLambda.input.zip(args).collect {
+          case (param, Some(arg)) =>
+            param -> arg
+        }.toMap
+        val rewriter = new RuntimeAPI.Rewriter(context)
+
+        basesdb ++ basesdb.iterator.collect {
+          case (self: LightTypeTagRef.Lambda, parents) =>
+            val rewrittenSelf =
+              if (inheritedLambdas(self)) {
+                combineRootLambda(self)
+              } else {
+                rewriter.replaceRefs(self)
+              }
+
+            val rewrittenParents = parents.map {
+              case l: LightTypeTagRef.Lambda if inheritedLambdas(l) =>
+                combineRootLambda(l)
+              case other =>
+                rewriter.replaceRefs(other)
+            }
+
+            if (rewrittenSelf != self || rewrittenParents != parents) {
+              Some(rewrittenSelf -> rewrittenParents)
+            } else {
+              None
+            }
+        }.flatten
+
+      case _ =>
+        basesdb
     }
+  }
+
+  def combine(args: LightTypeTag*): LightTypeTag = {
+    val argRefs = args.map(_.ref match { case reference: AbstractReference => reference })
+    val appliedBases = rewriteBases(
+      args = argRefs.map(Some(_)),
+      combineRootLambda = _.combine(argRefs)
+    )
 
     def mergedBasesDB = LightTypeTag.mergeIDBs(appliedBases, args.iterator.map(_.basesdb))
 
@@ -132,17 +182,11 @@ abstract class LightTypeTag private[reflect] (
     * }}}
     */
   def combineNonPos(args: Option[LightTypeTag]*): LightTypeTag = {
-    val argRefs = args.map(_.map(_.ref))
-    val appliedBases = basesdb ++ basesdb.iterator.collect { // do not remove the unapplied base lambdas after combination (required for inferredLambdaParents in isChild)
-      case (self: LightTypeTagRef.Lambda, parents) =>
-        self.combineNonPos(argRefs) -> parents.map {
-          case l: LightTypeTagRef.Lambda =>
-            l.combineNonPos(argRefs)
-          case nonLambdaParent =>
-            val context = self.input.zip(argRefs.flatten.collect { case a: AbstractReference => a }).toMap
-            new RuntimeAPI.Rewriter(context).replaceRefs(nonLambdaParent)
-        }
-    }
+    val argRefs = args.map(_.map(_.ref match { case reference: AbstractReference => reference }))
+    val appliedBases = rewriteBases(
+      args = argRefs,
+      combineRootLambda = _.combineNonPos(argRefs)
+    )
 
     def mergedBasesDB = LightTypeTag.mergeIDBs(appliedBases, args.iterator.map(_.map(_.basesdb).getOrElse(Map.empty)))
 
