@@ -108,6 +108,16 @@ object TestModel {
   type WithX = { type X }
   type FXS <: { type F[A] = A }
 
+  trait Issue481A {
+    type T
+  }
+  trait Issue481AInt extends Issue481A {
+    override type T = Int
+  }
+  trait Issue481AString extends Issue481A {
+    override type T = String
+  }
+
   trait H1
   trait H2 extends H1
   trait H3 extends H2

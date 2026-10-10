@@ -217,14 +217,14 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   private def compareDecl(ctx: Ctx)(s: RefinementDecl, t: RefinementDecl): Boolean = (s, t) match {
     case (
           RefinementDecl.TypeMember(ln, lref),
-          RefinementDecl.TypeMember(rn, NameReference(SymName.SymTypeName(rn1), rBounds, None))
+          RefinementDecl.TypeMember(rn, NameReference(SymName.SymTypeName(rn1), rBounds, _))
         ) if rn == rn1 =>
       // we're comparing two abstract types type X = X|>:A<:B|
       // We know that the type is abstract if its name matches the type member's name
       ln == rn && compareBounds(ctx)(lref, rBounds)
     case (RefinementDecl.TypeMember(ln, lref), RefinementDecl.TypeMember(rn, rref)) =>
       // if the rhs type is not abstract (has form `type X = Int`), then lhs must be exactly equal to it, not <:
-      ln == rn && lref == rref
+      ln == rn && (lref == rref || (ctx.isChild(lref, rref) && ctx.isChild(rref, lref)))
     case (RefinementDecl.Signature(ln, lins, lout), RefinementDecl.Signature(rn, rins, rout)) =>
       (ln == rn
         && lins.iterator.zipAll(rins.iterator, null, null).forall {
