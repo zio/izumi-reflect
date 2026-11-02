@@ -338,7 +338,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             case l: Lambda =>
               l
             case applied: AppliedReference =>
-              val l = Lambda(lambdaParamsUnpacked, applied)
+              val l = Lambda.make(lambdaParamsUnpacked, applied)
 //              Some(l).filter(_.allArgumentsReferenced) // do not include non-lambda parents such as Product into lambda's inheritance tree
               // No, include ALL bases for lambdas (this should be more correct since lambda is a template for a full parameterized db after combine)
               if (l.someArgumentsReferenced) l else applied
@@ -478,12 +478,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       val polyTypeResult = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(polyType)
 
       val tparams = polyType.typeParams
-      val nestingLevel = if (level > 0) Some(level) else None
-      val lambdaParams = makeLambdaParams(nestingLevel, tparams)
+      assert(level >= 0)
+      val lambdaParams = makeLambdaParams(Some(level), tparams)
 
       thisLevel.log(s"✴️ λ type $t has parameters $lambdaParams and result $polyTypeResult terminal names = $terminalNames")
       val reference = makeRefSub(polyTypeResult, lambdaParams.toMap, Set.empty)
-      val out = Lambda(lambdaParams.map(_._2), reference)
+      val out = Lambda.make(lambdaParams.map(_._2), reference)
       if (!out.allArgumentsReferenced) {
         val kvParams = lambdaParams.map { case (k, v) => s"$v = $k" }
         thisLevel.log(
@@ -597,7 +597,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val out = tpe0 match {
       case l if isLambdaOutput => // this is required for handling SwapF2, etc.
         IzAssert(!isHKTOrPolyType(l), l -> l.getClass)
-        val out = Lambda(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
+        val out = Lambda.make(terminalNames.values.toList, unpackAsProperType(l, terminalNames))
         out
 
       case l: PolyTypeApi =>

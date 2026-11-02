@@ -108,7 +108,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
         val inspector = nextLam(l)
         val resType = inspector.inspectTypeRepr(l.resType)
         val paramNames = inspector.context.last.params.map(_.asParam)
-        LightTypeTagRef.Lambda(paramNames, resType)
+        LightTypeTagRef.Lambda.make(paramNames, resType)
 
       case t: ThisType =>
         next().inspectTypeRepr(t.tref)
@@ -238,7 +238,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       // Upper boundaries we'll recover later in fulldb and inheritancedb
       // But lower boundaries we don't recover
       log(s"invertTypeMemberWithTypeLambdaBounds: found symName=$symName, input=$input")
-      LightTypeTagRef.Lambda(input, FullReference(symName, input.map(p => TypeParam(NameReference(p), Variance.Invariant)), prefix))
+      LightTypeTagRef.Lambda.make(input, FullReference(symName, input.map(p => TypeParam(NameReference(p), Variance.Invariant)), prefix))
     case other =>
       other
   }
@@ -246,11 +246,23 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
   private def inspectBoundsImpl(tb: TypeBounds): Boundaries = {
     val hi = next().inspectTypeRepr(tb.hi)
     val low = next().inspectTypeRepr(tb.low)
-    if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
+    if (isTrivialLowerBound(low) && isTrivialUpperBound(hi)) {
       Boundaries.Empty
     } else {
       Boundaries.Defined(low, hi)
     }
+  }
+
+  private def isTrivialLowerBound(ref: AbstractReference): Boolean = ref match {
+    case n: NameReference => n == LightTypeTagInheritance.tpeNothing
+    case LightTypeTagRef.Lambda(_, output) => isTrivialLowerBound(output)
+    case _ => false
+  }
+
+  private def isTrivialUpperBound(ref: AbstractReference): Boolean = ref match {
+    case n: NameReference => n == LightTypeTagInheritance.tpeAny
+    case LightTypeTagRef.Lambda(_, output) => isTrivialUpperBound(output)
+    case _ => false
   }
 
   private[dottyreflection] def inspectSymbol(symbol: Symbol, outerTypeRef: Option[TypeRef], prefixSource: Option[NamedType]): AbstractReference = {
@@ -342,7 +354,11 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
             assert(contextParam.name == paramName, s"$contextParam should match $paramName")
           }
 
-          NameReference(contextParam.asParam, Boundaries.Empty, None)
+          val boundaries = t._underlying match {
+            case tb: TypeBounds => inspectBoundsImpl(tb)
+            case _ => Boundaries.Empty
+          }
+          NameReference(contextParam.asParam, boundaries, None)
 
         } else {
           val lt = t.binder.asInstanceOf[LambdaType]
