@@ -268,7 +268,7 @@ object LightTypeTagRef extends LTTOrdering {
     def name: String
   }
   object RefinementDecl {
-    final case class Signature(name: String, input: List[AppliedReference], output: AppliedReference) extends RefinementDecl
+    final case class Signature(name: String, input: List[AbstractReference], output: AbstractReference) extends RefinementDecl
     final case class TypeMember(name: String, ref: AbstractReference) extends RefinementDecl
   }
 

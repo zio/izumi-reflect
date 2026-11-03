@@ -142,7 +142,7 @@ object RuntimeAPI {
         case Refinement(base, decls) =>
           val rdecls = decls.map {
             case RefinementDecl.Signature(name, input, output) =>
-              RefinementDecl.Signature(name, input.map(p => ensureApplied(reference, replaceRefs(p))), ensureApplied(reference, replaceRefs(output))): RefinementDecl
+              RefinementDecl.Signature(name, input.map(replaceRefs), replaceRefs(output)): RefinementDecl
             case RefinementDecl.TypeMember(name, ref) =>
               RefinementDecl.TypeMember(name, replaceRefs(ref)): RefinementDecl
           }
