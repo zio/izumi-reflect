@@ -188,6 +188,10 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
         ctx.isChild(s.reference, t.reference) && compareDecls(ctx.next())(s.decls, t.decls)
       case (s: Refinement, t: LightTypeTagRef) =>
         ctx.isChild(s.reference, t)
+      case (s: NameReference, t: Refinement) =>
+        // AInt <:< A { type T = Int } - check if NameReference is child of Refinement's base type
+        // and satisfies all refinement declarations
+        ctx.isChild(s, t.reference)
       case (s: AbstractReference, t: Refinement) =>
         oneOfParameterizedParentsIsInheritedFrom(ctx)(s, t)
     }
