@@ -36,6 +36,76 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       }
     }
 
+    "progression test: subtype relation fails for refined types with type members (issue #481)" in {
+      // Test case from issue #481
+      trait A {
+        type B = Int
+      }
+
+      val concreteTag = Tag[A]
+      val refinedTag = Tag[A { type B = Int }]
+
+      // The refined type should be a subtype of the concrete type
+      // because A { type B = Int } is more specific than A
+      broken {
+        assert(refinedTag.tag <:< concreteTag.tag, 
+          "Refined type A { type B = Int } should be a subtype of A")
+      }
+
+      // Additional test cases for different refinement scenarios
+      trait C {
+        type D
+      }
+
+      val abstractTag = Tag[C]
+      val refinedAbstractTag = Tag[C { type D = String }]
+
+      broken {
+        assert(refinedAbstractTag.tag <:< abstractTag.tag,
+          "Refined type C { type D = String } should be a subtype of C")
+      }
+
+      // Test with value members
+      trait E {
+        val x: Int = 42
+      }
+
+      val valueTag = Tag[E]
+      val refinedValueTag = Tag[E { val x: Int }]
+
+      broken {
+        assert(refinedValueTag.tag <:< valueTag.tag,
+          "Refined type E { val x: Int } should be a subtype of E")
+      }
+
+      // Test with def members
+      trait F {
+        def method(): String = "test"
+      }
+
+      val defTag = Tag[F]
+      val refinedDefTag = Tag[F { def method(): String }]
+
+      broken {
+        assert(refinedDefTag.tag <:< defTag.tag,
+          "Refined type F { def method(): String } should be a subtype of F")
+      }
+
+      // Test with multiple refinements
+      trait G {
+        type H = Int
+        val y: String = "hello"
+      }
+
+      val multiTag = Tag[G]
+      val refinedMultiTag = Tag[G { type H = Int; val y: String }]
+
+      broken {
+        assert(refinedMultiTag.tag <:< multiTag.tag,
+          "Refined type G { type H = Int; val y: String } should be a subtype of G")
+      }
+    }
+
     "progression test: cannot resolve a higher-kinded type in a higher-kinded tag in a named deeply-nested type lambda on Scala 2" in {
       val t = Try(intercept[TestFailedException] {
         assertCompiles(
