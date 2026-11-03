@@ -209,6 +209,30 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     LightTypeTagRef.Refinement(ohOh, refinementDecls.toSet)
   }
 
+  /** Extract type member declarations from a class/trait type for use as synthetic Refinement parents in basesdb.
+    * This reuses the same logic as inspectRefinements for converting TypeBounds to RefinementDecl.TypeMember.
+    */
+  private[dottyreflection] def extractTypeMemberDecls(tpe: TypeRepr): List[RefinementDecl.TypeMember] = {
+    val typeMembers = tpe.typeSymbol.declaredTypes.filterNot(s => s.isTypeParam || s.isClassDef)
+    typeMembers.flatMap { sym =>
+      tpe.memberType(sym) match {
+        case bounds: TypeBounds =>
+          val boundaries = next().inspectBoundsImpl(bounds)
+          val res = boundaries match {
+            case Boundaries.Defined(low, high) if high == low =>
+              // concrete type member: type T = Int
+              high
+            case definedBoundaries =>
+              // abstract type member: type T >: A <: B or type T
+              NameReference(SymName.SymTypeName(sym.name), definedBoundaries, None)
+          }
+          Some(RefinementDecl.TypeMember(sym.name, res))
+        case _ =>
+          None
+      }
+    }
+  }
+
   private def inspectBounds(outerTypeRef: Option[TypeRef], tb: TypeBounds): AbstractReference = {
     log(s"inspectBounds: found TypeBounds $tb outer=$outerTypeRef")
     val boundaries = inspectBoundsImpl(tb)

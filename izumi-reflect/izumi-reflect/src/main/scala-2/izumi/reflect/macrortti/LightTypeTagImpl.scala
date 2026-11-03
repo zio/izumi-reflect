@@ -243,7 +243,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
           val appliedParents = tpeBases(component).filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
           val componentRef = makeRef(component)
 
-          appliedParents.map {
+          val regularBases = appliedParents.map {
             parentTpe =>
               val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
                 case unapplied: Lambda =>
@@ -260,6 +260,37 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               }
               (componentRef, parentRef)
           }
+
+          // For types with declared type members, add synthetic Refinement parents to basesdb.
+          // This enables runtime subtype checks like `AInt <:< A { type T = Int }` where AInt
+          // concretely defines `type T = Int`. Without this, the runtime checker has no way to
+          // know that AInt satisfies the refinement `A { type T = Int }`.
+          // Note: we must use unfiltered base types here (including Object/Any) because
+          // `tpeBases` filters them via `ignored`, but refinement types like `{ type A }`
+          // desugar to `Object { type A }` and need Object as the base reference.
+          val typeMemberBases = {
+            val typeMemDecls = extractTypeMemberDecls(component)
+            if (typeMemDecls.nonEmpty) {
+              val declSet: Set[RefinementDecl] = typeMemDecls.toSet
+              val tpeNorm = Dealias.fullNormDealias(component)
+              val allBaseTypes = tpeNorm.baseClasses.iterator
+                .map(tpeNorm.baseType)
+                .filterNot(_.typeSymbol.fullName == tpeNorm.typeSymbol.fullName)
+                .filterNot(_ =:= tpeNorm)
+              allBaseTypes.flatMap { parentTpe =>
+                makeRef(parentTpe) match {
+                  case applied: AppliedReference =>
+                    Some((componentRef, LightTypeTagRef.Refinement(applied, declSet)))
+                  case _ =>
+                    None
+                }
+              }.toList
+            } else {
+              Nil
+            }
+          }
+
+          regularBases ++ typeMemberBases
       }
       .filterNot {
         case (t, parent) =>
@@ -425,6 +456,25 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
     } else {
       makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+    }
+  }
+
+  /** Extract type member declarations from a class/trait type for use as synthetic Refinement parents in basesdb.
+    * This enables runtime subtype checks like `AInt <:< A { type T = Int }` where AInt
+    * concretely defines `type T = Int`. Reuses the same `<none>` replacement logic as convertDecl.
+    */
+  private[this] def extractTypeMemberDecls(tpe: Type): List[RefinementDecl.TypeMember] = {
+    val tpeSig = tpe.typeSymbol.typeSignature
+    val typeParams = tpeSig.typeParams.toSet
+    val typeMembers = tpeSig.decls.filter(s => s.isType && !s.isClass && !typeParams.contains(s)).toList
+    typeMembers.flatMap { sym =>
+      val memberTpe = UniRefinement.typeOfTypeMember(sym)
+      val declName = sym.name.decodedName.toString
+      val ref = makeRef(memberTpe) match {
+        case n @ NameReference(SymName.SymTypeName("<none>"), _, _) => n.copy(ref = SymName.SymTypeName(declName))
+        case ref => ref
+      }
+      Some(RefinementDecl.TypeMember(declName, ref))
     }
   }
 
