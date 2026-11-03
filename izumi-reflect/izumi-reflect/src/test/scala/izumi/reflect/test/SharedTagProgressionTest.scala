@@ -28,10 +28,10 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
       def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
       def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
 
-      broken {
+      brokenOnScala2 {
         assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
       }
-      broken {
+      brokenOnScala2 {
         assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
       }
     }

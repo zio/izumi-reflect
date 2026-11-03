@@ -22,6 +22,7 @@ import izumi.reflect.dottyreflection.Inspect
 import izumi.reflect.macrortti.{LTag, LightTypeTag, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
+import scala.collection.mutable
 
 trait AnyTag extends Serializable {
   def tag: LightTypeTag
@@ -82,8 +83,6 @@ trait AnyTag extends Serializable {
   * Without a `TagK` constraint above, this example would fail with `no TypeTag available for MyService[F]` error
   *
   * Currently some limitations apply as to when a `Tag` will be correctly constructed:
-  *   * Type Parameters do not yet resolve in structural refinement methods, e.g. T in {{{ Tag[{ def x: T}] }}}
-  *     They do resolve in refinement type members however, e.g. {{{ Tag[ Any { type Out = T } ] }}}
   *   * TagK* does not resolve for constructors with bounded parameters, e.g. S in {{{ class Abc[S <: String]; TagK[Abc] }}}
   *     (You can still have a bound in partial application: e.g. {{{ class Abc[S <: String, A]; TagK[Abc["hi", _]] }}}
   *   * Further details at [[https://github.com/7mind/izumi/issues/374]]
@@ -163,6 +162,62 @@ object Tag {
     additionalTypeMembers: Map[String, LightTypeTag]
   ): Tag[R] = {
     Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
+  }
+
+  // Internal helper used by TagMacro to substitute weak outer type members inside structural defs/vals.
+  def resolveWeakTypeMembers(structType: LightTypeTag, replacements: Map[String, LightTypeTag]): LightTypeTag = {
+    if (replacements.isEmpty) {
+      structType
+    } else {
+      val replacementRefs = replacements.iterator.map {
+        case (name, ltt) =>
+          val replacementRef = ltt.ref match {
+            case ref: LightTypeTagRef.AbstractReference => ref
+          }
+          LightTypeTagRef.SymName.SymTypeName(name) -> replacementRef
+      }.toMap
+
+      val rewriter = new izumi.reflect.macrortti.RuntimeAPI.Rewriter(replacementRefs)
+
+      def rewrite(ref: LightTypeTagRef.AbstractReference): LightTypeTagRef.AbstractReference = {
+        rewriter.replaceRefs(ref)
+      }
+
+      def rewriteName(ref: LightTypeTagRef.NameReference): LightTypeTagRef.NameReference = {
+        rewrite(ref) match {
+          case n: LightTypeTagRef.NameReference => n
+          case _ => ref
+        }
+      }
+
+      def mergeDb[T](entries: Iterator[(T, Set[T])]): Map[T, Set[T]] = {
+        val acc = mutable.HashMap.empty[T, Set[T]]
+        entries.foreach {
+          case (k, v) =>
+            val existing = acc.getOrElse(k, Set.empty)
+            acc.update(k, existing ++ v.filterNot(_ == k))
+        }
+        acc.toMap
+      }
+
+      val rewrittenRef = rewrite(structType.ref.asInstanceOf[LightTypeTagRef.AbstractReference])
+      val rewrittenBases = structType.basesdb.iterator.map {
+        case (child, parents) =>
+          rewrite(child) -> parents.map(rewrite)
+      }
+      val rewrittenInheritance = structType.idb.iterator.map {
+        case (child, parents) =>
+          rewriteName(child) -> parents.map(rewriteName)
+      }
+      val mergedBases = mergeDb(
+        rewrittenBases ++ replacements.valuesIterator.flatMap(_.basesdb.iterator)
+      )
+      val mergedInheritance = mergeDb(
+        rewrittenInheritance ++ replacements.valuesIterator.flatMap(_.idb.iterator)
+      )
+
+      LightTypeTag(rewrittenRef, mergedBases, mergedInheritance)
+    }
   }
 
   inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = ${ TagMacro.createTagExpr[T] }

@@ -82,6 +82,25 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
     }
 
+    "resolve outer type parameters inside structural defs and vals" in {
+      def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
+      def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
+
+      assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
+      assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
+    }
+
+    "resolve outer type parameters inside polymorphic function type refinements" in {
+      trait CustomError
+
+      def polyTag[AppF[_]: TagK, InjF[_]: TagK] = Tag[[A] => AppF[A] => InjF[Either[CustomError, A]]]
+
+      val combined = polyTag[Option, List]
+      val concrete = Tag[[A] => Option[A] => List[Either[CustomError, A]]]
+
+      assertSameStrict(combined.tag, concrete.tag)
+    }
+
   }
 
 }
