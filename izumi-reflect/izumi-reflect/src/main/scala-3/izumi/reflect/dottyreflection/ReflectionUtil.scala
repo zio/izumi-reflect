@@ -340,6 +340,11 @@ private[reflect] object ReflectionUtil {
       case NoPrefix() => true
       case TypeBounds(lo, hi) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lo) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, hi)
       case lam @ TypeLambda(_, _, body) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas + lam, body)
+      case MethodType(_, args, res) =>
+        args.forall(allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, _)) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, res)
+      case poly @ PolyType(_, bounds, res) =>
+        val allOuterLambdas = outerLambdas + poly
+        bounds.forall(allPartsStrong(shift, outerOwnerClassDefs, allOuterLambdas, _)) && allPartsStrong(shift, outerOwnerClassDefs, allOuterLambdas, res)
       case Refinement(parent, _, tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, parent)
       case ByNameType(tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
       case strange =>
@@ -356,6 +361,8 @@ private[reflect] object ReflectionUtil {
   ): Boolean = {
     import qctx.reflect.*
     typeRepr match {
+      case _: AppliedType | _: ByNameType =>
+        false
       case x if x.typeSymbol.isTypeParam =>
         x match {
           case t: ParamRef if outerLambdas.contains(t.binder) => false

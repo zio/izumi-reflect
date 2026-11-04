@@ -82,6 +82,17 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
     }
 
+    "Support TagMacro parameter substitution for polymorphic function types (#404)" in {
+      type CustomError = String
+      type Elim[AppF[_], InjF[_]] = [A] => AppF[A] => InjF[Either[CustomError, A]]
+
+      def tagForElim[AppF[_]: TagK, InjF[_]: TagK]: Tag[Elim[AppF, InjF]] = Tag[Elim[AppF, InjF]]
+
+      val tag = tagForElim[Option, List]
+      val expected = Tag[Elim[Option, List]]
+      assertSameStrict(tag.tag, expected.tag)
+    }
+
   }
 
 }

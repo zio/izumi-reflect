@@ -1,10 +1,11 @@
 package izumi.reflect
 
 import scala.quoted.{Expr, Quotes, Type, Varargs}
-import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef}
-import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil}
-import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, SymName, TypeParam, Variance}
+import izumi.reflect.macrortti.{LightTypeTag, LightTypeTagRef, RuntimeAPI}
+import izumi.reflect.dottyreflection.{Inspect, InspectorBase, ReflectionUtil, TypeInspections}
+import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, AppliedNamedReference, AppliedReference, Boundaries, FullReference, IntersectionReference, NameReference, RefinementDecl, SymName, TypeParam, UnionReference, Variance, WildcardReference}
 
+import scala.collection.immutable.Queue
 import scala.collection.mutable
 
 object TagMacro {
@@ -200,7 +201,12 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
             case ((name, tpe), refinement) =>
               Refinement(parent = refinement, name = name, info = tpe)
           }
-          Inspect.inspectTypeRepr(withStrongTpesRefinementTypeRepr)
+          val weakTermTypes = collectWeakTermTypes(owners, termMembers)
+          if (weakTermTypes.isEmpty) {
+            Inspect.inspectTypeRepr(withStrongTpesRefinementTypeRepr)
+          } else {
+            inspectTermRefinementWithWeakTypes(withStrongTpesRefinementTypeRepr, weakTermTypes, summonLTT)
+          }
         }
         val resolvedTypeMemberLtts = weakTypeMembers.map {
           case (name, tpe) => '{ (${ Expr(name) }, ${ summonLTT(tpe) }) }
@@ -232,6 +238,163 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private def closestClassOfTypeRepr(typeRepr: TypeRepr): Expr[Class[?]] = {
     Literal(ClassOfConstant(lubClassOf(typeRepr, intersectionUnionRefinementClassPartsOf(typeRepr)))).asExpr.asInstanceOf[Expr[Class[?]]]
+  }
+
+  private def collectWeakTermTypes(owners: Set[Symbol], termMembers: Queue[(Symbol, String, TypeRepr)]): List[TypeRepr] = {
+    val seen = mutable.LinkedHashMap.empty[String, TypeRepr]
+    def go(tpe0: TypeRepr, localLambdas: Set[TypeRepr]): Unit = {
+      tpe0._dealiasSimplifiedFull match {
+        case x if ReflectionUtil.topLevelWeakType(owners, localLambdas, x) =>
+          val key = x.typeSymbol.fullName
+          if (!seen.contains(key)) {
+            seen.put(key, x)
+          }
+        case poly @ PolyType(_, bounds, res) =>
+          val nextLambdas = localLambdas + poly
+          bounds.foreach(go(_, nextLambdas))
+          go(res, nextLambdas)
+        case tl @ TypeLambda(_, bounds, body) =>
+          val nextLambdas = localLambdas + tl
+          bounds.foreach(go(_, nextLambdas))
+          go(body, nextLambdas)
+        case MethodType(_, args, res) =>
+          args.foreach(go(_, localLambdas))
+          go(res, localLambdas)
+        case AppliedType(tycon, args) =>
+          go(tycon, localLambdas)
+          args.foreach(go(_, localLambdas))
+        case AndType(lhs, rhs) =>
+          go(lhs, localLambdas)
+          go(rhs, localLambdas)
+        case OrType(lhs, rhs) =>
+          go(lhs, localLambdas)
+          go(rhs, localLambdas)
+        case TypeBounds(lo, hi) =>
+          go(lo, localLambdas)
+          go(hi, localLambdas)
+        case ByNameType(underlying) =>
+          go(underlying, localLambdas)
+        case Refinement(parent, _, info) =>
+          go(parent, localLambdas)
+          go(info, localLambdas)
+        case TypeRef(prefix, _) =>
+          go(prefix, localLambdas)
+        case TermRef(prefix, _) =>
+          go(prefix, localLambdas)
+        case ThisType(tref) =>
+          go(tref, localLambdas)
+        case _ =>
+      }
+    }
+    termMembers.foreach {
+      case (_, _, info) =>
+        go(info, Set.empty)
+    }
+    seen.values.toList
+  }
+
+  private def inspectTermRefinementWithWeakTypes(
+    refinementTpe: TypeRepr,
+    weakTypes: List[TypeRepr],
+    summonLTT: TypeRepr => Expr[LightTypeTag]
+  ): Expr[LightTypeTag] = {
+    val totalParams = weakTypes.size
+    val symToLambdaParam: Map[SymName, SymName.LambdaParamName] = weakTypes.zipWithIndex.map {
+      case (w, idx) =>
+        val symName: SymName = w match {
+          case p: ParamRef =>
+            val lt = p.binder.asInstanceOf[LambdaType]
+            SymName.LambdaParamName(p.paramNum, -1, lt.paramNames.size)
+          case _ =>
+            SymName.SymTypeName(w.typeSymbol.fullName)
+        }
+        val paramName = SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.tagMacro, totalParams)
+        symName -> paramName
+    }.toMap
+    val lambdaParams = weakTypes.indices.map {
+      idx =>
+        SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.tagMacro, totalParams)
+    }.toList
+
+    def replaceApplied(ref: AppliedReference): AppliedReference = ref match {
+      case IntersectionReference(refs) =>
+        LightTypeTagRef.maybeIntersection(refs.map(replaceApplied))
+      case UnionReference(refs) =>
+        LightTypeTagRef.maybeUnion(refs.map(replaceApplied))
+      case WildcardReference(boundaries) =>
+        WildcardReference(replaceBoundaries(boundaries))
+      case LightTypeTagRef.Refinement(reference, decls) =>
+        val newDecls = decls.map {
+          case RefinementDecl.Signature(name, input, output) =>
+            RefinementDecl.Signature(name, input.map(replaceApplied), replaceApplied(output)): RefinementDecl
+          case RefinementDecl.TypeMember(name, tpeRef) =>
+            RefinementDecl.TypeMember(name, replaceAbstract(tpeRef)): RefinementDecl
+        }
+        LightTypeTagRef.Refinement(replaceApplied(reference), newDecls)
+      case nr: AppliedNamedReference =>
+        replaceNamed(nr)
+    }
+
+    def replaceNamed(ref: AppliedNamedReference): AppliedNamedReference = ref match {
+      case NameReference(sym, boundaries, prefix) =>
+        symToLambdaParam.get(sym) match {
+          case Some(param) => NameReference(param, replaceBoundaries(boundaries), None)
+          case None => NameReference(sym, replaceBoundaries(boundaries), prefix.map(replaceApplied))
+        }
+      case FullReference(sym, parameters, prefix) =>
+        val newParams = parameters.map(p => TypeParam(replaceAbstract(p.ref), p.variance))
+        symToLambdaParam.get(sym) match {
+          case Some(param) => FullReference(param, newParams, None)
+          case None => FullReference(sym, newParams, prefix.map(replaceApplied))
+        }
+    }
+
+    def replaceBoundaries(b: Boundaries): Boundaries = b match {
+      case Boundaries.Defined(bottom, top) => Boundaries.Defined(replaceAbstract(bottom), replaceAbstract(top))
+      case Boundaries.Empty => Boundaries.Empty
+    }
+
+    def replaceAbstract(ref: AbstractReference): AbstractReference = ref match {
+      case LightTypeTagRef.Lambda(input, output) =>
+        LightTypeTagRef.Lambda(input, replaceAbstract(output))
+      case a: AppliedReference =>
+        replaceApplied(a)
+    }
+
+    val ref0 = TypeInspections.apply(using qctx)(refinementTpe)
+    val fullDb0 = TypeInspections.fullDb(using qctx)(refinementTpe)
+    val nameDb0 = TypeInspections.unappliedDb(using qctx)(refinementTpe)
+
+    val rewrittenBody = replaceAbstract(ref0)
+    val lambdaRef = LightTypeTagRef.Lambda(lambdaParams, rewrittenBody)
+    val lambdaParamSet: Set[SymName] = lambdaParams.toSet
+    def hasLambdaParam(r: AbstractReference): Boolean = {
+      RuntimeAPI.unpack(r).exists(n => lambdaParamSet.contains(n.ref))
+    }
+    def maybeWrapLambda(r: AbstractReference): AbstractReference = r match {
+      case l: LightTypeTagRef.Lambda => l
+      case applied: AppliedReference =>
+        if (hasLambdaParam(applied)) LightTypeTagRef.Lambda(lambdaParams, applied) else applied
+    }
+    val rewrittenFullDb = fullDb0.foldLeft(Map.empty[AbstractReference, Set[AbstractReference]]) {
+      case (acc, (k: AppliedNamedReference, _)) if symToLambdaParam.contains(k.symName) =>
+        acc
+      case (acc, (k, vs)) =>
+        val k1 = maybeWrapLambda(replaceAbstract(k))
+        val vs1 = vs.map(v => maybeWrapLambda(replaceAbstract(v))).filterNot(_ == k1)
+        if (vs1.nonEmpty) {
+          acc.updated(k1, acc.getOrElse(k1, Set.empty) ++ vs1)
+        } else {
+          acc
+        }
+    }
+    val cleanNameDb = nameDb0.filterNot {
+      case (k, _) => symToLambdaParam.contains(k.ref)
+    }
+    val ctorLtt = LightTypeTag(lambdaRef, rewrittenFullDb, cleanNameDb)
+    val ctorLttExpr = Inspect.makeParsedLightTypeTagImpl(ctorLtt)
+    val argExprs = Expr.ofSeq(weakTypes.map(summonLTT))
+    '{ $ctorLttExpr.combine($argExprs*) }
   }
 
   private def lubClassOf(specificTpe: TypeRepr, tpes: List[TypeRepr]): TypeRepr = {
