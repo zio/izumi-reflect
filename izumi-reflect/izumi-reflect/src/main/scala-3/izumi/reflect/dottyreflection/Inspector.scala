@@ -147,6 +147,9 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
       case ref: Refinement =>
         next().inspectRefinements(ref)
 
+      case flex if flex.getClass.getName.contains("FlexibleType") =>
+        inspectTypeRepr(flex._stripFlexibleType, outerTypeRef)
+
       case lazyref if lazyref.getClass.getName.contains("LazyRef") => // upstream bug seems like
         log(s"TYPEREPR UNSUPPORTED: LazyRef occured $lazyref")
         NameReference(SymName.SymTypeName("???"))

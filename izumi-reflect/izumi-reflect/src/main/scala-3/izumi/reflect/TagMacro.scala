@@ -51,13 +51,13 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   private def summonCombinedTag[T <: AnyKind: Type](owners: Set[Symbol], typeReprDealiased: TypeRepr): Expr[Tag[T]] = {
 
     def summonLTT(typeRepr: TypeRepr): Expr[LightTypeTag] = {
-      typeRepr match {
+      typeRepr._stripFlexibleType match {
         case TypeBounds(low, high) =>
-          val lowTag = summonTag[T](low)
-          val highTag = summonTag[T](high)
+          val lowTag = summonTag[T](low._stripFlexibleType)
+          val highTag = summonTag[T](high._stripFlexibleType)
           '{ LightTypeTag.wildcardType($lowTag.tag, $highTag.tag) }
-        case _ =>
-          val result = summonTag[T](typeRepr)
+        case tpe =>
+          val result = summonTag[T](tpe)
           '{ $result.tag }
       }
     }

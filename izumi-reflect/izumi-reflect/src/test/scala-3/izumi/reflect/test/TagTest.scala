@@ -82,6 +82,15 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
     }
 
+    "support FlexibleType" in {
+      type `<FlexibleType>`[A]
+      def t[F[_]: TagK] = Tag[F[`<FlexibleType>`[String]]]
+
+      assertSameStrict(Tag[`<FlexibleType>`[Option[String]]].tag, Tag[Option[String]].tag)
+      assertSameStrict(Tag[List[`<FlexibleType>`[String]]].tag, Tag[List[String]].tag)
+      assertSameStrict(t[Option].tag, Tag[Option[String]].tag)
+    }
+
   }
 
 }

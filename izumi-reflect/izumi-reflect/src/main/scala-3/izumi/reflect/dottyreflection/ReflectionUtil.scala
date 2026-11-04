@@ -24,19 +24,19 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   protected final def flattenAnd(tpe: TypeRepr): List[TypeRepr] =
-    tpe.dealias match {
+    tpe._stripFlexibleType.dealias._stripFlexibleType match {
       case AndType(lhs, rhs) => flattenAnd(lhs) ++ flattenAnd(rhs)
-      case _ => List(tpe)
+      case _ => List(tpe._stripFlexibleType)
     }
 
   protected final def flattenOr(tpe: TypeRepr): List[TypeRepr] =
-    tpe.dealias match {
+    tpe._stripFlexibleType.dealias._stripFlexibleType match {
       case OrType(lhs, rhs) => flattenOr(lhs) ++ flattenOr(rhs)
-      case _ => List(tpe)
+      case _ => List(tpe._stripFlexibleType)
     }
 
   protected final def intersectionUnionRefinementClassPartsOf(tpe: TypeRepr): List[TypeRepr] = {
-    tpe.dealias match {
+    tpe._stripFlexibleType.dealias._stripFlexibleType match {
       case AndType(lhs, rhs) =>
         intersectionUnionRefinementClassPartsOf(lhs) ++ intersectionUnionRefinementClassPartsOf(rhs)
       case OrType(lhs, rhs) =>
@@ -44,7 +44,7 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       case refinement: Refinement =>
         intersectionUnionRefinementClassPartsOf(refinement.parent)
       case _ =>
-        List(tpe)
+        List(tpe._stripFlexibleType)
     }
   }
 
@@ -199,12 +199,16 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       // simplified does everything below functions do, with exception of `_removeTautologicalUnions` for some reason
       // All of these would be more useful, if not for forced type simplification on implicit macro
       // - https://github.com/lampepfl/dotty/issues/17544
-      val res = typeRepr.dealias._removeTautologicalIntersections._removeTautologicalUnions._simplifyMatchCase
+      val res = typeRepr._stripFlexibleType.dealias._stripFlexibleType._removeTautologicalIntersections._removeTautologicalUnions._simplifyMatchCase
       if (res.asInstanceOf[AnyRef] eq typeRepr.asInstanceOf[AnyRef]) {
         res
       } else {
         res._dealiasSimplifiedFull
       }
+    }
+
+    protected final def _stripFlexibleType: TypeRepr = {
+      ReflectionUtil.stripFlexibleType(using qctx)(typeRepr)
     }
 
     // Calling .simplified will remove too many intersections - we only want to remove those with Any/AnyRef/Object/Matchable
@@ -316,6 +320,19 @@ private[reflect] object ReflectionUtil {
 
   private[reflect] inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
 
+  @tailrec
+  private[reflect] def stripFlexibleType(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): qctx.reflect.TypeRepr = {
+    import qctx.reflect.*
+    typeRepr match {
+      case flex if flex.getClass.getName.contains("FlexibleType") =>
+        stripFlexibleType(flex.asInstanceOf[{ def hi: TypeRepr }].hi)
+      case AppliedType(tycon, arg :: Nil) if tycon.typeSymbol.name == "<FlexibleType>" =>
+        stripFlexibleType(arg)
+      case _ =>
+        typeRepr
+    }
+  }
+
   /**
     * Returns true if the given type contains no type parameters
     * (this means the type is not "weak" https://stackoverflow.com/questions/29435985/weaktypetag-v-typetag)
@@ -328,7 +345,7 @@ private[reflect] object ReflectionUtil {
     typeRepr: qctx.reflect.TypeRepr
   ): Boolean = {
     import qctx.reflect.*
-    typeRepr.dealias match {
+    stripFlexibleType(stripFlexibleType(typeRepr).dealias) match {
       case x if topLevelWeakType(outerOwnerClassDefs, outerLambdas, x) => false
       case AppliedType(tpe, args) =>
         allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe) && args.forall(allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, _))

@@ -104,6 +104,14 @@ class LightTypeTagTest extends SharedLightTypeTagTest {
       assertSameStrict(t1, t2)
     }
 
+    "support FlexibleType" in {
+      type `<FlexibleType>`[A]
+      assertSameStrict(LTT[`<FlexibleType>`[Option[String]]], LTT[Option[String]])
+      assertDebugSame(LTT[`<FlexibleType>`[Option[String]]], LTT[Option[String]])
+      assertSameStrict(LTT[List[`<FlexibleType>`[String]]], LTT[List[String]])
+      assertDebugSame(LTT[List[`<FlexibleType>`[String]]], LTT[List[String]])
+    }
+
   }
 }
 
