@@ -1128,6 +1128,28 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertRepr(xcontra[List, Long].tag, "Function1[-?: <Nothing..List[+Long]>,+Int]")
       assertSameStrict(xcontra[List, Long].tag, Tag[(_ <: List[Long]) => Int].tag)
     }
+
+    "support subtype checks for refined types when overriding or defining type members (#481)" in {
+      trait A {
+        type T
+      }
+      trait AInt extends A {
+        override type T = Int
+      }
+      trait Box[X] extends A {
+        override type T = List[X]
+      }
+
+      def tagBox[X: Tag]: Tag[Box[X]] = Tag[Box[X]]
+
+      assertChildStrict(Tag[AInt].tag, Tag[A { type T = Int }].tag)
+      assertNotChildStrict(Tag[AInt].tag, Tag[A { type T = String }].tag)
+      assertChildStrict(Tag[AInt].tag, Tag[A { type T <: AnyVal }].tag)
+      assertNotChildStrict(Tag[AInt].tag, Tag[A { type T <: CharSequence }].tag)
+      assertChildStrict(Tag[Box[Int]].tag, Tag[A { type T = List[Int] }].tag)
+      assertChildStrict(tagBox[Int].tag, Tag[A { type T = List[Int] }].tag)
+      assertNotChildStrict(tagBox[Int].tag, Tag[A { type T = List[String] }].tag)
+    }
   }
 
 }

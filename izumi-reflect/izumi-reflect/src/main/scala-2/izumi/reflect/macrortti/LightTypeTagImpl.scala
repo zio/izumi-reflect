@@ -162,8 +162,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
             UniRefinement.concreteTypesOfTypeMemberOnly(sym)
           } else Nil
       }
+      val classTypeMemberComponentsIter: Iterator[Type] = current.iterator.flatMap(classTypeMemberConcreteTypes)
 
-      val indirectComponents = intersectionExpansionsArgsBoundsIter ++ refinementDeclMembersIter
+      val indirectComponents = intersectionExpansionsArgsBoundsIter ++ refinementDeclMembersIter ++ classTypeMemberComponentsIter
 
       indirectComponents.foreach(t => if (!current.contains(t) && !inh(t) && !ignored(t)) extractComponents(t, inh))
     }
@@ -259,7 +260,12 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
                   applied
               }
               (componentRef, parentRef)
-          }
+          } ++ (componentRef match {
+            case appliedSelf: AppliedReference =>
+              makeClassTypeMemberRefinement(component, appliedSelf, lambdaParams).map(r => (componentRef, r))
+            case _ =>
+              None
+          })
       }
       .filterNot {
         case (t, parent) =>
@@ -343,6 +349,18 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
               // No, include ALL bases for lambdas (this should be more correct since lambda is a template for a full parameterized db after combine)
               if (l.someArgumentsReferenced) l else applied
           }
+      } ++ {
+        val polyResultTpe = Dealias.fullNormDealiasSquashHKTToPolyTypeResultType(componentPolyType)
+        makeRefTop(polyResultTpe, terminalNames = paramMap, isLambdaOutput = false) match {
+          case appliedSelf: AppliedReference =>
+            makeClassTypeMemberRefinement(polyResultTpe, appliedSelf, paramMap).map {
+              refinement =>
+                val l = Lambda(lambdaParamsUnpacked, refinement)
+                if (l.someArgumentsReferenced) l else refinement
+            }
+          case _ =>
+            None
+        }
       }
     }
 
@@ -939,6 +957,97 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   @inline private[this] def isSingletonType(tpe: Type): Boolean = {
     tpe.isInstanceOf[SingletonTypeApi] && !tpe.isInstanceOf[ThisTypeApi]
+  }
+
+  private[this] def isUserClassWithPotentialTypeMembers(tpe0: Type): Boolean = {
+    val tpe = Dealias.fullNormDealias(tpe0)
+    val sym = tpe.typeSymbol
+    sym != NoSymbol &&
+    sym.isClass &&
+    !sym.isModuleClass &&
+    !sym.isPackageClass &&
+    UniRefinement.unapply(tpe).isEmpty &&
+    !isSingletonType(tpe) &&
+    !sym.fullName.startsWith("scala.") &&
+    !sym.fullName.startsWith("java.")
+  }
+
+  private[this] def classTypeMemberSymbols(tpe0: Type): List[Symbol] = {
+    val tpe = Dealias.fullNormDealias(tpe0)
+    if (!isUserClassWithPotentialTypeMembers(tpe)) {
+      Nil
+    } else {
+      tpe.baseClasses
+        .iterator
+        .filter(cls => cls != NoSymbol && !cls.fullName.startsWith("scala.") && !cls.fullName.startsWith("java."))
+        .flatMap(_.info.decls)
+        .filter {
+          sym =>
+            sym.isType &&
+            !sym.isClass &&
+            !sym.isParameter &&
+            !sym.isPrivate &&
+            !sym.isSynthetic &&
+            sym.asType.typeParams.isEmpty &&
+            !sym.typeSignature.takesTypeArgs
+        }
+        .foldLeft(Vector.empty[Symbol]) {
+          case (acc, sym) =>
+            val name = sym.name.decodedName.toString
+            if (acc.exists(_.name.decodedName.toString == name)) acc else acc :+ sym
+        }
+        .toList
+    }
+  }
+
+  private[this] def classTypeMemberConcreteTypes(tpe0: Type): List[Type] = {
+    val tpe = Dealias.fullNormDealias(tpe0)
+    classTypeMemberSymbols(tpe).flatMap {
+      sym =>
+        sym.typeSignatureIn(tpe) match {
+          case TypeBounds(lo, hi) => List(lo, hi).filterNot(ignored)
+          case other => List(other).filterNot(ignored)
+        }
+    }
+  }
+
+  private[this] def makeClassTypeMemberRefinement(
+    tpe0: Type,
+    selfApplied: AppliedReference,
+    rules: Map[String, SymName.LambdaParamName]
+  ): Option[Refinement] = {
+    val tpe = Dealias.fullNormDealias(tpe0)
+    val syms = classTypeMemberSymbols(tpe)
+    if (syms.isEmpty) {
+      None
+    } else {
+      val decls = syms.flatMap {
+        sym =>
+          val declName = sym.name.decodedName.toString
+          val memberSig = sym.typeSignatureIn(tpe)
+          if (memberSig.takesTypeArgs) {
+            None
+          } else if (sym.isAbstract) {
+            val ref = memberSig match {
+              case TypeBounds(lo, hi) =>
+                if (lo =:= nothing && hi =:= any) {
+                  NameReference(SymTypeName(declName), Boundaries.Empty, None)
+                } else {
+                  val loRef = makeRefTop(Dealias.fullNormDealias(lo), terminalNames = rules, isLambdaOutput = false)
+                  val hiRef = makeRefTop(Dealias.fullNormDealias(hi), terminalNames = rules, isLambdaOutput = false)
+                  NameReference(SymTypeName(declName), Boundaries.Defined(loRef, hiRef), None)
+                }
+              case other =>
+                makeRefTop(Dealias.fullNormDealias(other), terminalNames = rules, isLambdaOutput = false)
+            }
+            Some(RefinementDecl.TypeMember(declName, ref): RefinementDecl)
+          } else {
+            val ref = makeRefTop(Dealias.fullNormDealias(memberSig), terminalNames = rules, isLambdaOutput = false)
+            Some(RefinementDecl.TypeMember(declName, ref): RefinementDecl)
+          }
+      }.toSet
+      if (decls.nonEmpty) Some(Refinement(selfApplied, decls)) else None
+    }
   }
 
 }

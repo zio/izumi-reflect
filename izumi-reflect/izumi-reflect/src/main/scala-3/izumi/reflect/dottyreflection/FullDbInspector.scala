@@ -181,9 +181,95 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         }
       }
 
-      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
+      val (typeMemberRefinementRefs, typeMemberBoundBasesRefs) = extractTypeMemberRefinement(tpe, selfRef, onlyIndirect)
 
-      argBasesRefs ::: mainBasesRefs
+      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs ::: typeMemberRefinementRefs
+
+      argBasesRefs ::: typeMemberBoundBasesRefs ::: mainBasesRefs
+    }
+
+    private def extractTypeMemberRefinement(
+      tpe: TypeRepr,
+      selfRef: AbstractReference,
+      onlyIndirect: Boolean
+    ): (List[(AbstractReference, AbstractReference)], List[(AbstractReference, AbstractReference)]) = {
+      selfRef match {
+        case selfApplied: AppliedReference if isUserClassWithPotentialTypeMembers(tpe) =>
+          val typeMemberSymbols = tpe.baseClasses
+            .iterator
+            .filter(cls => !cls.fullName.startsWith("scala.") && !cls.fullName.startsWith("java."))
+            .flatMap(_.declaredTypes)
+            .filter {
+              m =>
+                m.isTypeDef &&
+                !m.isClassDef &&
+                !m.isTypeParam &&
+                !m.flags.is(Flags.Param) &&
+                !m.flags.is(Flags.Private) &&
+                !m.flags.is(Flags.PrivateLocal) &&
+                !m.flags.is(Flags.Synthetic) &&
+                !m.declaredTypes.exists(s => s.isTypeParam && s.owner == m)
+            }
+            .foldLeft(Vector.empty[Symbol]) {
+              case (acc, m) =>
+                if (acc.exists(_.name == m.name)) acc else acc :+ m
+            }
+            .toList
+
+          val inspectedMembers = typeMemberSymbols.flatMap {
+            m =>
+              tpe.memberType(m) match {
+                case TypeBounds(_: LambdaType, _) | TypeBounds(_, _: LambdaType) =>
+                  None
+                case bounds: TypeBounds =>
+                  val boundaries = inspector.next().inspectBoundsImpl(bounds)
+                  val res = boundaries match {
+                    case Boundaries.Defined(low, high) if high == low =>
+                      high
+                    case definedBoundaries =>
+                      NameReference(SymName.SymTypeName(m.name), definedBoundaries, None)
+                  }
+                  val boundTypes = if (boundaries == Boundaries.Empty) Nil else List(bounds.low, bounds.hi)
+                  Some((RefinementDecl.TypeMember(m.name, res): RefinementDecl, boundTypes))
+                case _: LambdaType =>
+                  None
+                case other =>
+                  Some((RefinementDecl.TypeMember(m.name, inspector.next().inspectTypeRepr(other)): RefinementDecl, List(other)))
+              }
+          }
+
+          if (inspectedMembers.isEmpty) {
+            (Nil, Nil)
+          } else {
+            val decls = inspectedMembers.map(_._1).toSet
+            val refinementRefs = if (onlyIndirect) {
+              Nil
+            } else {
+              List((selfApplied, LightTypeTagRef.Refinement(selfApplied, decls)))
+            }
+            val memberBoundBases = inspectedMembers
+              .flatMap(_._2)
+              .filterNot(mt => ignoredInUnions(mt) || ignoredInIntersections(mt) || basesTermination.isTerminatingClsSym(mt))
+              .flatMap(inspectTypeBoundsToFull)
+            (refinementRefs, memberBoundBases)
+          }
+        case _ =>
+          (Nil, Nil)
+      }
+    }
+
+    private def isUserClassWithPotentialTypeMembers(tpe: TypeRepr): Boolean = {
+      val sym = tpe.typeSymbol
+      val isNotTermOrConst = tpe match {
+        case _: TermRef | _: ConstantType => false
+        case _ => true
+      }
+      sym.isClassDef &&
+      !sym.flags.is(Flags.Module) &&
+      !sym.flags.is(Flags.Package) &&
+      isNotTermOrConst &&
+      !sym.fullName.startsWith("scala.") &&
+      !sym.fullName.startsWith("java.")
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {

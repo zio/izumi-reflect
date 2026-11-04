@@ -370,7 +370,17 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
 //    ctx.logger.log(s"Checking if ${parameterizedParentsOf(child)} has a parent of $parent")
     val parents = parameterizedParentsOf(child)
     ctx.logger.log(s"Looking up parameterized parents of $child => $parents")
-    parents.exists(ctx.isChild(_, parent))
+    parents.exists {
+      case r: Refinement if r.reference == child =>
+        parent match {
+          case pr: Refinement =>
+            !pr.reference.isInstanceOf[Refinement] && ctx.isChild(r.reference, pr.reference) && compareDecls(ctx.next())(r.decls, pr.decls)
+          case _ =>
+            false
+        }
+      case p =>
+        ctx.isChild(p, parent)
+    }
   }
 
   private def oneOfUnparameterizedParentsIsInheritedFrom(ctx: Ctx)(child: NameReference, parent: NameReference): Boolean = {
