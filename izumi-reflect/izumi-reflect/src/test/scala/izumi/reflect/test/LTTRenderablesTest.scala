@@ -44,10 +44,9 @@ class LTTRenderablesTest extends TagAssertions {
       assert(identity == "[A] ➾ A")
       assert(const == "[A,B] ➾ B")
       assert(swapEither == "[A,B] ➾ scala.util.Either[+B,+A]")
-      val expectedDepth = if (IsScala3) 1 else 2
-      assert(swapOptionT == s"izumi.reflect.test.OptionT[[A$expectedDepth] ➾ A$expectedDepth,_]")
-      assert(useInner == s"[A] ➾ izumi.reflect.test.OptionT[[A$expectedDepth] ➾ scala.util.Either[+A,+A$expectedDepth],A]")
-      assert(useInner2 == s"[A,B] ➾ izumi.reflect.test.OptionT[[A$expectedDepth] ➾ scala.util.Either[+A,+A$expectedDepth],B]")
+      assert(swapOptionT == s"izumi.reflect.test.OptionT[[A] ➾ A,_]")
+      assert(useInner == s"[A] ➾ izumi.reflect.test.OptionT[[A1] ➾ scala.util.Either[+A,+A1],A]")
+      assert(useInner2 == s"[A,B] ➾ izumi.reflect.test.OptionT[[A1] ➾ scala.util.Either[+A,+A1],B]")
       assert(reuse == "[A] ➾ scala.util.Either[+A,+A]")
     }
 

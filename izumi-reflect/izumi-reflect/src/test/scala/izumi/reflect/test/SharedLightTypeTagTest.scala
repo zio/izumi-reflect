@@ -695,11 +695,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!debug3.contains("TestModel.A"))
       assert(!debug3.contains("+scala.Nothing"))
 //        assert(debug3.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
-      if (IsScala3) {
-        assert(debug3.contains("- λ %1:0,%1:1 → scala.util.Right[+1:0,+1:1]"))
-      } else {
-        assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      }
+      assert(debug3.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       assert(debug3.contains("* scala.Product"))
 
       val debug4 = `LTT[_]`[Right[Throwable, *]].debug()
@@ -715,11 +711,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!debug4.contains("TestModel.A"))
       assert(!debug4.contains("+scala.Nothing"))
 //        assert(debug4.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
-      if (IsScala3) {
-        assert(debug4.contains("- λ %1:0,%1:1 → scala.util.Right[+1:0,+1:1]"))
-      } else {
-        assert(debug4.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
-      }
+      assert(debug4.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
       assert(debug4.contains("* scala.Product"))
 
       val oneArgApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
@@ -732,7 +724,7 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!debug5.contains("scala.package.B"))
       assert(!debug5.contains("+scala.Nothing"))
       assert(debug5.contains("* scala.Product"))
-      assert(debug5.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
+      assert(debug5.contains("- λ %0 → scala.util.Right[+java.lang.Throwable,+0]"))
       assert(debug5.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
     }
 
@@ -937,24 +929,18 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       type TX[B] = Int { def a(k: String): Int; val b: String; type M1 = W1; type M2 <: W2; type M3[A] = Either[B, A] }
       val txTag = `LTT[_]`[TX]
       assert(
-        (txTag.toString // Scala 2
-          == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+0,+2:0]})")
-          || (txTag.toString // Dotty
-            == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})")
+        txTag.toString
+          == "λ %0 → (Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+0,+1:0]})"
       )
       val txCombinedTag = `LTT[_]`[TX].combine(LTT[Unit])
       assert(
-        (txCombinedTag.toString // Scala 2
-          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %2:0 → Either[+Unit,+2:0]})")
-          || (txCombinedTag.toString // Dotty
-            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
+        txCombinedTag.toString
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})"
       )
       val txUnitTag = LTT[TX[Unit]]
       assert(
-        (txUnitTag.toString
-          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %1:0 → Either[+Unit,+1:0]})")
-          || (txUnitTag.toString
-            == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})")
+        txUnitTag.toString
+          == "(Int {def a(String): Int, def b(): String, type M1 = TestModel::W1, type M2 = M2|<Nothing..TestModel::W2>, type M3 = λ %0 → Either[+Unit,+0]})"
       )
       assertRepr(LTT[I1 with (I1 with (I1 with W1))], "{TestModel::I1 & TestModel::W1}")
       assertRepr(`LTT[_]`[R1], "λ %0 → TestModel::R1[=0]")
@@ -1322,6 +1308,54 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val parent = LTT[AbstractRole[Id]]
 
       assertChildStrict(child, parent)
+    }
+
+    "normal form for nested lambdas (#379)" in {
+      val it1List = LTT[IT1[List]]
+      assert(it1List.repr == "izumi.reflect.test.TestModel::IT1[+λ %0 → scala.collection.immutable.List[+0]]")
+
+      val roleChildEitherDebug = LTT[Either[RoleChild[IO], Unit]].debug()
+      assert(!roleChildEitherDebug.contains("FAKE"))
+      assert(roleChildEitherDebug.contains("scala.util.Either[+izumi.reflect.test.TestModel::RoleChild[=λ %0,%1 → izumi.reflect.test.TestModel::ZIO[-scala.Any,+0,+1]],+scala.Unit]"))
+      assert(roleChildEitherDebug.contains("λ %0 → izumi.reflect.test.TestModel::RoleParent[=λ %1:0 → 0[=java.lang.Throwable,=1:0]]"))
+
+      import LightTypeTagRef._
+      val outerParamA = SymName.LambdaParamName(5, 7, 1)
+      val innerParamB = SymName.LambdaParamName(3, 9, 2)
+      val innerParamC = SymName.LambdaParamName(8, 9, 2)
+      val inner1 = Lambda.make(
+        List(innerParamB, innerParamC),
+        FullReference(
+          SymName.SymTypeName("scala.Tuple3"),
+          List(
+            TypeParam(NameReference(outerParamA), Variance.Covariant),
+            TypeParam(NameReference(innerParamB), Variance.Covariant),
+            TypeParam(NameReference(innerParamC), Variance.Covariant)
+          )
+        )
+      )
+      val outer1 = Lambda.make(List(outerParamA), inner1)
+
+      val altOuterParamA = SymName.LambdaParamName(0, 2, 1)
+      val altInnerParamB = SymName.LambdaParamName(0, 4, 2)
+      val altInnerParamC = SymName.LambdaParamName(1, 4, 2)
+      val inner2 = Lambda.make(
+        List(altInnerParamB, altInnerParamC),
+        FullReference(
+          SymName.SymTypeName("scala.Tuple3"),
+          List(
+            TypeParam(NameReference(altOuterParamA), Variance.Covariant),
+            TypeParam(NameReference(altInnerParamB), Variance.Covariant),
+            TypeParam(NameReference(altInnerParamC), Variance.Covariant)
+          )
+        )
+      )
+      val outer2 = Lambda.make(List(altOuterParamA), inner2)
+
+      assert(outer1 == outer2)
+      assert(outer1.hashCode() == outer2.hashCode())
+      assert(outer1.repr == "λ %0 → λ %1:0,%1:1 → scala.Tuple3[+0,+1:0,+1:1]")
+      assert(outer1.normalize() eq outer1)
     }
 
   }
