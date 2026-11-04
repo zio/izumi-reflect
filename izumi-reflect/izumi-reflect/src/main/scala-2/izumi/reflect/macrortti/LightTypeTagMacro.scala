@@ -32,8 +32,26 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
 
   import c.universe._
 
-  protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izumi.reflect.rtti.cache.compile`}=false")
-  protected final val impl = new LightTypeTagImpl[c.universe.type](c.universe, withCache = cacheEnabled, logger)
+  private[this] def macroSettingEnabled(key: String, sysFlag: Boolean): Boolean = {
+    sysFlag && !c.settings.contains(s"$key=false")
+  }
+
+  protected final def cacheEnabled: Boolean = {
+    macroSettingEnabled(DebugProperties.`izumi.reflect.rtti.cache.compile`, LightTypeTagImpl.compileCacheEnabled)
+  }
+
+  private[this] final val treeCacheEnabled: Boolean = {
+    cacheEnabled && macroSettingEnabled(DebugProperties.`izumi.reflect.rtti.cache.compile.macro`, LightTypeTagImpl.macroCacheEnabled)
+  }
+
+  protected final val impl = new LightTypeTagImpl[c.universe.type](
+    c.universe,
+    withCache = cacheEnabled,
+    logger,
+    lttEnabled = macroSettingEnabled(DebugProperties.`izumi.reflect.rtti.cache.compile.ltt`, LightTypeTagImpl.lttCacheEnabled),
+    fullDbEnabled = macroSettingEnabled(DebugProperties.`izumi.reflect.rtti.cache.compile.db.full`, LightTypeTagImpl.fullDbCacheEnabled),
+    inheritanceDbEnabled = macroSettingEnabled(DebugProperties.`izumi.reflect.rtti.cache.compile.db.inheritance`, LightTypeTagImpl.inheritanceDbCacheEnabled)
+  )
 
   final def makeStrongHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[LTag.StrongHK[ArgStruct]] = {
     val tpe = unpackArgStruct(weakTypeOf[ArgStruct])
@@ -68,8 +86,22 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
   }
 
   final def makeParsedLightTypeTagImpl(tpe: Type): c.Expr[LightTypeTag] = {
+    if (treeCacheEnabled) {
+      LightTypeTagImpl.treeCache.get(tpe) match {
+        case Some(cachedTree) =>
+          return c.Expr[LightTypeTag](cachedTree.asInstanceOf[Tree])
+        case None =>
+      }
+    }
+
     val res = impl.makeFullTagImpl(tpe)
-    makeParsedLightTypeTagImpl(res)
+    val expr = makeParsedLightTypeTagImpl(res)
+
+    if (treeCacheEnabled) {
+      LightTypeTagImpl.treeCache.put(tpe, expr.tree)
+    }
+
+    expr
   }
 
   final def makeParsedLightTypeTagImpl(ltt: LightTypeTag): c.Expr[LightTypeTag] = {
@@ -81,7 +113,9 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
     val strDBs = serialized.databases
 
     c.Expr[LightTypeTag](
-      q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)"
+      c.typecheck(
+        q"_root_.izumi.reflect.macrortti.LightTypeTag.parse($hashCodeRef: _root_.scala.Int, $strRef : _root_.java.lang.String, $strDBs : _root_.java.lang.String, ${LightTypeTag.currentBinaryFormatVersion}: _root_.scala.Int)"
+      )
     )
   }
 

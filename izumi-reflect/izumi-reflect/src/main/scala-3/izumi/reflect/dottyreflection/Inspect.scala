@@ -1,12 +1,17 @@
 package izumi.reflect.dottyreflection
 
+import izumi.reflect.dottyreflection.CacheStats.{SoftWeakCache, TypeReprKey}
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
-import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 
 import scala.quoted.{Expr, Quotes, Type}
 
 object Inspect {
+  private type TermValue = Quotes#reflectModule#Term
+
+  private val termCache = new SoftWeakCache[TypeReprKey, TermValue]()
+  private val lttCache = new SoftWeakCache[TypeReprKey, LightTypeTag]()
+
   inline def inspect[T <: AnyKind]: LightTypeTag = ${ inspectAny[T] }
 
   inline def inspectStrong[T <: AnyKind]: LightTypeTag = ${ inspectStrong[T] }
@@ -16,13 +21,49 @@ object Inspect {
   }
 
   def inspectTypeRepr(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Expr[LightTypeTag] = {
-    val ltt = {
-      val ref = TypeInspections(typeRepr)
-      val fullDb = TypeInspections.fullDb(typeRepr)
-      val nameDb = TypeInspections.unappliedDb(typeRepr)
-      LightTypeTag(ref, fullDb, nameDb)
+    import qctx.reflect.*
+
+    val termCaching = CacheStats.compileCacheEnabled && CacheStats.macroCacheEnabled
+    val lttCaching = CacheStats.compileCacheEnabled && CacheStats.lttCacheEnabled
+    val cacheKey: TypeReprKey = typeRepr.dealias.simplified
+
+    if (termCaching) {
+      termCache.get(cacheKey) match {
+        case Some(cachedTerm) =>
+          CacheStats.termHit()
+          return cachedTerm.asInstanceOf[qctx.reflect.Term].asExprOf[LightTypeTag]
+        case None =>
+          CacheStats.termMiss()
+      }
     }
-    makeParsedLightTypeTagImpl(ltt)
+
+    val ltt = if (lttCaching) {
+      lttCache.get(cacheKey) match {
+        case Some(cachedLtt) =>
+          CacheStats.lttHit()
+          cachedLtt
+        case None =>
+          CacheStats.lttMiss()
+          val computed = computeLightTypeTag(typeRepr)
+          lttCache.put(cacheKey, computed)
+          computed
+      }
+    } else {
+      computeLightTypeTag(typeRepr)
+    }
+
+    val expr = makeParsedLightTypeTagImpl(ltt)
+    if (termCaching) {
+      termCache.put(cacheKey, expr.asTerm.asInstanceOf[TermValue])
+    }
+    expr
+  }
+
+  private def computeLightTypeTag(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): LightTypeTag = {
+    val ref = TypeInspections(typeRepr)
+    val fullDb = TypeInspections.fullDb(typeRepr)
+    val nameDb = TypeInspections.unappliedDb(typeRepr)
+    LightTypeTag(ref, fullDb, nameDb)
   }
 
   def inspectStrong[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {

@@ -29,18 +29,96 @@ import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName,
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
 
+import java.lang.ref.SoftReference
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
 object LightTypeTagImpl {
-  private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
+  private[macrortti] final class SoftWeakCache[K, V] {
+    private[this] val map = new java.util.WeakHashMap[K, SoftReference[V]]()
+
+    def get(key: K): Option[V] = map.synchronized {
+      val ref = map.get(key)
+      if (ref eq null) {
+        None
+      } else {
+        val v = ref.get()
+        if (v == null) {
+          map.remove(key)
+          None
+        } else {
+          Some(v)
+        }
+      }
+    }
+
+    def getOrElseUpdate(key: K)(compute: => V): V = {
+      get(key) match {
+        case Some(v) =>
+          v
+        case None =>
+          val computed = compute
+          put(key, computed)
+          computed
+      }
+    }
+
+    def put(key: K, value: V): Unit = map.synchronized {
+      map.put(key, new SoftReference(value))
+      ()
+    }
+  }
+
+  private lazy val globalCache = new SoftWeakCache[Universe#Type, AbstractReference]
+  private lazy val lttCache = new SoftWeakCache[Universe#Type, LightTypeTag]
+  private lazy val fullDbCache = new SoftWeakCache[Universe#Type, Map[AbstractReference, Set[AbstractReference]]]
+  private lazy val inheritanceDbCache = new SoftWeakCache[Universe#Type, Map[NameReference, Set[NameReference]]]
+  private lazy val appliedBasesCache = new SoftWeakCache[Universe#Type, List[(AbstractReference, AbstractReference)]]
+  private lazy val lambdaBasesCache = new SoftWeakCache[Universe#Type, List[(AbstractReference, AbstractReference)]]
+  private lazy val inheritanceComponentCache = new SoftWeakCache[Universe#Type, List[(NameReference, AbstractReference)]]
+  private[macrortti] lazy val treeCache = new SoftWeakCache[Universe#Type, Universe#Tree]
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
     System
       .getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** master switch for compile-time caching */
+  private[macrortti] lazy val compileCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** macro tree cache flag */
+  private[macrortti] lazy val macroCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.macro`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** LTT-level cache flag */
+  private[macrortti] lazy val lttCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.ltt`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** FullDB cache flag */
+  private[macrortti] lazy val fullDbCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.full`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** InheritanceDB cache flag */
+  private[macrortti] lazy val inheritanceDbCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.compile.db.inheritance`).asBoolean()
       .getOrElse(true)
   }
 
@@ -76,7 +154,25 @@ object LightTypeTagImpl {
 
 }
 
-final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: Boolean, logger: TrivialLogger) {
+final class LightTypeTagImpl[U <: Universe with Singleton](
+  val u: U,
+  withCache: Boolean,
+  logger: TrivialLogger,
+  lttEnabled: Boolean,
+  fullDbEnabled: Boolean,
+  inheritanceDbEnabled: Boolean
+) {
+
+  def this(u: U, withCache: Boolean, logger: TrivialLogger) = {
+    this(
+      u,
+      withCache,
+      logger,
+      LightTypeTagImpl.lttCacheEnabled,
+      LightTypeTagImpl.fullDbCacheEnabled,
+      LightTypeTagImpl.inheritanceDbCacheEnabled
+    )
+  }
 
   import u._
 
@@ -84,11 +180,19 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val obj = definitions.ObjectTpe
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
+  private[this] final val cacheEnabled: Boolean = withCache && LightTypeTagImpl.compileCacheEnabled
 
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
 
     logger.log(s"Initial mainTpe=$tpe:${tpe.getClass} beforeDealias=$tpe0:${tpe0.getClass}")
+
+    if (cacheEnabled && lttEnabled) {
+      LightTypeTagImpl.lttCache.get(tpe) match {
+        case Some(cached) => return cached
+        case None =>
+      }
+    }
 
     val lttRef = makeRef(tpe)
 
@@ -99,10 +203,27 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
       }.result()
 
-    val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
-    val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    val fullDb = if (cacheEnabled && fullDbEnabled) {
+      LightTypeTagImpl.fullDbCache.getOrElseUpdate(tpe) {
+        makeFullDb(tpe, allReferenceComponents).toMultimap
+      }
+    } else {
+      makeFullDb(tpe, allReferenceComponents).toMultimap
+    }
 
-    LightTypeTag(lttRef, fullDb, unappliedDb)
+    val unappliedDb = if (cacheEnabled && inheritanceDbEnabled) {
+      LightTypeTagImpl.inheritanceDbCache.getOrElseUpdate(tpe) {
+        makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+      }
+    } else {
+      makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    }
+
+    val ltt = LightTypeTag(lttRef, fullDb, unappliedDb)
+    if (cacheEnabled && lttEnabled) {
+      LightTypeTagImpl.lttCache.put(tpe, ltt)
+    }
+    ltt
   }
 
   private[this] def allTypeReferencesWithBases(tpe0: Type, basesTermination: mutable.HashSet[Symbol], onlyIndirect: Boolean): Iterator[Type] = {
@@ -231,34 +352,41 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private[this] def makeAppliedBases(mainTpe: Type, allReferenceComponents: Iterator[Type]): List[(AbstractReference, AbstractReference)] = {
+    def computeComponentAppliedBases(component: Type): List[(AbstractReference, AbstractReference)] = {
+      val tparams = component.etaExpand.typeParams
+      val lambdaParams = makeLambdaParams(None, tparams).toMap
+
+      val appliedParents = tpeBases(component).filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
+      val componentRef = makeRef(component)
+
+      appliedParents.map {
+        parentTpe =>
+          val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
+            case unapplied: Lambda =>
+              if (unapplied.someArgumentsReferenced) {
+                unapplied
+              } else {
+                logger.log(
+                  s"No arguments referenced in l=$unapplied, parentTpe=$parentTpe(etaExpand:${parentTpe.etaExpand}), tparams=$tparams, mainTpe=$mainTpe(etaExpand:${mainTpe.etaExpand})"
+                )
+                unapplied.output
+              }
+            case applied: AppliedReference =>
+              applied
+          }
+          (componentRef, parentRef)
+      }
+    }
 
     val appliedBases = allReferenceComponents
       .filterNot(isHKTOrPolyTypeOrResultTypeArtifact) // remove PolyTypes, only process applied types in this inspection
       .filterNot(isExistentialArtifact) // remove forSome artifacts in Scala 2.11 && 2.12
       .flatMap {
         component =>
-          val tparams = component.etaExpand.typeParams
-          val lambdaParams = makeLambdaParams(None, tparams).toMap
-
-          val appliedParents = tpeBases(component).filterNot(isHKTOrPolyTypeOrResultTypeArtifact)
-          val componentRef = makeRef(component)
-
-          appliedParents.map {
-            parentTpe =>
-              val parentRef = makeRefTop(parentTpe, terminalNames = lambdaParams, isLambdaOutput = lambdaParams.nonEmpty) match {
-                case unapplied: Lambda =>
-                  if (unapplied.someArgumentsReferenced) {
-                    unapplied
-                  } else {
-                    logger.log(
-                      s"No arguments referenced in l=$unapplied, parentTpe=$parentTpe(etaExpand:${parentTpe.etaExpand}), tparams=$tparams, mainTpe=$mainTpe(etaExpand:${mainTpe.etaExpand})"
-                    )
-                    unapplied.output
-                  }
-                case applied: AppliedReference =>
-                  applied
-              }
-              (componentRef, parentRef)
+          if (cacheEnabled && fullDbEnabled) {
+            LightTypeTagImpl.appliedBasesCache.getOrElseUpdate(component)(computeComponentAppliedBases(component))
+          } else {
+            computeComponentAppliedBases(component)
           }
       }
       .filterNot {
@@ -280,6 +408,14 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     }
 
     def processLambdasReturningRefinements(tpeRaw0: Type): List[(AbstractReference, AbstractReference)] = {
+      if (cacheEnabled && fullDbEnabled) {
+        LightTypeTagImpl.lambdaBasesCache.getOrElseUpdate(tpeRaw0)(computeLambdasReturningRefinements(tpeRaw0))
+      } else {
+        computeLambdasReturningRefinements(tpeRaw0)
+      }
+    }
+
+    def computeLambdasReturningRefinements(tpeRaw0: Type): List[(AbstractReference, AbstractReference)] = {
       val componentsOfPolyTypeResultType = UniRefinement.breakRefinement(tpeRaw0, squashHKTRefToPolyTypeResultType = true)
 
       IzAssert(
@@ -350,6 +486,13 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private[this] def makeClassOnlyInheritanceDb(mainTpe: Type, allReferenceComponents: Iterator[Type]): Map[NameReference, Set[NameReference]] = {
+    def computeComponentInheritanceBases(component: Type): List[(NameReference, AbstractReference)] = {
+      val prefix = makePrefixReference(component)
+      val componentRef = makeNameReference(component, component.typeSymbol, Boundaries.Empty, prefix)
+      val appliedBases = tpeBases(component).filterNot(isHKTOrPolyType)
+      appliedBases.map(componentRef -> makeRef(_))
+    }
+
     val baseclassReferences = allReferenceComponents
       .flatMap {
         // squash all type lambdas and get the intersection of their results
@@ -358,10 +501,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
       }
       .flatMap {
         component =>
-          val prefix = makePrefixReference(component)
-          val componentRef = makeNameReference(component, component.typeSymbol, Boundaries.Empty, prefix)
-          val appliedBases = tpeBases(component).filterNot(isHKTOrPolyType)
-          appliedBases.map(componentRef -> makeRef(_))
+          if (cacheEnabled && inheritanceDbEnabled) {
+            LightTypeTagImpl.inheritanceComponentCache.getOrElseUpdate(component)(computeComponentInheritanceBases(component))
+          } else {
+            computeComponentInheritanceBases(component)
+          }
       }
 
     val unparameterizedInheritanceData = baseclassReferences
@@ -414,14 +558,9 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   }
 
   private[this] def makeRef(tpe: Type): AbstractReference = {
-    if (withCache) {
-      globalCache.synchronized(globalCache.get(tpe)) match {
-        case null =>
-          val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
-          globalCache.synchronized(globalCache.put(tpe, ref))
-          ref
-        case ref =>
-          ref
+    if (cacheEnabled && lttEnabled) {
+      globalCache.getOrElseUpdate(tpe) {
+        makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
       }
     } else {
       makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
