@@ -97,7 +97,49 @@ object LightTypeTagRef extends LTTOrdering {
     }
 
     lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
-    lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)
+    lazy val normalizedOutput: AbstractReference = normalizeLambda(RuntimeAPI.applyLambda(this, makeFakeParams), currentDepth = 0)
+
+    private[this] def normalizeLambda(ref: AbstractReference, currentDepth: Int): AbstractReference = {
+      def normBoundaries(b: Boundaries): Boundaries = b match {
+        case Boundaries.Defined(bottom, top) =>
+          Boundaries.Defined(normalizeLambda(bottom, currentDepth), normalizeLambda(top, currentDepth))
+        case Boundaries.Empty =>
+          Boundaries.Empty
+      }
+      def normApplied(a: AppliedReference): AppliedReference = a match {
+        case NameReference(SymName.LambdaParamName(idx, depth, arity), b, prefix) =>
+          val targetDepth = if (depth == LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth) currentDepth else depth
+          NameReference(SymName.LambdaParamName(idx, targetDepth, arity), normBoundaries(b), prefix.map(normApplied))
+        case NameReference(sym, b, prefix) =>
+          NameReference(sym, normBoundaries(b), prefix.map(normApplied))
+        case FullReference(sym, params, prefix) =>
+          FullReference(sym, params.map(p => p.copy(ref = normalizeLambda(p.ref, currentDepth))), prefix.map(normApplied))
+        case IntersectionReference(refs) =>
+          maybeIntersection(refs.iterator.map(normApplied))
+        case UnionReference(refs) =>
+          maybeUnion(refs.iterator.map(normApplied))
+        case Refinement(reference, decls) =>
+          val normDecls = decls.map {
+            case RefinementDecl.Signature(name, in, out) =>
+              RefinementDecl.Signature(name, in.map(normApplied), normApplied(out))
+            case RefinementDecl.TypeMember(name, r) =>
+              RefinementDecl.TypeMember(name, normalizeLambda(r, currentDepth))
+          }
+          Refinement(normApplied(reference), normDecls)
+        case WildcardReference(b) =>
+          WildcardReference(normBoundaries(b))
+      }
+      ref match {
+        case Lambda(in, out) =>
+          val nextDepth = currentDepth + 1
+          val normIn = in.zipWithIndex.map { case (_, idx) => SymName.LambdaParamName(idx, nextDepth, in.size) }
+          val fakeNested = in.zip(normIn).map { case (oldP, newP) => oldP -> NameReference(newP) }
+          val appliedInner = RuntimeAPI.applyLambda(Lambda(in, out), fakeNested)
+          Lambda(normIn, normalizeLambda(appliedInner, nextDepth))
+        case a: AppliedReference =>
+          normApplied(a)
+      }
+    }
 
     override def equals(obj: Any): Boolean = {
       obj match {
