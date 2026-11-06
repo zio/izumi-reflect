@@ -119,7 +119,7 @@ object LightTypeTagRef extends LTTOrdering {
         case UnionReference(refs) =>
           maybeUnion(refs.iterator.map(normApplied))
         case Refinement(reference, decls) =>
-          val normDecls = decls.map {
+          val normDecls: Set[RefinementDecl] = decls.map {
             case RefinementDecl.Signature(name, in, out) =>
               RefinementDecl.Signature(name, in.map(normApplied), normApplied(out))
             case RefinementDecl.TypeMember(name, r) =>
