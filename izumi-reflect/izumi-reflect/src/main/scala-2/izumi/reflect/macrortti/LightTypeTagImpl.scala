@@ -24,7 +24,8 @@ import izumi.reflect.internal.fundamentals.platform.assertions.IzAssert
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger
 import izumi.reflect.internal.fundamentals.platform.console.TrivialLogger.Config
 import izumi.reflect.internal.fundamentals.platform.strings.IzString._
-import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, globalCache}
+import izumi.reflect.macrortti.LightTypeTagImpl.{Broken, getSoftCached, putSoftCached, globalCache, globalFullDbCache, globalInheritanceDbCache, globalSerializedCache}
+import java.lang.ref.SoftReference
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.{SymLiteral, SymTermName, SymTypeName}
 import izumi.reflect.macrortti.LightTypeTagRef._
 import izumi.reflect.{DebugProperties, ReflectionUtil}
@@ -35,7 +36,24 @@ import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
 object LightTypeTagImpl {
-  private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
+  private lazy val globalCache = new java.util.WeakHashMap[Any, SoftReference[AbstractReference]]
+  private lazy val globalFullDbCache = new java.util.WeakHashMap[Any, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]
+  private lazy val globalInheritanceDbCache = new java.util.WeakHashMap[Any, SoftReference[Map[NameReference, Set[NameReference]]]]
+  private lazy val globalSerializedCache = new java.util.WeakHashMap[Any, SoftReference[LightTypeTag.Serialized]]
+
+  private def getSoftCached[V <: AnyRef](cache: java.util.WeakHashMap[Any, SoftReference[V]], key: Any): Option[V] = {
+    cache.synchronized {
+      val ref = cache.get(key)
+      if (ref eq null) None else Option(ref.get())
+    }
+  }
+
+  private def putSoftCached[V <: AnyRef](cache: java.util.WeakHashMap[Any, SoftReference[V]], key: Any, value: V): V = {
+    cache.synchronized {
+      cache.put(key, new SoftReference(value))
+    }
+    value
+  }
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
@@ -76,7 +94,17 @@ object LightTypeTagImpl {
 
 }
 
-final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: Boolean, logger: TrivialLogger) {
+final class LightTypeTagImpl[U <: Universe with Singleton](
+  val u: U,
+  withCache: Boolean,
+  logger: TrivialLogger,
+  withFullDbCache: Boolean,
+  withInheritanceDbCache: Boolean,
+  withSerializedCache: Boolean
+) {
+  def this(u: U, withCache: Boolean, logger: TrivialLogger) = {
+    this(u, withCache, logger, withCache, withCache, withCache)
+  }
 
   import u._
 
@@ -85,6 +113,18 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
 
+  def makeSerializedTagImpl(tpe0: Type): LightTypeTag.Serialized = {
+    val tpe = Dealias.fullNormDealias(tpe0)
+    if (withSerializedCache) {
+      getSoftCached(globalSerializedCache, tpe) match {
+        case Some(serialized) => serialized
+        case None => putSoftCached(globalSerializedCache, tpe, makeFullTagImpl(tpe).serialize())
+      }
+    } else {
+      makeFullTagImpl(tpe).serialize()
+    }
+  }
+
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
 
@@ -92,15 +132,30 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
     val lttRef = makeRef(tpe)
 
-    val allReferenceComponents = mutable
+    lazy val allReferenceComponents = mutable
       .LinkedHashSet
       .newBuilder[Type]
       .++= {
         allTypeReferencesWithBases(tpe, mutable.HashSet.empty, onlyIndirect = false)
       }.result()
 
-    val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
-    val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    val fullDb = if (withFullDbCache) {
+      getSoftCached(globalFullDbCache, tpe) match {
+        case Some(db) => db
+        case None => putSoftCached(globalFullDbCache, tpe, makeFullDb(tpe, allReferenceComponents).toMultimap)
+      }
+    } else {
+      makeFullDb(tpe, allReferenceComponents).toMultimap
+    }
+
+    val unappliedDb = if (withInheritanceDbCache) {
+      getSoftCached(globalInheritanceDbCache, tpe) match {
+        case Some(db) => db
+        case None => putSoftCached(globalInheritanceDbCache, tpe, makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator))
+      }
+    } else {
+      makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
+    }
 
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
@@ -415,12 +470,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] def makeRef(tpe: Type): AbstractReference = {
     if (withCache) {
-      globalCache.synchronized(globalCache.get(tpe)) match {
-        case null =>
+      getSoftCached(globalCache, tpe) match {
+        case None =>
           val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
-          globalCache.synchronized(globalCache.put(tpe, ref))
-          ref
-        case ref =>
+          putSoftCached(globalCache, tpe, ref)
+        case Some(ref) =>
           ref
       }
     } else {
