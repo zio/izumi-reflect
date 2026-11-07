@@ -73,6 +73,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
         (
           tpeRes.typeArgs.iterator ++
           intersectionUnionMembers.iterator.flatMap(_.typeArgs) ++
+          intersectionUnionMembers.iterator.flatMap(collectClassTypeMemberBounds) ++
           intersectionUnionMembers
         ).foreach(t => if (!inh.contains(t)) goExtractComponents(t))
       }
@@ -86,6 +87,52 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
       }
 
       inh
+    }
+
+    private def collectClassTypeMemberBounds(tpe: TypeRepr): List[TypeRepr] = {
+      if (tpe.classSymbol.isEmpty) {
+        Nil
+      } else {
+        tpe.baseClasses
+          .filter(isNonStdlibClass)
+          .flatMap(_.declaredTypes)
+          .filter(isInspectableTypeMember)
+          .distinctBy(_.name)
+          .flatMap(extractMemberBoundTypes(tpe, _))
+          .filterNot(isIgnoredBound)
+      }
+    }
+
+    private def isNonStdlibClass(sym: Symbol): Boolean = {
+      sym.isClassDef && {
+        val fullName = sym.fullName
+        !fullName.startsWith("scala.") && !fullName.startsWith("java.")
+      }
+    }
+
+    private def isInspectableTypeMember(decl: Symbol): Boolean = {
+      val flags = decl.flags
+      decl.isTypeDef && !decl.isClassDef && !decl.isTypeParam &&
+      !flags.is(Flags.Private) && !flags.is(Flags.PrivateLocal) &&
+      !flags.is(Flags.Protected) && !flags.is(Flags.Synthetic) && !flags.is(Flags.Artifact)
+    }
+
+    private def extractMemberBoundTypes(tpe: TypeRepr, decl: Symbol): List[TypeRepr] = {
+      val resolved = tpe.memberType(decl)._dealiasSimplifiedFull match {
+        case tb: TypeBounds => tb
+        case tr: TypeRef if tr.typeSymbol == decl => tr._underlying._dealiasSimplifiedFull
+        case other => other
+      }
+      resolved match {
+        case _: LambdaType | TypeBounds(_: LambdaType, _) | TypeBounds(_, _: LambdaType) => Nil
+        case TypeBounds(low, hi) => if (low =:= hi) List(hi) else List(low, hi)
+        case other if !other._takesTypeArgs => List(other)
+        case _ => Nil
+      }
+    }
+
+    private def isIgnoredBound(bound: TypeRepr): Boolean = {
+      bound.classSymbol.isEmpty || ignoredInIntersections(bound) || ignoredInUnions(bound)
     }
 
     private def breakRefinement(tpe0: TypeRepr): collection.Set[TypeRepr] = {

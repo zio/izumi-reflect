@@ -64,10 +64,11 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
       assertChild(`LTT[A,B,_>:B<:A]`[H3, H3, X1], `LTT[A,B,_>:B<:A]`[H2, H4, X])
     }
 
-    "progression test: indirect structural checks do not work" in {
+    "progression test: indirect structural method checks do not work" in {
       assertDifferent(LTT[{ type A }], LTT[Object])
+      assertChildStrict(LTT[C], LTT[{ type A }])
       broken {
-        assertChildStrict(LTT[C], LTT[{ type A }])
+        assertChildStrict(LTT[YieldOpCounts], LTT[{ def zioYieldOpCount: Int }])
       }
     }
 
