@@ -96,8 +96,10 @@ object LightTypeTagRef extends LTTOrdering {
       unusedParamsSize < paramRefs.size
     }
 
-    lazy val normalizedParams: List[NameReference] = makeFakeParams.map(_._2)
-    lazy val normalizedOutput: AbstractReference = RuntimeAPI.applyLambda(this, makeFakeParams)
+    // Normalizes parameter indices and de Bruijn depths so nested lambdas compare structurally without fake placeholders.
+    lazy val normalized: Lambda = LightTypeTagRef.normalizeLambda(this)
+    lazy val normalizedParams: List[NameReference] = normalized.input.map(NameReference(_))
+    lazy val normalizedOutput: AbstractReference = normalized.output
 
     override def equals(obj: Any): Boolean = {
       obj match {
@@ -107,13 +109,6 @@ object LightTypeTagRef extends LTTOrdering {
 
         case _ =>
           false
-      }
-    }
-
-    private[this] def makeFakeParams: List[(LambdaParamName, NameReference)] = {
-      input.zipWithIndex.map {
-        case (p, idx) =>
-          p -> NameReference(SymName.LambdaParamName(idx, LightTypeTagRef.LambdaConstants.lambdaFakeParamDepth, inputSize)) // s"!FAKE_$idx"
       }
     }
   }
@@ -176,25 +171,122 @@ object LightTypeTagRef extends LTTOrdering {
     }
   }
 
+  private[this] val unionSuperTypePriority: List[NameReference] = List(
+    LightTypeTagInheritance.tpeAny,
+    LightTypeTagInheritance.tpeMatchable,
+    LightTypeTagInheritance.tpeAnyRef,
+    LightTypeTagInheritance.tpeObject
+  )
+
+  private[this] def pickDominantSuperType(normalized: Set[AppliedReferenceExceptUnion], superTypes: Set[AppliedReferenceExceptUnion]): AppliedReference = {
+    unionSuperTypePriority.find(normalized.contains).getOrElse(superTypes.head)
+  }
+
   def maybeUnion(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
     val refs = refs0.flatMap(_.decomposeUnion).toSet // flatten nested unions
     val normalized = refs -- Set(LightTypeTagInheritance.tpeNothing, LightTypeTagInheritance.tpeNull)
     val superTypes = normalized.intersect(ignored)
     if (superTypes.nonEmpty) {
-      if (normalized.contains(LightTypeTagInheritance.tpeAny)) LightTypeTagInheritance.tpeAny
-      else if (normalized.contains(LightTypeTagInheritance.tpeMatchable)) LightTypeTagInheritance.tpeMatchable
-      else if (normalized.contains(LightTypeTagInheritance.tpeAnyRef)) LightTypeTagInheritance.tpeAnyRef
-      else if (normalized.contains(LightTypeTagInheritance.tpeObject)) LightTypeTagInheritance.tpeObject
-      else superTypes.head
+      pickDominantSuperType(normalized, superTypes)
+    } else if (normalized.isEmpty) {
+      LightTypeTagInheritance.tpeNothing
+    } else if (normalized.size == 1) {
+      normalized.head
     } else {
-      if (normalized.isEmpty) {
-        LightTypeTagInheritance.tpeNothing
-      } else if (normalized.size == 1) {
-        normalized.head
-      } else {
-        UnionReference(normalized)
-      }
+      UnionReference(normalized)
     }
+  }
+
+  private[this] final case class LambdaNormContext(
+    currentDepth: Int,
+    bound: Map[LambdaParamName, LambdaParamName],
+    baseDepth: Int
+  ) {
+    def enterNested(rawInput: List[LambdaParamName], normInput: List[LambdaParamName]): LambdaNormContext = {
+      LambdaNormContext(currentDepth + 1, bound ++ rawInput.zip(normInput), baseDepth)
+    }
+  }
+
+  // Rewrites lambda parameter depths relative to the root lambda (0 for root, +k for nested, -k for enclosing outer scopes).
+  private[reflect] def normalizeLambda(root: Lambda): Lambda = {
+    val baseDepth = root.input.headOption.map(_.depth).filter(_ > 0).getOrElse(0)
+    val arity = root.input.size
+    val normInput = root.input.zipWithIndex.map {
+      case (_, idx) => LambdaParamName(idx, 0, arity)
+    }
+    val ctx = LambdaNormContext(0, root.input.zip(normInput).toMap, baseDepth)
+    Lambda(normInput, normalizeRef(root.output, ctx))
+  }
+
+  private[this] def normalizeNestedLambda(lambda: Lambda, parentCtx: LambdaNormContext): Lambda = {
+    val nextDepth = parentCtx.currentDepth + 1
+    val arity = lambda.input.size
+    val normInput = lambda.input.zipWithIndex.map {
+      case (_, idx) => LambdaParamName(idx, nextDepth, arity)
+    }
+    val nextCtx = parentCtx.enterNested(lambda.input, normInput)
+    Lambda(normInput, normalizeRef(lambda.output, nextCtx))
+  }
+
+  private[this] def normalizeSym(sym: SymName, ctx: LambdaNormContext): SymName = sym match {
+    case param: LambdaParamName =>
+      ctx.bound.getOrElse(param, normalizeFreeParam(param, ctx))
+    case other =>
+      other
+  }
+
+  private[this] def normalizeFreeParam(param: LambdaParamName, ctx: LambdaNormContext): LambdaParamName = {
+    if (param.depth == LambdaConstants.defaultContextId && ctx.baseDepth > 0) {
+      LambdaParamName(param.index, -1, param.arity)
+    } else if (param.depth >= 0 && param.depth < ctx.baseDepth) {
+      LambdaParamName(param.index, param.depth - ctx.baseDepth, param.arity)
+    } else {
+      param
+    }
+  }
+
+  private[this] def normalizeBoundaries(boundaries: Boundaries, ctx: LambdaNormContext): Boundaries = boundaries match {
+    case Boundaries.Defined(bottom, top) =>
+      Boundaries.Defined(normalizeRef(bottom, ctx), normalizeRef(top, ctx))
+    case Boundaries.Empty =>
+      Boundaries.Empty
+  }
+
+  private[this] def normalizeApplied(applied: AppliedReference, ctx: LambdaNormContext): AppliedReference = applied match {
+    case NameReference(ref, boundaries, prefix) =>
+      NameReference(
+        normalizeSym(ref, ctx),
+        normalizeBoundaries(boundaries, ctx),
+        prefix.map(normalizeApplied(_, ctx))
+      )
+    case FullReference(symName, parameters, prefix) =>
+      FullReference(
+        normalizeSym(symName, ctx),
+        parameters.map(p => TypeParam(normalizeRef(p.ref, ctx), p.variance)),
+        prefix.map(normalizeApplied(_, ctx))
+      )
+    case IntersectionReference(refs) =>
+      maybeIntersection(refs.iterator.map(normalizeApplied(_, ctx)))
+    case UnionReference(refs) =>
+      maybeUnion(refs.iterator.map(normalizeApplied(_, ctx)))
+    case Refinement(reference, decls) =>
+      Refinement(normalizeApplied(reference, ctx), decls.map(normalizeDecl(_, ctx)))
+    case WildcardReference(boundaries) =>
+      WildcardReference(normalizeBoundaries(boundaries, ctx))
+  }
+
+  private[this] def normalizeDecl(decl: RefinementDecl, ctx: LambdaNormContext): RefinementDecl = decl match {
+    case RefinementDecl.Signature(name, input, output) =>
+      RefinementDecl.Signature(name, input.map(normalizeApplied(_, ctx)), normalizeApplied(output, ctx))
+    case RefinementDecl.TypeMember(name, ref) =>
+      RefinementDecl.TypeMember(name, normalizeRef(ref, ctx))
+  }
+
+  private[this] def normalizeRef(ref: AbstractReference, ctx: LambdaNormContext): AbstractReference = ref match {
+    case nested: Lambda =>
+      normalizeNestedLambda(nested, ctx)
+    case applied: AppliedReference =>
+      normalizeApplied(applied, ctx)
   }
 
   def maybeIntersection(r: Set[_ <: LightTypeTagRef]): AppliedReference = maybeIntersection(r.iterator)
