@@ -35,7 +35,7 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   ) {
     def inspectTypeReprToFullBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0._dealiasSimplifiedFull
-      def selfRef(): AbstractReference = inspector.inspectTypeRepr(tpe)
+      def selfRef(): AbstractReference = if (inspector.context.isEmpty) TypeInspections.apply(using qctx)(tpe) else inspector.inspectTypeRepr(tpe)
 
       tpe match {
         case appliedType: AppliedType =>

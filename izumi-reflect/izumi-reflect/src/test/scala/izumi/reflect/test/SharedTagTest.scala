@@ -1128,6 +1128,24 @@ abstract class SharedTagTest extends AnyWordSpec with XY[String] with TagAsserti
       assertRepr(xcontra[List, Long].tag, "Function1[-?: <Nothing..List[+Long]>,+Int]")
       assertSameStrict(xcontra[List, Long].tag, Tag[(_ <: List[Long]) => Int].tag)
     }
+
+    "preserve tag equality and subtype relationships across repeated compile-time cached materializations (#350)" in {
+      trait CacheRoot
+      trait CacheBranch extends CacheRoot
+      final case class CacheLeaf(value: String) extends CacheBranch
+
+      val firstLeaf = Tag[CacheLeaf].tag
+      val secondLeaf = Tag[CacheLeaf].tag
+      val firstListLeaf = Tag[List[CacheLeaf]].tag
+      val secondListLeaf = Tag[List[CacheLeaf]].tag
+      val firstListRoot = Tag[List[CacheRoot]].tag
+
+      assertSameStrict(firstLeaf, secondLeaf)
+      assertSameStrict(firstListLeaf, secondListLeaf)
+      assertChild(firstLeaf, Tag[CacheBranch].tag)
+      assertChild(firstLeaf, Tag[CacheRoot].tag)
+      assertChild(firstListLeaf, firstListRoot)
+    }
   }
 
 }
