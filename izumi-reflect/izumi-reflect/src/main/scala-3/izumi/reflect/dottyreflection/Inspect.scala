@@ -16,13 +16,7 @@ object Inspect {
   }
 
   def inspectTypeRepr(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Expr[LightTypeTag] = {
-    val ltt = {
-      val ref = TypeInspections(typeRepr)
-      val fullDb = TypeInspections.fullDb(typeRepr)
-      val nameDb = TypeInspections.unappliedDb(typeRepr)
-      LightTypeTag(ref, fullDb, nameDb)
-    }
-    makeParsedLightTypeTagImpl(ltt)
+    makeParsedLightTypeTagFromSerialized(TypeInspections.serialized(typeRepr))
   }
 
   def inspectStrong[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {
@@ -38,17 +32,22 @@ object Inspect {
 
   def makeParsedLightTypeTagImpl(ltt: LightTypeTag)(using qctx: Quotes): Expr[LightTypeTag] = {
     val serialized = ltt.serialize()
-    val hashCodeRef = serialized.hash
-    val strRef = serialized.ref
-    val strDBs = serialized.databases
 
     InspectorBase.ifDebug {
       def string2hex(str: String): String = str.toList.map(_.toInt.toHexString).mkString
 
-      println(s"${ltt.ref} => ${strRef.size} bytes, ${string2hex(strRef)}")
-      println(s"${SubtypeDBs.make(ltt.basesdb, ltt.idb)} => ${strDBs.size} bytes, ${string2hex(strDBs)}")
-      println(strDBs)
+      println(s"${ltt.ref} => ${serialized.ref.size} bytes, ${string2hex(serialized.ref)}")
+      println(s"${SubtypeDBs.make(ltt.basesdb, ltt.idb)} => ${serialized.databases.size} bytes, ${string2hex(serialized.databases)}")
+      println(serialized.databases)
     }
+
+    makeParsedLightTypeTagFromSerialized(serialized)
+  }
+
+  private def makeParsedLightTypeTagFromSerialized(serialized: LightTypeTag.Serialized)(using qctx: Quotes): Expr[LightTypeTag] = {
+    val hashCodeRef = serialized.hash
+    val strRef = serialized.ref
+    val strDBs = serialized.databases
 
     '{ LightTypeTag.parse(${ Expr(hashCodeRef) }, ${ Expr(strRef) }, ${ Expr(strDBs) }, ${ Expr(LightTypeTag.currentBinaryFormatVersion) }) }
   }

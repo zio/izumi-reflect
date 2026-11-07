@@ -51,6 +51,34 @@ object DebugProperties {
   final val `izumi.reflect.rtti.cache.compile` = "izumi.reflect.rtti.cache.compile"
 
   /**
+    * Granular compile-time cache toggle for individual [[izumi.reflect.macrortti.LightTypeTagRef.AbstractReference]] instances.
+    *
+    * Default: `true` (when `izumi.reflect.rtti.cache.compile` is enabled)
+    */
+  final val `izumi.reflect.rtti.cache.compile.ref` = "izumi.reflect.rtti.cache.compile.ref"
+
+  /**
+    * Granular compile-time cache toggle for full subtype databases (`basesdb`).
+    *
+    * Default: `true` (when `izumi.reflect.rtti.cache.compile` is enabled)
+    */
+  final val `izumi.reflect.rtti.cache.compile.db.full` = "izumi.reflect.rtti.cache.compile.db.full"
+
+  /**
+    * Granular compile-time cache toggle for unapplied inheritance databases (`idb`).
+    *
+    * Default: `true` (when `izumi.reflect.rtti.cache.compile` is enabled)
+    */
+  final val `izumi.reflect.rtti.cache.compile.db.inheritance` = "izumi.reflect.rtti.cache.compile.db.inheritance"
+
+  /**
+    * Granular compile-time cache toggle for serialized [[izumi.reflect.macrortti.LightTypeTag.Serialized]] representations.
+    *
+    * Default: `true` (when `izumi.reflect.rtti.cache.compile` is enabled)
+    */
+  final val `izumi.reflect.rtti.cache.compile.serialized` = "izumi.reflect.rtti.cache.compile.serialized"
+
+  /**
     * Set system property `-Dizumi.reflect.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
     * Caching is enabled by default for runtime light type tag creation.
     *
