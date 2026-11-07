@@ -1,7 +1,7 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTagRef
+import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.collection.immutable.Queue
@@ -127,9 +127,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
 
           Seq(
             (childMaybeAsLambda, parentMaybeAsLambda)
-            // you may debug by inserting some trash into the dbs:
-            //                NameReference(SymName.SymTypeName(s"LEFT ${System.nanoTime()} before:$child after:$childMaybeAsLambda")) ->
-            //                NameReference(SymName.SymTypeName(s"RIGHT before:$parent0 after:$parentMaybeAsLambda"))
           )
       }
 
@@ -142,7 +139,6 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
           extractBase(r, selfRef, onlyIndirect = onlyIndirect)
 
         case s if s.isTypeDef =>
-//          println(r -> s -> r._underlying)
           processTypeMemberWithTypeLambdaBounds(r, onlyIndirect = onlyIndirect)
 
         case o =>
@@ -162,7 +158,11 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         .map(tpe.baseType)
         .filterNot(_ =:= tpe)
 
+      val resolvedTypeMembers = collectClassTypeMembers(tpe)
+
       basesTermination.addTerminatingClsSym(tpe)
+
+      val memberBasesRefs = extractTypeMemberBases(resolvedTypeMembers)
 
       log(s"For `${tpe.show}` (onlyIndirect=$onlyIndirect) found base types ${baseTypes.map(_.show)}")
 
@@ -174,16 +174,113 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       val directBaseRefs = if (onlyIndirect) {
         Nil
       } else {
-        baseTypes.map {
+        val classParents = baseTypes.map {
           bt =>
             val parentRef = inspector.inspectTypeRepr(bt)
             (selfRef, parentRef)
         }
+        val refinementParent = makeSelfRefinementEdge(selfRef, resolvedTypeMembers)
+        classParents ::: refinementParent
       }
 
       val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
 
-      argBasesRefs ::: mainBasesRefs
+      argBasesRefs ::: memberBasesRefs ::: mainBasesRefs
+    }
+
+    private def collectClassTypeMembers(tpe: TypeRepr): List[(Symbol, TypeRepr)] = {
+      if (tpe.classSymbol.isEmpty) {
+        Nil
+      } else {
+        tpe.baseClasses
+          .filter(isNonStdlibClass)
+          .flatMap(_.declaredTypes)
+          .filter(isInspectableTypeMember)
+          .distinctBy(_.name)
+          .flatMap(resolveFirstOrderMember(tpe, _))
+      }
+    }
+
+    private def resolveFirstOrderMember(tpe: TypeRepr, decl: Symbol): Option[(Symbol, TypeRepr)] = {
+      val memberTpe = resolveMemberBoundsOrType(tpe, decl)
+      if (isHigherKindedMember(memberTpe)) None else Some((decl, memberTpe))
+    }
+
+    private def isNonStdlibClass(sym: Symbol): Boolean = {
+      sym.isClassDef && {
+        val fullName = sym.fullName
+        !fullName.startsWith("scala.") && !fullName.startsWith("java.")
+      }
+    }
+
+    private def isInspectableTypeMember(decl: Symbol): Boolean = {
+      val flags = decl.flags
+      decl.isTypeDef && !decl.isClassDef && !decl.isTypeParam &&
+      !flags.is(Flags.Private) && !flags.is(Flags.PrivateLocal) &&
+      !flags.is(Flags.Protected) && !flags.is(Flags.Synthetic) && !flags.is(Flags.Artifact)
+    }
+
+    private def resolveMemberBoundsOrType(tpe: TypeRepr, decl: Symbol): TypeRepr = {
+      tpe.memberType(decl)._dealiasSimplifiedFull match {
+        case tb: TypeBounds => tb
+        case tr: TypeRef if tr.typeSymbol == decl => tr._underlying._dealiasSimplifiedFull
+        case other => other
+      }
+    }
+
+    private def isHigherKindedMember(memberTpe: TypeRepr): Boolean = memberTpe match {
+      case _: LambdaType => true
+      case TypeBounds(_: LambdaType, _) => true
+      case TypeBounds(_, _: LambdaType) => true
+      case _ => memberTpe._takesTypeArgs
+    }
+
+    private def extractTypeMemberBases(members: List[(Symbol, TypeRepr)]): List[(AbstractReference, AbstractReference)] = {
+      members
+        .flatMap {
+          case (_, TypeBounds(low, hi)) =>
+            if (low =:= hi) List(hi) else List(low, hi)
+          case (_, other) =>
+            List(other)
+        }
+        .filterNot(isIgnoredMemberBound)
+        .flatMap(inspectTypeBoundsToFull)
+    }
+
+    private def isIgnoredMemberBound(bound: TypeRepr): Boolean = {
+      ignoredInIntersections(bound) || ignoredInUnions(bound) || basesTermination.isTerminatingClsSym(bound)
+    }
+
+    private def makeSelfRefinementEdge(
+      selfRef: AbstractReference,
+      members: List[(Symbol, TypeRepr)]
+    ): List[(AbstractReference, AbstractReference)] = {
+      (selfRef, members) match {
+        case (appliedSelf: AppliedReference, _ :: _) =>
+          val decls = members.map { case (decl, memberTpe) => toTypeMemberDecl(decl, memberTpe) }.toSet
+          List(selfRef -> LightTypeTagRef.Refinement(appliedSelf, decls))
+        case _ =>
+          Nil
+      }
+    }
+
+    private def toTypeMemberDecl(decl: Symbol, memberTpe: TypeRepr): RefinementDecl.TypeMember = {
+      val name = decl.name
+      val ref = memberTpe match {
+        case tb: TypeBounds =>
+          val low = inspector.inspectTypeRepr(tb.low)
+          val hi = inspector.inspectTypeRepr(tb.hi)
+          if (!decl.flags.is(Flags.Deferred) || low == hi) {
+            hi
+          } else if (low == LightTypeTagInheritance.tpeNothing && hi == LightTypeTagInheritance.tpeAny) {
+            NameReference(SymName.SymTypeName(name), Boundaries.Empty, None)
+          } else {
+            NameReference(SymName.SymTypeName(name), Boundaries.Defined(low, hi), None)
+          }
+        case other =>
+          inspector.inspectTypeRepr(other)
+      }
+      RefinementDecl.TypeMember(name, ref)
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {

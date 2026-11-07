@@ -210,4 +210,26 @@ object TestModel {
   trait AbstractRole[F[_]]
   class TargetRole extends AbstractRole[Id]
 
+  object RefinedTypeMemberModel {
+    trait BaseWithMember {
+      type T
+    }
+    trait BoundedBaseWithMember {
+      type T <: AnyVal
+    }
+    trait IntMember extends BaseWithMember {
+      override type T = Int
+    }
+    trait StringMember extends BaseWithMember {
+      override type T = String
+    }
+    trait SubIntMember extends IntMember
+    trait ParameterizedMember[A] extends BaseWithMember {
+      override type T = A
+    }
+    trait NarrowedBoundedMember extends BoundedBaseWithMember {
+      override type T <: Int
+    }
+  }
+
 }
