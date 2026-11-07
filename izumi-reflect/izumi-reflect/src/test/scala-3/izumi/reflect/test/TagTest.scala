@@ -82,6 +82,31 @@ class TagTest extends SharedTagTest with TagAssertions {
       assertSameStrict(goodCombine.tag, Tag[Int with Unit].tag)
     }
 
+    "substitute type parameters inside defs/vals in structural types" in {
+      def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
+      def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
+
+      assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
+      assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
+    }
+
+    "substitute type parameters inside polymorphic function types" in {
+      type ~>[F[_], G[_]] = [A] => F[A] => G[A]
+
+      def polyFnTag[F[_]: TagK, G[_]: TagK]: Tag[F ~> G] = Tag[F ~> G]
+
+      trait CustomError
+      def nestedPolyFnTag[AppF[_]: TagK, InjF[_]: TagK]: Tag[[A] => AppF[A] => InjF[Either[CustomError, A]]] = {
+        Tag[[A] => AppF[A] => InjF[Either[CustomError, A]]]
+      }
+
+      assertSameStrict(polyFnTag[Option, List].tag, Tag[Option ~> List].tag)
+      assertSameStrict(
+        nestedPolyFnTag[Option, List].tag,
+        Tag[[A] => Option[A] => List[Either[CustomError, A]]].tag
+      )
+    }
+
   }
 
 }

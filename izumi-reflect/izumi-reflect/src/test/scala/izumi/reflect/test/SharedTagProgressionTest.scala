@@ -24,14 +24,14 @@ abstract class SharedTagProgressionTest extends AnyWordSpec with TagAssertions w
 
   "[progression] Tag (all versions)" should {
 
-    "progression test: can't substitute type parameters inside defs/vals in structural types" in {
+    "progression test: can't substitute type parameters inside defs/vals in structural types (on Scala 2)" in {
       def t1[T: Tag]: Tag[{ def x: T }] = Tag[{ def x: T }]
       def t2[T: Tag]: Tag[{ val x: T }] = Tag[{ val x: T }]
 
-      broken {
+      brokenOnScala2 {
         assertSameStrict(t1[Int].tag, Tag[{ def x: Int }].tag)
       }
-      broken {
+      brokenOnScala2 {
         assertSameStrict(t2[Int].tag, Tag[{ val x: Int }].tag)
       }
     }
