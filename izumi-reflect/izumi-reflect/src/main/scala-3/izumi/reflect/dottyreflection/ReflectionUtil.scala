@@ -249,23 +249,19 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
 
     private def removeTautologicaUnionsNonTailRec(a: TypeRepr, b: TypeRepr): TypeRepr = {
-      val superA = ignoredInIntersections(a)
-      val superB = ignoredInIntersections(b)
-      if (superA && superB) {
-        (if (a <:< b) b else a)._removeTautologicalUnions
-      } else if (superA) {
-        a
-      } else if (superB) {
-        b
-      } else {
-        val a0 = a._removeTautologicalUnions
-        val b0 = b._removeTautologicalUnions
-        if ((a.asInstanceOf[AnyRef] ne a0.asInstanceOf[AnyRef]) || (b.asInstanceOf[AnyRef] ne b0.asInstanceOf[AnyRef])) {
-          AndType(a0, b0)
-        } else {
-          typeRepr
-        }
+      (ignoredInIntersections(a), ignoredInIntersections(b)) match {
+        case (true, true) => (if (a <:< b) b else a)._removeTautologicalUnions
+        case (true, false) => a
+        case (false, true) => b
+        case (false, false) => rebuildUnionIfSimplified(a, b)
       }
+    }
+
+    private def rebuildUnionIfSimplified(a: TypeRepr, b: TypeRepr): TypeRepr = {
+      val a0 = a._removeTautologicalUnions
+      val b0 = b._removeTautologicalUnions
+      val changed = (a.asInstanceOf[AnyRef] ne a0.asInstanceOf[AnyRef]) || (b.asInstanceOf[AnyRef] ne b0.asInstanceOf[AnyRef])
+      if (changed) AndType(a0, b0) else typeRepr
     }
 
     inline private def _simplifyMatchCase: TypeRepr = {
@@ -316,6 +312,12 @@ private[reflect] object ReflectionUtil {
 
   private[reflect] inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
 
+  private final case class StrengthScope[S, T](
+    shift: Int,
+    owners: Set[S],
+    lambdas: Set[T]
+  )
+
   /**
     * Returns true if the given type contains no type parameters
     * (this means the type is not "weak" https://stackoverflow.com/questions/29435985/weaktypetag-v-typetag)
@@ -327,23 +329,53 @@ private[reflect] object ReflectionUtil {
     outerLambdas: Set[qctx.reflect.TypeRepr],
     typeRepr: qctx.reflect.TypeRepr
   ): Boolean = {
+    isStrongInScope(StrengthScope(shift, outerOwnerClassDefs, outerLambdas), typeRepr)
+  }
+
+  private def isStrongInScope(
+    using qctx: Quotes
+  )(scope: StrengthScope[qctx.reflect.Symbol, qctx.reflect.TypeRepr],
+    typeRepr: qctx.reflect.TypeRepr
+  ): Boolean = {
     import qctx.reflect.*
     typeRepr.dealias match {
-      case x if topLevelWeakType(outerOwnerClassDefs, outerLambdas, x) => false
+      case x if topLevelWeakType(scope.owners, scope.lambdas, x) => false
       case AppliedType(tpe, args) =>
-        allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe) && args.forall(allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, _))
-      case AndType(lhs, rhs) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lhs) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, rhs)
-      case OrType(lhs, rhs) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lhs) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, rhs)
-      case TypeRef(tpe, _) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
-      case TermRef(tpe, _) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
-      case ThisType(tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
+        isStrongInScope(scope, tpe) && args.forall(isStrongInScope(scope, _))
+      case AndType(lhs, rhs) =>
+        isStrongInScope(scope, lhs) && isStrongInScope(scope, rhs)
+      case OrType(lhs, rhs) =>
+        isStrongInScope(scope, lhs) && isStrongInScope(scope, rhs)
+      case TypeBounds(lo, hi) =>
+        isStrongInScope(scope, lo) && isStrongInScope(scope, hi)
+      case Refinement(parent, _, tpe) =>
+        isStrongInScope(scope, tpe) && isStrongInScope(scope, parent)
+      case other =>
+        isLeafOrLambdaStrong(scope, other)
+    }
+  }
+
+  private def isLeafOrLambdaStrong(
+    using qctx: Quotes
+  )(scope: StrengthScope[qctx.reflect.Symbol, qctx.reflect.TypeRepr],
+    typeRepr: qctx.reflect.TypeRepr
+  ): Boolean = {
+    import qctx.reflect.*
+    typeRepr match {
+      case TypeRef(tpe, _) => isStrongInScope(scope, tpe)
+      case TermRef(tpe, _) => isStrongInScope(scope, tpe)
+      case ThisType(tpe) => isStrongInScope(scope, tpe)
+      case ByNameType(tpe) => isStrongInScope(scope, tpe)
       case NoPrefix() => true
-      case TypeBounds(lo, hi) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, lo) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, hi)
-      case lam @ TypeLambda(_, _, body) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas + lam, body)
-      case Refinement(parent, _, tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe) && allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, parent)
-      case ByNameType(tpe) => allPartsStrong(shift, outerOwnerClassDefs, outerLambdas, tpe)
+      case lam @ TypeLambda(_, _, body) =>
+        isStrongInScope(scope.copy(lambdas = scope.lambdas + lam), body)
+      case poly @ PolyType(_, bounds, body) =>
+        val polyScope = scope.copy(lambdas = scope.lambdas + poly)
+        bounds.forall(isStrongInScope(polyScope, _)) && isStrongInScope(polyScope, body)
+      case MethodType(_, args, res) =>
+        args.forall(isStrongInScope(scope, _)) && isStrongInScope(scope, res)
       case strange =>
-        InspectorBase.log(shift, s"Got unknown type component when checking strength: $strange")
+        InspectorBase.log(scope.shift, s"Got unknown type component when checking strength: $strange")
         true
     }
   }
@@ -367,26 +399,44 @@ private[reflect] object ReflectionUtil {
       // TODO: Due to https://github.com/lampepfl/dotty/issues/16107 not being fixed we have to make sure we're actually
       //       inside the definition of the this-type prefix to count it as 'weak' - unlike Scala 2 we're not protected
       //       from this-types leaking in and have to carry the owner chain here - until that issue is fixed.
-      case x @ TypeRef(ThisType(prefix), _) if x.typeSymbol.isAbstractType && !x.typeSymbol.isClassDef && outerOwnerClassDefs.contains(prefix.typeSymbol) =>
+      case x @ TypeRef(ThisType(prefix), _) if isWeakAbstractMember(outerOwnerClassDefs, x.typeSymbol, prefix.typeSymbol) =>
         true
       case _ => false
     }
   }
 
+  private def isWeakAbstractMember(
+    using qctx: Quotes
+  )(outerOwnerClassDefs: Set[qctx.reflect.Symbol],
+    sym: qctx.reflect.Symbol,
+    prefixSym: qctx.reflect.Symbol
+  ): Boolean = {
+    if (!sym.isAbstractType) false
+    else if (sym.isClassDef) false
+    else outerOwnerClassDefs.contains(prefixSym)
+  }
+
   private[reflect] def getClassDefOwners(using qctx: Quotes)(symbol: qctx.reflect.Symbol): Set[qctx.reflect.Symbol] = {
     Iterator
-      .iterate(symbol) {
-        s =>
-          val owner = s.owner
-          if (owner == null || owner.isNoSymbol || owner == qctx.reflect.defn.RootClass) {
-            null.asInstanceOf[qctx.reflect.Symbol]
-          } else {
-            owner
-          }
-      }
+      .iterate(symbol)(nextOwnerOrNull)
       .takeWhile(_ ne null)
-      .filter(s => s.isClassDef && !s.isAbstractType)
+      .filter(isConcreteClassDef)
       .toSet
+  }
+
+  private def nextOwnerOrNull(using qctx: Quotes)(s: qctx.reflect.Symbol): qctx.reflect.Symbol = {
+    val owner = s.owner
+    if (isTerminalOwner(owner)) null.asInstanceOf[qctx.reflect.Symbol] else owner
+  }
+
+  private def isTerminalOwner(using qctx: Quotes)(owner: qctx.reflect.Symbol): Boolean = {
+    if (owner == null) true
+    else if (owner.isNoSymbol) true
+    else owner == qctx.reflect.defn.RootClass
+  }
+
+  private def isConcreteClassDef(using qctx: Quotes)(s: qctx.reflect.Symbol): Boolean = {
+    if (!s.isClassDef) false else !s.isAbstractType
   }
 
   private[reflect] final class UncheckedNonOverloadedSelectable(private val selectable: Any) extends AnyVal with Selectable {
