@@ -1,7 +1,7 @@
 package izumi.reflect.dottyreflection
 
 import izumi.reflect.internal.fundamentals.collections.IzCollections.toRich
-import izumi.reflect.macrortti.LightTypeTagRef
+import izumi.reflect.macrortti.{LightTypeTagInheritance, LightTypeTagRef}
 import izumi.reflect.macrortti.LightTypeTagRef.*
 
 import scala.collection.immutable.Queue
@@ -181,9 +181,64 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
         }
       }
 
-      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs
+      val typeMemberRefs = if (onlyIndirect) {
+        Nil
+      } else {
+        extractClassTypeMemberBases(tpe, selfRef)
+      }
+
+      val mainBasesRefs = recursiveParentRefs ::: directBaseRefs ::: typeMemberRefs
 
       argBasesRefs ::: mainBasesRefs
+    }
+
+    private def extractClassTypeMemberBases(tpe: TypeRepr, selfRef: AbstractReference): List[(AbstractReference, AbstractReference)] = {
+      val typeMembers = nonStdlibClassTypeMembersOf(tpe)
+      if (typeMembers.isEmpty) {
+        Nil
+      } else {
+        val memberBases = typeMembers.flatMap {
+          case (_, memberInfo) =>
+            extractConcreteMemberParts(memberInfo).flatMap {
+              case m if basesTermination.isTerminatingClsSym(m) => Nil
+              case m => inspectTypeBoundsToFull(m)
+            }
+        }
+        val decls = typeMembers.map {
+          case (name, memberInfo) =>
+            buildTypeMemberDecl(name, memberInfo): RefinementDecl
+        }.toSet
+        val refinementParent = LightTypeTagRef.Refinement(LightTypeTagInheritance.tpeObject, decls)
+        (selfRef, refinementParent) :: memberBases
+      }
+    }
+
+    private def buildTypeMemberDecl(name: String, memberInfo: TypeRepr): RefinementDecl.TypeMember = {
+      memberInfo._dealiasSimplifiedFull match {
+        case tb: TypeBounds =>
+          buildTypeBoundsMemberDecl(name, tb)
+        case other =>
+          RefinementDecl.TypeMember(name, inspector.inspectTypeRepr(other))
+      }
+    }
+
+    private def buildTypeBoundsMemberDecl(name: String, tb: TypeBounds): RefinementDecl.TypeMember = {
+      val hi = inspector.inspectTypeRepr(tb.hi._dealiasSimplifiedFull)
+      val low = inspector.inspectTypeRepr(tb.low._dealiasSimplifiedFull)
+      if (hi == low) {
+        RefinementDecl.TypeMember(name, hi)
+      } else {
+        val boundaries = toMemberBoundaries(low, hi)
+        RefinementDecl.TypeMember(name, NameReference(SymName.SymTypeName(name), boundaries, None))
+      }
+    }
+
+    private def toMemberBoundaries(low: AbstractReference, hi: AbstractReference): Boundaries = {
+      if (hi == LightTypeTagInheritance.tpeAny && low == LightTypeTagInheritance.tpeNothing) {
+        Boundaries.Empty
+      } else {
+        Boundaries.Defined(low, hi)
+      }
     }
 
     private def inspectTypeBoundsToFull(tpe: TypeRepr): List[(AbstractReference, AbstractReference)] = {

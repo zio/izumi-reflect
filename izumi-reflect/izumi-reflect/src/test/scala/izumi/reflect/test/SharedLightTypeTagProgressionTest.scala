@@ -65,9 +65,27 @@ abstract class SharedLightTypeTagProgressionTest extends TagAssertions with TagP
     }
 
     "progression test: indirect structural checks do not work" in {
+      trait A {
+        type T
+      }
+      trait AInt extends A {
+        override type T = Int
+      }
+      trait AParam[X] extends A {
+        override type T = X
+      }
+
       assertDifferent(LTT[{ type A }], LTT[Object])
+      assertChildStrict(LTT[C], LTT[{ type A }])
+      assertChildStrict(LTT[AInt], LTT[A { type T = Int }])
+      assertChildStrict(LTT[AInt], LTT[A { type T <: AnyVal }])
+      assertChildStrict(LTT[AInt], LTT[{ type T = Int }])
+      assertNotChild(LTT[AInt], LTT[A { type T = String }])
+      assertChildStrict(LTT[AParam[Int]], LTT[A { type T = Int }])
+      assertChildStrict(`LTT[_]`[AParam].combine(LTT[Int]), LTT[A { type T = Int }])
+
       broken {
-        assertChildStrict(LTT[C], LTT[{ type A }])
+        assertChildStrict(LTT[Trait1], LTT[{ def dep: Any }])
       }
     }
 

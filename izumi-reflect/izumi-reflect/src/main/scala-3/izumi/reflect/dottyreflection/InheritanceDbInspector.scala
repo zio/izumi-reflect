@@ -73,6 +73,7 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
         (
           tpeRes.typeArgs.iterator ++
           intersectionUnionMembers.iterator.flatMap(_.typeArgs) ++
+          intersectionUnionMembers.iterator.flatMap(collectClassMemberTypes) ++
           intersectionUnionMembers
         ).foreach(t => if (!inh.contains(t)) goExtractComponents(t))
       }
@@ -104,6 +105,12 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
 
       go(tpe0)
       tpes
+    }
+
+    private def collectClassMemberTypes(t: TypeRepr): List[TypeRepr] = {
+      nonStdlibClassTypeMembersOf(t).flatMap {
+        case (_, memberInfo) => extractConcreteMemberParts(memberInfo)
+      }
     }
 
     private def tpeBases(tpeRef: NameReference, typeRepr: TypeRepr, onlyIndirect: Boolean): List[(NameReference, NameReference)] = {

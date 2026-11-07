@@ -75,6 +75,69 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     }
   }
 
+  protected final def nonStdlibClassTypeMembersOf(tpe: TypeRepr): List[(String, TypeRepr)] = {
+    val sym = tpe.typeSymbol
+    if (tpe._takesTypeArgs || !isInspectableClassSymbol(sym)) {
+      Nil
+    } else {
+      val seen = scala.collection.mutable.HashSet.empty[String]
+      tpe.baseClasses.iterator
+        .filter(isInspectableClassSymbol)
+        .flatMap(_.declaredTypes.iterator)
+        .filter(d => isInspectableTypeMember(d, seen))
+        .map(d => (d.name, tpe.memberType(d)))
+        .toList
+    }
+  }
+
+  protected final def extractConcreteMemberParts(memberTpe: TypeRepr): List[TypeRepr] = {
+    val candidates = memberTpe._dealiasSimplifiedFull match {
+      case TypeBounds(lo, hi) =>
+        if (lo =:= hi) List(hi) else List(lo, hi)
+      case other =>
+        List(other)
+    }
+    candidates.filterNot(isIgnoredConcreteMemberPart)
+  }
+
+  private def isIgnoredConcreteMemberPart(b: TypeRepr): Boolean = {
+    val res = b._resultType
+    if (ignoredInIntersections(res) || ignoredInUnions(res)) {
+      true
+    } else {
+      b.isInstanceOf[ParamRef] || b.isInstanceOf[LambdaType] || b.typeSymbol.isTypeParam
+    }
+  }
+
+  private def isInspectableClassSymbol(cls: Symbol): Boolean = {
+    if (!cls.isClassDef) {
+      false
+    } else if (cls.flags.is(Flags.Module) || cls.flags.is(Flags.Package)) {
+      false
+    } else {
+      val fullName = cls.fullName
+      !fullName.startsWith("scala.") && !fullName.startsWith("java.")
+    }
+  }
+
+  private def isInspectableTypeMember(d: Symbol, seen: scala.collection.mutable.HashSet[String]): Boolean = {
+    if (!isPublicNonClassTypeDef(d)) {
+      false
+    } else {
+      seen.add(d.name)
+    }
+  }
+
+  private def isPublicNonClassTypeDef(d: Symbol): Boolean = {
+    if (!d.isTypeDef || d.isTypeParam) {
+      false
+    } else if (d.isClassDef) {
+      false
+    } else {
+      !d.flags.is(Flags.Private) && !d.flags.is(Flags.Protected)
+    }
+  }
+
   protected final def allPartsStrong(outerOwnerClassDefs: Set[Symbol], typeRepr: TypeRepr): Boolean = {
     ReflectionUtil.allPartsStrong(using qctx)(shift, outerOwnerClassDefs, Set.empty, typeRepr)
   }
@@ -251,20 +314,30 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
     private def removeTautologicaUnionsNonTailRec(a: TypeRepr, b: TypeRepr): TypeRepr = {
       val superA = ignoredInIntersections(a)
       val superB = ignoredInIntersections(b)
+      if (superA || superB) {
+        selectSuperTypeUnion(a, b, superA, superB)
+      } else {
+        rebuildNonSuperUnion(a, b)
+      }
+    }
+
+    private def selectSuperTypeUnion(a: TypeRepr, b: TypeRepr, superA: Boolean, superB: Boolean): TypeRepr = {
       if (superA && superB) {
         (if (a <:< b) b else a)._removeTautologicalUnions
       } else if (superA) {
         a
-      } else if (superB) {
-        b
       } else {
-        val a0 = a._removeTautologicalUnions
-        val b0 = b._removeTautologicalUnions
-        if ((a.asInstanceOf[AnyRef] ne a0.asInstanceOf[AnyRef]) || (b.asInstanceOf[AnyRef] ne b0.asInstanceOf[AnyRef])) {
-          AndType(a0, b0)
-        } else {
-          typeRepr
-        }
+        b
+      }
+    }
+
+    private def rebuildNonSuperUnion(a: TypeRepr, b: TypeRepr): TypeRepr = {
+      val a0 = a._removeTautologicalUnions
+      val b0 = b._removeTautologicalUnions
+      if ((a.asInstanceOf[AnyRef] ne a0.asInstanceOf[AnyRef]) || (b.asInstanceOf[AnyRef] ne b0.asInstanceOf[AnyRef])) {
+        AndType(a0, b0)
+      } else {
+        typeRepr
       }
     }
 
@@ -375,18 +448,23 @@ private[reflect] object ReflectionUtil {
 
   private[reflect] def getClassDefOwners(using qctx: Quotes)(symbol: qctx.reflect.Symbol): Set[qctx.reflect.Symbol] = {
     Iterator
-      .iterate(symbol) {
-        s =>
-          val owner = s.owner
-          if (owner == null || owner.isNoSymbol || owner == qctx.reflect.defn.RootClass) {
-            null.asInstanceOf[qctx.reflect.Symbol]
-          } else {
-            owner
-          }
-      }
+      .iterate(symbol)(nextOwnerSymbol)
       .takeWhile(_ ne null)
       .filter(s => s.isClassDef && !s.isAbstractType)
       .toSet
+  }
+
+  private def nextOwnerSymbol(using qctx: Quotes)(s: qctx.reflect.Symbol): qctx.reflect.Symbol = {
+    val owner = s.owner
+    if (isTerminalOwner(owner)) {
+      null.asInstanceOf[qctx.reflect.Symbol]
+    } else {
+      owner
+    }
+  }
+
+  private def isTerminalOwner(using qctx: Quotes)(owner: qctx.reflect.Symbol): Boolean = {
+    if (owner == null || owner.isNoSymbol) true else owner == qctx.reflect.defn.RootClass
   }
 
   private[reflect] final class UncheckedNonOverloadedSelectable(private val selectable: Any) extends AnyVal with Selectable {
