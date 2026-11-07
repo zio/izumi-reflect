@@ -5,7 +5,9 @@ const sidebars = {
       label: "Izumi Reflect",
       collapsed: false,
       link: { type: "doc", id: "index" },
-      items: [ ]
+      items: [
+        "internals"
+      ]
     }
   ]
 };

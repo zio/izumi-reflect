@@ -46,6 +46,14 @@ as a replacement for `TypeTag` in reaction to a lack of confirmed information ab
 </p>
 
 
+## Architecture & Internals
+
+For a detailed technical breakdown of how `izumi-reflect` works under the hood—including the three-part `LightTypeTag` representation (`ref`, `basesdb`, `idb`), compile-time type inspection on Scala 2 and Scala 3, shaded `BooPickle` binary serialization, runtime higher-kinded type combination (`RuntimeAPI.Rewriter`), the `LightTypeTagInheritance` subtype engine, and the deliberate design trade-offs made for performance and portability—see:
+
+* [Architecture, Internals & Design Trade-offs](docs/internals.md)
+* [Library Overview & Tag Typeclasses](docs/index.md)
+
+
 ## Limitations
 
 `izumi-reflect` model of the Scala type system is not 100% precise, but "good enough" for the vast majority of the usecases.
