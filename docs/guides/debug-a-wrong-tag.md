@@ -10,7 +10,7 @@ keywords:
   - "DebugProperties"
 ---
 
-In this guide, we work through the steps to find out why a tag lookup fails or why `<:<` returns an unexpected result. We start with the checks that explain most problems, printing and comparing the tags, then look at the inheritance data inside a tag, and finally turn on the library's debug log. At the end, you either have a fix or the information needed for a bug report.
+In this guide, we work through the steps to find out why a tag lookup fails or why `LightTypeTag#<:<` returns an unexpected result. We start with the checks that explain most problems, printing and comparing the tags, then look at the inheritance data inside a tag, and finally turn on the library's debug log. At the end, you either have a fix or the information needed for a bug report.
 
 ## The Problem
 
@@ -45,9 +45,9 @@ registry.entries.keys.map(_.repr)
 Tag[Option[Int]].tag.repr
 ```
 
-The stored key is `Some[Int]`, not `Option[Int]`: Scala inferred the most specific type of `Some(42)`, and `put` stored the value under it. Most mismatches are of this kind. When you compare the two renderings, look for these differences:
+The stored key is `Some[Int]`, not `Option[Int]`: Scala infers the most specific type of `Some(42)`, and `Registry#put` stores the value under it. Most mismatches are of this kind. When you compare the two renderings, look for these differences:
 
-- A more specific inferred type, as here. Fix it by writing the type argument at the call site: `put[Option[Int]](Some(42))`.
+- A more specific inferred type, as here. Fix it by writing the type argument at the call site: `Registry#put[Option[Int]](Some(42))`.
 - A different package or prefix, for example two classes named `Config` in different packages, or a type nested in a different instance of the same class.
 - A different type argument, such as `Int` and `Integer`, or an abstract type member that resolved differently.
 - An extra member of an intersection, such as `A with B` against `A`.
@@ -112,13 +112,13 @@ withParent[Child].removeIntersectionTautologies == Tag[Child].tag.removeIntersec
 
 ## Inspect the Inheritance Data
 
-If two types print as you expect but `<:<` still gives the wrong answer, look at the inheritance data stored in the tag. `LightTypeTag#debug` prints it:
+If two types print as you expect but `LightTypeTag#<:<` still gives the wrong answer, look at the inheritance data stored in the tag. `LightTypeTag#debug` prints it:
 
 ```scala mdoc
 println(Tag[Child].tag.debug("child"))
 ```
 
-`<:<` only knows the parents listed in this output. The tag of a type contains the parents of every type mentioned in it, as seen when the tag was created at compile time. If a parent is missing, the subtype check can't see the relationship.
+`LightTypeTag#<:<` only knows the parents listed in this output. The tag of a type contains the parents of every type mentioned in it, as the compiler knows them when it creates the tag at compile time. If a parent is missing, the subtype check can't see the relationship.
 
 <details>
   <summary>Runnable version, with the traits from "Simplify Intersections Before Comparing": <code>Step5InheritanceDataExample.scala</code></summary>
@@ -147,7 +147,7 @@ When the cause is still unclear, ask the library to explain its subtype checks. 
 Test / javaOptions += "-Dizumi.reflect.debug.macro.rtti=true"
 ```
 
-Every call to `<:<` then prints the steps of the check to standard output: the two types, each parent it tries, and the result of each step. Run only the failing check with the property set, because the log is long.
+Every call to `LightTypeTag#<:<` then prints the steps of the check to standard output: the two types, each parent it tries, and the result of each step. Run only the failing check with the property set, because the log is long.
 
 On Scala 2, the same property also prints how the macro builds each tag during compilation, which helps when a tag is built from the wrong parts. Set it in the sbt JVM:
 
@@ -161,7 +161,7 @@ On Scala 3, the macros have no debug output. See [Debugging and DebugProperties]
 
 All runnable code from this guide is in [`izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag/`](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag). Run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.debugawrongtag.<ObjectName>"`.
 
-## Report a Bug
+## Going Further
 
 If the result is still wrong and not covered by the limitations, report it in the [izumi-reflect issue tracker](https://github.com/zio/izumi-reflect/issues). A good report contains:
 
