@@ -15,7 +15,7 @@ keywords:
 ```scala
 trait Tag[T] extends AnyTag { def tag: LightTypeTag; def closestClass: Class[_] }
 type TagK[K[_]] // ... one alias per kind: TagKK, TagK3, TagT, ...
-abstract class LightTypeTag { def =:=(o: LightTypeTag): Boolean; def <:<(o: LightTypeTag): Boolean }
+abstract class LightTypeTag { def =:=(other: LightTypeTag): Boolean; def <:<(maybeParent: LightTypeTag): Boolean }
 final case class LTag[T](tag: LightTypeTag)
 ```
 
@@ -69,15 +69,15 @@ built[List, Int] == Tag[List[Int]]
 
 ## Choosing a Tag Type
 
-The three ways to get a type description differ in how they treat type parameters, which decides where each one fits:
+The ways to get a type description differ in how they treat type parameters, which decides where each one fits:
 
-| You need                                                        | Use                   |
-| --------------------------------------------------------------- | --------------------- |
-| A type description in generic code, including type parameters  | `A: Tag` context bound |
+| You need                                                        | Use                            |
+| --------------------------------------------------------------- | ------------------------------ |
+| A type description in generic code, including type parameters   | `A: Tag` context bound         |
 | The same for a type constructor `F[_]`                          | `F[_]: TagK` (or `TagKK`, ...) |
-| The `LightTypeTag` of a concrete type, for example in a test    | `LTT[T]`              |
-| An implicit tag for a concrete type, without the class          | `LTag[T]`             |
-| A description of a generic signature with unresolved parameters | `LTag.Weak[T]`        |
+| The `LightTypeTag` of a concrete type, for example in a test    | `LTT[T]`                       |
+| An implicit tag for a concrete type, without the class          | `LTag[T]`                      |
+| A description of a generic signature with unresolved parameters | `LTag.Weak[T]`                 |
 
 When in doubt, use `Tag`: it is the only one that resolves type parameters from the caller, and it never contains placeholders.
 
@@ -87,7 +87,7 @@ Most programs use tags in one of three ways, each covered by a guide:
 
 - **Type-indexed containers.** A map from `LightTypeTag` to values, looked up by exact type or by supertype. This is how dependency injection containers and the ZIO environment work. See [Build a Type-Safe Heterogeneous Map](../guides/heterogeneous-map.md) and [Use izumi-reflect Tags with the ZIO Environment](../guides/zio-environment.md).
 - **Generic code over type constructors.** Tagless-final services generic in `F[_]` take a `TagK[F]` and build tags of `Service[F]`. See [Tag and the TagK Family](tag.md#type-constructors-in-generic-code).
-- **Replacing `TypeTag`.** Code that used `scala-reflect` for type comparisons moves to `Tag` to cross-build for Scala 3, Scala.js and Scala Native. See [Migrate from scala-reflect TypeTag](../guides/migrate-from-typetag.md).
+- **Replacing `TypeTag`.** Code that uses `scala-reflect` for type comparisons moves to `Tag` to cross-build for Scala 3, Scala.js and Scala Native. See [Migrate from scala-reflect TypeTag](../guides/migrate-from-typetag.md).
 
 ## Integration Points
 
@@ -97,9 +97,7 @@ ZIO 2 is the most common user of `izumi-reflect`: `zio.Tag` extends `izumi.refle
 
 All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
 
-### Two Phases of a Tag
-
-A tag built at runtime from `TagK[F]` and `Tag[A]` equals the tag the compiler creates for the concrete type.
+A tag built at runtime from `TagK[F]` and `Tag[A]` equals the tag the compiler creates for the concrete type, as this program shows:
 
 ```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/referenceoverview/TwoPhasesExample.scala:show-line-numbers
 ```
