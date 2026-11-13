@@ -8,10 +8,10 @@ package izumi.reflect.examples.understandingtypetags
 import izumi.reflect.Tag
 
 /**
- * Understanding Type Tags — 3. Passing Tags into Generic Code
- *
- * Passes the caller's tag into a generic method with a context bound.
- */
+  * Understanding Type Tags — 3. Passing Tags into Generic Code
+  *
+  * Passes the caller's tag into a generic method with a context bound.
+  */
 object Concept3GenericCodeExample {
   def describe[A: Tag](value: A): String =
     s"$value has type ${Tag[A].tag}"

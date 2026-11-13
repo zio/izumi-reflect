@@ -8,10 +8,10 @@ package izumi.reflect.examples.understandingtypetags
 import izumi.reflect.{Tag, TagK}
 
 /**
- * Understanding Type Tags — 5. Type Constructors and TagK
- *
- * Renders the tag of a type constructor, applies it with combine, and builds Tag[F[A]] from TagK[F] and Tag[A].
- */
+  * Understanding Type Tags — 5. Type Constructors and TagK
+  *
+  * Renders the tag of a type constructor, applies it with combine, and builds Tag[F[A]] from TagK[F] and Tag[A].
+  */
 object Concept5TagKExample {
   def boxOf[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]
 

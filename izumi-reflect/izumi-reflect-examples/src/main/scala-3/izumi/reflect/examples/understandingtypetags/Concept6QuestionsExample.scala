@@ -8,10 +8,10 @@ package izumi.reflect.examples.understandingtypetags
 import izumi.reflect.Tag
 
 /**
- * Understanding Type Tags — 6. Asking Questions About Types
- *
- * Compares types with =:= and checks subtyping with <:<, variance included.
- */
+  * Understanding Type Tags — 6. Asking Questions About Types
+  *
+  * Compares types with =:= and checks subtyping with <:<, variance included.
+  */
 object Concept6QuestionsExample {
   def main(args: Array[String]): Unit = {
     println(s"List[Int] =:= immutable.List[Int]: ${Tag[List[Int]] =:= Tag[scala.collection.immutable.List[Int]]}")

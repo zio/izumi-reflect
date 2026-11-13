@@ -6,10 +6,10 @@
 package izumi.reflect.examples.understandingtypetags
 
 /**
- * Understanding Type Tags — 1. Types Disappear at Runtime
- *
- * Shows that List[Int] and List[String] share one runtime class.
- */
+  * Understanding Type Tags — 1. Types Disappear at Runtime
+  *
+  * Shows that List[Int] and List[String] share one runtime class.
+  */
 object Concept1TypesDisappearExample {
   def main(args: Array[String]): Unit = {
     val numbers = List(1, 2, 3)

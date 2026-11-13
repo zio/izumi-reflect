@@ -1,6 +1,7 @@
 ---
 id: understanding-type-tags
 title: "Understanding Type Tags"
+sidebar_label: "Tutorial"
 description: "A tutorial for newcomers: why types vanish at runtime, and how izumi-reflect type tags keep them, step by step."
 keywords:
   - "Type Erasure"
@@ -149,6 +150,14 @@ The code above:
 - `Tag[F[A]]` is built at runtime by applying the `TagK` of `F` to the `Tag` of `A`, exactly the `combine` call we did by hand above.
 
 For type constructors with more parameters, there are `TagKK` (for `F[_, _]`, like `Either`) and more siblings.
+
+<details>
+  <summary>Runnable version, with both examples of this section in one program: <code>Concept5TagKExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/understandingtypetags/Concept5TagKExample.scala:show-line-numbers
+```
+
+</details>
 
 ## 6. Asking Questions About Types
 

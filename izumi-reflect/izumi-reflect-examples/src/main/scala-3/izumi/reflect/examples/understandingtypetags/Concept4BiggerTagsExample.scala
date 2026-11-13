@@ -8,10 +8,10 @@ package izumi.reflect.examples.understandingtypetags
 import izumi.reflect.Tag
 
 /**
- * Understanding Type Tags — 4. Building Bigger Tags from Smaller Ones
- *
- * Builds the tag of Map[String, A] from the tag of A.
- */
+  * Understanding Type Tags — 4. Building Bigger Tags from Smaller Ones
+  *
+  * Builds the tag of Map[String, A] from the tag of A.
+  */
 object Concept4BiggerTagsExample {
   def settingsOf[A: Tag]: Tag[Map[String, A]] = Tag[Map[String, A]]
 

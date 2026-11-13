@@ -8,10 +8,10 @@ package izumi.reflect.examples.understandingtypetags
 import izumi.reflect.Tag
 
 /**
- * Understanding Type Tags — 2. Capturing a Type with Tag
- *
- * Creates tags for List[Int] and List[String] and shows that they differ.
- */
+  * Understanding Type Tags — 2. Capturing a Type with Tag
+  *
+  * Creates tags for List[Int] and List[String] and shows that they differ.
+  */
 object Concept2CapturingTypeExample {
   def main(args: Array[String]): Unit = {
     val numbersType = Tag[List[Int]]
