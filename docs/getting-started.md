@@ -67,7 +67,7 @@ Tag[List[Int]] <:< Tag[Seq[Any]]
 Tag[Seq[Int]] <:< Tag[List[Int]]
 ```
 
-The subtype check understands variance, so `List[Int] <:< Seq[Any]` holds because `List` and `Seq` are covariant. `Tag` also implements `equals` and `hashCode` consistently with `=:=`, so you can use tags as keys in a `Map` or members of a `Set`.
+The subtype check understands variance, so `List[Int] <:< Seq[Any]` holds because `List` and `Seq` are covariant. `Tag` also implements `Tag#equals` and `Tag#hashCode` consistently with `Tag#=:=`, so you can use tags as keys in a `Map` or members of a `Set`.
 
 ## Carry Tags Through Generic Code
 
