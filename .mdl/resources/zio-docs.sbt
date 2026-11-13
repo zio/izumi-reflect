@@ -9,4 +9,5 @@ lazy val docs = project
     mainModuleName                             := "izumi-reflect",
     projectStage                               := ProjectStage.ProductionReady,
   )
+  .dependsOn(LocalProject("izumi-reflectJVM"))
   .enablePlugins(WebsitePlugin)
