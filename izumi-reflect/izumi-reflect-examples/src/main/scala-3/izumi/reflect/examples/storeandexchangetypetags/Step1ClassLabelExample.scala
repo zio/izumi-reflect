@@ -6,10 +6,10 @@
 package izumi.reflect.examples.storeandexchangetypetags
 
 /**
- * Store and Exchange Type Tags — The Problem
- *
- * Labels stored values with their class names, which loses the type arguments.
- */
+  * Store and Exchange Type Tags — The Problem
+  *
+  * Labels stored values with their class names, which loses the type arguments.
+  */
 object Step1ClassLabelExample {
   def classLabel(value: Any): String = value.getClass.getName
 

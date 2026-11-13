@@ -10,10 +10,10 @@ import izumi.reflect.Tag
 import StoredTypes.{load, store}
 
 /**
- * Store and Exchange Type Tags — Reading a Tag Back
- *
- * Reads the stored record of "Turning a Tag into Text" back into a LightTypeTag and compares it.
- */
+  * Store and Exchange Type Tags — Reading a Tag Back
+  *
+  * Reads the stored record of "Turning a Tag into Text" back into a LightTypeTag and compares it.
+  */
 object Step4ReadingBackExample {
   def main(args: Array[String]): Unit = {
     // Setup from "Turning a Tag into Text": the type of a Map[String, List[Int]], stored as text

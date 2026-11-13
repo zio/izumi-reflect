@@ -10,10 +10,10 @@ import izumi.reflect.Tag
 import StoredTypes.{load, store}
 
 /**
- * Store and Exchange Type Tags — Checking Stored Values Against an Expected Type
- *
- * Seals a value with its stored type and opens it as a matching and a non-matching type, using store and load from the previous sections.
- */
+  * Store and Exchange Type Tags — Checking Stored Values Against an Expected Type
+  *
+  * Seals a value with its stored type and opens it as a matching and a non-matching type, using store and load from the previous sections.
+  */
 object Step5EnvelopeExample {
   final case class Envelope(payload: Any, payloadType: StoredType)
 

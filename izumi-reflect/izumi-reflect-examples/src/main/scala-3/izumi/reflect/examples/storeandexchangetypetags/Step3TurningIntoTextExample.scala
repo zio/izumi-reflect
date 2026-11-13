@@ -11,10 +11,10 @@ import izumi.reflect.macrortti.LightTypeTag
 import StoredTypes.store
 
 /**
- * Store and Exchange Type Tags — Turning a Tag into Text
- *
- * Serializes a tag and stores it as a record of Base64 text and two numbers.
- */
+  * Store and Exchange Type Tags — Turning a Tag into Text
+  *
+  * Serializes a tag and stores it as a record of Base64 text and two numbers.
+  */
 object Step3TurningIntoTextExample {
   def main(args: Array[String]): Unit = {
     val serialized: LightTypeTag.Serialized = Tag[Map[String, List[Int]]].tag.serialize()

@@ -73,6 +73,14 @@ The stored record contains only printable text and two numbers. To store the typ
 val stored = store(Tag[Map[String, List[Int]]].tag)
 ```
 
+<details>
+  <summary>Runnable version, with the serialization and the stored record in one program: <code>Step3TurningIntoTextExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/storeandexchangetypetags/Step3TurningIntoTextExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Reading a Tag Back
 
 To read a tag back, decode the two strings and pass the four fields to `LightTypeTag.parse`. The result is a `LightTypeTag` like any other, equal to the tag of the same type created by the compiler:
@@ -101,6 +109,14 @@ The loaded tag keeps the inheritance data, so subtype checks work too. A reader 
 loaded <:< Tag[Map[String, Iterable[Int]]].tag
 ```
 
+<details>
+  <summary>Runnable version, with the record stored in "Turning a Tag into Text": <code>Step4ReadingBackExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/storeandexchangetypetags/Step4ReadingBackExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Checking Stored Values Against an Expected Type
 
 With tags that survive storage, a reader can refuse values whose stored type does not match what it expects, instead of casting blindly. An envelope keeps the value next to its stored type, and the reader compares before it casts:
@@ -127,6 +143,14 @@ open[List[String]](envelope)
 ```
 
 In a real system, the payload is serialized too, for example as JSON. The stored type then decides which decoder to use, and the check stops a reader from decoding a payload with the wrong one.
+
+<details>
+  <summary>Runnable version, with `store` and `load` from the previous sections: <code>Step5EnvelopeExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/storeandexchangetypetags/Step5EnvelopeExample.scala:show-line-numbers
+```
+
+</details>
 
 ## Handling Format Versions
 
@@ -156,6 +180,18 @@ When services of different versions exchange tags, upgrade `izumi-reflect` in th
 :::note
 Tags from an older format are read without their stored hash code, so the first comparisons are a little slower. Tags written by the current format compare by their serialized strings first, which is fast.
 :::
+
+<details>
+  <summary>Runnable version, with the record stored in "Turning a Tag into Text": <code>Step6FormatVersionsExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/storeandexchangetypetags/Step6FormatVersionsExample.scala:show-line-numbers
+```
+
+</details>
+
+## Running the Examples
+
+All runnable code from this guide is in [`izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/storeandexchangetypetags/`](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/storeandexchangetypetags). Run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.storeandexchangetypetags.<ObjectName>"`.
 
 ## Going Further
 

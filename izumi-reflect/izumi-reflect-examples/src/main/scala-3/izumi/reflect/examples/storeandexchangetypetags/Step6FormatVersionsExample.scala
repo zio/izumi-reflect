@@ -11,10 +11,10 @@ import izumi.reflect.macrortti.LightTypeTag
 import StoredTypes.{load, store}
 
 /**
- * Store and Exchange Type Tags — Handling Format Versions
- *
- * Reads a stored tag with an explicit LinkageError check, and shows the error for a tag from a newer format version.
- */
+  * Store and Exchange Type Tags — Handling Format Versions
+  *
+  * Reads a stored tag with an explicit LinkageError check, and shows the error for a tag from a newer format version.
+  */
 object Step6FormatVersionsExample {
   def loadChecked(stored: StoredType): Either[String, LightTypeTag] =
     try Right(load(stored))
