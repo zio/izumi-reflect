@@ -9,10 +9,10 @@ package izumi.reflect.examples.debugawrongtag
 import izumi.reflect.Tag
 
 /**
- * Debug a Wrong Tag or Subtype Check — Choose Between Equality and Subtyping
- *
- * Finds the stored value with a subtype check where the exact lookup fails, starting from the registry of "The Problem".
- */
+  * Debug a Wrong Tag or Subtype Check — Choose Between Equality and Subtyping
+  *
+  * Finds the stored value with a subtype check where the exact lookup fails, starting from the registry of "The Problem".
+  */
 object Step3EqualityVsSubtypingExample {
   def main(args: Array[String]): Unit = {
     // Setup from "The Problem": Some(42) stored under the tag of its inferred type

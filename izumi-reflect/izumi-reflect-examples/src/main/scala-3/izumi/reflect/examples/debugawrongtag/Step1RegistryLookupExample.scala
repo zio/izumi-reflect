@@ -6,13 +6,11 @@
 
 package izumi.reflect.examples.debugawrongtag
 
-
-
 /**
- * Debug a Wrong Tag or Subtype Check — The Problem
- *
- * A value stored under the tag of its inferred type is not found by the type the caller expects.
- */
+  * Debug a Wrong Tag or Subtype Check — The Problem
+  *
+  * A value stored under the tag of its inferred type is not found by the type the caller expects.
+  */
 object Step1RegistryLookupExample {
   def main(args: Array[String]): Unit = {
     val registry = Registry(Map.empty).put(Some(42))

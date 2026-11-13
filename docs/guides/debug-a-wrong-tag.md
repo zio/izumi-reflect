@@ -52,6 +52,14 @@ The stored key is `Some[Int]`, not `Option[Int]`: Scala inferred the most specif
 - A different type argument, such as `Int` and `Integer`, or an abstract type member that resolved differently.
 - An extra member of an intersection, such as `A with B` against `A`.
 
+<details>
+  <summary>Runnable version, with the registry from "The Problem": <code>Step2CompareRenderingsExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag/Step2CompareRenderingsExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Choose Between Equality and Subtyping
 
 A `Map` lookup by tag needs an exact match. If values of more specific types should be found too, the lookup must use a subtype check instead of equality. With the registry above:
@@ -61,6 +69,14 @@ registry.entries.keys.exists(_ <:< Tag[Option[Int]].tag)
 ```
 
 Decide which one the code needs. An exact lookup is faster; a subtype lookup is more forgiving. [Build a Type-Safe Heterogeneous Map](heterogeneous-map.md#looking-up-by-supertype) shows both.
+
+<details>
+  <summary>Runnable version, with the registry from "The Problem": <code>Step3EqualityVsSubtypingExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag/Step3EqualityVsSubtypingExample.scala:show-line-numbers
+```
+
+</details>
 
 ## Simplify Intersections Before Comparing
 
@@ -86,6 +102,14 @@ withParent[Child] == Tag[Child].tag
 withParent[Child].removeIntersectionTautologies == Tag[Child].tag.removeIntersectionTautologies
 ```
 
+<details>
+  <summary>Runnable version, with the traits and both comparisons in one program: <code>Step4IntersectionsExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag/Step4IntersectionsExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Inspect the Inheritance Data
 
 If two types print as you expect but `<:<` still gives the wrong answer, look at the inheritance data stored in the tag. `LightTypeTag#debug` prints it:
@@ -95,6 +119,14 @@ println(Tag[Child].tag.debug("child"))
 ```
 
 `<:<` only knows the parents listed in this output. The tag of a type contains the parents of every type mentioned in it, as seen when the tag was created at compile time. If a parent is missing, the subtype check can't see the relationship.
+
+<details>
+  <summary>Runnable version, with the traits from "Simplify Intersections Before Comparing": <code>Step5InheritanceDataExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag/Step5InheritanceDataExample.scala:show-line-numbers
+```
+
+</details>
 
 ## Check the Known Limitations
 
@@ -124,6 +156,10 @@ sbt -Dizumi.reflect.debug.macro.rtti=true compile
 ```
 
 On Scala 3, the macros have no debug output. See [Debugging and DebugProperties](../reference/debugging.md) for all settings, including `izumi.reflect.rtti.optimized.equals`, which helps when two tags created by different versions of `izumi-reflect` compare as not equal.
+
+## Running the Examples
+
+All runnable code from this guide is in [`izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag/`](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugawrongtag). Run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.debugawrongtag.<ObjectName>"`.
 
 ## Report a Bug
 

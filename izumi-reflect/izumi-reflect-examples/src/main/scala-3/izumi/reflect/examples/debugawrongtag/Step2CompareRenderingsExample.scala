@@ -9,10 +9,10 @@ package izumi.reflect.examples.debugawrongtag
 import izumi.reflect.Tag
 
 /**
- * Debug a Wrong Tag or Subtype Check — Compare the Full Renderings
- *
- * Prints the stored and the expected tag in full, starting from the registry of "The Problem".
- */
+  * Debug a Wrong Tag or Subtype Check — Compare the Full Renderings
+  *
+  * Prints the stored and the expected tag in full, starting from the registry of "The Problem".
+  */
 object Step2CompareRenderingsExample {
   def main(args: Array[String]): Unit = {
     // Setup from "The Problem": Some(42) stored under the tag of its inferred type

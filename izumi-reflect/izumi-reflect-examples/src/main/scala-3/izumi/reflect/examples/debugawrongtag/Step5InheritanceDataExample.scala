@@ -9,10 +9,10 @@ package izumi.reflect.examples.debugawrongtag
 import izumi.reflect.Tag
 
 /**
- * Debug a Wrong Tag or Subtype Check — Inspect the Inheritance Data
- *
- * Prints the inheritance data of the tag of Child, the trait defined in "Simplify Intersections Before Comparing".
- */
+  * Debug a Wrong Tag or Subtype Check — Inspect the Inheritance Data
+  *
+  * Prints the inheritance data of the tag of Child, the trait defined in "Simplify Intersections Before Comparing".
+  */
 object Step5InheritanceDataExample {
   def main(args: Array[String]): Unit = {
     println(Tag[Child].tag.debug("child"))

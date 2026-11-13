@@ -10,10 +10,10 @@ import izumi.reflect.Tag
 import izumi.reflect.macrortti.LightTypeTag
 
 /**
- * Debug a Wrong Tag or Subtype Check — Simplify Intersections Before Comparing
- *
- * A tag of Child with Parent built in generic code is not equal to the tag of Child until its tautologies are removed.
- */
+  * Debug a Wrong Tag or Subtype Check — Simplify Intersections Before Comparing
+  *
+  * A tag of Child with Parent built in generic code is not equal to the tag of Child until its tautologies are removed.
+  */
 object Step4IntersectionsExample {
   def withParent[T: Tag]: LightTypeTag = Tag[T with Parent].tag
 
