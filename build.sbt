@@ -501,6 +501,228 @@ lazy val `izumi-reflectJVM` = `izumi-reflect`.jvm
 lazy val `izumi-reflectJS` = `izumi-reflect`.js
 lazy val `izumi-reflectNative` = `izumi-reflect`.native
 
+lazy val `izumi-reflect-examples` = project.in(file("izumi-reflect/izumi-reflect-examples"))
+  .dependsOn(
+    `izumi-reflectJVM` % "test->compile;compile->compile"
+  )
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % V.scalatest % Test,
+      "dev.zio" %% "zio" % V.zio
+    ),
+    libraryDependencies ++= { if (scalaVersion.value.startsWith("2.")) Seq(
+      compilerPlugin("org.typelevel" % "kind-projector" % V.kind_projector `cross` CrossVersion.full),
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    ) else Seq.empty },
+    libraryDependencies ++= {
+      val version = scalaVersion.value
+      if (version.startsWith("0.") || version.startsWith("3.")) {
+        Seq(
+          "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Provided
+        )
+      } else Seq.empty
+    }
+  )
+  .settings(
+    crossScalaVersions := Seq(
+      "3.3.8",
+      "2.13.18",
+      "2.12.21"
+    ),
+    scalaVersion := crossScalaVersions.value.head,
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "3.3.8") => Seq(
+        "-Yfuture-lazy-vals",
+        "-java-output-version:11"
+      )
+      case (_, _) => Seq.empty
+    } },
+    organization := "dev.zio",
+    Compile / unmanagedSourceDirectories ++= {
+      val version = scalaVersion.value
+      val crossVersions = crossScalaVersions.value
+      import Ordering.Implicits._
+      val ltEqVersions = crossVersions.map(CrossVersion.partialVersion).filter(_ <= CrossVersion.partialVersion(version)).flatten
+      (Compile / unmanagedSourceDirectories).value.flatMap {
+        case dir if dir.getPath.endsWith("scala") => ltEqVersions.map { case (m, n) => file(dir.getPath + s"-$m.$n+") }
+        case _ => Seq.empty
+      }
+    },
+    Test / unmanagedSourceDirectories ++= {
+      val version = scalaVersion.value
+      val crossVersions = crossScalaVersions.value
+      import Ordering.Implicits._
+      val ltEqVersions = crossVersions.map(CrossVersion.partialVersion).filter(_ <= CrossVersion.partialVersion(version)).flatten
+      (Test / unmanagedSourceDirectories).value.flatMap {
+        case dir if dir.getPath.endsWith("scala") => ltEqVersions.map { case (m, n) => file(dir.getPath + s"-$m.$n+") }
+        case _ => Seq.empty
+      }
+    },
+    Compile / unmanagedSourceDirectories ++= {
+      val version = scalaVersion.value
+      val crossVersions = crossScalaVersions.value
+      import Ordering.Implicits._
+      val gtEqVersions = crossVersions.map(CrossVersion.partialVersion).filter(_ >= CrossVersion.partialVersion(version)).flatten
+      (Compile / unmanagedSourceDirectories).value.flatMap {
+        case dir if dir.getPath.endsWith("scala") => gtEqVersions.map { case (m, n) => file(dir.getPath + s"-$m.$n-") }
+        case _ => Seq.empty
+      }
+    },
+    Test / unmanagedSourceDirectories ++= {
+      val version = scalaVersion.value
+      val crossVersions = crossScalaVersions.value
+      import Ordering.Implicits._
+      val gtEqVersions = crossVersions.map(CrossVersion.partialVersion).filter(_ >= CrossVersion.partialVersion(version)).flatten
+      (Test / unmanagedSourceDirectories).value.flatMap {
+        case dir if dir.getPath.endsWith("scala") => gtEqVersions.map { case (m, n) => file(dir.getPath + s"-$m.$n-") }
+        case _ => Seq.empty
+      }
+    },
+    Compile / unmanagedSourceDirectories ++= {
+      val crossVersions = crossScalaVersions.value
+      import Ordering.Implicits._
+      val ltEqVersions = crossVersions.map(CrossVersion.partialVersion).sorted.flatten
+      def joinV = (_: Product).productIterator.mkString(".")
+      val allRangeVersions = (2 to math.max(2, ltEqVersions.size))
+        .flatMap(i => ltEqVersions.sliding(i).filter(_.size == i))
+        .map(l => (l.head, l.last))
+        .distinct
+      CrossVersion.partialVersion(scalaVersion.value).toList.flatMap {
+        version =>
+          val rangeVersions = allRangeVersions
+            .filter { case (l, r) => l <= version && version <= r }
+            .map { case (l, r) => s"-${joinV(l)}-${joinV(r)}" }
+          (Compile / unmanagedSourceDirectories).value.flatMap {
+            case dir if dir.getPath.endsWith("scala") => rangeVersions.map { vStr => file(dir.getPath + vStr) }
+            case _ => Seq.empty
+          }
+      }
+    },
+    Test / unmanagedSourceDirectories ++= {
+      val crossVersions = crossScalaVersions.value
+      import Ordering.Implicits._
+      val ltEqVersions = crossVersions.map(CrossVersion.partialVersion).sorted.flatten
+      def joinV = (_: Product).productIterator.mkString(".")
+      val allRangeVersions = (2 to math.max(2, ltEqVersions.size))
+        .flatMap(i => ltEqVersions.sliding(i).filter(_.size == i))
+        .map(l => (l.head, l.last))
+        .distinct
+      CrossVersion.partialVersion(scalaVersion.value).toList.flatMap {
+        version =>
+          val rangeVersions = allRangeVersions
+            .filter { case (l, r) => l <= version && version <= r }
+            .map { case (l, r) => s"-${joinV(l)}-${joinV(r)}" }
+          (Test / unmanagedSourceDirectories).value.flatMap {
+            case dir if dir.getPath.endsWith("scala") => rangeVersions.map { vStr => file(dir.getPath + vStr) }
+            case _ => Seq.empty
+          }
+      }
+    },
+    Compile / doc / sources := { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "3.3.8") => Seq(
+      
+      )
+      case (_, _) => (Compile / doc / sources).value
+    } },
+    Test / testOptions += Tests.Argument("-oDF"),
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "2.12.21") => Seq(
+        "-release:8",
+        "-explaintypes",
+        "-language:higherKinds",
+        "-Ypartial-unification",
+        if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
+        "-Wconf:cat=optimizer:warning",
+        "-Wconf:cat=other-match-analysis:error",
+        "-Ybackend-parallelism",
+        math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
+        "-Xlint:adapted-args",
+        "-Xlint:by-name-right-associative",
+        "-Xlint:constant",
+        "-Xlint:delayedinit-select",
+        "-Xlint:doc-detached",
+        "-Xlint:inaccessible",
+        "-Xlint:infer-any",
+        "-Xlint:missing-interpolator",
+        "-Xlint:nullary-override",
+        "-Xlint:nullary-unit",
+        "-Xlint:option-implicit",
+        "-Xlint:package-object-classes",
+        "-Xlint:poly-implicit-overload",
+        "-Xlint:private-shadow",
+        "-Xlint:stars-align",
+        "-Xlint:type-parameter-shadow",
+        "-Xlint:unsound-match",
+        "-opt-warnings:_",
+        "-Ywarn-extra-implicit",
+        "-Ywarn-unused:_",
+        "-Ywarn-adapted-args",
+        "-Ywarn-dead-code",
+        "-Ywarn-inaccessible",
+        "-Ywarn-infer-any",
+        "-Ywarn-nullary-override",
+        "-Ywarn-nullary-unit",
+        "-Ywarn-numeric-widen",
+        "-Ywarn-unused-import",
+        "-Ywarn-value-discard",
+        "-Ycache-plugin-class-loader:always",
+        "-Ycache-macro-class-loader:last-modified",
+        "-Wconf:msg=nowarn:silent"
+      )
+      case (_, "2.13.18") => Seq(
+        "-release:8",
+        "-explaintypes",
+        if (insideCI.value) "-Wconf:any:error" else "-Wconf:any:warning",
+        "-Wconf:cat=optimizer:warning",
+        "-Wconf:cat=other-match-analysis:error",
+        "-Vtype-diffs",
+        "-Ybackend-parallelism",
+        math.min(16, math.max(1, sys.runtime.availableProcessors() - 1)).toString,
+        "-Wdead-code",
+        "-Wextra-implicit",
+        "-Wnumeric-widen",
+        "-Woctal-literal",
+        "-Wvalue-discard",
+        "-Wunused:_",
+        "-Wmacros:default",
+        "-Ycache-plugin-class-loader:always",
+        "-Ycache-macro-class-loader:last-modified",
+        "-Wconf:msg=nowarn:silent"
+      )
+      case (_, _) => Seq(
+        "-Ykind-projector",
+        "-no-indent",
+        "-language:implicitConversions"
+      )
+    } },
+    scalacOptions -= "-Wconf:any:error",
+    mimaPreviousArtifacts := { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "3.3.8") => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0")
+      case (_, _) => Set(organization.value %% name.value % "2.2.5", organization.value %% name.value % "2.1.0", organization.value %% name.value % "1.0.0")
+    } },
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (_, "2.13.18") => Seq(
+        "-Xlint:-implicit-recursion"
+      )
+      case (_, _) => Seq.empty
+    } },
+    scalacOptions ++= { (isSnapshot.value, scalaVersion.value) match {
+      case (false, "2.12.21") => Seq(
+        "-opt:l:inline",
+        "-opt-inline-from:izumi.reflect.**"
+      )
+      case (false, "2.13.18") => Seq(
+        "-opt:l:inline",
+        "-opt-inline-from:izumi.reflect.**"
+      )
+      case (_, _) => Seq.empty
+    } },
+    Compile / packageBin / packageOptions += Package.ManifestAttributes("Automatic-Module-Name" -> s"${organization.value.replaceAll("-",".")}.${moduleName.value.replaceAll("-",".")}"),
+    publish / skip := true,
+    mimaPreviousArtifacts := Set.empty,
+    coverageEnabled := false
+  )
+
 lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate"))
   .settings(
     crossScalaVersions := Nil,
@@ -515,7 +737,8 @@ lazy val `izumi-reflect-aggregate` = (project in file(".agg/izumi-reflect-izumi-
     `izumi-reflect-thirdparty-boopickle-shadedNative`,
     `izumi-reflectJVM`,
     `izumi-reflectJS`,
-    `izumi-reflectNative`
+    `izumi-reflectNative`,
+    `izumi-reflect-examples`
   )
 
 lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-jvm"))
@@ -528,7 +751,8 @@ lazy val `izumi-reflect-aggregate-jvm` = (project in file(".agg/izumi-reflect-iz
   )
   .aggregate(
     `izumi-reflect-thirdparty-boopickle-shadedJVM`,
-    `izumi-reflectJVM`
+    `izumi-reflectJVM`,
+    `izumi-reflect-examples`
   )
 
 lazy val `izumi-reflect-aggregate-js` = (project in file(".agg/izumi-reflect-izumi-reflect-aggregate-js"))

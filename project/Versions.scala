@@ -19,4 +19,6 @@
 object V {
   val kind_projector = "0.13.4"
   val scalatest = "3.2.20"
+  // used only by the documentation examples (izumi-reflect-examples) and the docs project
+  val zio = "2.1.27"
 }
