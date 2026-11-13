@@ -11,6 +11,7 @@ const sidebars = {
           type: "category",
           label: "Reference",
           collapsed: false,
+          link: { type: "doc", id: "reference/index" },
           items: [
             "reference/tag",
             "reference/light-type-tag",
@@ -20,6 +21,7 @@ const sidebars = {
             "reference/typetag-comparison"
           ]
         },
+        "guides/understanding-type-tags",
         {
           type: "category",
           label: "How-to Guides",
@@ -28,6 +30,7 @@ const sidebars = {
             "guides/heterogeneous-map",
             "guides/zio-environment",
             "guides/migrate-from-typetag",
+            "guides/store-and-exchange-type-tags",
             "guides/debug-a-wrong-tag"
           ]
         }
