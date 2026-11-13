@@ -12,7 +12,7 @@ keywords:
 
 `Tag[T]` is a type class whose instance describes the type `T` at runtime. You ask for it with a context bound (`def f[T: Tag]`), and the compiler creates it at compile time, combining the tags of any type parameters that are in scope. `TagK`, `TagKK` and their siblings do the same for type constructors such as `F[_]`.
 
-A `Tag` is a thin wrapper: its `tag` field holds a [`LightTypeTag`](light-type-tag.md), which does the type comparisons and rendering, and its `AnyTag#closestClass` field holds the JVM class that best matches the type.
+A `Tag` is a thin wrapper: its `tag` field holds a [`LightTypeTag`](light-type-tag.md), which does the type comparisons and rendering, and its `AnyTag#closestClass` field holds the JVM class that best matches the type. The shape of the type class and its companion is:
 
 ```scala
 trait Tag[T] extends AnyTag {
@@ -43,7 +43,7 @@ containerOf[Option, Int] =:= Tag[Option[Int]]
 containerOf[List, Int] <:< Tag[Seq[Any]]
 ```
 
-[Build a Type-Safe Heterogeneous Map](../guides/heterogeneous-map.md) and [Use izumi-reflect Tags with the ZIO Environment](../guides/zio-environment.md) show `Tag` at work in complete programs.
+[Build a Type-Safe Heterogeneous Map](../guides/heterogeneous-map.md) and [Use izumi-reflect Tags with the ZIO Environment](../guides/zio-environment.md) show `Tag` at work in complete programs. New to type tags? Start with the [Understanding Type Tags](../guides/understanding-type-tags.md) tutorial.
 
 ## Summoning a Tag
 
@@ -226,6 +226,8 @@ val stringLtt: LightTypeTag = Tag[String].tag
 Tag[String](classOf[String], stringLtt) == Tag[String]
 ```
 
+On Scala 2, `HKTag.apply(cls, lightTypeTag)` does the same for an `HKTag`.
+
 ### Tag.appliedTag
 
 `Tag.appliedTag` applies the type constructor in a higher-kinded tag to a list of argument tags, in order:
@@ -254,15 +256,13 @@ Tag.unionTag[Int | String](classOf[Any], List(Tag[Int].tag, Tag[String].tag))
 
 ## WeakTag
 
-`WeakTag[T]` is a low-level tag used by dependency injection frameworks to describe signatures of generic methods. When a `Tag[T]` is available, `WeakTag[T]` uses it. Application code should use `Tag`, which never contains unresolved type parameters. For tags that may contain unresolved type parameters, see `LTag.Weak` in [LTag and LTT](ltag.md).
+`WeakTag[T]` is a low-level tag used by dependency injection frameworks to describe signatures of generic methods. `WeakTag.apply[T: WeakTag]` summons one, and `WeakTag.apply(cls, tag)` creates one from a class and a `LightTypeTag`. When a `Tag[T]` is available, `WeakTag[T]` uses it. Application code should use `Tag`, which never contains unresolved type parameters. For tags that may contain unresolved type parameters, see `LTag.Weak` in [LTag and LTT](ltag.md).
 
 ## Running the Examples
 
 All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
 
-### Basic Usage
-
-The examples of the Usage section as one program: tags from context bounds, tags built from them, and comparisons.
+The examples of the Usage section as one program, covering tags from context bounds, tags built from them, and comparisons:
 
 ```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/tag/BasicUsage.scala:show-line-numbers
 ```
