@@ -1,6 +1,12 @@
 ---
 id: light-type-tag
 title: "LightTypeTag"
+description: "Reference for LightTypeTag: type equality, subtype checks, combining type constructors, rendering and serialization."
+keywords:
+  - "Runtime Type Information"
+  - "Subtype Check"
+  - "Serialization"
+  - "LightTypeTag"
 ---
 
 `LightTypeTag` is the runtime model of a Scala type in `izumi-reflect`. Every [`Tag`](tag.md) holds one in its `tag` field. A `LightTypeTag` is an immutable value that knows the structure of the type (its type constructor, arguments, variance, prefixes, refinements) and enough of its inheritance to answer subtype checks. All its operations are thread-safe and need no runtime reflection. The class defines the following public members:
@@ -33,6 +39,23 @@ abstract class LightTypeTag extends Serializable {
   def binaryFormatVersion: Int
 }
 ```
+
+## Usage
+
+A `LightTypeTag` comes from a `Tag` and answers questions about the type at runtime: how it renders, whether it is a subtype of another type, what its type arguments are, and how it combines with other tags:
+
+```scala mdoc:reset
+import izumi.reflect.{Tag, TagK}
+
+val listOfInt = Tag[List[Int]].tag
+
+listOfInt.toString
+listOfInt <:< Tag[Seq[Any]].tag
+listOfInt.typeArgs
+TagK[List].tag.combine(Tag[Int].tag) == listOfInt
+```
+
+[Build a Type-Safe Heterogeneous Map](../guides/heterogeneous-map.md) uses `LightTypeTag` as a map key and for subtype lookups.
 
 ## Getting a LightTypeTag
 
@@ -218,7 +241,7 @@ serialized.version
 LightTypeTag.parse(serialized) == Tag[List[Int]].tag
 ```
 
-The format version identifies the binary layout of the strings. `LightTypeTag.parse` reads tags written by older versions of `izumi-reflect`, but it throws a `LinkageError` for a tag written by a newer version than the one on the classpath. When different services exchange serialized tags, upgrade the readers first.
+The format version identifies the binary layout of the strings; the version that the library on the classpath writes is `LightTypeTag.currentBinaryFormatVersion`. `LightTypeTag.parse` reads tags written by older versions of `izumi-reflect`, but it throws a `LinkageError` for a tag written by a newer version than the one on the classpath. When different services exchange serialized tags, upgrade the readers first.
 
 `LightTypeTag` also implements `java.io.Serializable`, like `Tag`, so it works with Java serialization and frameworks built on it.
 
