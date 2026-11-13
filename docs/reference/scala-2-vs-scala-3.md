@@ -18,18 +18,18 @@ import TabItem from '@theme/TabItem';
 
 The differences fall into three groups: how tags for higher-kinded types are declared, which types and constructors exist, and which build settings the macros read.
 
-| Area                                      | Scala 2                                                    | Scala 3                                     |
-| ----------------------------------------- | ---------------------------------------------------------- | ------------------------------------------- |
-| Kinds accepted by `Tag`                   | Proper types only                                          | Any kind (`Tag[T <: AnyKind]`)              |
-| `TagK`, `TagKK`, ... `TagK22`, `TagT`, ...| Aliases of `HKTag` with a structural type                  | Aliases of `Tag`                            |
-| `HKTag`                                   | A separate trait                                           | An alias of `Tag`                           |
-| `Tag.auto.T`                              | Macro that infers the `HKTag` type for any kind            | An alias of `Tag`                           |
-| `LTag.StrongHK`, `LTag.WeakHK`            | Separate case classes                                      | Aliases of `LTag` and `LTag.Weak`           |
-| Union types                               | Not in the language                                        | Supported, with `Tag.unionTag`              |
-| `appliedTagNonPos`                        | On `HKTag`                                                 | On `Tag` and `HKTag`                        |
-| Compile-time debug output                 | Enabled by `-Dizumi.reflect.debug.macro.rtti=true`         | Not available                               |
-| Compile-time tag cache setting            | `-Xmacro-settings:izumi.reflect.rtti.cache.compile=false`  | Not available                               |
-| Tags from `scala-reflect` types at runtime| `LightTypeTagImpl.makeLightTypeTag` (JVM only)             | Not available                               |
+| Area                                       | Scala 2                                                   | Scala 3                           |
+| ------------------------------------------ | --------------------------------------------------------- | --------------------------------- |
+| Kinds accepted by `Tag`                    | Proper types only                                         | Any kind (`Tag[T <: AnyKind]`)    |
+| `TagK`, `TagKK`, ... `TagK22`, `TagT`, ... | Aliases of `HKTag` with a structural type                 | Aliases of `Tag`                  |
+| `HKTag`                                    | A separate trait                                          | An alias of `Tag`                 |
+| `Tag.auto.T`                               | Macro that infers the `HKTag` type for any kind           | An alias of `Tag`                 |
+| `LTag.StrongHK`, `LTag.WeakHK`             | Separate case classes                                     | Aliases of `LTag` and `LTag.Weak` |
+| Union types                                | Not in the language                                       | Supported, with `Tag.unionTag`    |
+| `appliedTagNonPos`                         | On `HKTag`                                                | On `Tag` and `HKTag`              |
+| Compile-time debug output                  | Enabled by `-Dizumi.reflect.debug.macro.rtti=true`        | Not available                     |
+| Compile-time tag cache setting             | `-Xmacro-settings:izumi.reflect.rtti.cache.compile=false` | Not available                     |
+| Tags from `scala-reflect` types at runtime | `LightTypeTagImpl.makeLightTypeTag` (JVM only)            | Not available                     |
 
 ## Tags for Higher-Kinded Types
 
