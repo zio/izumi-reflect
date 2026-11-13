@@ -2,11 +2,48 @@
 id: tag
 title: "Tag and the TagK Family"
 sidebar_label: "Tag and TagK"
+description: "Reference for Tag, TagK and the rest of the tag family: summoning, comparing, tags of any kind and building tags by hand."
+keywords:
+  - "Runtime Type Information"
+  - "Type Class"
+  - "Higher-Kinded Types"
+  - "Tag"
 ---
 
 `Tag[T]` is a type class whose instance describes the type `T` at runtime. You ask for it with a context bound (`def f[T: Tag]`), and the compiler creates it at compile time, combining the tags of any type parameters that are in scope. `TagK`, `TagKK` and their siblings do the same for type constructors such as `F[_]`.
 
 A `Tag` is a thin wrapper: its `tag` field holds a [`LightTypeTag`](light-type-tag.md), which does the type comparisons and rendering, and its `AnyTag#closestClass` field holds the JVM class that best matches the type.
+
+```scala
+trait Tag[T] extends AnyTag {
+  def tag: LightTypeTag
+  def closestClass: Class[_]
+}
+
+object Tag {
+  def apply[T: Tag]: Tag[T]
+  def apply[T](cls: Class[_], tag0: LightTypeTag): Tag[T]
+}
+
+type TagK[K[_]]     // and TagKK, TagK3, TagT, TagTK, TagTKK, TagTK3, TagK4 ... TagK22
+```
+
+## Usage
+
+A generic method asks for tags with context bounds, and the compiler builds the tags of bigger types from them. The resulting tags compare by type and check subtyping:
+
+```scala mdoc:reset
+import izumi.reflect.{Tag, TagK}
+
+def keyOf[A: Tag]: String = Tag[A].tag.toString
+def containerOf[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]
+
+keyOf[Map[String, Int]]
+containerOf[Option, Int] =:= Tag[Option[Int]]
+containerOf[List, Int] <:< Tag[Seq[Any]]
+```
+
+[Build a Type-Safe Heterogeneous Map](../guides/heterogeneous-map.md) and [Use izumi-reflect Tags with the ZIO Environment](../guides/zio-environment.md) show `Tag` at work in complete programs.
 
 ## Summoning a Tag
 
@@ -28,6 +65,8 @@ tagOfPair[Int, List[String]]
 ```
 
 If a type parameter has no tag in scope, compilation fails with a message that names the missing tag. The fix is to add a context bound for it.
+
+The implicit the compiler finds is the macro `Tag.tagFromTagMacro` (and, on Scala 2, `HKTag.hktagFromTagMacro` for type constructors). You see these names in IDE implicit hints and at the top of macro errors; you never call them yourself.
 
 ## Members of Tag
 
@@ -204,6 +243,8 @@ Tag.appliedTag[List[Int]](TagK[List], List(Tag[Int].tag)) == Tag[List[Int]]
 The same operation at the `LightTypeTag` level is `LightTypeTag#combine`, which also handles partial application. See [Combining Type Constructors](light-type-tag.md#combining-type-constructors).
 
 ### Refined and Union Tags
+
+`HKTag.appliedTagNonPos` (and, on Scala 3, `Tag.appliedTagNonPos`) works like `Tag.appliedTag`, but takes an `Option` per type parameter and leaves the `None` positions open, like [`LightTypeTag#combineNonPos`](light-type-tag.md#lighttypetagcombinenonpos). `HKTag.appliedTagNonPosAux` does the same from a class and a `LightTypeTag` instead of a tag.
 
 `Tag.refinedTag` builds the tag of an intersection type with a structural refinement, such as `A with B { def x: Int }`, from the tags of its parts. On Scala 3, `Tag.unionTag` builds the tag of a union type from the tags of its members:
 
