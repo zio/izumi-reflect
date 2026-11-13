@@ -10,7 +10,7 @@ keywords:
   - "Tag"
 ---
 
-`izumi-reflect` was created as a replacement for `TypeTag` from `scala-reflect`, which does not exist in Scala 3. It covers the part of `TypeTag` that most programs use, identifying and comparing types at runtime, and leaves out the rest. This page shows what carries over, what does not, and where the two give different answers, so you can decide whether `izumi-reflect` fits your use case.
+`izumi-reflect` is a replacement for `TypeTag` from `scala-reflect`, which does not exist in Scala 3. It covers the part of `TypeTag` that most programs use, identifying and comparing types at runtime, and leaves out the rest. This page shows what carries over, what does not, and where the two give different answers, so you can decide whether `izumi-reflect` fits your use case.
 
 ## What izumi-reflect Covers
 
