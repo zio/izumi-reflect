@@ -14,31 +14,19 @@ In this guide, we write generic ZIO code that reads services from the environmen
 
 ## The Problem
 
-The environment of a ZIO effect, `R` in `ZIO[R, E, A]`, is a map from service types to service values. To find a service at runtime, ZIO needs a value that describes its type, and in ZIO 2 that value is an `izumi-reflect` tag. For concrete types, the compiler creates the tag automatically, so most ZIO code never mentions it. In generic code, it can't:
+The environment of a ZIO effect, `R` in `ZIO[R, E, A]`, is a map from service types to service values. To find a service at runtime, ZIO needs a value that describes its type, and in ZIO 2 that value is an `izumi-reflect` tag. For concrete types, the compiler creates the tag automatically, so most ZIO code never mentions it. In generic code, it can't, and an accessor for any service type does not compile:
 
-```scala
-// does not compile
+```scala mdoc:fail
+import zio._
+
 def serviceOf[A]: URIO[A, A] = ZIO.service[A]
-```
-
-The compiler reports that `A` has no tag:
-
-```text
-A is a type parameter without an implicit Tag!
-  could not find implicit value for izumi.reflect.Tag[A]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in A? e.g. def x[T: Tag, F[_]: TagK] = ...
 ```
 
 The fix is always to pass the tag in from the call site, where the type is known.
 
 ## Prerequisites
 
-ZIO 2 depends on `izumi-reflect`, so a ZIO project needs no extra dependency:
-
-```scala
-libraryDependencies += "dev.zio" %% "zio" % "<zio version>"
-```
-
-The `zio` package re-exports the types you need: `zio.Tag`, a subtype of `izumi.reflect.Tag`, and aliases for `izumi.reflect.TagK`, `TagKK` and the rest of the family, `LightTypeTag`, and `EnvironmentTag`, an alias of `izumi.reflect.Tag`. All examples use one import:
+ZIO 2 depends on `izumi-reflect`, so a project that already uses ZIO 2 needs no extra dependency. The `zio` package re-exports the types you need: `zio.Tag`, a subtype of `izumi.reflect.Tag`, and aliases for `izumi.reflect.TagK`, `TagKK` and the rest of the family, `LightTypeTag`, and `EnvironmentTag`, an alias of `izumi.reflect.Tag`. All examples use one import:
 
 ```scala mdoc:silent
 import zio._
@@ -191,6 +179,12 @@ Most problems with tags in ZIO code have one of three causes:
 - **A tag for the wrong type.** When `A` is inferred, the tag describes the inferred type, which may be more specific than you meant, such as `FixedClock` instead of `Clock2`. Write the type argument explicitly in generic calls like `ZLayer.succeed[Clock2](...)`.
 - **Abstract type members.** A service type that refers to an abstract type member, such as `x.Out`, needs a tag for that member in scope, like any other type parameter.
 
+To register a `FixedClock` under the type its users ask for, and read it back as that type:
+
+```scala mdoc
+run(ZIO.serviceWith[Clock2](_.now).provide(ZLayer.succeed[Clock2](FixedClock(1700000000L))))
+```
+
 To see why a lookup fails at runtime, print the tags involved with `Tag[A].tag` and compare them, or follow [Debug a Wrong Tag or Subtype Check](debug-a-wrong-tag.md).
 
 ## Running the Examples
@@ -199,7 +193,4 @@ All runnable code from this guide is in [`izumi-reflect/izumi-reflect-examples/s
 
 ## Going Further
 
-The ZIO environment is a type-indexed map like the one in [Build a Type-Safe Heterogeneous Map](heterogeneous-map.md). For more about the tags themselves:
-
-- [Tag and the TagK Family](../reference/tag.md) lists all tag types and their kinds.
-- [LightTypeTag](../reference/light-type-tag.md#subtyping) explains how subtype checks work and where they are less precise than the compiler.
+The ZIO environment is a type-indexed map like the one in [Build a Type-Safe Heterogeneous Map](heterogeneous-map.md). [Tag and the TagK Family](../reference/tag.md) lists all tag types and their kinds, and [LightTypeTag](../reference/light-type-tag.md#subtyping) explains how subtype checks work and where they are less precise than the compiler.
