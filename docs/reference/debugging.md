@@ -24,13 +24,13 @@ DebugProperties.`izumi.reflect.debug.macro.rtti`
 
 Most settings are Java system properties, read once when the library first needs them. One is a compiler option for Scala 2 macros. The table lists them all:
 
-| Setting                                      | Kind                         | Default | Scala versions | Effect                                                              |
-| -------------------------------------------- | ---------------------------- | ------- | -------------- | ------------------------------------------------------------------- |
-| `izumi.reflect.debug.macro.rtti`             | System property              | `false` | 2 and 3        | Logs subtype checks at runtime; on Scala 2, also logs tag creation during compilation |
-| `izumi.reflect.debug.macro.rtti.assertions`  | System property              | `false` | 2              | Enables extra consistency checks while tags are created              |
-| `izumi.reflect.rtti.optimized.equals`        | System property              | `true`  | 2 and 3        | Compares serialized tags by their strings first; set to `false` to always compare the full structure |
-| `izumi.reflect.rtti.cache.compile`           | Scala 2 macro setting        | `true`  | 2              | Caches tags computed during compilation                              |
-| `izumi.reflect.rtti.cache.runtime`           | System property              | `true`  | 2 (JVM)        | Caches tags built from `scala-reflect` types at runtime              |
+| Setting                                     | Kind                  | Default | Scala versions | Effect                                                                                               |
+| ------------------------------------------- | --------------------- | ------- | -------------- | ---------------------------------------------------------------------------------------------------- |
+| `izumi.reflect.debug.macro.rtti`            | System property       | `false` | 2 and 3        | Logs subtype checks at runtime; on Scala 2, also logs tag creation during compilation                |
+| `izumi.reflect.debug.macro.rtti.assertions` | System property       | `false` | 2              | Enables extra consistency checks while tags are created                                              |
+| `izumi.reflect.rtti.optimized.equals`       | System property       | `true`  | 2 and 3        | Compares serialized tags by their strings first; set to `false` to always compare the full structure |
+| `izumi.reflect.rtti.cache.compile`          | Scala 2 macro setting | `true`  | 2              | Caches tags computed during compilation                                                              |
+| `izumi.reflect.rtti.cache.runtime`          | System property       | `true`  | 2 (JVM)        | Caches tags built from `scala-reflect` types at runtime                                              |
 
 ## Debug Output
 
@@ -102,9 +102,7 @@ The system property `izumi.reflect.rtti.cache.runtime=false` turns off the cache
 
 All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
 
-### Inspecting a Tag
-
-Prints the name of the debug property and the inheritance data of a tag.
+Prints the name of the debug property and the inheritance data of a tag:
 
 ```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugging/InspectTagExample.scala:show-line-numbers
 ```
