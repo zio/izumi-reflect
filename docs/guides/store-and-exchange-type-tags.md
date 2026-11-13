@@ -25,7 +25,7 @@ classLabel(List("a", "b"))
 classLabel(Map("retries" -> 3))
 ```
 
-Both lists get the label of the private list cell class, `::`, and the type arguments `Int` and `String` are gone. A reader can't tell a `List[Int]` from a `List[String]`, so a wrong cast only fails later, far from the cause. A `LightTypeTag` describes the full type, and it can be written out and read back.
+Both lists get the label of the list cell class, `::`, and the type arguments `Int` and `String` are gone. A reader can't tell a `List[Int]` from a `List[String]`, so a wrong cast only fails later, far from the cause. A `LightTypeTag` describes the full type, and it can be written out and read back.
 
 ## Prerequisites
 
