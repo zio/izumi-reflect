@@ -8,7 +8,10 @@ lazy val docs = project
     projectName := "izumi-reflect",
     mainModuleName                             := "izumi-reflect",
     projectStage                               := ProjectStage.ProductionReady,
-    libraryDependencies += "dev.zio" %% "zio" % "2.1.27",
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio"            % V.zio,
+      "dev.zio" %% "zio-sbt-source" % V.zio_sbt_source
+    ),
   )
   .dependsOn(LocalProject("izumi-reflectJVM"))
   .enablePlugins(WebsitePlugin)

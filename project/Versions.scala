@@ -21,4 +21,6 @@ object V {
   val scalatest = "3.2.20"
   // used only by the documentation examples (izumi-reflect-examples) and the docs project
   val zio = "2.1.27"
+  // mdoc:embed support for the docs project (.mdl/resources/zio-docs.sbt); keep in line with PV.zio_sbt_website
+  val zio_sbt_source = "0.8.5"
 }
