@@ -11,10 +11,10 @@ import zio._
 import Runner.run
 
 /**
- * Use izumi-reflect Tags with the ZIO Environment — Accessing Any Service
- *
- * A generic service accessor with a Tag context bound, run with the helper from Prerequisites.
- */
+  * Use izumi-reflect Tags with the ZIO Environment — Accessing Any Service
+  *
+  * A generic service accessor with a Tag context bound, run with the helper from Prerequisites.
+  */
 object Step3AccessAnyServiceExample {
   def serviceOf[A: Tag]: URIO[A, A] = ZIO.service[A]
 

@@ -9,10 +9,10 @@ package izumi.reflect.examples.zioenvironment
 import zio._
 
 /**
- * Use izumi-reflect Tags with the ZIO Environment — Looking Up Services by Supertype
- *
- * Stores a FixedClock in a ZEnvironment and reads it back as its supertype Clock2.
- */
+  * Use izumi-reflect Tags with the ZIO Environment — Looking Up Services by Supertype
+  *
+  * Stores a FixedClock in a ZEnvironment and reads it back as its supertype Clock2.
+  */
 object Step6SupertypeLookupExample {
   trait Clock2 { def now: Long }
   final case class FixedClock(now: Long) extends Clock2

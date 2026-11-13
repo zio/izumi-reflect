@@ -11,10 +11,10 @@ import zio._
 import Runner.run
 
 /**
- * Use izumi-reflect Tags with the ZIO Environment — Writing Generic Layers
- *
- * Provides two caches that differ only in their type arguments and reads both.
- */
+  * Use izumi-reflect Tags with the ZIO Environment — Writing Generic Layers
+  *
+  * Provides two caches that differ only in their type arguments and reads both.
+  */
 object Step4GenericLayersExample {
   final case class Cache[K, V](entries: Map[K, V]) {
     def get(key: K): Option[V] = entries.get(key)
@@ -27,7 +27,7 @@ object Step4GenericLayersExample {
     val lookups: URIO[Cache[String, Int] with Cache[Int, String], (Option[Int], Option[String])] =
       for {
         byName <- ZIO.serviceWith[Cache[String, Int]](_.get("answer"))
-        byId   <- ZIO.serviceWith[Cache[Int, String]](_.get(42))
+        byId <- ZIO.serviceWith[Cache[Int, String]](_.get(42))
       } yield (byName, byId)
 
     println(s"lookups: ${run(lookups.provide(cacheLayer("answer" -> 42), cacheLayer(42 -> "answer")))}")

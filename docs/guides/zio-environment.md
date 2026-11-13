@@ -69,6 +69,14 @@ To provide a `Config` and read it through the generic accessor:
 run(serviceOf[Config].provide(ZLayer.succeed(Config("jdbc:h2:mem"))))
 ```
 
+<details>
+  <summary>Runnable version, with the `run` helper from Prerequisites: <code>Step3AccessAnyServiceExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/zioenvironment/Step3AccessAnyServiceExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Writing Generic Layers
 
 A layer that is generic in its type parameters needs a tag for every type parameter that appears in the service it provides. With them, ZIO keeps services that differ only in their type arguments apart, because their tags differ. For example, a generic in-memory cache:
@@ -99,6 +107,14 @@ run(lookups.provide(cacheLayer("answer" -> 42), cacheLayer(42 -> "answer")))
 ```
 
 A lookup keyed by the class alone could not keep the two `Cache` services apart, because both have the class `Cache`.
+
+<details>
+  <summary>Runnable version, with the layers, the effect and the `run` helper in one program: <code>Step4GenericLayersExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/zioenvironment/Step4GenericLayersExample.scala:show-line-numbers
+```
+
+</details>
 
 ## Writing Services Generic in an Effect Type
 
@@ -132,6 +148,14 @@ run(findWith[Option](1).provide(repositoryLayer(optionRepo)))
 
 Without the `TagK` context bound on `findWith`, compilation fails with a message asking for a `Tag`, `TagK` or `TagKK` for `F`.
 
+<details>
+  <summary>Runnable version, with the service, the repository and the `run` helper in one program: <code>Step5EffectTypeExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/zioenvironment/Step5EffectTypeExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Looking Up Services by Supertype
 
 ZIO does not need an exact match to find a service. It looks for a service whose type is the requested type or a subtype of it, using `LightTypeTag#<:<`, and caches the result per requested tag. So an effect can ask for an interface while the environment holds an implementation registered under its own type:
@@ -151,6 +175,14 @@ environment.get[Clock2].now
 
 When several services match the requested type, ZIO returns the one added most recently. To avoid surprises, register each service under the type its users ask for, as `ZLayer.succeed[Clock2](FixedClock(...))` does.
 
+<details>
+  <summary>Runnable version, with the service types and the lookup in one program: <code>Step6SupertypeLookupExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/zioenvironment/Step6SupertypeLookupExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Common Mistakes
 
 Most problems with tags in ZIO code have one of three causes:
@@ -160,6 +192,10 @@ Most problems with tags in ZIO code have one of three causes:
 - **Abstract type members.** A service type that refers to an abstract type member, such as `x.Out`, needs a tag for that member in scope, like any other type parameter.
 
 To see why a lookup fails at runtime, print the tags involved with `Tag[A].tag` and compare them, or follow [Debug a Wrong Tag or Subtype Check](debug-a-wrong-tag.md).
+
+## Running the Examples
+
+All runnable code from this guide is in [`izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/zioenvironment/`](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/zioenvironment). Run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.zioenvironment.<ObjectName>"`.
 
 ## Going Further
 

@@ -11,10 +11,10 @@ import zio._
 import Runner.run
 
 /**
- * Use izumi-reflect Tags with the ZIO Environment — Writing Services Generic in an Effect Type
- *
- * A tagless-final repository in the ZIO environment, read through a generic accessor with a TagK context bound.
- */
+  * Use izumi-reflect Tags with the ZIO Environment — Writing Services Generic in an Effect Type
+  *
+  * A tagless-final repository in the ZIO environment, read through a generic accessor with a TagK context bound.
+  */
 object Step5EffectTypeExample {
   trait Repository[F[_]] {
     def find(id: Int): F[String]
