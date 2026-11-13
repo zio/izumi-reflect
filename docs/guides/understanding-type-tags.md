@@ -57,7 +57,7 @@ The code above:
 - `numbers.getClass == words.getClass` compares the runtime classes of the two values, and it is `true`: at runtime, both are just lists.
 - `numbers.getClass.getName` shows the class name, the `::` cell of a list (encoded as `$colon$colon`), with no trace of `Int`.
 
-Notice that nothing in the runtime class says "of `Int`". That information existed while compiling, and it is gone now.
+Notice that nothing in the runtime class says "of `Int`". That information exists only while compiling, and it is gone at runtime.
 
 ## 2. Capturing a Type with Tag
 
@@ -76,7 +76,7 @@ The code above:
 
 - `import izumi.reflect.Tag` brings the `Tag` type class into scope.
 - `Tag[List[Int]]` and `Tag[List[String]]` create two tags at compile time.
-- `numbersType == wordsType` is `false`, because the tags remember the type arguments that the runtime classes forgot.
+- `numbersType == wordsType` is `false`, because the tags remember the type arguments that the runtime classes lack.
 
 The printed form of a tag shows the type with a marker in front of each type argument: `+` means the type parameter is covariant, as in `List[+A]`. You'll also meet `-` for contravariant and `=` for invariant parameters. Try `Tag[Map[String, Int]]` to see an invariant key: it prints as `Map[=String,+Int]`.
 
@@ -95,7 +95,7 @@ describe(List(Some("hello")))
 The code above:
 
 - `A: Tag` is a context bound: it asks every caller to provide a `Tag[A]`.
-- `Tag[A]` inside the method summons the tag the caller passed, and `Tag#tag` gives its `LightTypeTag`, the part that renders and compares types.
+- `Tag[A]` inside the method summons the tag the caller passes, and `Tag#tag` gives its `LightTypeTag`, the part that renders and compares types.
 - `describe(42)` and `describe(List(Some("hello")))` are ordinary calls: the compiler creates `Tag[Int]` and `Tag[List[Some[String]]]` at each call site and passes them in. Notice that the tag describes the type the compiler inferred, `Some[String]`, which is more specific than `Option[String]`.
 
 Notice that the caller never mentions tags. As long as the caller knows the concrete type, the tag comes for free.
@@ -134,7 +134,7 @@ The code above:
 
 - `import izumi.reflect.TagK` brings the type class for type constructors into scope.
 - `TagK[Option].tag` prints as `λ %0 → Option[+0]`. Read it as "a function that takes a type `%0` and returns `Option[+%0]`": a type that is still waiting for its argument.
-- `combine(Tag[Int].tag)` gives that function its argument and returns the tag of `Option[Int]`.
+- `LightTypeTag#combine` with `Tag[Int].tag` gives that function its argument and returns the tag of `Option[Int]`.
 
 With a `TagK` context bound, a generic method can build tags of types that apply `F`, the same way as in section 4:
 
@@ -147,7 +147,7 @@ boxOf[Vector, String]
 The code above:
 
 - `F[_]: TagK` asks the caller for the tag of the type constructor `F`, and `A: Tag` for the tag of `A`.
-- `Tag[F[A]]` is built at runtime by applying the `TagK` of `F` to the `Tag` of `A`, exactly the `combine` call we did by hand above.
+- `Tag[F[A]]` is built at runtime by applying the `TagK` of `F` to the `Tag` of `A`, exactly the `LightTypeTag#combine` call we did by hand above.
 
 For type constructors with more parameters, there are `TagKK` (for `F[_, _]`, like `Either`) and more siblings.
 
@@ -190,7 +190,7 @@ In this tutorial, you learned:
 - Why the JVM forgets type arguments: `List[Int]` and `List[String]` share one runtime class
 - How a `Tag` keeps the full type, type arguments included, as a value at runtime
 - How a context bound such as `A: Tag` carries tags into generic code, and how `izumi-reflect` builds tags of bigger types such as `Map[String, A]` from them
-- What a `TagK` is, how to read `λ %0 → Option[+0]`, and how `combine` applies a type constructor
+- What a `TagK` is, how to read `λ %0 → Option[+0]`, and how `LightTypeTag#combine` applies a type constructor
 - How to compare types with `=:=` and check subtyping with `<:<`, variance included
 
 You now have a solid foundation in type tags. The next step is to put them to work in a real program.
