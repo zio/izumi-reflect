@@ -2,11 +2,45 @@
 id: ltag
 title: "LTag and LTT"
 sidebar_label: "LTag and LTT"
+description: "Reference for LTag, LTT and weak tags, which build a LightTypeTag without resolving type parameters from scope."
+keywords:
+  - "Runtime Type Information"
+  - "Weak Type Tag"
+  - "LTT"
+  - "LTag"
 ---
 
 `LTag[T]` and `LTT[T]` create a [`LightTypeTag`](light-type-tag.md) for a type without going through a [`Tag`](tag.md). They live in the `izumi.reflect.macrortti` package. Unlike `Tag`, they never look for tags of type parameters in the implicit scope, so they are simpler and faster to compile, but they only describe types whose type parameters are all known at the call site.
 
 You rarely need them in application code; they are lower-level building blocks for libraries and tests, prefer `Tag` when you write generic code.
+
+```scala
+package izumi.reflect.macrortti
+
+final case class LTag[T](tag: LightTypeTag)
+
+object LTag {
+  def apply[T: LTag]: LTag[T]
+  final case class Weak[T](tag: LightTypeTag)
+}
+
+def LTT[T]: LightTypeTag
+```
+
+## Usage
+
+`LTT` and `LTag` give the `LightTypeTag` of a concrete type directly, and `LTag.Weak` keeps unresolved type parameters as placeholders:
+
+```scala mdoc:reset
+import izumi.reflect.macrortti._
+
+LTT[List[Int]]
+LTag[Either[String, Int]].tag
+
+def weakOptionTag[T]: LightTypeTag = LTag.Weak[Option[T]].tag
+
+weakOptionTag[Int]
+```
 
 ## LTT
 
