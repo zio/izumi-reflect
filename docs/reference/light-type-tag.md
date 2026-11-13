@@ -241,9 +241,11 @@ serialized.version
 LightTypeTag.parse(serialized) == Tag[List[Int]].tag
 ```
 
-The format version identifies the binary layout of the strings; the version that the library on the classpath writes is `LightTypeTag.currentBinaryFormatVersion`. `LightTypeTag.parse` reads tags written by older versions of `izumi-reflect`, but it throws a `LinkageError` for a tag written by a newer version than the one on the classpath. When different services exchange serialized tags, upgrade the readers first.
+The format version identifies the binary layout of the strings; the version that the library on the classpath writes is `LightTypeTag.currentBinaryFormatVersion`. `LightTypeTag.parse` reads tags written by older versions of `izumi-reflect`, but it throws a `LinkageError` for a tag written by a newer version than the one on the classpath. When different services exchange serialized tags, upgrade the readers first. `LightTypeTag.parse` also has an overload that takes the four fields of `LightTypeTag.Serialized` as separate arguments: `LightTypeTag.parse(hashCode, refString, basesString, version)`.
 
 `LightTypeTag` also implements `java.io.Serializable`, like `Tag`, so it works with Java serialization and frameworks built on it.
+
+The [Store and Exchange Type Tags](../guides/store-and-exchange-type-tags.md) guide shows how to write tags to a database or a message, read them back in another process and handle format versions.
 
 ## The Underlying Structure
 
@@ -253,9 +255,7 @@ The format version identifies the binary layout of the strings; the version that
 
 All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
 
-### Basic Usage
-
-The examples of the Usage section as one program: rendering, subtyping, type arguments and combining.
+The examples of the Usage section as one program, covering rendering, subtyping, type arguments and combining:
 
 ```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/lighttypetag/BasicUsage.scala:show-line-numbers
 ```
