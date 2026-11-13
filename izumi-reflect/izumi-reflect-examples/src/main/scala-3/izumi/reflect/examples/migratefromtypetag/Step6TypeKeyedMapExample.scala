@@ -9,10 +9,10 @@ import izumi.reflect.Tag
 import izumi.reflect.macrortti.LightTypeTag
 
 /**
- * Migrate from scala-reflect TypeTag — Converting Type-Keyed Maps
- *
- * A handler registry keyed by LightTypeTag, with lookups by supertype.
- */
+  * Migrate from scala-reflect TypeTag — Converting Type-Keyed Maps
+  *
+  * A handler registry keyed by LightTypeTag, with lookups by supertype.
+  */
 object Step6TypeKeyedMapExample {
   final case class Handlers(handlers: Map[LightTypeTag, Any => Unit]) {
     def register[A: Tag](handler: A => Unit): Handlers =

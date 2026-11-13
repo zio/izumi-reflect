@@ -144,6 +144,14 @@ handlers.handlersFor[List[Int]].foreach(_(List(1, 2, 3)))
 
 The [Build a Type-Safe Heterogeneous Map](heterogeneous-map.md) guide develops this pattern further.
 
+<details>
+  <summary>Runnable version, with the registry and the lookup in one program: <code>Step6TypeKeyedMapExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/migratefromtypetag/Step6TypeKeyedMapExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Migrating a Large Code Base Gradually
 
 In a large Scala 2 code base, you may not be able to replace every `TypeTag` at once. During the transition, a module that still has a `TypeTag` can produce a `LightTypeTag` from it at runtime with `LightTypeTagImpl.makeLightTypeTag`, so it can talk to modules that already use `izumi-reflect`. This works on Scala 2 on the JVM only, and needs `scala-reflect` on the classpath:
@@ -161,6 +169,10 @@ fromTypeTag[Map[String, List[Int]]] == Tag[Map[String, List[Int]]].tag // true
 ```
 
 The tag built at runtime is equal to the one the `Tag` macro creates at compile time, so both kinds of module agree on map keys and subtype checks. Building tags at runtime with `scala-reflect` is slower than summoning a `Tag`, so use this only at module boundaries, and remove it, together with the `scala-reflect` dependency, once the migration is complete.
+
+## Running the Examples
+
+All runnable code from this guide is in [`izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/migratefromtypetag/`](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/migratefromtypetag). Run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.migratefromtypetag.<ObjectName>"`.
 
 ## Going Further
 

@@ -8,10 +8,10 @@ package izumi.reflect.examples.migratefromtypetag
 import izumi.reflect.Tag
 
 /**
- * Migrate from scala-reflect TypeTag — Converting Generic Code
- *
- * Generic code that used TypeTag, rewritten with Tag context bounds.
- */
+  * Migrate from scala-reflect TypeTag — Converting Generic Code
+  *
+  * Generic code that used TypeTag, rewritten with Tag context bounds.
+  */
 object Step4GenericCodeExample {
   def describe[A: Tag](value: A): String =
     s"$value: ${Tag[A].tag}"

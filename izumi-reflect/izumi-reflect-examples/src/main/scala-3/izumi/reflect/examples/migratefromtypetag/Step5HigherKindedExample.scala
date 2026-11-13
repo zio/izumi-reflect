@@ -8,10 +8,10 @@ package izumi.reflect.examples.migratefromtypetag
 import izumi.reflect.{Tag, TagK}
 
 /**
- * Migrate from scala-reflect TypeTag — Converting Higher-Kinded Code
- *
- * Asks for TagK[F] instead of extracting a type constructor from a TypeTag at runtime.
- */
+  * Migrate from scala-reflect TypeTag — Converting Higher-Kinded Code
+  *
+  * Asks for TagK[F] instead of extracting a type constructor from a TypeTag at runtime.
+  */
 object Step5HigherKindedExample {
   trait Repository[F[_]]
 
