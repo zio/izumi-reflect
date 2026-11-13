@@ -50,7 +50,7 @@ trait AnyTag extends Serializable {
 ```scala mdoc
 Tag[Some[Int]] <:< Tag[Option[Any]]
 Tag[Option[Any]] <:< Tag[Some[Int]]
-Tag[Seq[Int]] =:= Tag[scala.collection.immutable.Seq[Int]]
+Tag[String] =:= Tag[java.lang.String]
 ```
 
 `Tag#equals` and `Tag#hashCode` follow `=:=`: two tags are equal when their `LightTypeTag`s are equal, and `AnyTag#closestClass` plays no part. This makes `Tag` safe to use as a key in hash-based collections.
