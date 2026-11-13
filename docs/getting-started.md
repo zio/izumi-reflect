@@ -102,6 +102,14 @@ containerOf[Vector, String]
 
 `TagK` has siblings for other kinds, such as `TagKK` for `F[_, _]` and `TagK3` for `F[_, _, _]`. The [Tag and the TagK Family](reference/tag.md) page lists them all.
 
+<details>
+  <summary>Runnable version, with the three generic methods of this section in one program: <code>Step4GenericCodeExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/gettingstarted/Step4GenericCodeExample.scala:show-line-numbers
+```
+
+</details>
+
 ## When a Tag Is Missing
 
 If a generic method asks for `Tag[A]` but has no tag for `A` in scope, compilation fails. The first line of the error names the part of the type that has no tag, and the message always contains this suggestion:
@@ -111,6 +119,10 @@ could not find implicit value for izumi.reflect.Tag[T]. Did you forget to put on
 ```
 
 To fix it, add a `Tag` context bound to the type parameter (`def f[T: Tag]`), or `TagK`, `TagKK` and so on for a type constructor parameter. On Scala 3 the message also includes the internal structure of the type and a macro stack trace; the first lines contain the useful part.
+
+## Running the Examples
+
+All runnable code from this page is in [`izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/gettingstarted/`](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/gettingstarted). Run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.gettingstarted.<ObjectName>"`.
 
 ## Next Steps
 
