@@ -46,7 +46,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
 
   def buildTypeRef(typeRepr: TypeRepr): AbstractReference = {
     log(s" -------- about to inspect ${typeRepr.show(using Printer.TypeReprStructure)} ($typeRepr) --------")
-    val res = inspectTypeRepr(typeRepr)
+    val res = CompileTimeCaches.refFor(typeRepr)(inspectTypeRepr(typeRepr))
     log(s" -------- done inspecting ${typeRepr.show(using Printer.TypeReprStructure)} ($typeRepr) --------")
     res
   }
