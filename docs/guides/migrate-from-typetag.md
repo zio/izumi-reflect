@@ -55,22 +55,22 @@ import izumi.reflect.macrortti.LightTypeTag
 
 Most `TypeTag` code uses a handful of operations, and each has a direct counterpart. In this table, `tpe` is a `scala-reflect` `Type` and `tag` is a `LightTypeTag`, obtained with `Tag[A].tag`:
 
-| `scala-reflect`                          | `izumi-reflect`                                 |
-| ---------------------------------------- | ----------------------------------------------- |
-| `A: TypeTag` context bound               | `A: Tag` context bound                          |
-| `A: WeakTypeTag` context bound           | `A: Tag` context bound                          |
-| `F[_]` with `TypeTag[F[Any]]` workarounds | `F[_]: TagK` context bound                      |
-| `typeTag[A]`                             | `Tag[A]`                                        |
-| `typeOf[A]`                              | `Tag[A].tag`                                    |
-| `tpe1 =:= tpe2`                          | `tag1 =:= tag2`, or `tag1 == tag2`              |
-| `tpe1 <:< tpe2`                          | `tag1 <:< tag2`                                 |
-| `tpe.typeArgs`                           | `tag.typeArgs`                                  |
-| `tpe.typeConstructor`                    | `TagK[F].tag` for the constructor `F`           |
-| `tpe.typeSymbol.name.toString`           | `tag.shortName`                                 |
-| `tpe.typeSymbol.fullName`                | `tag.longNameWithPrefix`                        |
-| `tpe.toString`                           | `tag.toString` (with variance markers)          |
-| `mirror.runtimeClass(tpe)`               | `Tag[A].closestClass`                           |
-| `tpe.decls`, `tpe.members`, annotations  | No counterpart                                  |
+| `scala-reflect`                           | `izumi-reflect`                        |
+| ----------------------------------------- | -------------------------------------- |
+| `A: TypeTag` context bound                | `A: Tag` context bound                 |
+| `A: WeakTypeTag` context bound            | `A: Tag` context bound                 |
+| `F[_]` with `TypeTag[F[Any]]` workarounds | `F[_]: TagK` context bound             |
+| `typeTag[A]`                              | `Tag[A]`                               |
+| `typeOf[A]`                               | `Tag[A].tag`                           |
+| `tpe1 =:= tpe2`                           | `tag1 =:= tag2`, or `tag1 == tag2`     |
+| `tpe1 <:< tpe2`                           | `tag1 <:< tag2`                        |
+| `tpe.typeArgs`                            | `tag.typeArgs`                         |
+| `tpe.typeConstructor`                     | `TagK[F].tag` for the constructor `F`  |
+| `tpe.typeSymbol.name.toString`            | `tag.shortName`                        |
+| `tpe.typeSymbol.fullName`                 | `tag.longNameWithPrefix`               |
+| `tpe.toString`                            | `tag.toString` (with variance markers) |
+| `mirror.runtimeClass(tpe)`                | `Tag[A].closestClass`                  |
+| `tpe.decls`, `tpe.members`, annotations   | No counterpart                         |
 
 The last row is the one real gap: `izumi-reflect` does not keep fields, methods or annotations. Code that inspects them needs another approach, such as a type class derived at compile time. See [Comparison with scala-reflect TypeTag](../reference/typetag-comparison.md) for the full comparison.
 
