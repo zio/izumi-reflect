@@ -33,7 +33,7 @@ val classMap = ClassMap(Map.empty)
 classMap.get[List[Int]]
 ```
 
-The lookup for `List[Int]` returns the list of strings: the second call to `ClassMap#put` replaced the first one, and the cast in `ClassMap#get` cannot detect it. The error only shows up later, as a `ClassCastException` far from its cause. A `Tag` from `izumi-reflect` knows the full type, including type arguments, so it makes a safe key.
+The lookup for `List[Int]` returns the list of strings: the second call to `ClassMap#put` replaces the first one, and the cast in `ClassMap#get` cannot detect it. The error only shows up later, as a `ClassCastException` far from its cause. A `Tag` from `izumi-reflect` knows the full type, including type arguments, so it makes a safe key.
 
 ## Prerequisites
 
