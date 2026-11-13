@@ -8,10 +8,10 @@ package izumi.reflect.examples.heterogeneousmap
 import scala.reflect.ClassTag
 
 /**
- * Build a Type-Safe Heterogeneous Map — The Problem
- *
- * A map keyed by runtime class: the second List replaces the first because both share the class List.
- */
+  * Build a Type-Safe Heterogeneous Map — The Problem
+  *
+  * A map keyed by runtime class: the second List replaces the first because both share the class List.
+  */
 object Step1ClassMapExample {
   final case class ClassMap(entries: Map[Class[_], Any]) {
     def put[A](value: A)(implicit ct: ClassTag[A]): ClassMap =

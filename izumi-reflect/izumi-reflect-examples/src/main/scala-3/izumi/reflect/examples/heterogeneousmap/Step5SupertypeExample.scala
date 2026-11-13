@@ -9,21 +9,23 @@ package izumi.reflect.examples.heterogeneousmap
 import izumi.reflect.Tag
 
 /**
- * Build a Type-Safe Heterogeneous Map — Looking Up by Supertype
- *
- * Finds all values whose type is a subtype of the requested type, starting from the settings stored in "Storing Values by Exact Type".
- */
+  * Build a Type-Safe Heterogeneous Map — Looking Up by Supertype
+  *
+  * Finds all values whose type is a subtype of the requested type, starting from the settings stored in "Storing Values by Exact Type".
+  */
 object Step5SupertypeExample {
   implicit final class TypedMapSubtypes(private val map: TypedMap) {
     def getAll[A: Tag]: List[A] =
-      map.entries.collect {
-        case (key, value) if key <:< Tag[A].tag => value.asInstanceOf[A]
-      }.toList
+      map
+        .entries.collect {
+          case (key, value) if key <:< Tag[A].tag => value.asInstanceOf[A]
+        }.toList
   }
 
   def main(args: Array[String]): Unit = {
     // Setup from "Storing Values by Exact Type": three settings stored by exact type
-    val settings = TypedMap.empty
+    val settings = TypedMap
+      .empty
       .put(List(1, 2, 3))
       .put(List("a", "b"))
       .put(Map("timeout" -> 30))

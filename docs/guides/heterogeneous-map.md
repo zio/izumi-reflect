@@ -124,6 +124,14 @@ putGreeting[Option](TypedMap.empty, Some("hello")).get[Option[String]]
 
 If a generic method forgets the context bound, for example `def broken[A](map: TypedMap, a: A) = map.put(a)`, compilation fails with a message that asks for a `Tag` for `A`. The map never stores a value under an incomplete key.
 
+<details>
+  <summary>Runnable version, with the `TypedMap` from "Storing Values by Exact Type": <code>Step4GenericCodeExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/heterogeneousmap/Step4GenericCodeExample.scala:show-line-numbers
+```
+
+</details>
+
 ## Looking Up by Supertype
 
 Exact lookups are not always enough. A plugin registry, for example, stores concrete implementations but is queried by interface. `LightTypeTag#<:<` checks subtyping at runtime, so we can find all values whose type is a subtype of the requested one:
@@ -149,6 +157,18 @@ The subtype check respects variance: `List[String]` is a subtype of `Seq[Any]` b
 :::note
 A subtype lookup tests every entry, so it is slower than an exact lookup. If you query the same supertype often, cache the result per tag, the way ZIO's environment does.
 :::
+
+<details>
+  <summary>Runnable version, with the settings stored in "Storing Values by Exact Type": <code>Step5SupertypeExample.scala</code></summary>
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/heterogeneousmap/Step5SupertypeExample.scala:show-line-numbers
+```
+
+</details>
+
+## Running the Examples
+
+All runnable code from this guide is in [`izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/heterogeneousmap/`](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/heterogeneousmap). Run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.heterogeneousmap.<ObjectName>"`.
 
 ## Going Further
 

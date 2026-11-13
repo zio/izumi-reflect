@@ -9,10 +9,10 @@ package izumi.reflect.examples.heterogeneousmap
 import izumi.reflect.{Tag, TagK}
 
 /**
- * Build a Type-Safe Heterogeneous Map — Using the Map in Generic Code
- *
- * Stores values through generic methods with Tag and TagK context bounds, using the TypedMap from the previous section.
- */
+  * Build a Type-Safe Heterogeneous Map — Using the Map in Generic Code
+  *
+  * Stores values through generic methods with Tag and TagK context bounds, using the TypedMap from the previous section.
+  */
 object Step4GenericCodeExample {
   def putAll[A: Tag](map: TypedMap, values: List[A]): TypedMap =
     map.put(values).put(values.headOption)

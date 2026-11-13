@@ -9,15 +9,16 @@ package izumi.reflect.examples.heterogeneousmap
 import izumi.reflect.Tag
 
 /**
- * Build a Type-Safe Heterogeneous Map — Storing Values by Exact Type
- *
- * Stores values of different types in a TypedMap and reads them back by exact type and by alias.
- */
+  * Build a Type-Safe Heterogeneous Map — Storing Values by Exact Type
+  *
+  * Stores values of different types in a TypedMap and reads them back by exact type and by alias.
+  */
 object Step3ExactTypeExample {
   type Ports = List[Int]
 
   def main(args: Array[String]): Unit = {
-    val settings = TypedMap.empty
+    val settings = TypedMap
+      .empty
       .put(List(1, 2, 3))
       .put(List("a", "b"))
       .put(Map("timeout" -> 30))
