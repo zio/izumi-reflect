@@ -130,7 +130,7 @@ In a real system, the payload is serialized too, for example as JSON. The stored
 
 ## Handling Format Versions
 
-The `version` field is the binary format version of the two strings. `LightTypeTag.parse` reads tags written by the same or an older version of `izumi-reflect`. A tag written by a newer version can't be read: `parse` throws a `java.lang.LinkageError` that asks for a newer `izumi-reflect` jar. The version the library on the classpath writes is `LightTypeTag.currentBinaryFormatVersion`.
+The `version` field is the binary format version of the two strings. `LightTypeTag.parse` reads tags written by the same or an older version of `izumi-reflect`. A tag written by a newer version can't be read: `LightTypeTag.parse` throws a `java.lang.LinkageError` that asks for a newer `izumi-reflect` jar. The version the library on the classpath writes is `LightTypeTag.currentBinaryFormatVersion`.
 
 `LinkageError` counts as a fatal error in Scala, so `scala.util.Try` does not catch it. Catch it explicitly where tags from other processes are read:
 
@@ -161,6 +161,6 @@ Tags from an older format are read without their stored hash code, so the first 
 
 The stored type works well as a key for a registry of decoders, or as the type label of events in an event store. For more details:
 
-- [LightTypeTag](../reference/light-type-tag.md#serialization) covers `serialize`, `parse` and the Java serialization support of tags.
+- [LightTypeTag](../reference/light-type-tag.md#serialization) covers `LightTypeTag#serialize`, `LightTypeTag.parse` and the Java serialization support of tags.
 - [Build a Type-Safe Heterogeneous Map](heterogeneous-map.md) shows exact and supertype lookups by tag.
 - [Debug a Wrong Tag or Subtype Check](debug-a-wrong-tag.md) helps when a stored type unexpectedly does not match.
