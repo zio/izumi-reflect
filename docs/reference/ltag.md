@@ -12,7 +12,7 @@ keywords:
 
 `LTag[T]` and `LTT[T]` create a [`LightTypeTag`](light-type-tag.md) for a type without going through a [`Tag`](tag.md). They live in the `izumi.reflect.macrortti` package. Unlike `Tag`, they never look for tags of type parameters in the implicit scope, so they are simpler and faster to compile, but they only describe types whose type parameters are all known at the call site.
 
-You rarely need them in application code; they are lower-level building blocks for libraries and tests, prefer `Tag` when you write generic code.
+You rarely need them in application code; they are lower-level building blocks for libraries and tests, prefer `Tag` when you write generic code. The declarations below show their shape:
 
 ```scala
 package izumi.reflect.macrortti
@@ -104,24 +104,24 @@ weakListTag[Int]
 
 The result contains a placeholder for `T`, not `Int`: the macro ignores the type argument at the call site. A weak tag is only equal to another weak tag created from the same type parameter, so it is not suitable for comparing types across call sites. Dependency injection frameworks use weak tags to describe generic method signatures; application code should use `Tag`.
 
+`LTag.StrongHK[T]` and `LTag.WeakHK[T]` are the higher-kinded variants behind the `LTagK` family and `LTag.Weak`: the first creates tags for type constructors, the second keeps unresolved type parameters as placeholders. On Scala 3 they are aliases of `LTag` and `LTag.Weak`.
+
 ## When to Use Which
 
 The tag creators differ in how they treat type parameters:
 
-| Creator       | Result         | Abstract type parameters                        | Typical use                         |
-| ------------- | -------------- | ----------------------------------------------- | ----------------------------------- |
-| `Tag[T]`      | `Tag[T]`       | Resolved from `Tag`s in scope                   | Generic application and library code |
-| `LTag[T]`     | `LTag[T]`      | Compile error                                   | Implicit tags for concrete types    |
-| `LTT[T]`      | `LightTypeTag` | Kept as named placeholders, without an error    | Tests and one-off concrete tags     |
-| `LTag.Weak[T]`| `LTag.Weak[T]` | Kept as named placeholders                      | Describing generic signatures       |
+| Creator        | Result         | Abstract type parameters                     | Typical use                          |
+| -------------- | -------------- | -------------------------------------------- | ------------------------------------ |
+| `Tag[T]`       | `Tag[T]`       | Resolved from `Tag`s in scope                | Generic application and library code |
+| `LTag[T]`      | `LTag[T]`      | Compile error                                | Implicit tags for concrete types     |
+| `LTT[T]`       | `LightTypeTag` | Kept as named placeholders, without an error | Tests and one-off concrete tags      |
+| `LTag.Weak[T]` | `LTag.Weak[T]` | Kept as named placeholders                   | Describing generic signatures        |
 
 ## Running the Examples
 
 All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
 
-### Basic Usage
-
-The examples of the Usage section as one program: `LTT`, `LTag` and a weak tag.
+The examples of the Usage section as one program, covering `LTT`, `LTag` and a weak tag:
 
 ```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/ltag/BasicUsage.scala:show-line-numbers
 ```
