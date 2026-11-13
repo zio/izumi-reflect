@@ -99,13 +99,13 @@ containerOf[Vector, String]
 
 ## When a Tag Is Missing
 
-If a generic method asks for `Tag[A]` but has no tag for `A` in scope, compilation fails. `izumi-reflect` reports which part of the type has no tag and suggests a fix:
+If a generic method asks for `Tag[A]` but has no tag for `A` in scope, compilation fails. The first line of the error names the part of the type that has no tag, and the message always contains this suggestion:
 
 ```text
 could not find implicit value for izumi.reflect.Tag[T]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in T? e.g. def x[T: Tag, F[_]: TagK] = ...
 ```
 
-To fix it, add a `Tag` context bound to the type parameter (`def f[T: Tag]`), or `TagK`, `TagKK` and so on for a type constructor parameter. On Scala 3 the message also includes the internal structure of the type and a macro stack trace; the first two lines contain the useful part.
+To fix it, add a `Tag` context bound to the type parameter (`def f[T: Tag]`), or `TagK`, `TagKK` and so on for a type constructor parameter. On Scala 3 the message also includes the internal structure of the type and a macro stack trace; the first lines contain the useful part.
 
 ## Next Steps
 
