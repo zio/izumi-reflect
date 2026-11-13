@@ -89,7 +89,7 @@ On Scala 2, the system property `izumi.reflect.debug.macro.rtti` prints what the
 
 ## Interoperating with scala-reflect
 
-On Scala 2 and the JVM only, `izumi-reflect` can build a `LightTypeTag` from a `scala-reflect` type at runtime with `izumi.reflect.macrortti.LightTypeTagImpl.makeLightTypeTag`. This helps when migrating code that has a `TypeTag` but no `Tag`. It needs `scala-reflect` on the classpath, which `izumi-reflect` itself only declares as a `Provided` dependency. Scala 3 has no `scala-reflect` and no such method. The [migration guide](../guides/migrate-from-typetag.md) shows how to use it.
+On Scala 2, `izumi-reflect` can build a `LightTypeTag` from a `scala-reflect` type at runtime with `izumi.reflect.macrortti.LightTypeTagImpl.makeLightTypeTag`. This helps when migrating code that has a `TypeTag` but no `Tag`. It needs the runtime universe of `scala-reflect`, which exists only on the JVM, and `scala-reflect` on the classpath, which `izumi-reflect` itself only declares as a `Provided` dependency. Scala 3 has no `scala-reflect` and no such method. The [migration guide](../guides/migrate-from-typetag.md) shows how to use it.
 
 ## Known Version-Specific Gaps
 
@@ -98,6 +98,6 @@ The library's test suite tracks a few cases where one version gives a less preci
 - On Scala 3, `AnyTag#closestClass` is not correct for a value class whose field is a vararg parameter, such as `case class Args(args: String*) extends AnyVal` ([#224](https://github.com/zio/izumi-reflect/issues/224)).
 - On Scala 3, the compiler simplifies an intersection whose member is a supertype of another member, so `Tag[Child with Parent]` equals `Tag[Child]`. The same type built in generic code, as `Tag[T with Parent]` with `T = Child`, keeps both members, so the two tags are not equal, although each is a subtype of the other. Call `LightTypeTag#removeIntersectionTautologies` on both before comparing them.
 - On Scala 2, tags for types with a singleton-type prefix, such as projections from `x.type`, are not always correct.
-- On Scala 2, `Tag[T with that.T]` for two path-dependent abstract types, each with its own tag in scope, does not compile.
+- On Scala 2, an intersection of two path-dependent abstract types, each with its own tag, is not supported: `Tag[this.T with that.T]` does not compile, and `Tag[T with that.T]` compiles but gives a tag that is not equal to the tag of the concrete intersection.
 
 The [Limitations](../index.md#limitations) section of the introduction lists the limits that apply to all versions.
