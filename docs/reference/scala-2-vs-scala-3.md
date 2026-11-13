@@ -1,6 +1,12 @@
 ---
 id: scala-2-vs-scala-3
 title: "Scala 2 vs Scala 3"
+description: "How izumi-reflect differs between Scala 2 and Scala 3: higher-kinded tags, Tag.auto, union types and macro settings."
+keywords:
+  - "Cross-Building"
+  - "Scala 3"
+  - "Higher-Kinded Types"
+  - "Tag"
 ---
 
 import Tabs from '@theme/Tabs';

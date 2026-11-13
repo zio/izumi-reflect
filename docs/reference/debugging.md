@@ -2,6 +2,12 @@
 id: debugging
 title: "Debugging and DebugProperties"
 sidebar_label: "Debugging"
+description: "The DebugProperties settings of izumi-reflect: debug logs for subtype checks and tag creation, assertions and caches."
+keywords:
+  - "Debugging"
+  - "System Properties"
+  - "Macro Settings"
+  - "DebugProperties"
 ---
 
 `izumi-reflect` can explain what it does: it can print how each tag is built during compilation, how each subtype check is decided at runtime, and the inheritance data stored inside a tag. This page describes the switches that control this output and the other settings in `izumi.reflect.DebugProperties`. For a step-by-step procedure, see [Debug a Wrong Tag or Subtype Check](../guides/debug-a-wrong-tag.md).

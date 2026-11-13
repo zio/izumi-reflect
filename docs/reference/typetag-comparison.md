@@ -2,6 +2,12 @@
 id: typetag-comparison
 title: "Comparison with scala-reflect TypeTag"
 sidebar_label: "Comparison with TypeTag"
+description: "What izumi-reflect covers compared with scala-reflect TypeTag, where the answers differ, and how both perform."
+keywords:
+  - "Runtime Reflection"
+  - "scala-reflect"
+  - "TypeTag"
+  - "Tag"
 ---
 
 `izumi-reflect` was created as a replacement for `TypeTag` from `scala-reflect`, which does not exist in Scala 3. It covers the part of `TypeTag` that most programs use, identifying and comparing types at runtime, and leaves out the rest. This page shows what carries over, what does not, and where the two give different answers, so you can decide whether `izumi-reflect` fits your use case.

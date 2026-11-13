@@ -2,6 +2,11 @@
 id: getting-started
 title: "Getting Started with izumi-reflect"
 sidebar_label: "Getting Started"
+description: "Install izumi-reflect, create your first type tags, and carry them through generic code on Scala 2 and 3."
+keywords:
+  - "Runtime Type Information"
+  - "Getting Started"
+  - "Tag"
 ---
 
 `izumi-reflect` gives you a runtime value that describes a Scala type, so you can compare types, check subtyping, and use types as keys while your program runs. It works the same way on Scala 2.12, 2.13 and 3, on the JVM, Scala.js and Scala Native. This page installs the library, creates the first type tags, and shows how to carry them through generic code.
