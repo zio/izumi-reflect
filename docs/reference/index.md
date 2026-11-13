@@ -37,7 +37,7 @@ A tag goes through two phases: the macro builds it while your code compiles, and
 1. You ask for a tag, either directly with `Tag[List[Int]]` or with a context bound such as `def f[A: Tag]`.
 2. For a type without abstract type parameters, the macro computes the whole `LightTypeTag` at compile time: the structure of the type and the parents of every type in it. It stores the result in your code as a few serialized strings, which `LightTypeTag.parse` reads lazily the first time the tag is used.
 3. For a type that mentions type parameters, such as `Map[String, A]` or `F[A]`, the macro finds the tags of those parameters in the implicit scope and writes code that combines them at runtime: `Tag.appliedTag` applies a type constructor with `LightTypeTag#combine`, and siblings such as `Tag.refinedTag` build intersections and refinements.
-4. At runtime, `Tag#tag` gives the `LightTypeTag`. Its `equals` and `hashCode` make it a map key, `<:<` checks subtyping against the parents stored in step 2, and `serialize` turns it into strings again for storage.
+4. At runtime, `Tag#tag` gives the `LightTypeTag`. Its `LightTypeTag#equals` and `LightTypeTag#hashCode` make it a map key, `LightTypeTag#<:<` checks subtyping against the parents stored in step 2, and `LightTypeTag#serialize` turns it into strings again for storage.
 
 The relationships between the types:
 

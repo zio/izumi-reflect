@@ -74,7 +74,7 @@ import izumi.reflect.Tag
 println(Tag[Some[Int]].tag.debug("someInt"))
 ```
 
-The `bases` section maps each type, and each type constructor written as a type lambda, to its known parents. The `inheritance` section maps class names to parent class names, without type arguments. If a parent you expect is missing from both, `<:<` can't see the relationship. The output of `LightTypeTag#debug` is also the most useful thing to attach to a bug report.
+The `bases` section maps each type, and each type constructor written as a type lambda, to its known parents. The `inheritance` section maps class names to parent class names, without type arguments. If a parent you expect is missing from both, `LightTypeTag#<:<` can't see the relationship. The output of `LightTypeTag#debug` is also the most useful thing to attach to a bug report.
 
 ## Other Settings
 

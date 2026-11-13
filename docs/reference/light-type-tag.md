@@ -105,7 +105,7 @@ TagK[List].tag <:< TagK[Seq].tag
 TagK[Seq].tag <:< TagK[List].tag
 ```
 
-The model of the type system behind `<:<` is simplified on purpose, so a few checks give different answers from the Scala compiler. For example, `Null` is treated as a bottom type like `Nothing`, and `Any`, `AnyRef` and `Matchable` are all treated as top types:
+The model of the type system behind `LightTypeTag#<:<` is simplified on purpose, so a few checks give different answers from the Scala compiler. For example, `Null` is treated as a bottom type like `Nothing`, and `Any`, `AnyRef` and `Matchable` are all treated as top types:
 
 ```scala mdoc
 Tag[Int].tag <:< Tag[AnyRef].tag
