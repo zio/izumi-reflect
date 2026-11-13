@@ -8,10 +8,10 @@ package izumi.reflect.examples.ltag
 import izumi.reflect.macrortti._
 
 /**
- * LTag and LTT — Usage
- *
- * Builds LightTypeTags of concrete types with LTT and LTag, and a weak tag that keeps a type parameter as a placeholder.
- */
+  * LTag and LTT — Usage
+  *
+  * Builds LightTypeTags of concrete types with LTT and LTag, and a weak tag that keeps a type parameter as a placeholder.
+  */
 object BasicUsage {
   def weakOptionTag[T]: LightTypeTag = LTag.Weak[Option[T]].tag
 

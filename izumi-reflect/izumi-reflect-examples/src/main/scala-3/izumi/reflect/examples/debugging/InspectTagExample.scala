@@ -8,10 +8,10 @@ package izumi.reflect.examples.debugging
 import izumi.reflect.{DebugProperties, Tag}
 
 /**
- * Debugging and DebugProperties — Inspecting a Tag
- *
- * Prints the name of the debug property and the inheritance data of a tag.
- */
+  * Debugging and DebugProperties — Inspecting a Tag
+  *
+  * Prints the name of the debug property and the inheritance data of a tag.
+  */
 object InspectTagExample {
   def main(args: Array[String]): Unit = {
     println(s"debug property: ${DebugProperties.`izumi.reflect.debug.macro.rtti`}")

@@ -255,3 +255,16 @@ Tag.unionTag[Int | String](classOf[Any], List(Tag[Int].tag, Tag[String].tag))
 ## WeakTag
 
 `WeakTag[T]` is a low-level tag used by dependency injection frameworks to describe signatures of generic methods. When a `Tag[T]` is available, `WeakTag[T]` uses it. Application code should use `Tag`, which never contains unresolved type parameters. For tags that may contain unresolved type parameters, see `LTag.Weak` in [LTag and LTT](ltag.md).
+
+## Running the Examples
+
+All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
+
+### Basic Usage
+
+The examples of the Usage section as one program: tags from context bounds, tags built from them, and comparisons.
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/tag/BasicUsage.scala:show-line-numbers
+```
+
+([source](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/tag/BasicUsage.scala)) Run it with `scala-cli run BasicUsage.scala` from that folder, or with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.tag.BasicUsage"` from the repository root.

@@ -97,3 +97,16 @@ scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile=false"
 ```
 
 The system property `izumi.reflect.rtti.cache.runtime=false` turns off the cache used by `LightTypeTagImpl.makeLightTypeTag`, which builds tags from `scala-reflect` types at runtime on Scala 2. See [Scala 2 vs Scala 3](scala-2-vs-scala-3.md#interoperating-with-scala-reflect).
+
+## Running the Examples
+
+All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
+
+### Inspecting a Tag
+
+Prints the name of the debug property and the inheritance data of a tag.
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugging/InspectTagExample.scala:show-line-numbers
+```
+
+([source](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/debugging/InspectTagExample.scala)) Run it with `scala-cli run InspectTagExample.scala` from that folder, or with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.debugging.InspectTagExample"` from the repository root.

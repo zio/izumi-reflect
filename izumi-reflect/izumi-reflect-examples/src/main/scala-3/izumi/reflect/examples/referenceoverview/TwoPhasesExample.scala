@@ -8,10 +8,10 @@ package izumi.reflect.examples.referenceoverview
 import izumi.reflect.{Tag, TagK}
 
 /**
- * Reference Overview — How They Work Together
- *
- * A tag built at runtime from TagK[F] and Tag[A] equals the tag the compiler creates for the concrete type.
- */
+  * Reference Overview — How They Work Together
+  *
+  * A tag built at runtime from TagK[F] and Tag[A] equals the tag the compiler creates for the concrete type.
+  */
 object TwoPhasesExample {
   def built[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]
 

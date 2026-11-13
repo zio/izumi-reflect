@@ -114,3 +114,16 @@ The tag creators differ in how they treat type parameters:
 | `LTag[T]`     | `LTag[T]`      | Compile error                                   | Implicit tags for concrete types    |
 | `LTT[T]`      | `LightTypeTag` | Kept as named placeholders, without an error    | Tests and one-off concrete tags     |
 | `LTag.Weak[T]`| `LTag.Weak[T]` | Kept as named placeholders                      | Describing generic signatures       |
+
+## Running the Examples
+
+All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
+
+### Basic Usage
+
+The examples of the Usage section as one program: `LTT`, `LTag` and a weak tag.
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/ltag/BasicUsage.scala:show-line-numbers
+```
+
+([source](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/ltag/BasicUsage.scala)) Run it with `scala-cli run BasicUsage.scala` from that folder, or with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.ltag.BasicUsage"` from the repository root.

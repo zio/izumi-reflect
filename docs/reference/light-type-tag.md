@@ -248,3 +248,16 @@ The format version identifies the binary layout of the strings; the version that
 ## The Underlying Structure
 
 `LightTypeTag#ref` returns a `LightTypeTagRef`, the algebraic data type that holds the structure of the type: named references, applied types, type lambdas, intersections, unions, refinements and wildcards. You rarely need it; it is an advanced API for tools that walk the structure of types, prefer the methods above. Its shape can change between versions.
+
+## Running the Examples
+
+All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
+
+### Basic Usage
+
+The examples of the Usage section as one program: rendering, subtyping, type arguments and combining.
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/lighttypetag/BasicUsage.scala:show-line-numbers
+```
+
+([source](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/lighttypetag/BasicUsage.scala)) Run it with `scala-cli run BasicUsage.scala` from that folder, or with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.lighttypetag.BasicUsage"` from the repository root.

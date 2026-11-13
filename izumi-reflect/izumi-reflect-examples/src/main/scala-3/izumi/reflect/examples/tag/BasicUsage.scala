@@ -8,10 +8,10 @@ package izumi.reflect.examples.tag
 import izumi.reflect.{Tag, TagK}
 
 /**
- * Tag and the TagK Family — Usage
- *
- * Asks for tags with context bounds, builds bigger tags from them, and compares tags by type and by subtyping.
- */
+  * Tag and the TagK Family — Usage
+  *
+  * Asks for tags with context bounds, builds bigger tags from them, and compares tags by type and by subtyping.
+  */
 object BasicUsage {
   def keyOf[A: Tag]: String = Tag[A].tag.toString
   def containerOf[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]

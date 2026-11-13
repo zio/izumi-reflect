@@ -8,10 +8,10 @@ package izumi.reflect.examples.lighttypetag
 import izumi.reflect.{Tag, TagK}
 
 /**
- * LightTypeTag — Usage
- *
- * Renders a LightTypeTag, checks subtyping, reads its type arguments and rebuilds it with combine.
- */
+  * LightTypeTag — Usage
+  *
+  * Renders a LightTypeTag, checks subtyping, reads its type arguments and rebuilds it with combine.
+  */
 object BasicUsage {
   def main(args: Array[String]): Unit = {
     val listOfInt = Tag[List[Int]].tag

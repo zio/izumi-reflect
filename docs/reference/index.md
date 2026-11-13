@@ -92,3 +92,16 @@ Most programs use tags in one of three ways, each covered by a guide:
 ## Integration Points
 
 ZIO 2 is the most common user of `izumi-reflect`: `zio.Tag` extends `izumi.reflect.Tag`, the `zio` package re-exports `TagK` and its siblings, and `ZEnvironment` stores services under their `LightTypeTag`. Code written against `izumi-reflect` tags works with ZIO directly. The [ZIO environment guide](../guides/zio-environment.md) shows how.
+
+## Running the Examples
+
+All code from this page is available as runnable examples in the `izumi-reflect-examples` project.
+
+### Two Phases of a Tag
+
+A tag built at runtime from `TagK[F]` and `Tag[A]` equals the tag the compiler creates for the concrete type.
+
+```scala mdoc:embed:izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/referenceoverview/TwoPhasesExample.scala:show-line-numbers
+```
+
+([source](https://github.com/zio/izumi-reflect/tree/develop/izumi-reflect/izumi-reflect-examples/src/main/scala-3/izumi/reflect/examples/referenceoverview/TwoPhasesExample.scala)) Run it with `scala-cli run TwoPhasesExample.scala` from that folder, or with `sbt "izumi-reflect-examples/runMain izumi.reflect.examples.referenceoverview.TwoPhasesExample"` from the repository root.
