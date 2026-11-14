@@ -7,6 +7,7 @@ object Izumi {
   object V {
     val kind_projector = Version.VExpr("V.kind_projector")
     val scalatest = Version.VExpr("V.scalatest")
+    val zio = Version.VExpr("V.zio")
     val sbtgen = Version.VExpr("V.sbtgen")
   }
 
@@ -68,6 +69,9 @@ object Izumi {
   object Deps {
     final val scalatest = Library("org.scalatest", "scalatest", V.scalatest, LibraryType.Auto)
 
+    // used only by the documentation examples
+    final val zio = Library("dev.zio", "zio", V.zio, LibraryType.Auto)
+
     final val scala_reflect = Library("org.scala-lang", "scala-reflect", Version.VExpr("scalaVersion.value"), LibraryType.Invariant)
     final val scala3_compiler = Library("org.scala-lang", "scala3-compiler", Version.VExpr("scalaVersion.value"), LibraryType.AutoJvm)
 
@@ -128,6 +132,10 @@ object Izumi {
       )
     )
     final val crossNative = Seq(jvmPlatform, jsPlatform, nativePlatform)
+
+    // documentation examples: JVM only. Built for every Scala version so that `++ 2.x` runs resolve,
+    // but all sources live in src/main/scala-3, because the documentation pages are compiled with Scala 3
+    final val examplesPlatform = Seq(jvmPlatform)
   }
 
   object Projects {
@@ -316,6 +324,7 @@ object Izumi {
 
       final val izumi_reflect = ArtifactId("izumi-reflect")
       final val thirdpartyBoopickleShaded = ArtifactId("izumi-reflect-thirdparty-boopickle-shaded")
+      final val examples = ArtifactId("izumi-reflect-examples")
     }
 
   }
@@ -339,6 +348,20 @@ object Izumi {
         libs = Seq.empty,
         depends = Seq(
           Projects.izumi_reflect_aggregate.thirdpartyBoopickleShaded
+        )
+      ),
+      // runnable companion examples for the zio.dev documentation pages (docs/), never published
+      Artifact(
+        name = Projects.izumi_reflect_aggregate.examples,
+        libs = Seq(zio in Scope.Compile.all),
+        depends = Seq(
+          Projects.izumi_reflect_aggregate.izumi_reflect
+        ),
+        platforms = Targets.examplesPlatform,
+        settings = Seq(
+          "skip" in SettingScope.Raw("publish") := true,
+          "mimaPreviousArtifacts" := "Set.empty".raw,
+          "coverageEnabled" := false
         )
       )
     ),
