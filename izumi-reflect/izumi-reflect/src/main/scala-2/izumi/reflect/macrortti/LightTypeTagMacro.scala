@@ -33,7 +33,11 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
   import c.universe._
 
   protected final def cacheEnabled: Boolean = !c.settings.contains(s"${DebugProperties.`izumi.reflect.rtti.cache.compile`}=false")
+  protected final def serializedCacheEnabled: Boolean = {
+    cacheEnabled && !c.settings.contains(s"${DebugProperties.`izumi.reflect.rtti.cache.compile.serialized`}=false")
+  }
   protected final val impl = new LightTypeTagImpl[c.universe.type](c.universe, withCache = cacheEnabled, logger)
+  private[this] val serializedCache = new SoftValueCache[Type, LightTypeTag.Serialized]
 
   final def makeStrongHKTag[ArgStruct: c.WeakTypeTag]: c.Expr[LTag.StrongHK[ArgStruct]] = {
     val tpe = unpackArgStruct(weakTypeOf[ArgStruct])
@@ -68,14 +72,22 @@ private[reflect] class LightTypeTagMacro0[C <: blackbox.Context](val c: C)(logge
   }
 
   final def makeParsedLightTypeTagImpl(tpe: Type): c.Expr[LightTypeTag] = {
-    val res = impl.makeFullTagImpl(tpe)
-    makeParsedLightTypeTagImpl(res)
+    val serialized = {
+      if (serializedCacheEnabled) {
+        serializedCache.getOrElseUpdate(tpe, impl.makeFullTagImpl(tpe).serialize())
+      } else {
+        impl.makeFullTagImpl(tpe).serialize()
+      }
+    }
+    makeParsedLightTypeTagImpl(serialized)
   }
 
   final def makeParsedLightTypeTagImpl(ltt: LightTypeTag): c.Expr[LightTypeTag] = {
     logger.log(s"LightTypeTagImpl: created LightTypeTag: $ltt")
+    makeParsedLightTypeTagImpl(ltt.serialize())
+  }
 
-    val serialized = ltt.serialize()
+  private[this] def makeParsedLightTypeTagImpl(serialized: LightTypeTag.Serialized): c.Expr[LightTypeTag] = {
     val hashCodeRef = serialized.hash
     val strRef = serialized.ref
     val strDBs = serialized.databases

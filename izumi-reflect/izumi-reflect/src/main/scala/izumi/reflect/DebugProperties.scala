@@ -51,6 +51,32 @@ object DebugProperties {
   final val `izumi.reflect.rtti.cache.compile` = "izumi.reflect.rtti.cache.compile"
 
   /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.refs=false` to disable compile-time caching
+    * of individual [[izumi.reflect.macrortti.LightTypeTagRef.AbstractReference]]s while building LightTypeTags.
+    * This cache is a low-level value-level cache used by both Scala 2 and Scala 3 implementations.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.refs=false"
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.compile.refs` = "izumi.reflect.rtti.cache.compile.refs"
+
+  /**
+    * Add compiler option `-Xmacro-settings:izumi.reflect.rtti.cache.compile.serialized=false` to disable compile-time caching
+    * of the serialized form of computed LightTypeTags. Cache key is the inspected type, cache value is the serialized tag.
+    * This is the highest-level cache and usually the most beneficial one.
+    *
+    * {{{
+    *   scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile.serialized=false"
+    * }}}
+    *
+    * Default: `true`
+    */
+  final val `izumi.reflect.rtti.cache.compile.serialized` = "izumi.reflect.rtti.cache.compile.serialized"
+
+  /**
     * Set system property `-Dizumi.reflect.rtti.cache.runtime=false` to disable caching for runtime creation of LightTypeTags.
     * Caching is enabled by default for runtime light type tag creation.
     *
