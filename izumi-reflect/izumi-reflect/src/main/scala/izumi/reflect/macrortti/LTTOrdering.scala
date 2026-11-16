@@ -36,7 +36,7 @@ private[macrortti] trait LTTOrdering {
         // Mirror Lambda#equals
         val compare1 = Ordering.Int.compare(lx.input.size, ly.input.size)
         if (compare1 != 0) return compare1
-        OrderingAbstractReference.compare(lx.normalizedOutput, ly.normalizedOutput)
+        OrderingAbstractReference.compare(lx.output, ly.output)
 
       case (IntersectionReference(refsx), IntersectionReference(refsy)) =>
         OrderingArrayAbstractReference.compare(refSetToSortedArray(refsx), refSetToSortedArray(refsy))

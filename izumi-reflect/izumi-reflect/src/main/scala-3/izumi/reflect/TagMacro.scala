@@ -117,7 +117,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
               val ctorLambdaParameter = SymName.LambdaParamName(firstParamIdx, LightTypeTagRef.LambdaConstants.tagMacro, arity)
 
               val ctorApplyingLambda =
-                LightTypeTagRef.Lambda(
+                LightTypeTagRef.Lambda.make(
                   ctorLambdaParameter :: completeTail,
                   FullReference(ctorLambdaParameter, usages)
                 )
