@@ -2,6 +2,7 @@ package izumi.reflect.dottyreflection
 
 import izumi.reflect.macrortti.LightTypeTag
 import izumi.reflect.macrortti.LightTypeTag.ParsedLightTypeTag.SubtypeDBs
+import izumi.reflect.macrortti.ReflectionCache
 import izumi.reflect.thirdparty.internal.boopickle.PickleImpl
 
 import scala.quoted.{Expr, Quotes, Type}
@@ -17,12 +18,27 @@ object Inspect {
 
   def inspectTypeRepr(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Expr[LightTypeTag] = {
     val ltt = {
-      val ref = TypeInspections(typeRepr)
-      val fullDb = TypeInspections.fullDb(typeRepr)
-      val nameDb = TypeInspections.unappliedDb(typeRepr)
-      LightTypeTag(ref, fullDb, nameDb)
+      if (ReflectionCache.compileCacheEnabled) {
+        ReflectionCache.getFullTag(typeRepr) match {
+          case null =>
+            val computed = computeLightTypeTag(typeRepr)
+            ReflectionCache.putFullTag(typeRepr, computed)
+            computed
+          case cached =>
+            cached
+        }
+      } else {
+        computeLightTypeTag(typeRepr)
+      }
     }
     makeParsedLightTypeTagImpl(ltt)
+  }
+
+  private def computeLightTypeTag(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): LightTypeTag = {
+    val ref = TypeInspections(typeRepr)
+    val fullDb = TypeInspections.fullDb(typeRepr)
+    val nameDb = TypeInspections.unappliedDb(typeRepr)
+    LightTypeTag(ref, fullDb, nameDb)
   }
 
   def inspectStrong[T <: AnyKind: Type](using qctx: Quotes): Expr[LightTypeTag] = {
