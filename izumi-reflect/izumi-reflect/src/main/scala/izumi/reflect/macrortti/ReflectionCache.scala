@@ -19,7 +19,7 @@
 package izumi.reflect.macrortti
 
 import izumi.reflect.DebugProperties
-import izumi.reflect.macrortti.LightTypeTagRef.{AbstractReference, NameReference}
+import izumi.reflect.macrortti.LightTypeTagRef.AbstractReference
 
 import java.util.WeakHashMap
 
@@ -37,9 +37,8 @@ import java.util.WeakHashMap
   * This object splits the cache into independent, per-entity weak caches so that each kind of
   * reflection artifact can be cached (and, if needed, invalidated or tuned) separately:
   *
-  *   - [[referenceCache]]    : `Type`/`TypeRepr` -> `AbstractReference`
-  *   - [[nameReferenceCache]]: `Type`/`TypeRepr` -> `NameReference`
-  *   - [[fullTagCache]]      : `Type`/`TypeRepr` -> `LightTypeTag`
+  *   - [[referenceCache]]: `Type`/`TypeRepr` -> `AbstractReference`
+  *   - [[fullTagCache]]   : `Type`/`TypeRepr` -> `LightTypeTag`
   *
   * Keys are held weakly so that compiler / runtime classloaders and `Type`/`TypeRepr` instances can
   * still be garbage-collected; the caches never leak the universe or the quoted context.
@@ -84,7 +83,6 @@ object ReflectionCache {
   }
 
   private val referenceCache = new EntityCache[AbstractReference]
-  private val nameReferenceCache = new EntityCache[NameReference]
   private val fullTagCache = new EntityCache[LightTypeTag]
 
   /**
@@ -109,16 +107,6 @@ object ReflectionCache {
   /** Look up a cached type `Reference`, computing and caching it on a miss. */
   def getOrElseUpdateReference(key: Any)(compute: => AbstractReference): AbstractReference =
     referenceCache.getOrElseUpdate(key, compute)
-
-  /** Look up a cached `NameReference`, or `null` on a miss. */
-  def getNameReference(key: Any): NameReference = nameReferenceCache.get(key)
-
-  /** Cache a `NameReference`. */
-  def putNameReference(key: Any, value: NameReference): Unit = nameReferenceCache.put(key, value)
-
-  /** Look up a cached `NameReference`, computing and caching it on a miss. */
-  def getOrElseUpdateNameReference(key: Any)(compute: => NameReference): NameReference =
-    nameReferenceCache.getOrElseUpdate(key, compute)
 
   /** Look up a cached full `LightTypeTag`, or `null` on a miss. */
   def getFullTag(key: Any): LightTypeTag = fullTagCache.get(key)
