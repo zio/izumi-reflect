@@ -24,12 +24,18 @@ import izumi.reflect.macrortti.LightTypeTagInheritance.{tpeAny, tpeAnyRef, tpeNo
 import izumi.reflect.macrortti.LightTypeTagRef.SymName.SymLiteral
 import izumi.reflect.macrortti.LightTypeTagRef._
 
+/** Rules that render a `LightTypeTagRef` as a string, one `Renderable` per kind of node. The instances in the companion object differ in
+  * how they print names, prefixes and lambdas: `Short`, `Long`, `LongPrefixDot`, `ScalaStyledLambdas` and `ScalaStyledLambdasLong`.
+  */
 trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
+  /** Renders the symbol name `sym`; `hasPrefix` is `true` when the name is printed after a prefix. */
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
 
+  /** The text between a prefix and a name: `::` here, and `.` in `LongPrefixDot` and the `ScalaStyledLambdas` renderers. */
   def prefixSplitter: String = "::"
 
+  /** Renders any `LightTypeTagRef`. */
   implicit lazy val r_LightTypeTag: Renderable[LightTypeTagRef] = new Renderable[LightTypeTagRef] {
     override def render(value: LightTypeTagRef): String = value match {
       case a: AbstractReference =>
@@ -37,6 +43,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a lambda or an applied reference. */
   implicit lazy val r_AbstractReference: Renderable[AbstractReference] = new Renderable[AbstractReference] {
     override def render(value: AbstractReference): String = value match {
       case a: AppliedReference =>
@@ -46,6 +53,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a name, an intersection, a union, a refinement or a wildcard. */
   implicit lazy val r_AppliedReference: Renderable[AppliedReference] = new Renderable[AppliedReference] {
     override def render(value: AppliedReference): String = value match {
       case a: AppliedNamedReference =>
@@ -61,12 +69,14 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a refinement as `(base {decl, decl})`, such as `(CharSequence {def foo(Int, String): Long})`. */
   implicit lazy val r_Refinement: Renderable[Refinement] = new Renderable[Refinement] {
     override def render(value: Refinement): String = {
       s"(${value.reference.render()} ${value.decls.toSeq.sorted(OrderingRefinementDeclInstance).map(_.render()).mkString("{", ", ", "}")})"
     }
   }
 
+  /** Renders a wildcard as `?`, or as `?: <bottom..top>` when it has bounds. */
   implicit lazy val r_Wildcard: Renderable[WildcardReference] = new Renderable[WildcardReference] {
     override def render(value: WildcardReference): String = {
       value.boundaries match {
@@ -79,6 +89,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a refinement member as `def name(inputs): output` or as `type name = ref`. */
   implicit lazy val r_RefinementDecl: Renderable[RefinementDecl] = new Renderable[RefinementDecl] {
     override def render(value: RefinementDecl): String = value match {
       case RefinementDecl.Signature(name, input, output) =>
@@ -88,6 +99,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a [[LightTypeTagRef.NameReference]] or a [[LightTypeTagRef.FullReference]]. */
   implicit lazy val r_AppliedNamedReference: Renderable[AppliedNamedReference] = new Renderable[AppliedNamedReference] {
     override def render(value: AppliedNamedReference): String = value match {
       case n: NameReference =>
@@ -97,12 +109,14 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a lambda as `λ %0,%1 → body`. */
   implicit lazy val r_Lambda: Renderable[Lambda] = new Renderable[Lambda] {
     override def render(value: Lambda): String = {
       s"λ ${value.input.map(_.render()).map(p => s"%$p").mkString(",")} → ${value.output.render()}"
     }
   }
 
+  /** Renders a lambda parameter as its index, or as `depth:index` when its depth is positive. */
   implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
     override def render(value: SymName.LambdaParamName): String = {
       value.depth match {
@@ -116,6 +130,9 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a name with its prefix and the splitter in front (`Obj::C`), and with `|<bottom..top>` after the name when the bounds are
+    * defined (`HasT::T|<Int..AnyVal>`).
+    */
   implicit lazy val r_NameRefRenderer: Renderable[NameReference] = new Renderable[NameReference] {
     override def render(value: NameReference): String = {
       val r = r_SymName(value.ref, value.prefix.isDefined)
@@ -136,30 +153,35 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders a name followed by its arguments in brackets, such as `List[+Int]`. */
   implicit lazy val r_FullReference: Renderable[FullReference] = new Renderable[FullReference] {
     override def render(value: FullReference): String = {
       s"${value.asName.render()}${value.parameters.map(_.render()).mkString("[", ",", "]")}"
     }
   }
 
+  /** Renders an intersection as `{A & B}`, with the members in a fixed order. */
   implicit lazy val r_IntersectionReference: Renderable[IntersectionReference] = new Renderable[IntersectionReference] {
     override def render(value: IntersectionReference): String = {
       value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(r => (r: AppliedReference).render()).mkString("{", " & ", "}")
     }
   }
 
+  /** Renders a union as `{A | B}`, with the members in a fixed order. */
   implicit lazy val r_UnionReference: Renderable[UnionReference] = new Renderable[UnionReference] {
     override def render(value: UnionReference): String = {
       value.refs.toSeq.sorted(OrderingAbstractReferenceInstance).map(r => (r: AppliedReference).render()).mkString("{", " | ", "}")
     }
   }
 
+  /** Renders a type argument as its variance followed by the type, such as `+Int`. */
   implicit lazy val r_TypeParam: Renderable[TypeParam] = new Renderable[TypeParam] {
     override def render(value: TypeParam): String = {
       s"${value.variance.render()}${value.ref.render()}"
     }
   }
 
+  /** Renders a variance as `=` (invariant), `-` (contravariant) or `+` (covariant). */
   implicit lazy val r_Variance: Renderable[Variance] = new Renderable[Variance] {
     override def render(value: Variance): String = value match {
       case Variance.Invariant => "="
@@ -168,6 +190,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
     }
   }
 
+  /** Renders defined bounds as `<bottom..top>` and empty bounds as an empty string. */
   implicit lazy val r_Boundaries: Renderable[Boundaries] = new Renderable[Boundaries] {
     override def render(value: Boundaries): String = value match {
       case Boundaries.Defined(bottom, top) =>
@@ -187,9 +210,11 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
 
 }
 
+/** The renderers of `LightTypeTagRef`; see `LTTRenderables`. */
 object LTTRenderables {
 
   // omit package names
+  /** Omits package names. Prefixes stay, split by `::` (`Obj::C[=Int]`). `LightTypeTagRef#toString` uses it. */
   object Short extends LTTRenderables {
     override def r_SymName(sym: SymName, @unused hasPrefix: Boolean): String = {
       sym match {
@@ -203,6 +228,7 @@ object LTTRenderables {
     }
   }
 
+  /** Prints fully qualified names, with prefixes split by `::` (`Obj::C[=scala.Int]`). `LightTypeTagRef#repr` uses it. */
   object Long extends Long
 
   // print package names
@@ -227,6 +253,7 @@ object LTTRenderables {
   }
 
   // Same as `Long`, but split prefixes with . instead of ::
+  /** Same as `Long`, but splits prefixes with `.` (`Obj.C[=scala.Int]`). `LightTypeTagRef#longNameWithPrefix` uses it. */
   object LongPrefixDot extends LTTRenderables {
     override def r_SymName(sym: SymName, hasPrefix: Boolean): String = {
       Long.r_SymName(sym, hasPrefix)
@@ -235,6 +262,10 @@ object LTTRenderables {
     override def prefixSplitter: String = "."
   }
 
+  /** Like `Long`, in Scala notation: prefixes split by `.`, no sign for invariant parameters, bounds as `<: top` or `>: bottom`, and a lambda
+    * that only applies its parameters in order as the applied name with `_` (`scala.util.Either[+_,+_]`). Other lambdas are rendered like
+    * `ScalaStyledLambdasLong`. `LightTypeTagRef#scalaStyledRepr` uses it.
+    */
   object ScalaStyledLambdas extends ScalaStyledLambdasShared {
     override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
       override def render(value: SymName.LambdaParamName): String = "_"
@@ -273,6 +304,7 @@ object LTTRenderables {
     }
   }
 
+  /** Like `ScalaStyledLambdas`, but always writes a lambda as `[A,B] ➾ body`, naming the parameters with letters. */
   object ScalaStyledLambdasLong extends ScalaStyledLambdasShared {
     override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
       override def render(value: SymName.LambdaParamName): String = {

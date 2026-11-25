@@ -22,8 +22,13 @@ import izumi.reflect.internal.NowarnCompat
 import izumi.reflect.internal.fundamentals.platform.language.unused
 import izumi.reflect.macrortti.LightTypeTagRef._
 
+/** Operations on type lambdas: collecting the names a reference uses, and applying a lambda to arguments. */
 object RuntimeAPI {
 
+  /** Returns the names that `ref` uses: type constructors, type arguments, prefixes, the types in refinement members, and the bounds of
+    * names. A [[LightTypeTagRef.NameReference]] is returned without its prefix and bounds, a [[LightTypeTagRef.FullReference]] as
+    * `asName`, and a wildcard adds nothing: its bounds are not visited. Lambda parameters are included when `ref` uses them.
+    */
   def unpack(ref: AbstractReference): Set[NameReference] = {
     def unpackBoundaries(b: Boundaries): Set[NameReference] = {
       b match {
@@ -66,6 +71,9 @@ object RuntimeAPI {
     }
   }
 
+  /** Replaces the parameters in `parameters` inside `lambda.output`. When some parameters are left, the result is a lambda over them;
+    * otherwise it is the replaced output. An empty `parameters` returns a lambda equal to `lambda`.
+    */
   def applyLambda(lambda: Lambda, parameters: Seq[(SymName.LambdaParamName, AbstractReference)]): AbstractReference = {
 
     val paramMap = parameters.toMap
@@ -96,14 +104,17 @@ object RuntimeAPI {
     res
   }
 
+  /** Replaces lambda parameters by the references in `_rules`; the parameters of a nested lambda are not replaced inside that lambda. */
   final class Rewriter(_rules: Map[SymName.LambdaParamName, AbstractReference]) {
     private val rules: Map[SymName, AbstractReference] = _rules.toMap
 
+    /** Called for each replacement of a name; returns `ref` unchanged. */
     def complete(@unused context: AppliedNamedReference, ref: AbstractReference): AbstractReference = {
       ref
     }
 
     @NowarnCompat.nowarn("msg=deprecated")
+    /** Returns `reference` with the parameters replaced, including those in type arguments, bounds and refinement members. */
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>
@@ -116,10 +127,12 @@ object RuntimeAPI {
       }
     }
 
+    /** Returns `prefix` with the parameters replaced. */
     def replacePrefix(prefix: Option[AppliedReference]): Option[AppliedReference] = {
       prefix.map(p => ensureApplied(p, replaceApplied(p)))
     }
 
+    /** Returns `boundaries` with the parameters replaced in both bounds. */
     def replaceBoundaries(boundaries: Boundaries): Boundaries = {
       boundaries match {
         case Boundaries.Defined(bottom, top) =>
