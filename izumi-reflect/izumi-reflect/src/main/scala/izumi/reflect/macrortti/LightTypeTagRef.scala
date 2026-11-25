@@ -76,7 +76,7 @@ sealed trait LightTypeTagRef extends LTTSyntax with Serializable {
   /** Returns the fully qualified name of the type with its prefix, without type arguments, such as `scala.collection.immutable.List`. */
   final def longNameWithPrefix: String = this.longNameWithPrefixImpl
   /** Returns the fully qualified name of the type's symbol, without type arguments. For an object member `C` in `object Obj`, the result
-    * is `Obj.C` on Scala 2 and `Obj$.C` on Scala 3.
+    * is `Obj.C` on Scala 2 and `Obj\$.C` on Scala 3.
     */
   final def longNameInternalSymbol: String = this.longNameInternalSymbolImpl
   /** Deprecated; returns the same string as `longNameInternalSymbol`. */
