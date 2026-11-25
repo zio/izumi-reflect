@@ -184,7 +184,7 @@ object LightTypeTagRef extends LTTOrdering {
 
   /** Depth values of lambda parameters. */
   object LambdaConstants {
-    /** Depth value `-1`. */
+    /** Depth (`-1`) that the Scala 2 macros give to lambda parameters that have no enclosing lambda context, as in `LTagK[List]`. */
     final val defaultContextId = -1
     /** Depth of the placeholder parameters in `Lambda#normalizedParams`. */
     final val lambdaFakeParamDepth: Int = -2 // depth is always positive, unless fake
@@ -236,8 +236,9 @@ object LightTypeTagRef extends LTTOrdering {
     LightTypeTagInheritance.tpeObject
   )
 
-  /** Builds the intersection of `refs0`. Nested intersections are flattened and members that are `Any`, `Matchable`, `AnyRef` or
-    * `java.lang.Object` are dropped. A single remaining member is returned as it is, and `Any` is returned when no member remains.
+  /** Builds the intersection of `refs0`. Nested intersections are flattened. A single member is returned as it is, even when it is
+    * `Any`, `Matchable`, `AnyRef` or `java.lang.Object`. With more members, those four are dropped: a single remaining member is
+    * returned as it is, and `Any` is returned when no member remains.
     */
   def maybeIntersection(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
     val refs = refs0.flatMap(_.decompose).toSet // flatten nested intersections
@@ -370,7 +371,9 @@ object LightTypeTagRef extends LTTOrdering {
   object RefinementDecl {
     /** A method declaration `def name(input): output`. */
     final case class Signature(name: String, input: List[AppliedReference], output: AppliedReference) extends RefinementDecl
-    /** A type member declaration `type name = ref`. */
+    /** A type member declaration. For an alias `type T = Int`, `ref` is `Int`; for an abstract member such as `type T <: Int`, `ref` is a
+      * [[LightTypeTagRef.NameReference]] named after the member, with its bounds (`T|<Nothing..Int>`).
+      */
     final case class TypeMember(name: String, ref: AbstractReference) extends RefinementDecl
   }
 
