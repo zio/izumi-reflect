@@ -39,15 +39,36 @@ import scala.collection.immutable.HashSet
   * Internal API: binary compatibility not guaranteed.
   */
 final case class LightTypeTagUnpacker(tag: LightTypeTag) {
+  /** The subtype database: each type, and each type constructor as a type lambda, mapped to its known parents. */
   def bases: Map[AbstractReference, Set[AbstractReference]] = tag.basesdb
+  /** The class inheritance database: class names mapped to the names of their parents, without type arguments. */
   def inheritance: Map[NameReference, Set[NameReference]] = tag.idb
 }
 
+/**
+  * The runtime model of a Scala type: its type constructor, type arguments, variance, prefixes and refinements, plus
+  * enough of its inheritance to answer subtype checks. Every [[izumi.reflect.Tag]] holds one in its `tag` field. Two
+  * tags are equal when they describe the same type, and `hashCode` agrees with `equals`, so tags work as map keys.
+  *
+  * {{{
+  * import izumi.reflect.{Tag, TagK}
+  *
+  * val listOfInt: LightTypeTag = Tag[List[Int]].tag
+  *
+  * val rendered: String = listOfInt.toString // "List[+Int]"
+  * val isSeq: Boolean = listOfInt <:< Tag[Seq[Any]].tag // true
+  * val args: List[LightTypeTag] = listOfInt.typeArgs // List(Int)
+  * val applied: Boolean = TagK[List].tag.combine(Tag[Int].tag) == listOfInt // true
+  * }}}
+  *
+  * @see [[https://zio.dev/izumi-reflect/reference/light-type-tag/ LightTypeTag]]
+  */
 abstract class LightTypeTag private[reflect] (
   bases: () => Map[AbstractReference, Set[AbstractReference]],
   inheritanceDb: () => Map[NameReference, Set[NameReference]]
 ) extends Serializable {
 
+  /** The structure of the type as a [[LightTypeTagRef]] tree. Its shape can change between versions; prefer the methods of this class. */
   def ref: LightTypeTagRef
 
   // full subtyping db with lambdas, parameters and variance, e.g. List[+A] <: SeqOps[A, List, List[A]], λ %0 → List[+%0] <: λ %0,%1,%2 → SeqOps[+%0, +%1, +%2]
@@ -55,8 +76,14 @@ abstract class LightTypeTag private[reflect] (
   // class inheritance db without lambdas and without parameters, e.g. List <: SeqOps, Iterable
   private[reflect] lazy val idb: Map[NameReference, Set[NameReference]] = inheritanceDb()
 
+  /**
+    * The binary format version this tag was read from: `LightTypeTag.currentBinaryFormatVersion` for a tag built at
+    * compile time or parsed from the current format, the stored version for a tag parsed from an older format, and `-1`
+    * for a tag built at runtime, for example by [[combine]].
+    */
   def binaryFormatVersion: Int
 
+  /** Writes this tag in the current binary format; `LightTypeTag.parse` reads the result back. */
   def serialize(): LightTypeTag.Serialized = {
     val hashCodeRef = this.hashCode()
     val strRef = PickleImpl.serializeIntoString(this.ref, LightTypeTag.lttRefSerializer)
@@ -64,14 +91,21 @@ abstract class LightTypeTag private[reflect] (
     LightTypeTag.Serialized(hashCodeRef, strRef, strDBs, LightTypeTag.currentBinaryFormatVersion)
   }
 
+  /**
+    * Returns `true` when this type is a subtype of `maybeParent`, using the inheritance data captured at compile time
+    * and the variance of type parameters. The model is simplified: for example, `Null` counts as a subtype of `Int`, and
+    * `Int` as a subtype of `AnyRef`.
+    */
   @inline final def <:<(maybeParent: LightTypeTag): Boolean = {
     new LightTypeTagInheritance(this, maybeParent).isChild()
   }
 
+  /** Returns `true` when both tags describe the same type; the same as `==`. */
   @inline final def =:=(other: LightTypeTag): Boolean = {
     this == other
   }
 
+  /** Returns the members of an intersection type, with nested intersections flattened, or a set with this tag alone for any other type. */
   final def decompose: Set[LightTypeTag] = {
     ref match {
       case intersection: LightTypeTagRef.IntersectionReference =>
@@ -82,6 +116,7 @@ abstract class LightTypeTag private[reflect] (
     }
   }
 
+  /** Returns the members of a union type, with nested unions flattened, or a set with this tag alone for any other type. */
   final def decomposeUnion: Set[LightTypeTag] = {
     ref match {
       case union: LightTypeTagRef.UnionReference =>
@@ -93,13 +128,15 @@ abstract class LightTypeTag private[reflect] (
   }
 
   /**
-    * Parameterize this type tag with `args` if it describes an unapplied type lambda
-    *
-    * If there are less `args` given than this type takes parameters, it will remain a type
-    * lambda taking remaining arguments:
+    * Applies this type constructor to `args`, in order. With fewer arguments than parameters, the result is a type
+    * constructor of the remaining parameters. Throws a `java.lang.IllegalArgumentException` for a tag that is not a
+    * type lambda, such as `Tag[Int].tag`.
     *
     * {{{
-    *   F[_, _, _].combine(A, B) = F[A, B, _]
+    * import izumi.reflect.{Tag, TagK, TagKK}
+    *
+    * val optionOfInt: Boolean = TagK[Option].tag.combine(Tag[Int].tag) == Tag[Option[Int]].tag // true
+    * val eitherOfString: String = TagKK[Either].tag.combine(Tag[String].tag).toString // "λ %1 → Either[+String,+1]"
     * }}}
     */
   def combine(args: LightTypeTag*): LightTypeTag = {
@@ -123,12 +160,13 @@ abstract class LightTypeTag private[reflect] (
   }
 
   /**
-    * Parameterize this type tag with `args` if it describes an unapplied type lambda
-    *
-    * The resulting type lambda will take parameters in places where `args` was None:
+    * Applies this type constructor to the `Some` arguments at their positions and leaves the `None` positions open, so
+    * the result is a type constructor of those positions.
     *
     * {{{
-    *   F[_, _, _].combine(Some(A), None, Some(C)) = F[A, _, C]
+    * import izumi.reflect.{Tag, TagKK}
+    *
+    * val eitherOfInt: String = TagKK[Either].tag.combineNonPos(None, Some(Tag[Int].tag)).toString // "λ %0 → Either[+0,+Int]"
     * }}}
     */
   def combineNonPos(args: Option[LightTypeTag]*): LightTypeTag = {
@@ -152,13 +190,11 @@ abstract class LightTypeTag private[reflect] (
   }
 
   /**
-    * Strip all args from type tag of parameterized type and its supertypes
-    * Useful for very rough type-constructor / class-only comparisons.
+    * Removes the type arguments from this type and from its parents, for rough comparisons by class:
+    * `Tag[List[Int]].tag.withoutArgs == Tag[List[String]].tag.withoutArgs` is `true`.
     *
-    * NOTE: This DOES NOT RESTORE TYPE CONSTRUCTOR/LAMBDA and is
-    * NOT equivalent to .typeConstructor call in scala-reflect
-    *       - You won't be able to call [[combine]] on result type
-    * and partially applied types will not work correctly
+    * The result is not a type constructor, unlike `typeConstructor` in `scala-reflect`: it is not equal to
+    * `TagK[List].tag`, and [[combine]] on it throws a `java.lang.IllegalArgumentException`.
     */
   @NowarnCompat.nowarn("msg=deprecated")
   def withoutArgs: LightTypeTag = {
@@ -166,16 +202,17 @@ abstract class LightTypeTag private[reflect] (
   }
 
   /**
-    * Extract arguments applied to this type constructor
+    * Returns the tags of the type arguments of an applied type, such as `List(String, List[+Int])` for
+    * `Map[String, List[Int]]`. Returns an empty list for a type without arguments and for a type constructor.
     */
   def typeArgs: List[LightTypeTag] = {
     ref.typeArgs.map(LightTypeTag(_, basesdb, idb))
   }
 
   /**
-    * Remove types that are supertypes of other types in the intersection from it
-    *
-    * e.g. transform `Tag[TraitSuper & TraitChild & AnyRef]` to `Tag[TraitChild]`
+    * Removes the members of an intersection type that are supertypes of other members: for the tag of
+    * `TraitSuper with TraitChild with AnyRef`, where `TraitChild` extends `TraitSuper`, the result is the tag of
+    * `TraitChild`. Returns other tags unchanged.
     */
   def removeIntersectionTautologies: LightTypeTag = {
     ref match {
@@ -201,9 +238,9 @@ abstract class LightTypeTag private[reflect] (
   }
 
   /**
-    * Remove types that are subtypes of other types in the union from it
-    *
-    * e.g. transform `Tag[TraitSuper | TraitChild | Nothing]` to `Tag[TraitSuper]`
+    * Removes the members of a union type that are subtypes of other members: for the tag of
+    * `TraitSuper | TraitChild | Nothing`, where `TraitChild` extends `TraitSuper`, the result is the tag of `TraitSuper`.
+    * Returns other tags unchanged.
     */
   def removeUnionTautologies: LightTypeTag = {
     ref match {
@@ -273,21 +310,25 @@ abstract class LightTypeTag private[reflect] (
     ref.longNameInternalSymbol
   }
 
+  /** Renamed to [[scalaStyledRepr]]. */
   @deprecated("Renamed to scalaStyledRepr", "3.0.8")
   def scalaStyledName: String = {
     ref.scalaStyledName
   }
 
+  /** @deprecated Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior */
   @deprecated(
     "Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior",
     "2.2.2"
   )
-  /** @deprecated Produces Scala version dependent output, with incorrect prefixes for types with value prefixes. Use `longNameWithPrefix` instead, or `longNameInternalSymbol` for old behavior */
   def longName: String = {
     ref.longName
   }
 
-  /** Print internal structures state */
+  /**
+    * Returns a multi-line description of this tag and of the inheritance data it uses for subtype checks, headed by
+    * `name`. Attach it when you report a wrong subtype check.
+    */
   def debug(name: String = ""): String = {
     s"""⚙️ begin $name: ${this.repr}
        |⚡️bases:${LTTRenderables.Long.renderDb(basesdb)}
@@ -312,11 +353,18 @@ abstract class LightTypeTag private[reflect] (
   }
 }
 
+/** Constructors, parsing and serialization of [[LightTypeTag]]. */
 object LightTypeTag {
+  /** The binary format version that [[LightTypeTag#serialize]] writes; `parse` reads this version and older ones. */
   final val currentBinaryFormatVersion = 30
 
+  /**
+    * A serialized [[LightTypeTag]]: its hash code, two strings of binary data (the structure of the type and its
+    * subtype data) and the format version. Store the strings where arbitrary characters are preserved.
+    */
   case class Serialized(hash: Int, ref: String, databases: String, version: Int)
 
+  /** Creates a tag from its structure and its subtype databases. Low-level: prefer the tags that `Tag` and `LTT` build. */
   @inline def apply(ref0: LightTypeTagRef, bases: => Map[AbstractReference, Set[AbstractReference]], db: => Map[NameReference, Set[NameReference]]): LightTypeTag = {
     new UnparsedLightTypeTag(ref0, () => bases, () => db)
   }
@@ -355,6 +403,7 @@ object LightTypeTag {
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
 
+  /** Creates the tag of the union of the types in `union`, merging their subtype data. With one member, returns that member's type. */
   def unionType(union: List[LightTypeTag]): LightTypeTag = {
     val ref = LightTypeTagRef.maybeUnion(union.iterator.map(_.ref))
 
@@ -367,6 +416,7 @@ object LightTypeTag {
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
 
+  /** Creates the tag of a wildcard type with the lower bound `lowTag` and the upper bound `highTag`. */
   def wildcardType(lowTag: LightTypeTag, highTag: LightTypeTag): LightTypeTag = {
     val ref = LightTypeTagRef.WildcardReference(
       Boundaries.Defined(
@@ -384,10 +434,24 @@ object LightTypeTag {
     LightTypeTag(ref, mergedBasesDB, mergedInheritanceDb)
   }
 
+  /**
+    * Reads back a tag written by [[LightTypeTag#serialize]]. Reads the current format version and older ones; throws a
+    * `java.lang.LinkageError` for any other version, such as one written by a newer version of `izumi-reflect`.
+    *
+    * {{{
+    * import izumi.reflect.Tag
+    *
+    * val serialized: LightTypeTag.Serialized = Tag[List[Int]].tag.serialize()
+    * val same: Boolean = LightTypeTag.parse(serialized) == Tag[List[Int]].tag // true
+    * }}}
+    *
+    * @see [[https://zio.dev/izumi-reflect/reference/light-type-tag/ LightTypeTag]]
+    */
   def parse(serialized: Serialized): LightTypeTag = {
     parse[LightTypeTag](serialized.hash, serialized.ref, serialized.databases, serialized.version)
   }
 
+  /** The same as `parse(serialized)`, with the four fields of [[LightTypeTag.Serialized]] passed separately. */
   def parse[T](hashCode: Int, refString: String, basesString: String, version: Int): LightTypeTag = {
     lazy val shared = {
       subtypeDBsSerializer.unpickle(UnpickleState(ByteBuffer.wrap(basesString.getBytes(StandardCharsets.ISO_8859_1))))
@@ -467,7 +531,7 @@ object LightTypeTag {
 //    }
   }
 
-  /** `ParsedLightTypeTag` since 2.3.0 or current binary format version */
+  /** `ParsedLightTypeTag` of the current binary format version, with a stored hash code and the equality shortcut. */
   private[reflect] final class ParsedLightTypeTag230Plus private[reflect] (
     override val binaryFormatVersion: Int,
     override val hashCode: Int,
