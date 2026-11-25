@@ -211,11 +211,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       logger.log(s"tparamTypeBoundsAndTypeArgs of $tpeUnexpanded=$tparamTypeBoundsAndTypeArgs")
 
-      /**
-        * Don't do this:
-        *  Iterator.single(tpePolyTypeResultType) -- produces trash symbols out of skolems
-        *  tpePolyTypeResultType.typeArgs.iterator -- just redundant, included in `tparamTypeBoundsAndTypeArgs`
-        */
+      /*
+       * Don't do this:
+       *  Iterator.single(tpePolyTypeResultType) -- produces trash symbols out of skolems
+       *  tpePolyTypeResultType.typeArgs.iterator -- just redundant, included in `tparamTypeBoundsAndTypeArgs`
+       */
       Iterator.single(tpeUnexpanded) ++
       tpeUnexpanded.typeArgs.iterator ++
       tparamTypeBoundsAndTypeArgs.iterator

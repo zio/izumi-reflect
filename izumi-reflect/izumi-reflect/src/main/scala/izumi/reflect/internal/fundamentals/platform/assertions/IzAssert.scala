@@ -13,7 +13,7 @@ private[reflect] object IzAssert {
     }
   }
 
-  /** caching is enabled by default for runtime light type tag creation */
+  /** Assertions are disabled by default; the system property `izumi.reflect.debug.macro.rtti.assertions=true` enables them */
   private[this] val enabled: AtomicBoolean = {
     val prop = System.getProperty(DebugProperties.`izumi.reflect.debug.macro.rtti.assertions`).asBoolean().getOrElse(false)
     new AtomicBoolean(prop)
