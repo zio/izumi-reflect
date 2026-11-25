@@ -236,8 +236,8 @@ object LightTypeTagRef extends LTTOrdering {
     LightTypeTagInheritance.tpeObject
   )
 
-  /** Builds the intersection of `refs0`. Nested intersections are flattened. A single member is returned as it is, even when it is
-    * `Any`, `Matchable`, `AnyRef` or `java.lang.Object`. With more members, those four are dropped: a single remaining member is
+  /** Builds the intersection of `refs0`. Nested intersections are flattened. A single distinct member is returned as it is, even when it is
+    * `Any`, `Matchable`, `AnyRef` or `java.lang.Object`. Otherwise those four are dropped: a single remaining member is
     * returned as it is, and `Any` is returned when no member remains.
     */
   def maybeIntersection(refs0: Iterator[_ <: LightTypeTagRef]): AppliedReference = {
