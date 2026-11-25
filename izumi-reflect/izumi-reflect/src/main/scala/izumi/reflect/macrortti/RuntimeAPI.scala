@@ -113,8 +113,8 @@ object RuntimeAPI {
       ref
     }
 
-    @NowarnCompat.nowarn("msg=deprecated")
     /** Returns `reference` with the parameters replaced, including those in type arguments, bounds and refinement members. */
+    @NowarnCompat.nowarn("msg=deprecated")
     def replaceRefs(reference: AbstractReference): AbstractReference = {
       reference match {
         case l: Lambda =>

@@ -32,7 +32,7 @@ trait LTTRenderables extends Serializable with WithRenderableSyntax {
   /** Renders the symbol name `sym`; `hasPrefix` is `true` when the name is printed after a prefix. */
   def r_SymName(sym: SymName, hasPrefix: Boolean): String
 
-  /** The text between a prefix and a name: `::` here, and `.` in `LongPrefixDot` and the `ScalaStyledLambdas` renderers. */
+  /** The text between a prefix and a name: `::` by default, and `.` in `LongPrefixDot` and the `ScalaStyledLambdas` renderers. */
   def prefixSplitter: String = "::"
 
   /** Renders any `LightTypeTagRef`. */
@@ -262,8 +262,9 @@ object LTTRenderables {
     override def prefixSplitter: String = "."
   }
 
-  /** Like `Long`, in Scala notation: prefixes split by `.`, no sign for invariant parameters, bounds as `<: top` or `>: bottom`, and a lambda
-    * that only applies its parameters in order as the applied name with `_` (`scala.util.Either[+_,+_]`). Other lambdas are rendered like
+  /** Like `Long`, in Scala notation: prefixes split by `.`, no sign for invariant parameters, bounds as `<: top`, `>: bottom` or
+    * `>: bottom <: top`, and a lambda whose body is a named type taking the lambda's parameters in order, each once, as that named type
+    * with `_` in their place (`scala.util.Either[+_,+_]`, `scala.util.Either[+java.lang.String,+_]`). Other lambdas are rendered like
     * `ScalaStyledLambdasLong`. `LightTypeTagRef#scalaStyledRepr` uses it.
     */
   object ScalaStyledLambdas extends ScalaStyledLambdasShared {
@@ -304,7 +305,7 @@ object LTTRenderables {
     }
   }
 
-  /** Like `ScalaStyledLambdas`, but always writes a lambda as `[A,B] ➾ body`, naming the parameters with letters. */
+  /** Like `ScalaStyledLambdas`, but writes each lambda as `[A,B] ➾ body`, naming the parameters with letters. */
   object ScalaStyledLambdasLong extends ScalaStyledLambdasShared {
     override implicit lazy val r_LambdaParameterName: Renderable[SymName.LambdaParamName] = new Renderable[SymName.LambdaParamName] {
       override def render(value: SymName.LambdaParamName): String = {
