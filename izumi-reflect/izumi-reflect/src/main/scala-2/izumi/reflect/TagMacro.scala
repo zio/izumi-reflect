@@ -647,7 +647,7 @@ class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
   import c.universe._
   import c.universe.internal.decorators._
 
-  /** Returns the type `T[...] = HKTag[...]` for the kind of that type; aborts when the type is not found in the source. */
+  /** Returns a tree whose type is `{ type T[...] = HKTag[...] }` for the kind of that type; aborts when the type is not found in the source. */
   def lambdaImpl: c.Tree = {
     val pos = c.macroApplication.pos
 

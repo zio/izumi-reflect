@@ -140,8 +140,9 @@ private[reflect] object ReflectionUtil {
 
   /** Represents the kind of a type, including bounds.
     * @param params nested kinds for each type parameter
-    * @param bounds the type bounds of the symbol, including the default bounds `Nothing..Any` of a type parameter; None when its
-    *               signature is neither type bounds nor a polymorphic type with type bounds as result
+    * @param bounds `Some` when the type the kind is made from is type bounds, or a polymorphic type with type bounds as result: for
+    *               `ofSymbol` on a type parameter, its signature, default bounds `Nothing..Any` included; `None` otherwise, such as for
+    *               the type that `ofType` receives (`List`, or a reference to a type parameter)
     * @param symbol original type parameter symbol (for substitution during type construction)
     */
   final case class KindInfo[+U <: Universe](params: List[KindInfo[U]], bounds: Option[U#TypeBoundsApi], symbol: U#Symbol)
