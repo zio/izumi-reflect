@@ -16,9 +16,11 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       defn.ObjectClass.typeRef
     )
   }
+  /** Returns `true` for `Any`, `Matchable`, `AnyRef` and `Object`, the types that intersections ignore. */
   def ignoredInIntersections(repr: qctx.reflect.TypeRepr): Boolean = {
     ignoredInIntersections0.exists(_ =:= repr)
   }
+  /** Returns `true` for `Nothing`, the type that unions ignore. */
   def ignoredInUnions(repr: qctx.reflect.TypeRepr): Boolean = {
     repr =:= defn.NothingClass.typeRef
   }
@@ -283,30 +285,38 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   extension (qctx: Quotes) {
+    /** Returns the internal compiler context of `qctx`. */
     final def _ctx: InternalContext = qctx.asInstanceOf[{ def ctx: InternalContext }].ctx
   }
 
+  /** The compiler's internal `underlying` method of a type reference or a parameter reference. */
   type InternalTypeRefOrParamRef = {
     def underlying(ctx: InternalContext): TypeRepr
   }
 
+  /** The compiler's internal `typeParams` of a higher-kinded type lambda. */
   type InternalHKTypeLambda = {
     val typeParams: List[InternalLambdaParam]
   }
 
+  /** The compiler's internal `paramVariance` of a lambda parameter. */
   type InternalLambdaParam = {
     def paramVariance(ctx: InternalContext): Flags
   }
 
+  /** The compiler's internal `denot` method of a symbol. */
   type InternalSymbol = {
     def denot(ctx: InternalContext): InternalDenot
   }
 
+  /** The compiler's internal `info` method of a denotation. */
   type InternalDenot = {
     def info(ctx: InternalContext): TypeRepr
   }
 
+  /** Holds the opaque type of the compiler's internal context. */
   object InternalContext {
+    /** The compiler's internal context. */
     opaque type InternalContext = Any
   }
 

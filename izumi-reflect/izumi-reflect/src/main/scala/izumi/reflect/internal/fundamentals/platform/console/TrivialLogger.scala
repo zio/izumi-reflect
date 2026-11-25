@@ -28,12 +28,16 @@ import scala.annotation.tailrec
 import scala.reflect.{ClassTag, classTag}
 
 private[reflect] trait TrivialLogger {
+  /** Logs `s`. */
   def log(s: => String): Unit
+  /** Returns a logger one level deeper. */
   def sub(): TrivialLogger = sub(1)
+  /** Returns a logger `delta` levels deeper. */
   def sub(delta: Int): TrivialLogger
 }
 
 private[reflect] trait AbstractStringTrivialSink {
+  /** Writes `value` to the sink. */
   def flush(value: => String): Unit
 }
 private[reflect] object AbstractStringTrivialSink {

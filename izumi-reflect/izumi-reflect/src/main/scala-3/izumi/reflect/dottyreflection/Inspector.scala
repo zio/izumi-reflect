@@ -9,29 +9,37 @@ import scala.collection.immutable.Queue
 import scala.quoted.{Quotes, Type}
 import scala.reflect.Selectable.reflectiveSelectable
 
+/** Creates `Inspector`s, and holds the types that describe type lambda parameters. */
 object Inspector {
+  /** A parameter of a type lambda that is being inspected: its name, index, depth and arity. */
   case class LamParam(name: String, index: Int, depth: Int, arity: Int)(val qctx: Quotes)(val tpe: qctx.reflect.TypeRepr) {
+    /** Returns the `LambdaParamName` of this parameter. */
     def asParam = SymName.LambdaParamName(index, depth, arity) // s"$depth:$index/$arity")
     // this might be useful for debugging
     // def asParam = LambdaParameter(s"$depth:$index/$arity:$name")
 
     override def toString: String = s"[($name: $tpe) = $asParam]"
   }
+  /** The parameters of one enclosing type lambda. */
   case class LamContext(params: List[LamParam])
 
+  /** Returns an `Inspector` for `q`. */
   def make(q: Quotes): Inspector { val qctx: q.type } = new Inspector(0, Queue.empty) {
     override val qctx: q.type = q
   }
 }
 
+/** Turns Scala 3 `TypeRepr`s into `LightTypeTagRef`s; `context` lists the enclosing type lambdas. */
 abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.LamContext]) extends InspectorBase {
   import qctx.reflect._
 
+  /** Returns an inspector one level deeper, with `newContext` added to the lambda contexts when given. */
   def next(newContext: Option[Inspector.LamContext] = None): Inspector { val qctx: Inspector.this.qctx.type } =
     new Inspector(shift + 1, newContext.fold(this.context)(this.context :+ _)) {
       val qctx: Inspector.this.qctx.type = Inspector.this.qctx
     }
 
+  /** Returns an inspector one level deeper, whose context includes the parameters of `lambda`. */
   def nextLam(lambda: TypeLambda): Inspector { val qctx: Inspector.this.qctx.type } = {
     val params = lambda
       .paramNames
@@ -44,6 +52,7 @@ abstract class Inspector(protected val shift: Int, val context: Queue[Inspector.
     next(Some(Inspector.LamContext(params)))
   }
 
+  /** Returns the `AbstractReference` of `typeRepr`. */
   def buildTypeRef(typeRepr: TypeRepr): AbstractReference = {
     log(s" -------- about to inspect ${typeRepr.show(using Printer.TypeReprStructure)} ($typeRepr) --------")
     val res = inspectTypeRepr(typeRepr)

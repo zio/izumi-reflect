@@ -23,6 +23,7 @@ import izumi.reflect.{DebugProperties, ReflectionUtil, TrivialMacroLogger}
 
 import scala.reflect.macros.blackbox
 
+/** Macro bundle that creates the `LightTypeTag`s inside `LTag` instances. */
 final class LightTypeTagMacro(override val c: blackbox.Context)
   extends LightTypeTagMacro0[blackbox.Context](c)(
     logger = TrivialMacroLogger.make[LightTypeTagMacro](c)

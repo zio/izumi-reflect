@@ -8,15 +8,19 @@ import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.quoted.*
 
+/** Creates `InheritanceDbInspector`s. */
 object InheritanceDbInspector {
+  /** Returns an `InheritanceDbInspector` for `q`. */
   def make(q: Quotes): InheritanceDbInspector { val qctx: q.type } = new InheritanceDbInspector(0) {
     override val qctx: q.type = q
   }
 }
 
+/** Computes the inheritance database of unapplied type names. */
 abstract class InheritanceDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect.*
 
+  /** Returns the inheritance database of unapplied type names of `typeRepr`. */
   def makeUnappliedInheritanceDb(typeRepr: TypeRepr): Map[NameReference, Set[NameReference]] = {
     val tpe0 = typeRepr._dealiasSimplifiedFull
 
@@ -24,11 +28,13 @@ abstract class InheritanceDbInspector(protected val shift: Int) extends Inspecto
       .makeUnappliedInheritanceDb(tpe0)
   }
 
+  /** The state of one run of the inspection. */
   class Run(
     inspector: Inspector { val qctx: InheritanceDbInspector.this.qctx.type },
     termination: mutable.HashSet[Symbol]
   ) {
 
+    /** Returns the inheritance database of unapplied type names of `tpe0`. */
     def makeUnappliedInheritanceDb(tpe0: TypeRepr): Map[NameReference, Set[NameReference]] = {
       inspectTypeReprToUnappliedBases(tpe0, onlyIndirect = false)
         .iterator

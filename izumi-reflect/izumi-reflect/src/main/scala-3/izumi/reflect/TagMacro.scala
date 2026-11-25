@@ -7,11 +7,14 @@ import izumi.reflect.macrortti.LightTypeTagRef.{FullReference, NameReference, Sy
 
 import scala.collection.mutable
 
+/** Entry point of the macro that materializes `Tag` instances. */
 object TagMacro {
+  /** Returns the expression of a `Tag[A]`. */
   def createTagExpr[A <: AnyKind: Type](using Quotes): Expr[Tag[A]] =
     new TagMacro().createTagExpr[A]
 }
 
+/** Implements the macro that materializes `Tag` instances. */
 final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
   import qctx.reflect._
 
@@ -25,6 +28,7 @@ final class TagMacro(using override val qctx: Quotes) extends InspectorBase {
 
   private lazy val tagWildCardTpe = Type.of[Tag[?]]
 
+  /** Returns the expression of a `Tag[A]`. */
   def createTagExpr[A <: AnyKind: Type]: Expr[Tag[A]] = {
     val owners = getClassDefOwners(Symbol.spliceOwner)
     val typeRepr = TypeRepr.of[A]._dealiasSimplifiedFull
