@@ -203,7 +203,9 @@ abstract class LightTypeTag private[reflect] (
 
   /**
     * Returns the tags of the type arguments of an applied type, such as `List(String, List[+Int])` for
-    * `Map[String, List[Int]]`. Returns an empty list for a type without arguments and for a type constructor.
+    * `Map[String, List[Int]]`. Returns an empty list for a type without arguments and for an unapplied type
+    * constructor such as `TagK[List].tag`; for a partly applied one, such as `TagKK[Either].tag.combine(Tag[String].tag)`,
+    * it returns the arguments already applied (`List(String)`).
     */
   def typeArgs: List[LightTypeTag] = {
     ref.typeArgs.map(LightTypeTag(_, basesdb, idb))
