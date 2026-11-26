@@ -128,9 +128,9 @@ package object macrortti {
   def `LTT[_[_]]`[T[_[_]]]: LightTypeTag = macro LightTypeTagMacro.makeParsedLightTypeTag[T[Nothing]]
   /** The variant of `LTT` for a type constructor `T[_[+_]]`: returns its `LightTypeTag` as a type lambda. */
   def `LTT[_[+_]]`[T[_[+_]]]: LightTypeTag = macro LightTypeTagMacro.makeParsedLightTypeTag[T[Nothing]]
-  /** The variant of `LTT` for a type constructor whose type parameter is itself higher-kinded, `T[_[_[_]]]` or `T[_[+_[_]]]`: returns its `LightTypeTag` as a type lambda. */
+  /** The variant of `LTT` for a type constructor `T[_[+_[_]]]`, whose type parameter is a higher-kinded constructor with a covariant parameter: returns its `LightTypeTag` as a type lambda. */
   def `LTT[_[+_[_]]]`[T[_[+_[_]]]]: LightTypeTag = macro LightTypeTagMacro.makeParsedLightTypeTag[T[Nothing]]
-  /** The variant of `LTT` for a type constructor whose type parameter is itself higher-kinded, `T[_[_[_]]]` or `T[_[+_[_]]]`: returns its `LightTypeTag` as a type lambda. */
+  /** The variant of `LTT` for a type constructor `T[_[_[_]]]`, whose type parameter is itself higher-kinded: returns its `LightTypeTag` as a type lambda. */
   def `LTT[_[_[_]]]`[T[_[_[_]]]]: LightTypeTag = macro LightTypeTagMacro.makeParsedLightTypeTag[T[Nothing]]
   /** The variant of `LTT` for a type constructor `T[_, _]`, such as `Either`: returns its `LightTypeTag` as a type lambda. */
   def `LTT[_,_]`[T[_, _]]: LightTypeTag = macro LightTypeTagMacro.makeParsedLightTypeTag[T[Nothing, Nothing]]

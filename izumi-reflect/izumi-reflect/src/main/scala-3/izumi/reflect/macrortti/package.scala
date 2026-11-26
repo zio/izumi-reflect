@@ -126,10 +126,10 @@ package object macrortti {
   inline def `LTT[_[_]]`[T[_[_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   /** The variant of `LTT` for a type constructor `T[_[+_]]`: returns its `LightTypeTag` as a type lambda. */
   inline def `LTT[_[+_]]`[T[_[+_]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
-  /** The variant of `LTT` for a type constructor whose type parameter is itself higher-kinded, `T[_[_[_]]]` or `T[_[+_[_]]]`: returns its `LightTypeTag` as a type lambda. */
+  /** The variant of `LTT` for a type constructor `T[_[_[_]]]`, whose type parameter is itself higher-kinded: returns its `LightTypeTag` as a type lambda. */
   inline def `LTT[_[_[_]]]`[T[_[_[_]]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   // Note that this variation is not required on Scala 2.13.5, a mismatch between versions on variance handling currently
-  /** The variant of `LTT` for a type constructor whose type parameter is itself higher-kinded, `T[_[_[_]]]` or `T[_[+_[_]]]`: returns its `LightTypeTag` as a type lambda. */
+  /** The variant of `LTT` for a type constructor `T[_[+_[_]]]`, whose type parameter is a higher-kinded constructor with a covariant parameter: returns its `LightTypeTag` as a type lambda. */
   inline def `LTT[_[+_[_]]]`[T[_[+_[_]]]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
   /** The variant of `LTT` for a type constructor `T[_, _]`, such as `Either`: returns its `LightTypeTag` as a type lambda. */
   inline def `LTT[_,_]`[T[_, _]]: LightTypeTag = dottyreflection.Inspect.inspect[T]
