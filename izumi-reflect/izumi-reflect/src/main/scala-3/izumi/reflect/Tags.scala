@@ -133,8 +133,9 @@ object Tag {
   /**
     * `Tag.auto.T[F]` names the tag type for a type constructor `F` of any kind, for use as a context bound when no
     * `TagK` alias fits the kind. On Scala 3 it is an alias of `Tag[F]`. On Scala 2 it is a macro that expands to the
-    * [[HKTag]] type for the kind of `F`; write it only as a context bound or as `implicitly[Tag.auto.T[F]]`, and not
-    * for a proper type such as `Int`, where the Scala 2 macro fails during compilation.
+    * [[HKTag]] type for the kind of `F`; it works as a context bound, as a method's result type and inside
+    * `implicitly[Tag.auto.T[F]]`, as in the example, but not as the type of a `val`, and not for a proper type such as
+    * `Int`: there the Scala 2 macro fails during compilation.
     *
     * {{{
     * def tagOfAnyKind[K[_[_, _], _[_], _[_[_], _, _, _]]: Tag.auto.T]: Tag.auto.T[K] = implicitly[Tag.auto.T[K]]
