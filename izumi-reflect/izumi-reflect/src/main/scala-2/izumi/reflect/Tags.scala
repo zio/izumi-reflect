@@ -134,9 +134,9 @@ object Tag {
   /**
     * `Tag.auto.T[F]` names the tag type for a type constructor `F` of any kind, for use as a context bound when no
     * `TagK` alias fits the kind. On Scala 3 it is an alias of `Tag[F]`. On Scala 2 it is a macro that expands to the
-    * [[HKTag]] type for the kind of `F`; it works as a context bound, as a method's result type and inside
-    * `implicitly[Tag.auto.T[F]]`, as in the example, but not as the type of a `val`, and not for a proper type such as
-    * `Int`: there the Scala 2 macro fails during compilation.
+    * [[HKTag]] type for the kind of `F`. On Scala 2 it works as a context bound, as a method's result type and inside
+    * `implicitly[Tag.auto.T[F]]`, as in the example. On Scala 2.13 it fails to compile as the type of a `val`, and on
+    * Scala 2.12 and 2.13 it fails to compile for a proper type such as `Int`.
     *
     * {{{
     * def tagOfAnyKind[K[_[_, _], _[_], _[_[_], _, _, _]]: Tag.auto.T]: Tag.auto.T[K] = implicitly[Tag.auto.T[K]]
@@ -175,8 +175,8 @@ object Tag {
     * Creates the tag of the intersection of the `intersection` types with a structural refinement, such as
     * `(A with B) { def close(): Unit }`. From `structType` it takes the refinement members and the subtype data and
     * ignores the rest, so a weak tag of the whole refined type and a weak tag of the bare refinement give equal results.
-    * Each entry of `additionalTypeMembers`
-    * adds a type member (`type Name = Type`) and replaces a member of `structType` with the same name.
+    * Each entry of `additionalTypeMembers` adds a type member (`type Name = Type`) and replaces a member of `structType`
+    * with the same name.
     *
     * {{{
     * import izumi.reflect.macrortti.LTag
