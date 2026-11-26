@@ -34,6 +34,7 @@ import scala.collection.mutable
 import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
+/** Creates `LightTypeTag`s at runtime from reflected types, and holds the cache of the references. */
 object LightTypeTagImpl {
   private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
 
@@ -76,6 +77,7 @@ object LightTypeTagImpl {
 
 }
 
+/** Builds a `LightTypeTag` from a type of the given `Universe`. */
 final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: Boolean, logger: TrivialLogger) {
 
   import u._
@@ -85,6 +87,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
   @inline private[this] final val nothing = definitions.NothingTpe
   @inline private[this] final val ignored = Set(any, obj, nothing)
 
+  /** Builds the `LightTypeTag` of `tpe0`: its reference and its inheritance data. */
   def makeFullTagImpl(tpe0: Type): LightTypeTag = {
     val tpe = Dealias.fullNormDealias(tpe0)
 
@@ -211,11 +214,11 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
       logger.log(s"tparamTypeBoundsAndTypeArgs of $tpeUnexpanded=$tparamTypeBoundsAndTypeArgs")
 
-      /**
-        * Don't do this:
-        *  Iterator.single(tpePolyTypeResultType) -- produces trash symbols out of skolems
-        *  tpePolyTypeResultType.typeArgs.iterator -- just redundant, included in `tparamTypeBoundsAndTypeArgs`
-        */
+      /*
+       * Don't do this:
+       *  Iterator.single(tpePolyTypeResultType) -- produces trash symbols out of skolems
+       *  tpePolyTypeResultType.typeArgs.iterator -- just redundant, included in `tparamTypeBoundsAndTypeArgs`
+       */
       Iterator.single(tpeUnexpanded) ++
       tpeUnexpanded.typeArgs.iterator ++
       tparamTypeBoundsAndTypeArgs.iterator

@@ -23,21 +23,41 @@ import izumi.reflect.macrortti.{LTag, LightTypeTag, LightTypeTagRef}
 
 import scala.annotation.implicitNotFound
 
+/**
+  * The common parent of [[Tag]], [[HKTag]] and [[WeakTag]]: a runtime description of a type, made of a
+  * [[izumi.reflect.macrortti.LightTypeTag]] and the JVM class closest to that type.
+  *
+  * Two tags are equal when their `tag` fields are equal; `closestClass` plays no part in `equals` and `hashCode`.
+  * Tags are `java.io.Serializable`.
+  *
+  * {{{
+  * trait Animal
+  * trait Dog extends Animal
+  *
+  * val isChild: Boolean = Tag[Dog] <:< Tag[Animal] // true
+  * val sameType: Boolean = Tag[List[Int]] =:= Tag[scala.collection.immutable.List[Int]] // true
+  * }}}
+  *
+  * @see [[https://zio.dev/izumi-reflect/reference/tag/ Tag and the TagK Family]]
+  */
 trait AnyTag extends Serializable {
+  /** The [[izumi.reflect.macrortti.LightTypeTag]] that describes the type; it does the comparisons and the rendering. */
   def tag: LightTypeTag
 
   /**
-    * Closest class found for the type or for a LUB of all intersection
-    * members in case of an intersection type.
+    * The JVM class closest to the type: the class itself for a class or trait, the class of the aliased type for a
+    * type alias, and a common parent of the members (often `Object`) for an intersection type.
     *
-    * A Scala type may not have an associated JVM class, as such
-    * this class may not be sufficient to create instances of `T`
-    *
-    * Only if `tag.hasPreciseClass` returns true
-    * it may be safe to reflect on `closestClass`
+    * A Scala type may have no JVM class of its own, so this class may not be enough to create instances of the type.
+    * Reflect on it only when [[hasPreciseClass]] returns `true`.
     */
   def closestClass: Class[_]
 
+  /**
+    * Returns `true` when the short name of the type is the simple name of [[closestClass]], so that the class stands
+    * for the type itself. Returns `false` for an intersection type such as `java.io.Serializable with CharSequence`,
+    * whose closest class is `Object`.
+    */
   final def hasPreciseClass: Boolean = {
     try tag.shortName == closestClass.getSimpleName
     catch {
@@ -45,10 +65,12 @@ trait AnyTag extends Serializable {
     }
   }
 
+  /** Returns `true` when both tags describe the same type, comparing their `tag` fields with `LightTypeTag#=:=`. */
   final def =:=(that: AnyTag): Boolean = {
     tag =:= that.tag
   }
 
+  /** Returns `true` when the type of this tag is a subtype of the type of `that`, by `LightTypeTag#<:<`. */
   final def <:<(that: AnyTag): Boolean = {
     tag <:< that.tag
   }
@@ -64,58 +86,74 @@ trait AnyTag extends Serializable {
 }
 
 /**
-  * Like [[scala.reflect.api.TypeTags.TypeTag]], but supports higher-kinded type tags via `TagK` type class.
+  * A type class that describes the type `T` at runtime. Ask for it with a context bound (`def f[T: Tag]`): the
+  * compiler builds the tag at compile time and, for a type that mentions type parameters, combines the tags of those
+  * parameters found in scope. It plays the role of `scala.reflect.api.TypeTags.TypeTag`, also for type constructors
+  * (see `TagK` and its siblings), and it works on Scala 3 too.
   *
-  * In context of DI this lets you define modules parameterized by higher-kinded type parameters.
-  * This is especially helpful for applying [[https://www.beyondthelines.net/programming/introduction-to-tagless-final/ `tagless final` style]]
-  *
-  * Example:
   * {{{
-  * import distage.ModuleDef
+  * def keyOf[A: Tag]: String = Tag[A].tag.toString
+  * def containerOf[F[_]: TagK, A: Tag]: Tag[F[A]] = Tag[F[A]]
   *
-  * class MyModule[F[_]: Monad: TagK] extends ModuleDef {
-  *   make[MyService[F]]
-  *   make[F[Int]].named("lucky-number").from(Monad[F].pure(7))
-  * }
+  * val key: String = keyOf[Map[String, Int]] // "Map[=String,+Int]"
+  * val same: Boolean = containerOf[Option, Int] =:= Tag[Option[Int]] // true
   * }}}
   *
-  * Without a `TagK` constraint above, this example would fail with `no TypeTag available for MyService[F]` error
+  * When a type parameter has no tag in scope, compilation fails with a message that contains
+  * `could not find implicit value for izumi.reflect.Tag[...]`, naming the type parameter or a type that contains it.
+  * Add a context bound for that parameter.
   *
-  * Currently some limitations apply as to when a `Tag` will be correctly constructed:
-  *   * Type Parameters do not yet resolve in structural refinement methods, e.g. T in {{{ Tag[{ def x: T}] }}}
-  *     They do resolve in refinement type members however, e.g. {{{ Tag[ Any { type Out = T } ] }}}
-  *   * TagK* does not resolve for constructors with bounded parameters, e.g. S in {{{ class Abc[S <: String]; TagK[Abc] }}}
-  *     (You can still have a bound in partial application: e.g. {{{ class Abc[S <: String, A]; TagK[Abc["hi", _]] }}}
-  *   * Further details at [[https://github.com/7mind/izumi/issues/374]]
+  * Limits, on Scala 2 and Scala 3:
+  *  - Type parameters are not substituted inside the methods and values of a structural type: with `T = Int`,
+  *    `Tag[{ def x: T }]` is not equal to `Tag[{ def x: Int }]`. They are substituted in type members:
+  *    `Tag[Any { type Out = T }]` is equal to `Tag[Any { type Out = Int }]`.
+  *  - `TagK` and its siblings take type constructors whose type parameters have no bounds: the compiler rejects
+  *    `TagK[Abc]` for `class Abc[S <: String]`. On Scala 2, declare an [[HKTag]] alias with the same bound; on
+  *    Scala 3, write `Tag[Abc]`.
   *
-  * @see "Lightweight Scala Reflection and why Dotty needs TypeTags reimplemented" https://blog.7mind.io/lightweight-reflection.html
-  *
-  * @see [[izumi.reflect.macrortti.LTag]] - summoner for [[izumi.reflect.macrortti.LightTypeTag]] that does not resolve type parameters
-  * @see [[izumi.reflect.macrortti.LTag.Weak]] - summoner for [[izumi.reflect.macrortti.LightTypeTag]] that does not resolve type parameters and allows unresolved ("weak") type parameters to be part of a tag
+  * @see [[https://zio.dev/izumi-reflect/reference/tag/ Tag and the TagK Family]]
+  * @see [[https://blog.7mind.io/lightweight-reflection.html Lightweight Scala Reflection and why Dotty needs TypeTags reimplemented]]
+  * @see [[izumi.reflect.macrortti.LTag]] for the `LightTypeTag` of a type without abstract type parameters
+  * @see [[izumi.reflect.macrortti.LTag.Weak]] for a `LightTypeTag` that keeps unresolved type parameters as placeholders
   */
 @implicitNotFound(
   "could not find implicit value for izumi.reflect.Tag[${T}]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in ${T}? e.g. def x[T: Tag, F[_]: TagK] = ..."
 )
 trait Tag[T <: AnyKind] extends AnyTag {
+  /** The [[izumi.reflect.macrortti.LightTypeTag]] of `T`. */
   def tag: LightTypeTag
+  /** The JVM class closest to `T`; see `AnyTag#closestClass`. */
   def closestClass: Class[_]
 
   override final def toString: String = s"Tag[$tag]"
 }
 
+/** Summoners and constructors of [[Tag]], and the implicit macro that builds tags at compile time. */
 object Tag {
 
   /**
-    * Use `Tag.auto.T[TYPE_PARAM]` syntax to summon a `Tag` for a type parameter of any kind:
+    * `Tag.auto.T[F]` names the tag type for a type constructor `F` of any kind, for use as a context bound when no
+    * `TagK` alias fits the kind. On Scala 3 it is an alias of `Tag[F]`. On Scala 2 it is a macro that expands to the
+    * [[HKTag]] type for the kind of `F`. On Scala 2 it works as a context bound, as a method's result type and inside
+    * `implicitly[Tag.auto.T[F]]`, as in the example. On Scala 2.13 it fails to compile as the type of a `val`, and on
+    * Scala 2.12 and 2.13 it fails to compile for a proper type such as `Int`.
     *
-    * NOTE: On Scala 3+ it's the same as `Tag[T]`
+    * {{{
+    * def tagOfAnyKind[K[_[_, _], _[_], _[_[_], _, _, _]]: Tag.auto.T]: Tag.auto.T[K] = implicitly[Tag.auto.T[K]]
+    * }}}
     */
   object auto {
+    /** The same type as `Tag[X]`. */
     type T[X <: AnyKind] = Tag[X]
   }
 
+  /** Returns the implicit `Tag[T]` in scope: `Tag[Int]` is the same as `implicitly[Tag[Int]]`. */
   @inline def apply[T <: AnyKind: Tag]: Tag[T] = implicitly
 
+  /**
+    * Creates a `Tag[T]` from a class and a [[izumi.reflect.macrortti.LightTypeTag]], for example one read back with
+    * `LightTypeTag.parse`. Nothing checks that `tag0` describes `T`.
+    */
   def apply[T <: AnyKind](cls: Class[_], tag0: LightTypeTag): Tag[T] = {
     new Tag[T] {
       override val tag: LightTypeTag = tag0
@@ -124,36 +162,53 @@ object Tag {
   }
 
   /**
-    * Create a Tag of a type formed by applying the type in `tag` to `args`.
+    * Creates the tag of the type formed by applying the type constructor in `tag` to `args`, in order. Nothing checks
+    * that the result describes `R`.
     *
-    * Example:
     * {{{
-    *   implicit def tagFromTagTAKA[T[_, _[_], _]: TagK3, K[_]: TagK, A0: Tag, A1: Tag]: Tag[T[A0, K, A1]] =
-    *     Tag.appliedTag(TagK3[T].tag, List(Tag[A0].tag, TagK[K].tag, Tag[A1].tag))
+    * val listOfInt: Tag[List[Int]] = Tag.appliedTag[List[Int]](TagK[List], List(Tag[Int].tag))
+    * val same: Boolean = listOfInt == Tag[List[Int]] // true
     * }}}
     */
   def appliedTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = {
     Tag(tag.closestClass, tag.tag.combine(args: _*))
   }
 
+  /**
+    * Like `appliedTag`, but takes one `Option` per type parameter: `Some` fills that parameter and `None` leaves it
+    * open, so the result is a type constructor of the `None` positions.
+    */
   def appliedTagNonPos[R <: AnyKind](tag: Tag[_], args: List[Option[LightTypeTag]]): Tag[R] = {
     Tag(tag.closestClass, tag.tag.combineNonPos(args: _*))
   }
 
+  /** Like `appliedTagNonPos`, but takes the class and the `LightTypeTag` of the type constructor instead of a tag. */
   def appliedTagNonPosAux[R <: AnyKind](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): Tag[R] = {
     Tag(cls, ctor.combineNonPos(args: _*))
   }
 
+  /** Creates the tag of the union of the types in `union`, with `lubClass` as its closest class. */
   def unionTag[R <: AnyKind](lubClass: Class[_], union: List[LightTypeTag]): Tag[R] = {
     Tag(lubClass, LightTypeTag.unionType(union))
   }
 
   /**
-    * Create a Tag of a type formed from an `intersection` of types (A with B) with a structural refinement taken from `structType`
+    * Creates the tag of the intersection of the `intersection` types with a structural refinement, such as
+    * `(A with B) { def close(): Unit }`. From `structType` it takes the refinement members and the subtype data and
+    * ignores the rest, so a weak tag of the whole refined type and a weak tag of the bare refinement give equal results.
+    * Each entry of `additionalTypeMembers` adds a type member (`type Name = Type`) and replaces a member of `structType`
+    * with the same name.
     *
-    * `structType` is assumed to be contain the structural refinements of the entire type, e.g.
     * {{{
-    *   Tag[A with B {def abc: Unit}] == refinedTag(classOf[Any], List(LTag[A].tag, LTag[B].tag), LTag.Weak[{ def abc: Unit }].tag, Map.empty)
+    * import izumi.reflect.macrortti.LTag
+    *
+    * trait Reader
+    * trait Writer
+    * type Resource = (Reader with Writer) { def close(): Unit }
+    *
+    * val parts = List(LTag[Reader].tag, LTag[Writer].tag)
+    * val resourceTag: Tag[Resource] = Tag.refinedTag[Resource](classOf[Any], parts, LTag.Weak[{ def close(): Unit }].tag, Map.empty)
+    * val same: Boolean = resourceTag == Tag[Resource] // true
     * }}}
     */
   def refinedTag[R <: AnyKind](
@@ -165,110 +220,194 @@ object Tag {
     Tag(lubClass, LightTypeTag.refinedType(intersection, structType, additionalTypeMembers))
   }
 
+  /** The implicit macro that builds a `Tag[T]` at compile time. You don't call it yourself; it shows in implicit hints and macro errors. */
   inline implicit final def tagFromTagMacro[T <: AnyKind]: Tag[T] = ${ TagMacro.createTagExpr[T] }
 }
 
 /**
-  * Internal unsafe API representing a poly-kinded, higher-kinded type tag.
+  * A tag for a type constructor of any kind. On Scala 3 it is an alias of [[Tag]]. On Scala 2, `HKTag` takes a
+  * structural type that spells out the kind: `TagK[K]` is `HKTag[{ type Arg[A] = K[A] }]`. Declare such an alias for a
+  * kind that has no predefined one, or for type parameters with bounds, or use `Tag.auto.T`.
   *
-  * NOTE: On Scala 3+ it's the same as `Tag[T]`
+  * {{{
+  * // scala-2-only
+  * trait Dep
+  * type TagKDep[K[_ <: Dep]] = HKTag[{ type Arg[A <: Dep] = K[A] }]
+  * type TagFGC[K[_[_, _], _[_], _[_[_], _, _, _]]] = HKTag[{ type Arg[A[_, _], B[_], C[_[_], _, _, _]] = K[A, B, C] }]
+  * }}}
+  *
+  * @see [[https://zio.dev/izumi-reflect/reference/scala-2-vs-scala-3/ Scala 2 vs Scala 3]]
   */
 type HKTag[T <: AnyKind] = Tag[T]
 
+/** Constructors of [[HKTag]]. */
 object HKTag {
+  /**
+    * Creates an `HKTag[T]` from a class and a [[izumi.reflect.macrortti.LightTypeTag]]; nothing checks that the tag
+    * describes `T`. On Scala 3, this method accepts only a proper type `T`: use `Tag.apply` for a type constructor.
+    */
   def apply[T](cls: Class[_], lightTypeTag: LightTypeTag): Tag[T] = Tag(cls, lightTypeTag)
 
+  /** The same as `Tag.appliedTag`. */
   def appliedTag[R <: AnyKind](tag: Tag[_], args: List[LightTypeTag]): Tag[R] = Tag.appliedTag(tag, args)
 
+  /**
+    * Like `appliedTag`, but takes one `Option` per type parameter: `Some` fills that parameter and `None` leaves it
+    * open, so the result is a type constructor of the `None` positions.
+    */
   def appliedTagNonPos[R <: AnyKind](tag: Tag[_], args: List[Option[LightTypeTag]]): Tag[R] = Tag.appliedTagNonPos(tag, args)
 
+  /**
+    * Like `appliedTagNonPos`, but takes the class and the `LightTypeTag` of the type constructor instead of a tag. On
+    * Scala 3, this method accepts only a proper type `R`: use `Tag.appliedTagNonPosAux` for a type constructor.
+    */
   def appliedTagNonPosAux[R](cls: Class[_], ctor: LightTypeTag, args: List[Option[LightTypeTag]]): Tag[R] = Tag.appliedTagNonPosAux(cls, ctor, args)
 }
 
 /**
-  * `TagK` is like a [[scala.reflect.api.TypeTags.TypeTag]] but for higher-kinded types.
+  * A tag for a type constructor with one type parameter, such as `Option` or `List`. Ask for it with a context bound
+  * (`F[_]: TagK`) in code that is generic over a type constructor; the compiler then builds the tags of types made
+  * from `F`. On Scala 2 it is an alias of `HKTag[{ type Arg[A] = K[A] }]`; on Scala 3, an alias of `Tag[K]`.
   *
-  * NOTE: On Scala 3+ it's the same as `Tag[T]`
+  * {{{
+  * import izumi.reflect._
+  *
+  * def containerTypesEqual[F[_]: TagK, K[_]: TagK]: Boolean = TagK[F].tag =:= TagK[K].tag
+  *
+  * val sameSet: Boolean = containerTypesEqual[Set, scala.collection.immutable.Set] // true
+  * val arrayIsList: Boolean = containerTypesEqual[Array, List] // false
+  * }}}
+  *
+  * @see [[https://zio.dev/izumi-reflect/reference/tag/ Tag and the TagK Family]]
   */
 type TagK[K[_]] = Tag[K]
+/** A tag for a type constructor with two type parameters, such as `Either` or `Map`. */
 type TagKK[K[_, _]] = Tag[K]
+/** A tag for a type constructor with three type parameters, such as `Function2`. */
 type TagK3[K[_, _, _]] = Tag[K]
 
+/** A tag for a type constructor whose one type parameter is itself a type constructor `F[_]`, such as a type class `Functor[F[_]]`. */
 type TagT[K[_[_]]] = Tag[K]
+/** A tag for a type constructor with type parameters `[F[_], A]`, such as a monad transformer `OptionT[F[_], A]`. */
 type TagTK[K[_[_], _]] = Tag[K]
+/** A tag for a type constructor with type parameters `[F[_], A, B]`, such as `EitherT[F[_], A, B]`. */
 type TagTKK[K[_[_], _, _]] = Tag[K]
+/** A tag for a type constructor with type parameters `[F[_], A, B, C]`. */
 type TagTK3[K[_[_], _, _, _]] = Tag[K]
 
+/** Summoner of `TagK`. */
 object TagK {
-  /**
-    * Construct a type tag for a higher-kinded type `K[_]`
-    *
-    * Example:
-    * {{{
-    *     TagK[Option]
-    * }}}
-    */
+  /** Returns the implicit `TagK[K]` in scope, as in `TagK[Option]`. */
   @inline def apply[K[_]: TagK]: TagK[K] = implicitly
 }
 
+/** Summoner of `TagKK`. */
 object TagKK {
+  /** Returns the implicit `TagKK[K]` in scope, as in `TagKK[Either]`. */
   @inline def apply[K[_, _]: TagKK]: TagKK[K] = implicitly
 }
 
+/** Summoner of `TagK3`. */
 object TagK3 {
+  /** Returns the implicit `TagK3[K]` in scope, as in `TagK3[Function2]`. */
   @inline def apply[K[_, _, _]: TagK3]: TagK3[K] = implicitly
 }
 
+/** Summoner of `TagT`. */
 object TagT {
+  /** Returns the implicit `TagT[K]` in scope. */
   @inline def apply[K[_[_]]: TagT]: TagT[K] = implicitly
 }
 
+/** Summoner of `TagTK`. */
 object TagTK {
+  /** Returns the implicit `TagTK[K]` in scope. */
   @inline def apply[K[_[_], _]: TagTK]: TagTK[K] = implicitly
 }
 
+/** Summoner of `TagTKK`. */
 object TagTKK {
+  /** Returns the implicit `TagTKK[K]` in scope. */
   @inline def apply[K[_[_], _, _]: TagTKK]: TagTKK[K] = implicitly
 }
 
+/** Summoner of `TagTK3`. */
 object TagTK3 {
+  /** Returns the implicit `TagTK3[K]` in scope. */
   @inline def apply[K[_[_], _, _, _]: TagTK3]: TagTK3[K] = implicitly
 }
 
+/** A tag for a type constructor with 4 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK4[K[_, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 5 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK5[K[_, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 6 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK6[K[_, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 7 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK7[K[_, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 8 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK8[K[_, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 9 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK9[K[_, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 10 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK10[K[_, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 11 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK11[K[_, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 12 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK12[K[_, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 13 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK13[K[_, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 14 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK14[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 15 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK15[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 16 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK16[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 17 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK17[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 18 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK18[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 19 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK19[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 20 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK20[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 21 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK21[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
+/** A tag for a type constructor with 22 type parameters. It has no companion object: summon it with `implicitly` or a context bound. */
 type TagK22[K[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag[K]
 
-// Workaround needed specifically to support generic methods in factories, see `GenericAssistedFactory` and related tests
-//
-// We need to construct a SafeType signature for a generic method, but generic parameters have no type tags
-// So we resort to weak type parameters and pointer equality
+/**
+  * A tag that may contain unresolved type parameters. When a `Tag[T]` can be built, `WeakTag[T]` holds the same type;
+  * otherwise it falls back to `LTag.Weak[T]`, which keeps the abstract type parameters of `T` as named placeholders,
+  * including those that have a `Tag` in scope, with `Object` as the closest class. On Scala 3 there is no such fallback
+  * for a type parameter without a tag: `WeakTag[T]` and `WeakTag[List[T]]` fail to compile with the missing `Tag` error.
+  *
+  * Dependency injection frameworks use it to describe the signatures of generic methods; other code should use [[Tag]].
+  *
+  * {{{
+  * // scala-2-only
+  * def weakListTag[T]: WeakTag[List[T]] = WeakTag[List[T]]
+  *
+  * val placeholder: String = weakListTag[Int].tag.toString // "List[+T]"
+  * }}}
+  *
+  * @see [[https://zio.dev/izumi-reflect/reference/tag/ Tag and the TagK Family]]
+  */
 trait WeakTag[T <: AnyKind] extends AnyTag {
+  /** The [[izumi.reflect.macrortti.LightTypeTag]] of `T`, with placeholders for unresolved type parameters. */
   def tag: LightTypeTag
+  /** The JVM class closest to `T`; `Object` when the tag comes from `LTag.Weak`. */
   def closestClass: Class[_]
 
   override final def toString: String = s"WeakTag[$tag]"
 }
 
+/** Summoners and constructors of [[WeakTag]]. */
 object WeakTag extends WeakTagInstances1 {
+  /** Returns the implicit `WeakTag[T]` in scope. */
   @inline def apply[T <: AnyKind: WeakTag]: WeakTag[T] = implicitly
 
+  /** Creates a `WeakTag[T]` from a class and a [[izumi.reflect.macrortti.LightTypeTag]]. */
   def apply[T <: AnyKind](cls: Class[_], l: LightTypeTag): WeakTag[T] = {
     new WeakTag[T] {
       override val tag: LightTypeTag = l
@@ -276,8 +415,11 @@ object WeakTag extends WeakTagInstances1 {
     }
   }
 
+  /** Builds a `WeakTag[T]` from the `Tag[T]` in scope, with the same `tag` and `closestClass`. */
   implicit def weakTagFromTag[T <: AnyKind](implicit t: Tag[T]): WeakTag[T] = WeakTag(t.closestClass, t.tag)
 }
+/** The lower-priority fallback of [[WeakTag]] to `LTag.Weak`. */
 trait WeakTagInstances1 {
+  /** Builds a `WeakTag[T]` from `LTag.Weak[T]`, with `Object` as the closest class. */
   implicit final def weakTagFromWeakTypeTag[T <: AnyKind](implicit l: LTag.Weak[T]): WeakTag[T] = WeakTag(classOf[Any], l.tag)
 }

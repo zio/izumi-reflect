@@ -23,6 +23,7 @@ import izumi.reflect.internal.fundamentals.functional.WithRenderableSyntax.Rende
 import scala.language.implicitConversions
 
 private[reflect] trait Renderable[T] {
+  /** Renders `value` as a string. */
   def render(value: T): String
 }
 private[reflect] object Renderable extends WithRenderableSyntax {
@@ -30,6 +31,7 @@ private[reflect] object Renderable extends WithRenderableSyntax {
 }
 
 private[reflect] trait WithRenderableSyntax {
+  /** Adds `render()` to any value that has a `Renderable`. */
   @inline implicit final def RenderableSyntax[T](r: T): RenderableSyntax[T] = new RenderableSyntax[T](r)
 }
 private[reflect] object WithRenderableSyntax {

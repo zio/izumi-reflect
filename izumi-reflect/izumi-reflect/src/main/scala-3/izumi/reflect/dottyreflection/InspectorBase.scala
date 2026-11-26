@@ -2,15 +2,19 @@ package izumi.reflect.dottyreflection
 
 import scala.quoted.Quotes
 
+/** Base of the Scala 3 inspectors: the `Quotes` context and the debug logging. */
 trait InspectorBase extends ReflectionUtil {
 
+  /** The `Quotes` of the macro expansion. */
   val qctx: Quotes
   import qctx.reflect._
 
   protected def shift: Int
 
   // FIXME reimplement TrivialMacroLogger for Scala 3
+  /** The debug switch; its value is `false`. */
   inline def debug: debug = valueOf[debug]
+  /** The type-level value of the debug switch: `false`. */
   final type debug = false
 
   // println instead of report.info because report.info eats all the subsequent report.info's after first.
@@ -41,6 +45,7 @@ trait InspectorBase extends ReflectionUtil {
 
 }
 
+/** Debug helpers used by the macros. */
 object InspectorBase {
 
   private[reflect] inline def ifDebug[A](inline f: => Unit): Unit = {

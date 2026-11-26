@@ -28,6 +28,9 @@ import izumi.reflect.macrortti.LightTypeTagRef._
 
 import scala.collection.mutable
 
+/** Companion of `LightTypeTagInheritance`. Holds the references to `Nothing`, `Null`, `Any`, `AnyRef`, `Matchable` and
+  * `java.lang.Object`, which the subtype check treats specially.
+  */
 object LightTypeTagInheritance {
   private[reflect] final val tpeNothing = NameReference(SymTypeName("scala.Nothing"))
   private[reflect] final val tpeNull = NameReference(SymTypeName("scala.Null"))
@@ -49,10 +52,14 @@ object LightTypeTagInheritance {
   }
 }
 
+/** Checks whether the type of `self` is a subtype of the type of `other`, using the inheritance data of both tags. `LightTypeTag#<:<` runs
+  * it.
+  */
 final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   private[this] lazy val basesdb: ImmutableMultiMap[AbstractReference, AbstractReference] = LightTypeTag.mergeIDBs(self.basesdb, other.basesdb)
   private[this] lazy val idb: ImmutableMultiMap[NameReference, NameReference] = LightTypeTag.mergeIDBs(self.idb, other.idb)
 
+  /** Returns `true` when the type of `self` is a subtype of the type of `other`. */
   def isChild(): Boolean = {
     val st = self.ref
     val ot = other.ref
@@ -338,6 +345,9 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     }
   }
 
+  /** Returns `true` when `reference` is a lambda parameter placeholder, as made by `Lambda#normalizedParams` (its depth is
+    * `LambdaConstants.lambdaFakeParamDepth`). Other references give `false`.
+    */
   def isFakeParam(reference: LightTypeTagRef.AbstractReference): Boolean = reference match {
     case reference: NameReference =>
       reference.symName match {
@@ -347,7 +357,9 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
     case _ => false
   }
 
+  /** An extractor for a [[LightTypeTagRef.TypeParam]] whose type is a placeholder parameter. */
   object FakeParam {
+    /** Returns the placeholder when `tparam` holds one, and `None` otherwise. */
     def unapply(tparam: TypeParam): Option[LightTypeTagRef.NameReference] = {
       if (isFakeParam(tparam.ref)) Some(tparam.ref.asInstanceOf[NameReference]) else None
     }

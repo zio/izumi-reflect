@@ -28,6 +28,7 @@ import scala.reflect.macros.blackbox
   * To see macro debug output during compilation, set `-Dizumi.reflect.debug.macro.rtti=true` java property! e.g.
   *
   * {{{
+  * // no-check: shell command
   * sbt -Dizumi.reflect.debug.macro.rtti=true compile
   * }}}
   *

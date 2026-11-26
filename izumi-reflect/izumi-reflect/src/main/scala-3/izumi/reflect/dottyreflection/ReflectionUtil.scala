@@ -16,9 +16,11 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
       defn.ObjectClass.typeRef
     )
   }
+  /** Returns `true` for `Any`, `Matchable`, `AnyRef` and `Object`, the types that intersections ignore. */
   def ignoredInIntersections(repr: qctx.reflect.TypeRepr): Boolean = {
     ignoredInIntersections0.exists(_ =:= repr)
   }
+  /** Returns `true` for `Nothing`, the type that unions ignore. */
   def ignoredInUnions(repr: qctx.reflect.TypeRepr): Boolean = {
     repr =:= defn.NothingClass.typeRef
   }
@@ -283,30 +285,38 @@ private[dottyreflection] trait ReflectionUtil { this: InspectorBase =>
   }
 
   extension (qctx: Quotes) {
+    /** Returns the internal compiler context of `qctx`. */
     final def _ctx: InternalContext = qctx.asInstanceOf[{ def ctx: InternalContext }].ctx
   }
 
+  /** A structural type for the compiler's internal `underlying` method of a type reference or a parameter reference. */
   type InternalTypeRefOrParamRef = {
     def underlying(ctx: InternalContext): TypeRepr
   }
 
+  /** A structural type for the compiler's internal `typeParams` of a higher-kinded type lambda. */
   type InternalHKTypeLambda = {
     val typeParams: List[InternalLambdaParam]
   }
 
+  /** A structural type for the compiler's internal `paramVariance` of a lambda parameter. */
   type InternalLambdaParam = {
     def paramVariance(ctx: InternalContext): Flags
   }
 
+  /** A structural type for the compiler's internal `denot` method of a symbol. */
   type InternalSymbol = {
     def denot(ctx: InternalContext): InternalDenot
   }
 
+  /** A structural type for the compiler's internal `info` method of a denotation. */
   type InternalDenot = {
     def info(ctx: InternalContext): TypeRepr
   }
 
+  /** Holds the opaque type of the compiler's internal context. */
   object InternalContext {
+    /** The compiler's internal context. */
     opaque type InternalContext = Any
   }
 
@@ -317,7 +327,8 @@ private[reflect] object ReflectionUtil {
   private[reflect] inline implicit def reflectiveUncheckedNonOverloadedSelectable(x: Any): UncheckedNonOverloadedSelectable = new UncheckedNonOverloadedSelectable(x)
 
   /**
-    * Returns true if the given type contains no type parameters
+    * Returns true if the given type contains no type parameters, not counting the parameters of type lambdas inside it.
+    * Inside a class, an abstract type member of that class referenced through `this` counts as a type parameter too.
     * (this means the type is not "weak" https://stackoverflow.com/questions/29435985/weaktypetag-v-typetag)
     */
   private[reflect] def allPartsStrong(

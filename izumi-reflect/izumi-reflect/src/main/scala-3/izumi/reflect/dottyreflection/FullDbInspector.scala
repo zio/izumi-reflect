@@ -8,15 +8,19 @@ import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.quoted.*
 
+/** Creates `FullDbInspector`s. */
 object FullDbInspector {
+  /** Returns a `FullDbInspector` for `q`. */
   def make(q: Quotes): FullDbInspector { val qctx: q.type } = new FullDbInspector(0) {
     override val qctx: q.type = q
   }
 }
 
+/** Computes the bases database of a type. */
 abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
   import qctx.reflect._
 
+  /** Returns the bases database of `typeRepr`: each type mapped to its base types. */
   def buildFullDb(typeRepr: TypeRepr): Map[AbstractReference, Set[AbstractReference]] = {
     new Run(Inspector.make(qctx), mutable.HashSet.empty, mutable.HashSet.empty)
       .inspectTypeReprToFullBases(typeRepr, onlyIndirect = false)
@@ -28,11 +32,13 @@ abstract class FullDbInspector(protected val shift: Int) extends InspectorBase {
       .toMultimap
   }
 
+  /** The state of one run of the inspection. */
   class Run(
     inspector: Inspector { val qctx: FullDbInspector.this.qctx.type },
     basesTermination: mutable.HashSet[Symbol],
     toLambdaTermination: mutable.HashSet[Symbol]
   ) {
+    /** Returns the (type, base type) pairs of `tpe0`. */
     def inspectTypeReprToFullBases(tpe0: TypeRepr, onlyIndirect: Boolean): List[(AbstractReference, AbstractReference)] = {
       val tpe = tpe0._dealiasSimplifiedFull
       def selfRef(): AbstractReference = inspector.inspectTypeRepr(tpe)

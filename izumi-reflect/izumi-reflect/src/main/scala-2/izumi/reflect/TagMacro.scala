@@ -32,6 +32,7 @@ import scala.reflect.macros.{TypecheckException, blackbox, whitebox}
 
 // TODO: benchmark difference between searching all arguments vs. merge strategy
 // TODO: benchmark ProviderMagnet vs. identity macro vs. normal function
+/** Implements the macro that materializes `Tag` instances. */
 @NowarnCompat.nowarn("msg=deprecated")
 class TagMacro(val c: blackbox.Context) {
 
@@ -43,6 +44,7 @@ class TagMacro(val c: blackbox.Context) {
   // workaround for a scalac bug - `Nothing` type is lost when two implicits for it are summoned from one implicit as in:
   //  implicit final def tagFromTypeTag[T](implicit t: TypeTag[T], l: LTag[T]): Tag[T] = Tag(t, l.fullLightTypeTag)
   // https://github.com/scala/bug/issues/11715
+  /** Materializes a `Tag[T]`: a strong one when all parts of `T` are known, otherwise a weak one. */
   final def makeTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
     if (ReflectionUtil.allPartsStrong(tpe.dealias)) {
@@ -52,22 +54,26 @@ class TagMacro(val c: blackbox.Context) {
     }
   }
 
+  /** Materializes a `Tag[T]` for a type whose parts are all known; asserts that they are. */
   final def makeStrongTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
     assert(ReflectionUtil.allPartsStrong(tpe.dealias))
     makeStrongTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
   }
 
+  /** Materializes a `Tag[T]` for a type that has unresolved parts; asserts that it has some. */
   final def makeWeakTag[T: c.WeakTypeTag]: c.Expr[Tag[T]] = {
     val tpe = weakTypeOf[T]
     assert(!ReflectionUtil.allPartsStrong(tpe.dealias))
     makeWeakTagImpl[T](tpe, implicitly[c.WeakTypeTag[T]])
   }
 
+  /** Wraps the result of `makeHKTag` in an `HKTagMaterializer`. */
   @inline final def makeHKTagMaterializer[ArgStruct: c.WeakTypeTag]: c.Expr[HKTagMaterializer[ArgStruct]] = {
     c.Expr[HKTagMaterializer[ArgStruct]](q"new ${weakTypeOf[HKTagMaterializer[ArgStruct]]}(${makeHKTag[ArgStruct]})")
   }
 
+  /** Materializes an `HKTag` for the type constructor described by `ArgStruct`. */
   @inline final def makeHKTag[ArgStruct](implicit argStructTag: c.WeakTypeTag[ArgStruct]): c.Expr[HKTag[ArgStruct]] = {
     val argStruct = weakTypeOf[ArgStruct]
     val ctor = ltagMacro.unpackArgStruct(argStruct)
@@ -534,6 +540,7 @@ class TagMacro(val c: blackbox.Context) {
     c.Expr[LightTypeTag](q"$tagTree.tag")
   }
 
+  /** Returns the string argument of the first annotation on `Tag`, or the default message when there is none. */
   def getImplicitError(): String = {
     val annotations = symbolOf[Tag[Any]].annotations
     annotations
@@ -544,6 +551,7 @@ class TagMacro(val c: blackbox.Context) {
       ).getOrElse(defaultTagImplicitError)
   }
 
+  /** Aborts compilation at the macro call with the message of `getImplicitError()`. */
   def abortWithImplicitError(): Nothing = {
     c.abort(c.enclosingPosition, getImplicitError())
   }
@@ -632,12 +640,14 @@ private object TagMacro {
   }
 }
 
+/** Whitebox macro behind `Tag.auto.T`: it builds a type for the kind of the type that `Tag.auto.T` is applied to. */
 @NowarnCompat.nowarn("msg=deprecated")
 class TagLambdaMacro(override val c: whitebox.Context) extends TagMacro(c) {
 
   import c.universe._
   import c.universe.internal.decorators._
 
+  /** Returns a tree whose type is `{ type T[...] = HKTag[...] }` for the kind of that type; aborts when the type is not found in the source. */
   def lambdaImpl: c.Tree = {
     val pos = c.macroApplication.pos
 

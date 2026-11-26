@@ -27,7 +27,7 @@ private[reflect] object ReflectionUtil {
 
   /** Mini `normalize`. `normalize` is deprecated and we don't want to do scary things such as evaluate type-lambdas anyway.
     * And AFAIK the only case that can make us confuse a type-parameter for a non-parameter is an empty refinement `T {}`.
-    * So we just strip it when we get it.
+    * So we just strip it when we get it. Type annotations are stripped as well.
     */
   // ReflectionUtil.norm but with added logging
   @tailrec @inline
@@ -140,7 +140,9 @@ private[reflect] object ReflectionUtil {
 
   /** Represents the kind of a type, including bounds.
     * @param params nested kinds for each type parameter
-    * @param bounds optional type bounds (None for default bounds Nothing..Any)
+    * @param bounds `Some` when the type the kind is made from is type bounds, or a polymorphic type with type bounds as result: for
+    *               `ofSymbol` on a type parameter, its signature, default bounds `Nothing..Any` included; `None` otherwise, such as for
+    *               the type that `ofType` receives (`List`, or a reference to a type parameter)
     * @param symbol original type parameter symbol (for substitution during type construction)
     */
   final case class KindInfo[+U <: Universe](params: List[KindInfo[U]], bounds: Option[U#TypeBoundsApi], symbol: U#Symbol)
