@@ -1120,3 +1120,166 @@ object LightTypeTag {
   }
 
 }
+
+object LightTypeTag {
+  import java.lang.ref.SoftReference
+  import java.util.concurrent.ConcurrentHashMap
+
+  // Cache for LightTypeTag instances
+  private val tagCache = new ConcurrentHashMap[LightTypeTagRef, SoftReference[LightTypeTag]]()
+
+  // Cache for basesDb
+  private val basesDbCache = new ConcurrentHashMap[LightTypeTagRef, SoftReference[Map[AbstractReference, Set[AbstractReference]]]]()
+
+  // Cache for inheritanceDb
+  private val inheritanceDbCache = new ConcurrentHashMap[LightTypeTagRef, SoftReference[Map[NameReference, Set[NameReference]]]]()
+
+  // Cache for serialized form
+  private val serializedCache = new ConcurrentHashMap[LightTypeTagRef, SoftReference[Serialized]]()
+
+  // Flags to enable/disable caches
+  private val cacheEnabled: Boolean = {
+    System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean().getOrElse(true)
+  }
+
+  private val basesDbCacheEnabled: Boolean = {
+    System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.basesdb`).asBoolean().getOrElse(true)
+  }
+
+  private val inheritanceDbCacheEnabled: Boolean = {
+    System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.inheritancedb`).asBoolean().getOrElse(true)
+  }
+
+  private val serializedCacheEnabled: Boolean = {
+    System.getProperty(DebugProperties.`izumi.reflect.rtti.cache.serialized`).asBoolean().getOrElse(true)
+  }
+
+  def apply(ref: LightTypeTagRef): LightTypeTag = {
+    if (!cacheEnabled) {
+      new LightTypeTag(ref, Map.empty, Map.empty)
+    } else {
+      val cached = tagCache.get(ref)
+      if (cached != null) {
+        val value = cached.get()
+        if (value != null) {
+          value
+        } else {
+          val newTag = new LightTypeTag(ref, Map.empty, Map.empty)
+          tagCache.put(ref, new SoftReference(newTag))
+          newTag
+        }
+      } else {
+        val newTag = new LightTypeTag(ref, Map.empty, Map.empty)
+        tagCache.put(ref, new SoftReference(newTag))
+        newTag
+      }
+    }
+  }
+
+  def apply(
+    ref: LightTypeTagRef,
+    bases: Map[AbstractReference, Set[AbstractReference]],
+    inheritanceDb: Map[NameReference, Set[NameReference]]
+  ): LightTypeTag = {
+    if (!cacheEnabled) {
+      new LightTypeTag(() => bases, () => inheritanceDb)
+    } else {
+      val cached = tagCache.get(ref)
+      if (cached != null) {
+        val value = cached.get()
+        if (value != null) {
+          value
+        } else {
+          val newTag = new LightTypeTag(
+            () => if (basesDbCacheEnabled) getOrUpdateBasesDb(ref, bases) else bases,
+            () => if (inheritanceDbCacheEnabled) getOrUpdateInheritanceDb(ref, inheritanceDb) else inheritanceDb
+          )
+          tagCache.put(ref, new SoftReference(newTag))
+          newTag
+        }
+      } else {
+        val newTag = new LightTypeTag(
+          () => if (basesDbCacheEnabled) getOrUpdateBasesDb(ref, bases) else bases,
+          () => if (inheritanceDbCacheEnabled) getOrUpdateInheritanceDb(ref, inheritanceDb) else inheritanceDb
+        )
+        tagCache.put(ref, new SoftReference(newTag))
+        newTag
+      }
+    }
+  }
+
+  private def getOrUpdateBasesDb(
+    ref: LightTypeTagRef,
+    bases: Map[AbstractReference, Set[AbstractReference]]
+  ): Map[AbstractReference, Set[AbstractReference]] = {
+    if (!basesDbCacheEnabled) {
+      bases
+    } else {
+      val cached = basesDbCache.get(ref)
+      if (cached != null) {
+        val value = cached.get()
+        if (value != null) {
+          value
+        } else {
+          basesDbCache.put(ref, new SoftReference(bases))
+          bases
+        }
+      } else {
+        basesDbCache.put(ref, new SoftReference(bases))
+        bases
+      }
+    }
+  }
+
+  private def getOrUpdateInheritanceDb(
+    ref: LightTypeTagRef,
+    inheritanceDb: Map[NameReference, Set[NameReference]]
+  ): Map[NameReference, Set[NameReference]] = {
+    if (!inheritanceDbCacheEnabled) {
+      inheritanceDb
+    } else {
+      val cached = inheritanceDbCache.get(ref)
+      if (cached != null) {
+        val value = cached.get()
+        if (value != null) {
+          value
+        } else {
+          inheritanceDbCache.put(ref, new SoftReference(inheritanceDb))
+          inheritanceDb
+        }
+      } else {
+        inheritanceDbCache.put(ref, new SoftReference(inheritanceDb))
+        inheritanceDb
+      }
+    }
+  }
+
+  def parse(hash: Int, refString: String, dbsString: String, version: Int): LightTypeTag = {
+    if (version != currentBinaryFormatVersion) {
+      throw new IllegalArgumentException(s"LightTypeTag version $version is not compatible with current version $currentBinaryFormatVersion")
+    }
+
+    val ref = UnpickleImpl[LightTypeTagRef].fromBytes(ByteBuffer.wrap(refString.getBytes(StandardCharsets.ISO_8859_1)), lttRefSerializer)
+    val dbs = UnpickleImpl[SubtypeDBs].fromBytes(ByteBuffer.wrap(dbsString.getBytes(StandardCharsets.ISO_8859_1)), subtypeDBsSerializer)
+
+    if (cacheEnabled) {
+      val cached = tagCache.get(ref)
+      if (cached != null) {
+        val value = cached.get()
+        if (value != null) {
+          return value
+        }
+      }
+    }
+
+    val tag = new LightTypeTag(
+      () => if (basesDbCacheEnabled) getOrUpdateBasesDb(ref, dbs.bases) else dbs.bases,
+      () => if (inheritanceDbCacheEnabled) getOrUpdateInheritanceDb(ref, dbs.idb) else dbs.idb
+    )
+
+    if (cacheEnabled) {
+      tagCache.put(ref, new SoftReference(tag))
+    }
+
+    tag
+  }

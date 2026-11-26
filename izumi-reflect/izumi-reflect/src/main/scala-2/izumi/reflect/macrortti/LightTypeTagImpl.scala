@@ -35,12 +35,26 @@ import scala.language.reflectiveCalls
 import scala.reflect.api.Universe
 
 object LightTypeTagImpl {
-  private lazy val globalCache = new java.util.WeakHashMap[Any, AbstractReference]
+  private lazy val globalCache = new java.util.concurrent.ConcurrentHashMap[Any, java.lang.ref.SoftReference[AbstractReference]]()
 
   /** caching is enabled by default for runtime light type tag creation */
   private[this] lazy val runtimeCacheEnabled: Boolean = {
     System
       .getProperty(DebugProperties.`izumi.reflect.rtti.cache.runtime`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** caching is enabled by default for basesDb */
+  private[this] lazy val basesDbCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.basesdb`).asBoolean()
+      .getOrElse(true)
+  }
+
+  /** caching is enabled by default for inheritanceDb */
+  private[this] lazy val inheritanceDbCacheEnabled: Boolean = {
+    System
+      .getProperty(DebugProperties.`izumi.reflect.rtti.cache.inheritancedb`).asBoolean()
       .getOrElse(true)
   }
 
@@ -102,6 +116,7 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
     val fullDb = makeFullDb(tpe, allReferenceComponents).toMultimap
     val unappliedDb = makeClassOnlyInheritanceDb(tpe, allReferenceComponents.iterator)
 
+    // Use the new LightTypeTag companion object with caching
     LightTypeTag(lttRef, fullDb, unappliedDb)
   }
 
@@ -415,13 +430,20 @@ final class LightTypeTagImpl[U <: Universe with Singleton](val u: U, withCache: 
 
   private[this] def makeRef(tpe: Type): AbstractReference = {
     if (withCache) {
-      globalCache.synchronized(globalCache.get(tpe)) match {
+      globalCache.get(tpe) match {
         case null =>
           val ref = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
-          globalCache.synchronized(globalCache.put(tpe, ref))
+          globalCache.put(tpe, new java.lang.ref.SoftReference(ref))
           ref
-        case ref =>
-          ref
+        case softRef =>
+          val ref = softRef.get()
+          if (ref != null) {
+            ref
+          } else {
+            val newRef = makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
+            globalCache.put(tpe, new java.lang.ref.SoftReference(newRef))
+            newRef
+          }
       }
     } else {
       makeRefTop(tpe, terminalNames = Map.empty, isLambdaOutput = false)
