@@ -267,10 +267,10 @@ object HKTagMaterializer {
 }
 
 /**
-  * A tag that may contain unresolved type parameters. When a `Tag[T]` is in scope, `WeakTag[T]` holds the same type;
-  * otherwise it falls back to `LTag.Weak[T]`, which keeps each type parameter that has no tag as a named placeholder,
-  * with `Object` as the closest class. On Scala 3 there is no such fallback for a type parameter without a tag:
-  * `WeakTag[T]` and `WeakTag[List[T]]` fail to compile with the missing `Tag` error.
+  * A tag that may contain unresolved type parameters. When a `Tag[T]` can be built, `WeakTag[T]` holds the same type;
+  * otherwise it falls back to `LTag.Weak[T]`, which keeps the abstract type parameters of `T` as named placeholders,
+  * including those that have a `Tag` in scope, with `Object` as the closest class. On Scala 3 there is no such fallback
+  * for a type parameter without a tag: `WeakTag[T]` and `WeakTag[List[T]]` fail to compile with the missing `Tag` error.
   *
   * Dependency injection frameworks use it to describe the signatures of generic methods; other code should use [[Tag]].
   *
@@ -280,6 +280,8 @@ object HKTagMaterializer {
   *
   * val placeholder: String = weakListTag[Int].tag.toString // "List[+T]"
   * }}}
+  *
+  * @see [[https://zio.dev/izumi-reflect/reference/tag/ Tag and the TagK Family]]
   */
 trait WeakTag[T] extends AnyTag {
   /** The [[izumi.reflect.macrortti.LightTypeTag]] of `T`, with placeholders for unresolved type parameters. */
