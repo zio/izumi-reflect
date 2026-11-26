@@ -100,7 +100,8 @@ trait AnyTag extends Serializable {
   * }}}
   *
   * When a type parameter has no tag in scope, compilation fails with a message that contains
-  * `could not find implicit value for izumi.reflect.Tag[T]`. Add a context bound for that parameter.
+  * `could not find implicit value for izumi.reflect.Tag[...]`, naming the type parameter or a type that contains it.
+  * Add a context bound for that parameter.
   *
   * Limits, on Scala 2 and Scala 3:
   *  - Type parameters are not substituted inside the methods and values of a structural type: with `T = Int`,
