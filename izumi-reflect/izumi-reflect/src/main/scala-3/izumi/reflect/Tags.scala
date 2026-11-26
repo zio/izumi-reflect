@@ -194,8 +194,9 @@ object Tag {
 
   /**
     * Creates the tag of the intersection of the `intersection` types with a structural refinement, such as
-    * `(A with B) { def close(): Unit }`. Only the refinement part of `structType` is used, so a weak tag of the whole
-    * refined type and a weak tag of the bare refinement give the same result. Each entry of `additionalTypeMembers`
+    * `(A with B) { def close(): Unit }`. From `structType` it takes the refinement members and the subtype data and
+    * ignores the rest, so a weak tag of the whole refined type and a weak tag of the bare refinement give equal results.
+    * Each entry of `additionalTypeMembers`
     * adds a type member (`type Name = Type`) and replaces a member of `structType` with the same name.
     *
     * {{{
