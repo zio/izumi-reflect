@@ -918,6 +918,19 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChildStrict(LTT[{ def T: Int }], LTT[{ type T }])
     }
 
+    "support indirect structural subtype checks (issue #481)" in {
+      // A concrete type that overrides an abstract type member should be a subtype of
+      // a refinement type that specifies the same concrete type member value.
+      assertChild(LTT[RefinedAInt], LTT[RefinedA { type T = Int }])
+      // Soundness: must NOT match a different type member value
+      assertNotChild(LTT[RefinedAInt], LTT[RefinedA { type T = String }])
+      // A different concrete override should match its own value
+      assertChild(LTT[RefinedAString], LTT[RefinedA { type T = String }])
+      assertNotChild(LTT[RefinedAString], LTT[RefinedA { type T = Int }])
+      // Check against unparameterized parent: a class with type A should be subtype of { type A }
+      assertChild(LTT[C], LTT[{ type A }])
+    }
+
     "what about non-empty refinements with intersections" in {
       val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
       val debug = ltt.debug()
