@@ -95,6 +95,30 @@ class TagTest extends SharedTagTest {
       assert(t[TraitK30, Trait30].tag == Tag[TraitK30[Trait30]].tag)
     }
 
+    "regression test for https://github.com/zio/izumi-reflect/issues/571: RuntimeAPI.unpack handles abstract type bounds with intersections" in {
+      trait Scope {
+        trait X
+
+        type SomeType[S] <: S with X
+
+        trait RootTrait[P]
+        trait TestTrait[F[_]] extends RootTrait[SomeType[String]]
+      }
+      object Scope extends Scope
+      import Scope._
+
+      def unpackTag[F[_]: TagK] = {
+        val ref = implicitly[Tag[TestTrait[F]]].tag.ref match {
+          case reference: LightTypeTagRef.AbstractReference => reference
+        }
+        RuntimeAPI.unpack(ref)
+      }
+
+      type Id[A] = A
+
+      assert(unpackTag[Id].nonEmpty)
+    }
+
     "example in 3.0.9 release notes works" in {
       def printColType[F[+x] <: Iterable[x]: Tag.auto.T]: LightTypeTag = {
         Tag[F[Int]].tag

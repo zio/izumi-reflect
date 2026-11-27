@@ -663,8 +663,12 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assert(!debugCombined.contains("W4[=B]"))
       assert(!debugCombined.contains("W3[=B]"))
       assert(!debugCombined.contains("W5[=A]"))
+      assert(!debugCombined.contains("W4[=scala.Int]"))
+      assert(!debugCombined.contains("W3[=scala.Int]"))
       assert(debugCombined.contains("W5[=scala.Int]"))
 
+      assertSame(combined, alias)
+      assertSame(combined, direct)
       assertDebugSame(alias, direct)
     }
 
@@ -725,15 +729,20 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       val oneArgApplied = `LTT[_,_]`[Right].combine(LTT[Throwable]).combine(LTT[Unit])
       val debug5 = oneArgApplied.debug()
 
+      assertSame(oneArgApplied, LTT[Right[Throwable, Unit]])
+
       assert(!debug5.contains("package::Right"))
       assert(!debug5.contains("<refinement>"))
       assert(!debug5.contains("<none>"))
       assert(!debug5.contains("scala.package.A"))
       assert(!debug5.contains("scala.package.B"))
       assert(!debug5.contains("+scala.Nothing"))
+      assert(debug5.contains(": scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
+      assert(debug5.contains("- scala.util.Right[+java.lang.Throwable,+scala.Unit]"))
       assert(debug5.contains("* scala.Product"))
       assert(debug5.contains("- λ %1 → scala.util.Right[+java.lang.Throwable,+1]"))
       assert(debug5.contains("- λ %0,%1 → scala.util.Right[+0,+1]"))
+      assert(!debug5.contains("λ %1 → scala.util.Right[+scala.Unit,+1]"))
     }
 
     "No degenerate lambdas (regression test https://github.com/zio/izumi-reflect/issues/345)" in {
