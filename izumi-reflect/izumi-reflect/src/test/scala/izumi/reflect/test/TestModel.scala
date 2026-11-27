@@ -108,6 +108,19 @@ object TestModel {
   type WithX = { type X }
   type FXS <: { type F[A] = A }
 
+  // Regression: https://github.com/zio/izumi-reflect/issues/481
+  // A trait that fixes an inherited abstract type member must be a subtype of the
+  // structural form of its parent with the same type member fixed.
+  trait Issue481A {
+    type T
+  }
+  trait Issue481AInt extends Issue481A {
+    override type T = Int
+  }
+  trait Issue481AStr extends Issue481A {
+    override type T = String
+  }
+
   trait H1
   trait H2 extends H1
   trait H3 extends H2
