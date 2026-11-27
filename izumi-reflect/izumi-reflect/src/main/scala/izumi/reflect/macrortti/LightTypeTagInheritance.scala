@@ -58,6 +58,7 @@ object LightTypeTagInheritance {
 final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   private[this] lazy val basesdb: ImmutableMultiMap[AbstractReference, AbstractReference] = LightTypeTag.mergeIDBs(self.basesdb, other.basesdb)
   private[this] lazy val idb: ImmutableMultiMap[NameReference, NameReference] = LightTypeTag.mergeIDBs(self.idb, other.idb)
+  private[this] val visiting: mutable.HashSet[(LightTypeTagRef, LightTypeTagRef)] = mutable.HashSet.empty
 
   /** Returns `true` when the type of `self` is a subtype of the type of `other`. */
   def isChild(): Boolean = {
@@ -75,6 +76,15 @@ final class LightTypeTagInheritance(self: LightTypeTag, other: LightTypeTag) {
   private def isChild(ctx: Ctx)(selfT: LightTypeTagRef, thatT: LightTypeTagRef): Boolean = {
     import ctx._
     logger.log(s"✴️ isChild: `${selfT.repr}` <:< `${thatT.repr}`, context = $ctx")
+
+    val key = (selfT, thatT)
+    if (!visiting.add(key)) return false // cycle detected, conservative false
+    try isChildImpl(ctx)(selfT, thatT)
+    finally visiting.remove(key)
+  }
+
+  private def isChildImpl(ctx: Ctx)(selfT: LightTypeTagRef, thatT: LightTypeTagRef): Boolean = {
+    import ctx._
 
     val result = (selfT, thatT) match {
       case (s, t) if s == t =>
