@@ -21,13 +21,16 @@ object Inspect {
 
   /** Returns the expression of the `LightTypeTag` of `typeRepr`: its reference and its two databases. */
   def inspectTypeRepr(using qctx: Quotes)(typeRepr: qctx.reflect.TypeRepr): Expr[LightTypeTag] = {
-    val ltt = {
-      val ref = TypeInspections(typeRepr)
-      val fullDb = TypeInspections.fullDb(typeRepr)
-      val nameDb = TypeInspections.unappliedDb(typeRepr)
-      LightTypeTag(ref, fullDb, nameDb)
+    val serialized = CompileTimeCaches.serializedFor(typeRepr) {
+      val ltt = {
+        val ref = TypeInspections(typeRepr)
+        val fullDb = TypeInspections.fullDb(typeRepr)
+        val nameDb = TypeInspections.unappliedDb(typeRepr)
+        LightTypeTag(ref, fullDb, nameDb)
+      }
+      ltt.serialize()
     }
-    makeParsedLightTypeTagImpl(ltt)
+    makeParsedLightTypeTagImpl(serialized)
   }
 
   /** Returns the expression of the `LightTypeTag` of `T`; aborts compilation when `T` has unresolved type parameters. */
@@ -44,7 +47,10 @@ object Inspect {
 
   /** Returns an expression that parses the serialized form of `ltt` with `LightTypeTag.parse`. */
   def makeParsedLightTypeTagImpl(ltt: LightTypeTag)(using qctx: Quotes): Expr[LightTypeTag] = {
-    val serialized = ltt.serialize()
+    makeParsedLightTypeTagImpl(ltt.serialize())
+  }
+
+  def makeParsedLightTypeTagImpl(serialized: LightTypeTag.Serialized)(using qctx: Quotes): Expr[LightTypeTag] = {
     val hashCodeRef = serialized.hash
     val strRef = serialized.ref
     val strDBs = serialized.databases
@@ -52,8 +58,8 @@ object Inspect {
     InspectorBase.ifDebug {
       def string2hex(str: String): String = str.toList.map(_.toInt.toHexString).mkString
 
-      println(s"${ltt.ref} => ${strRef.size} bytes, ${string2hex(strRef)}")
-      println(s"${SubtypeDBs.make(ltt.basesdb, ltt.idb)} => ${strDBs.size} bytes, ${string2hex(strDBs)}")
+      println(s"$strRef => ${strRef.size} bytes, ${string2hex(strRef)}")
+      println(s"$strDBs => ${strDBs.size} bytes, ${string2hex(strDBs)}")
       println(strDBs)
     }
 
