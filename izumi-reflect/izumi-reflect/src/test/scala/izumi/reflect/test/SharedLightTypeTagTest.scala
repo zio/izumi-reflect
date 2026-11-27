@@ -918,6 +918,17 @@ abstract class SharedLightTypeTagTest extends TagAssertions {
       assertNotChildStrict(LTT[{ def T: Int }], LTT[{ type T }])
     }
 
+    "support subtype checks against structural refinements of inherited type members" in {
+      assertChild(LTT[Issue481AInt], LTT[Issue481A { type T = Int }])
+      assertChild(LTT[Issue481AString], LTT[Issue481A { type T = String }])
+
+      assertNotChild(LTT[Issue481AInt], LTT[Issue481A { type T = String }])
+      assertNotChild(LTT[Issue481AString], LTT[Issue481A { type T = Int }])
+
+      assertChild(LTT[Issue481AInt], LTT[Issue481A { type T <: AnyVal }])
+      assertNotChild(LTT[Issue481AString], LTT[Issue481A { type T <: AnyVal }])
+    }
+
     "what about non-empty refinements with intersections" in {
       val ltt = LTT[Int with Object with Option[String] { def a: Boolean }]
       val debug = ltt.debug()
